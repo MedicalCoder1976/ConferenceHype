@@ -9,3 +9,5 @@ public/rendered/*
 public/clips/*
 !public/rendered/.gitkeep
 !public/clips/.gitkeep
+
+.vercel
