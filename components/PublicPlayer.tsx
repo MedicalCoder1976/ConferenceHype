@@ -7,8 +7,14 @@ type Props = {
 };
 
 export function PublicPlayer({ streamState, currentSegment }: Props) {
+  const audioStreamUrl = process.env.NEXT_PUBLIC_AUDIO_STREAM_URL;
   const youtubeId = process.env.NEXT_PUBLIC_YOUTUBE_VIDEO_ID;
   const hlsUrl = process.env.NEXT_PUBLIC_HLS_URL;
+  const streamLabel = audioStreamUrl
+    ? "audio saver"
+    : hlsUrl
+      ? "low hls"
+      : streamState.mode;
 
   return (
     <div className="overflow-hidden border border-ink/15 bg-white shadow-panel lg:min-h-[520px] xl:min-h-[580px]">
@@ -20,7 +26,7 @@ export function PublicPlayer({ streamState, currentSegment }: Props) {
           </span>
         </div>
         <span className="rounded-full bg-mint px-3 py-1 text-xs font-black uppercase text-white">
-          {streamState.mode}
+          {streamLabel}
         </span>
       </div>
 
@@ -33,6 +39,25 @@ export function PublicPlayer({ streamState, currentSegment }: Props) {
               The automated stream is paused while operators review the current
               queue.
             </p>
+          </div>
+        ) : audioStreamUrl ? (
+          <div className="flex h-full flex-col items-center justify-center gap-4 p-5 text-center text-white md:p-8">
+            <Radio className="h-10 w-10 text-cyanline md:h-12 md:w-12" />
+            <h2 className="text-xl font-black md:text-2xl">
+              Audio saver stream
+            </h2>
+            <p className="max-w-md text-sm text-white/75">
+              Built for crowded conference Wi-Fi. Starts muted when allowed;
+              tap once for sound.
+            </p>
+            <audio
+              className="w-full max-w-md"
+              autoPlay
+              muted
+              controls
+              preload="metadata"
+              src={audioStreamUrl}
+            />
           </div>
         ) : youtubeId ? (
           <iframe
@@ -49,7 +74,7 @@ export function PublicPlayer({ streamState, currentSegment }: Props) {
             muted
             controls
             playsInline
-            preload="auto"
+            preload="metadata"
             src={hlsUrl}
           />
         ) : (
@@ -66,7 +91,7 @@ export function PublicPlayer({ streamState, currentSegment }: Props) {
 
       <div className="p-3 md:p-4 lg:p-5">
         <div className="mb-3 bg-paper px-3 py-2 text-xs font-black uppercase tracking-wide text-ink/70">
-          Autoplays muted when live. Tap for sound.
+          Bandwidth saver: audio first, low-bitrate video next. Tap for sound.
         </div>
         <div className="text-xs font-black uppercase tracking-wide text-broadcast">
           Current topic

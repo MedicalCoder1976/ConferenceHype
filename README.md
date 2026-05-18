@@ -32,6 +32,7 @@ The app runs in mock mode without credentials. Add `.env.local` values when you 
 ## Production Setup
 
 Use [LAUNCH_CHECKLIST.md](./LAUNCH_CHECKLIST.md) as the step-by-step operator checklist.
+Use [LOW_BANDWIDTH.md](./LOW_BANDWIDTH.md) for the conference-bandwidth operating rule.
 
 ### 1. GitHub
 
@@ -70,8 +71,9 @@ GitHub Actions:
 1. Import the GitHub repo.
 2. Add the values from `.env.example`.
 3. Deploy from `main`.
-4. Set `NEXT_PUBLIC_YOUTUBE_VIDEO_ID` when the live stream is created.
-5. Set `NEXT_PUBLIC_HLS_URL` when the fallback playlist is available.
+4. Set `NEXT_PUBLIC_AUDIO_STREAM_URL` for the lowest-bandwidth public player.
+5. Set `NEXT_PUBLIC_HLS_URL` when the low-bitrate fallback playlist is available.
+6. Set `NEXT_PUBLIC_YOUTUBE_VIDEO_ID` when the YouTube stream is created.
 
 ### 4. YouTube
 
