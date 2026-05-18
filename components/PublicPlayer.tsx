@@ -11,12 +11,12 @@ export function PublicPlayer({ streamState, currentSegment }: Props) {
   const hlsUrl = process.env.NEXT_PUBLIC_HLS_URL;
 
   return (
-    <div className="border border-ink/15 bg-white shadow-panel">
-      <div className="flex items-center justify-between border-b border-ink/10 p-4">
+    <div className="overflow-hidden border border-ink/15 bg-white shadow-panel lg:min-h-[520px] xl:min-h-[580px]">
+      <div className="flex items-center justify-between gap-3 border-b border-ink/10 p-3 md:p-4">
         <div className="flex items-center gap-2">
           <Radio className="h-5 w-5 text-broadcast" />
-          <span className="font-black uppercase tracking-wide">
-            Live desk monitor
+          <span className="text-sm font-black uppercase tracking-wide md:text-base">
+            Tap in live
           </span>
         </div>
         <span className="rounded-full bg-mint px-3 py-1 text-xs font-black uppercase text-white">
@@ -24,11 +24,11 @@ export function PublicPlayer({ streamState, currentSegment }: Props) {
         </span>
       </div>
 
-      <div className="aspect-video bg-ink">
+      <div className="aspect-video bg-ink lg:aspect-[16/9]">
         {streamState.emergencyActive ? (
-          <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center text-white">
-            <ShieldAlert className="h-12 w-12 text-gold" />
-            <h2 className="text-2xl font-black">Emergency override active</h2>
+          <div className="flex h-full flex-col items-center justify-center gap-3 p-5 text-center text-white md:p-8">
+            <ShieldAlert className="h-10 w-10 text-gold md:h-12 md:w-12" />
+            <h2 className="text-xl font-black md:text-2xl">Emergency override active</h2>
             <p className="max-w-md text-sm text-white/75">
               The automated stream is paused while operators review the current
               queue.
@@ -37,30 +37,41 @@ export function PublicPlayer({ streamState, currentSegment }: Props) {
         ) : youtubeId ? (
           <iframe
             className="h-full w-full"
-            src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1`}
+            src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&playsinline=1&controls=1&rel=0`}
             title="ASCO Hype live stream"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
           />
         ) : hlsUrl ? (
-          <video className="h-full w-full" controls playsInline src={hlsUrl} />
+          <video
+            className="h-full w-full"
+            autoPlay
+            muted
+            controls
+            playsInline
+            preload="auto"
+            src={hlsUrl}
+          />
         ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center text-white">
-            <Tv className="h-12 w-12 text-cyanline" />
-            <h2 className="text-2xl font-black">Stream preview mode</h2>
+          <div className="flex h-full flex-col items-center justify-center gap-3 p-5 text-center text-white md:p-8">
+            <Tv className="h-10 w-10 text-cyanline md:h-12 md:w-12" />
+            <h2 className="text-xl font-black md:text-2xl">Stream warming up</h2>
             <p className="max-w-md text-sm text-white/75">
-              Add YouTube or HLS environment variables after deployment to turn
-              on the live player.
+              When the YouTube or HLS stream is connected, it will start muted
+              automatically. Tap once for sound.
             </p>
           </div>
         )}
       </div>
 
-      <div className="p-4">
+      <div className="p-3 md:p-4 lg:p-5">
+        <div className="mb-3 bg-paper px-3 py-2 text-xs font-black uppercase tracking-wide text-ink/70">
+          Autoplays muted when live. Tap for sound.
+        </div>
         <div className="text-xs font-black uppercase tracking-wide text-broadcast">
           Current topic
         </div>
-        <h3 className="mt-1 text-xl font-black text-ink">
+        <h3 className="mt-1 text-lg font-black leading-tight text-ink md:text-xl xl:text-2xl">
           {currentSegment?.title ?? "Awaiting first live topic"}
         </h3>
         <p className="mt-2 text-sm leading-6 text-ink/70">
