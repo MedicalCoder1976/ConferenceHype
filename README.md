@@ -54,8 +54,31 @@ Add repository secrets:
 GitHub Actions:
 
 - `Ingest sources`: runs every 30 minutes.
-- `Generate review segments`: runs hourly.
+- `Generate ASCO 75-minute briefing`: runs every 75 minutes and creates the short "what happened / what is next" agenda segment from the preprocessed ASCO schedule and abstract index.
+- `Generate review segments`: runs hourly for media, social, exhibitor, and background programming.
 - `Render media`: manual until media storage and worker deployment are finalized.
+
+## ASCO 2026 Batch Backbone
+
+The recurring schedule desk is intentionally low-token. The local ASCO schedule workbook and abstracts CSV are preprocessed into `data/asco2026/core-index.json`. The briefing job sends only a small window to the LLM:
+
+- last 75 minutes: sessions that just wrapped
+- next 60 minutes: sessions attendees may want to catch next
+- a small number of matching abstract records for context
+
+Run locally:
+
+```powershell
+npm run job:briefing
+```
+
+For a local smoke test outside the live ASCO dates:
+
+```powershell
+$env:ASCO_BRIEFING_NOW="2026-05-29T14:30:00-05:00"; npm run job:briefing
+```
+
+The raw source files should stay local/operator-controlled. Do not paste whole workbooks, full abstract exports, or full article bodies into prompts.
 
 ### 2. Supabase
 
@@ -119,6 +142,7 @@ npm run build
 npm run typecheck
 npm run job:ingest
 npm run job:generate
+npm run job:briefing
 npm run job:render
 ```
 

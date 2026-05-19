@@ -98,6 +98,7 @@ Run:
 ```powershell
 npm run typecheck
 npm run build
+$env:ASCO_BRIEFING_NOW="2026-05-29T14:30:00-05:00"; npm run job:briefing
 npm run job:ingest
 npm run job:generate
 ```
@@ -107,6 +108,7 @@ Then verify:
 - Public site loads.
 - Terms page loads.
 - `/admin` requires login after `ADMIN_SHARED_SECRET` is set.
+- ASCO 75-minute briefing creates one pending review segment from `data/asco2026/core-index.json`.
 - Ingest job pulls RSS and hashtag posts.
 - Generate job creates review segments.
 - Approval updates the public queue.

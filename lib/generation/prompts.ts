@@ -5,12 +5,14 @@ export function buildReporterPrompt({
   persona,
   sources,
   language,
-  hypeLevel
+  hypeLevel,
+  editorialInstruction
 }: {
   persona: Persona;
   sources: IngestedItem[];
   language: string;
   hypeLevel: HypeLevel;
+  editorialInstruction?: string;
 }) {
   return `You are an AI conference reporter for ASCO Hype.
 
@@ -34,6 +36,7 @@ Rules:
 - Do not make buy/sell/hold recommendations or price predictions.
 - Include this spoken disclaimer at the beginning and end: "${defaultDisclaimer}"
 - Output valid JSON with keys: title, summary, script, citations, social_buzz_items, risk_flags, clip_candidates.
+${editorialInstruction ? `\nSegment assignment:\n${editorialInstruction}\n` : ""}
 
 Sources:
 ${sources

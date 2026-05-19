@@ -10,15 +10,20 @@ export async function generateSegmentFromSources({
   sources,
   personaId = "echo-sage",
   language = "English",
-  hypeLevel = "standard"
+  hypeLevel = "standard",
+  contentType,
+  editorialInstruction
 }: {
   sources: IngestedItem[];
   personaId?: string;
   language?: string;
   hypeLevel?: HypeLevel;
+  contentType?: Segment["contentType"];
+  editorialInstruction?: string;
 }): Promise<Segment> {
   const persona = getPersona(personaId);
   const social = sources.some((source) => source.sourceType.includes("social"));
+  const resolvedContentType = contentType ?? (social ? "social_signal" : "media_roundup");
 
   if (!env.LLM_API_KEY) {
     return {
@@ -35,7 +40,7 @@ export async function generateSegmentFromSources({
             : "Official and media sources are being ranked ahead of general chatter."
         }`
       ),
-      contentType: social ? "social_signal" : "media_roundup",
+      contentType: resolvedContentType,
       personaId: persona.id,
       personaName: persona.name,
       hypeLevel,
@@ -63,7 +68,13 @@ export async function generateSegmentFromSources({
     apiKey: env.LLM_API_KEY,
     baseURL: env.LLM_BASE_URL
   });
-  const prompt = buildReporterPrompt({ persona, sources, language, hypeLevel });
+  const prompt = buildReporterPrompt({
+    persona,
+    sources,
+    language,
+    hypeLevel,
+    editorialInstruction
+  });
   const response = await client.chat.completions.create({
     model: env.LLM_MODEL,
     messages: [{ role: "user", content: prompt }],
@@ -85,7 +96,7 @@ export async function generateSegmentFromSources({
     title: parsed.title ?? "Generated ASCO Hype segment",
     summary: parsed.summary ?? "Generated reporter-style segment for review.",
     script: withSpokenDisclaimer(parsed.script ?? ""),
-    contentType: social ? "social_signal" : "media_roundup",
+    contentType: resolvedContentType,
     personaId: persona.id,
     personaName: persona.name,
     hypeLevel,

@@ -1,0 +1,27 @@
+name: Generate ASCO 75-minute briefing
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0,5,10,15,20 * * *"
+    - cron: "15 1,6,11,16,21 * * *"
+    - cron: "30 2,7,12,17,22 * * *"
+    - cron: "45 3,8,13,18,23 * * *"
+
+jobs:
+  briefing:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run job:briefing
+        env:
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+          LLM_MODEL: ${{ secrets.LLM_MODEL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
