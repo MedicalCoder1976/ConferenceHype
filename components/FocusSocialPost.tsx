@@ -19,7 +19,7 @@ async function focusSocialPost({
   });
   const payload = await response.json();
   if (!response.ok || !payload.ok) {
-    throw new Error(payload.error ?? "Could not focus the X post.");
+    throw new Error(payload.error ?? "Could not focus the item.");
   }
   return payload as { segment?: { title?: string } };
 }
@@ -36,13 +36,13 @@ export function FocusSocialPost() {
       try {
         const result = await focusSocialPost({ postUrl, postText, operatorNote });
         setMessage(
-          `${result.segment?.title ?? "Focused X post"} added to review queue. Refresh admin to review.`
+          `${result.segment?.title ?? "Focused item"} added to review queue. Refresh admin to review.`
         );
         setPostUrl("");
         setPostText("");
         setOperatorNote("");
       } catch (error) {
-        setMessage(error instanceof Error ? error.message : "Could not focus the post.");
+        setMessage(error instanceof Error ? error.message : "Could not focus the item.");
       }
     });
   };
@@ -51,11 +51,11 @@ export function FocusSocialPost() {
     <section className="border border-ink/10 bg-white p-5 shadow-panel">
       <div className="flex items-center gap-2">
         <Megaphone className="h-5 w-5 text-broadcast" />
-        <h2 className="text-xl font-black text-ink">Focus an X post</h2>
+        <h2 className="text-xl font-black text-ink">Focus a URL or X post</h2>
       </div>
       <p className="mt-2 text-sm leading-6 text-ink/65">
-        Paste a specific X post or attendee tip. It becomes a high-energy
-        social segment in the review queue before anything airs.
+        Paste a URL, X post, or attendee tip. It becomes a high-energy
+        review segment before anything airs.
       </p>
       {message ? (
         <div className="mt-3 border border-cyanline/30 bg-cyanline/10 p-3 text-sm font-bold text-ink">
@@ -63,21 +63,21 @@ export function FocusSocialPost() {
         </div>
       ) : null}
       <label className="mt-4 block text-xs font-black uppercase text-ink/60">
-        X post URL
+        URL or X post
       </label>
       <input
         value={postUrl}
         onChange={(event) => setPostUrl(event.target.value)}
-        placeholder="https://x.com/..."
+        placeholder="x.com/asco or https://example.com/story"
         className="mt-2 w-full border border-ink/20 px-3 py-3 text-sm outline-none focus:border-broadcast"
       />
       <label className="mt-4 block text-xs font-black uppercase text-ink/60">
-        Post text or tip
+        Text, post, or tip
       </label>
       <textarea
         value={postText}
         onChange={(event) => setPostText(event.target.value)}
-        placeholder="Example: #ASCOHype coffee tip near Hall A, worth checking..."
+        placeholder="Optional if the URL has enough context. Example: #ASCOHype coffee tip near Hall A, worth checking..."
         className="mt-2 min-h-32 w-full resize-y border border-ink/20 p-3 text-sm leading-6 outline-none focus:border-broadcast"
       />
       <label className="mt-4 block text-xs font-black uppercase text-ink/60">
@@ -91,7 +91,7 @@ export function FocusSocialPost() {
       />
       <button
         className="mt-4 inline-flex w-full items-center justify-center gap-2 bg-broadcast px-4 py-3 text-sm font-black uppercase text-white disabled:opacity-50"
-        disabled={pending || postText.trim().length < 4}
+        disabled={pending || (!postUrl.trim() && postText.trim().length < 4)}
         onClick={submit}
       >
         <Send className="h-4 w-4" />
