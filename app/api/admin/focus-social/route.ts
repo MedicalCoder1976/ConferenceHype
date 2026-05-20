@@ -54,11 +54,12 @@ export async function POST(request: NextRequest) {
       ].join("\n")
     });
 
-    await saveGeneratedSegmentsToDb([segment]);
+    const savedSegments = await saveGeneratedSegmentsToDb([segment]);
+    const savedSegment = savedSegments?.[0] ?? segment;
 
     return NextResponse.json({
       ok: true,
-      segment,
+      segment: savedSegment,
       note:
         "Focused X/social post created as a pending review segment. Approve it before broadcast."
     });

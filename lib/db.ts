@@ -242,26 +242,30 @@ export async function saveGeneratedSegmentsToDb(segments: Segment[]) {
     return null;
   }
   const supabase = createAdminClient();
-  const { error } = await supabase.from("segments").insert(
-    segments.map((segment) => ({
-      title: segment.title,
-      summary: segment.summary,
-      script: segment.script,
-      content_type: segment.contentType,
-      persona_id: segment.personaId,
-      persona_name: segment.personaName,
-      hype_level: segment.hypeLevel,
-      language: segment.language,
-      status: segment.status,
-      citations: segment.citations,
-      social_buzz_items: segment.socialBuzzItems,
-      risk_flags: segment.riskFlags,
-      confidence_score: segment.confidenceScore
-    }))
-  );
+  const { data, error } = await supabase
+    .from("segments")
+    .insert(
+      segments.map((segment) => ({
+        title: segment.title,
+        summary: segment.summary,
+        script: segment.script,
+        content_type: segment.contentType,
+        persona_id: segment.personaId,
+        persona_name: segment.personaName,
+        hype_level: segment.hypeLevel,
+        language: segment.language,
+        status: segment.status,
+        citations: segment.citations,
+        social_buzz_items: segment.socialBuzzItems,
+        risk_flags: segment.riskFlags,
+        confidence_score: segment.confidenceScore
+      }))
+    )
+    .select("*");
   if (error) {
     throw error;
   }
+  return (data as SegmentRow[]).map(toSegment);
 }
 
 export async function updateSegmentDecisionInDb({
