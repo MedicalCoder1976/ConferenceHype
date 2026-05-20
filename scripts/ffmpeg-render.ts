@@ -9,6 +9,7 @@ import {
 import { getPersona } from "@/lib/generation/personas";
 import { buildSegmentRenderCommand, runCommand } from "@/lib/media/ffmpeg";
 import { synthesizeSpeech } from "@/lib/media/tts";
+import type { Segment } from "@/lib/types";
 
 async function pickSegment() {
   if (process.env.SEGMENT_ID) {
@@ -28,11 +29,29 @@ async function pickSegment() {
   return null;
 }
 
+function createSmokeTestSegment(): Segment {
+  return {
+    id: `smoke-${new Date().toISOString().replace(/[^0-9]/g, "").slice(0, 14)}`,
+    title: "ASCO Hype audio smoke test",
+    summary: "Short render test for the ElevenLabs and FFmpeg audio pipeline.",
+    script:
+      "ASCO Hype audio test. This confirms the voice rendering pipeline is connected. This is not medical advice, clinical guidance, scientific validation, legal advice, or financial advice.",
+    contentType: "agenda_preview",
+    personaId: "echo-sage",
+    personaName: "Echo Sage",
+    hypeLevel: "standard",
+    language: "English",
+    status: "draft",
+    citations: [],
+    socialBuzzItems: [],
+    riskFlags: ["smoke_test"],
+    confidenceScore: 100,
+    createdAt: new Date().toISOString()
+  };
+}
+
 async function main() {
-  const segment = await pickSegment();
-  if (!segment) {
-    throw new Error("No segment available to render. Approve or generate a segment first.");
-  }
+  const segment = (await pickSegment()) ?? createSmokeTestSegment();
 
   const persona = getPersona(segment.personaId);
   const speech = await synthesizeSpeech({
