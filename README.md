@@ -94,6 +94,7 @@ Programming rule:
 - The 20-minute upcoming-events spine is the core broadcast every day.
 - Social posts, `#ASCOHype`, X, Instagram-style posts, OncLive, STAT News, The ASCO Post, and exhibitor/company updates interrupt that spine only as reviewed media/social segments.
 - Instagram is treated as an operator/manual social watchlist and caption/reel prep path by default unless a compliant provider/API is added later.
+- Every 3 hours, the generation job can create a review-gated "social voice competition" segment that ranks leading watched X/social voices like a scoreboard. This is hype/topic discovery only, not source verification.
 
 ### 2. Supabase
 
@@ -154,6 +155,8 @@ The X ingestion job searches those terms, creates `social_signal` source items, 
 Operators can add more X accounts from the admin **X voices to call out** panel. Added follows are stored as enabled social sources and included in the X recent-search query when Supabase and `X_BEARER_TOKEN` are configured.
 
 Instagram posts, reels, and caption ideas can be pasted into the admin Instagram panel. They are treated as manual social signals, generate review-gated commentary, and can use the caption starter for outward posts asking viewers to tag `#ASCOHype` and `#ASCO26`.
+
+The admin **Social voice competition** panel shows the current scoreboard and whether the 3-hour competition segment is due in the current generation block.
 
 ## Useful Commands
 

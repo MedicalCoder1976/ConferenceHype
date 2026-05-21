@@ -7,6 +7,7 @@ import type {
   Citation,
   IngestedItem,
   Segment,
+  SocialVoiceLeader,
   SourceConfig,
   StreamState
 } from "@/lib/types";
@@ -38,6 +39,18 @@ type SourceRow = {
   enabled: boolean;
 };
 
+type IngestedItemRow = {
+  id: string;
+  title: string;
+  url: string;
+  excerpt: string;
+  author?: string | null;
+  source_type: SourceConfig["type"];
+  source_rank: number;
+  published_at?: string | null;
+  created_at: string;
+};
+
 function toSegment(row: SegmentRow): Segment {
   return {
     id: row.id,
@@ -66,6 +79,20 @@ function toSource(row: SourceRow): SourceConfig {
     type: row.type,
     rank: row.rank,
     enabled: row.enabled
+  };
+}
+
+function toIngestedItem(row: IngestedItemRow): IngestedItem {
+  return {
+    id: row.id,
+    title: row.title,
+    url: row.url,
+    excerpt: row.excerpt,
+    author: row.author ?? undefined,
+    sourceName: row.author ? `${row.author} social item` : "Social item",
+    sourceType: row.source_type,
+    rank: row.source_rank,
+    publishedAt: row.published_at ?? row.created_at
   };
 }
 
@@ -179,6 +206,38 @@ export async function getXFollowVoicesFromDb(): Promise<XVoice[] | null> {
     .filter((voice): voice is XVoice => Boolean(voice));
 }
 
+export async function getRecentSocialItemsFromDb(hours = 3): Promise<IngestedItem[] | null> {
+  if (!hasSupabase()) {
+    return null;
+  }
+  const since = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("ingested_items")
+    .select("*")
+    .eq("source_type", "general_social")
+    .gte("created_at", since)
+    .order("created_at", { ascending: false })
+    .limit(80);
+
+  if (error) {
+    throw error;
+  }
+  return (data as IngestedItemRow[]).map(toIngestedItem);
+}
+
+export async function getSocialVoiceLeaderboardFromDb(): Promise<SocialVoiceLeader[] | null> {
+  const [items, customVoices] = await Promise.all([
+    getRecentSocialItemsFromDb(3),
+    getXFollowVoicesFromDb()
+  ]);
+  if (!items) {
+    return null;
+  }
+  const { buildSocialVoiceLeaderboard } = await import("@/lib/social/leaderboard");
+  return buildSocialVoiceLeaderboard(items, customVoices ?? []);
+}
+
 export async function getAnalyticsFromDb() {
   if (!hasSupabase()) {
     return null;
@@ -278,7 +337,9 @@ export async function saveIngestedItemsToDb(items: IngestedItem[]) {
     items.map((item) => ({
       title: item.title,
       url: item.url,
-      excerpt: item.excerpt,
+      excerpt: item.engagementScore
+        ? `${item.excerpt}\n\nEngagement score: ${item.engagementScore}`
+        : item.excerpt,
       author: item.author,
       source_type: item.sourceType,
       source_rank: item.rank,

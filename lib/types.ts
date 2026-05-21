@@ -83,4 +83,15 @@ export type IngestedItem = {
   rank: number;
   publishedAt?: string;
   author?: string;
+  engagementScore?: number;
+};
+
+export type SocialVoiceLeader = {
+  label: string;
+  handle: string;
+  note: string;
+  score: number;
+  mentions: number;
+  momentum: "rising" | "steady" | "new";
+  lastSeen?: string;
 };

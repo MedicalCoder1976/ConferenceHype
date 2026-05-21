@@ -5,6 +5,7 @@ import { FocusSocialPost } from "@/components/FocusSocialPost";
 import { InstagramPushPanel } from "@/components/InstagramPushPanel";
 import { LanguageControls } from "@/components/LanguageControls";
 import { ReviewQueue } from "@/components/ReviewQueue";
+import { SocialVoiceCompetition } from "@/components/SocialVoiceCompetition";
 import { SourceManager } from "@/components/SourceManager";
 import { XVoiceCallouts } from "@/components/XVoiceCallouts";
 import { getAdminSnapshot } from "@/lib/data";
@@ -20,6 +21,11 @@ export default async function AdminPage() {
           <FocusSocialPost />
           <InstagramPushPanel />
           <XVoiceCallouts customVoices={snapshot.xFollowVoices} />
+          <SocialVoiceCompetition
+            leaders={snapshot.socialVoiceLeaderboard}
+            cadence={snapshot.nextSocialVoiceCompetition}
+            dueNow={snapshot.socialVoiceCompetitionDueNow}
+          />
           <EmergencyOverride streamState={snapshot.streamState} />
           <LanguageControls />
           <SourceManager sources={snapshot.sources} />

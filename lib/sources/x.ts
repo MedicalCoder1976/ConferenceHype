@@ -61,7 +61,18 @@ export async function fetchTaggedSocialPosts(extraVoices: XVoice[] = []): Promis
     throw new Error(`X recent search failed: ${response.status}`);
   }
   const payload = (await response.json()) as {
-    data?: Array<{ id: string; text: string; author_id?: string; created_at?: string }>;
+    data?: Array<{
+      id: string;
+      text: string;
+      author_id?: string;
+      created_at?: string;
+      public_metrics?: {
+        retweet_count?: number;
+        reply_count?: number;
+        like_count?: number;
+        quote_count?: number;
+      };
+    }>;
     includes?: {
       users?: Array<{ id: string; username?: string; name?: string }>;
     };
@@ -76,6 +87,12 @@ export async function fetchTaggedSocialPosts(extraVoices: XVoice[] = []): Promis
     const watchedVoice = voices.find(
       (voice) => voice.handle.toLowerCase() === author?.toLowerCase()
     );
+    const metrics = tweet.public_metrics;
+    const engagementScore =
+      (metrics?.like_count ?? 0) +
+      (metrics?.reply_count ?? 0) * 2 +
+      (metrics?.retweet_count ?? 0) * 3 +
+      (metrics?.quote_count ?? 0) * 3;
 
     return {
       id: `x-${tweet.id}`,
@@ -92,7 +109,8 @@ export async function fetchTaggedSocialPosts(extraVoices: XVoice[] = []): Promis
       sourceType: "general_social" as const,
       rank: 5,
       publishedAt: tweet.created_at,
-      author
+      author,
+      engagementScore
     };
   });
 }

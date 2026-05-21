@@ -4,10 +4,15 @@ import {
   getAnalyticsFromDb,
   getApprovedSegmentsFromDb,
   getPendingSegmentsFromDb,
+  getRecentSocialItemsFromDb,
   getSourcesFromDb,
   getStreamStateFromDb,
   getXFollowVoicesFromDb
 } from "@/lib/db";
+import {
+  buildSocialVoiceLeaderboard,
+  shouldRunSocialVoiceCompetition
+} from "@/lib/social/leaderboard";
 import type { AnalyticsSnapshot, Segment, StreamState } from "@/lib/types";
 
 const now = new Date().toISOString();
@@ -93,6 +98,12 @@ export async function getStreamState(): Promise<StreamState> {
 }
 
 export async function getAdminSnapshot() {
+  const xFollowVoices = (await getXFollowVoicesFromDb()) ?? [];
+  const recentSocialItems = (await getRecentSocialItemsFromDb(3)) ?? [];
+  const socialVoiceLeaderboard = buildSocialVoiceLeaderboard(
+    recentSocialItems,
+    xFollowVoices
+  );
   const pendingSegments = (await getPendingSegmentsFromDb()) ?? mockSegments.filter(
     (segment) => segment.status === "pending_review"
   );
@@ -105,7 +116,11 @@ export async function getAdminSnapshot() {
     pendingSegments,
     streamState: await getStreamState(),
     sources: (await getSourcesFromDb()) ?? sourceRegistry,
-    xFollowVoices: (await getXFollowVoicesFromDb()) ?? [],
+    xFollowVoices,
+    socialVoiceLeaderboard,
+    nextSocialVoiceCompetition:
+      "Runs from the generation job during every third UTC hour.",
+    socialVoiceCompetitionDueNow: shouldRunSocialVoiceCompetition(),
     analytics
   };
 }
