@@ -1,0 +1,37 @@
+name: YouTube stream
+
+on:
+  workflow_dispatch:
+    inputs:
+      duration_minutes:
+        description: "Maximum stream duration before GitHub stops the job"
+        required: true
+        default: "5"
+        type: choice
+        options:
+          - "5"
+          - "15"
+          - "30"
+          - "60"
+      stream_input_path:
+        description: "Video file to loop into YouTube"
+        required: true
+        default: "public/rendered/fallback-loop.mp4"
+
+jobs:
+  stream:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ fromJSON(inputs.duration_minutes) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Start YouTube RTMP loop
+        run: npm run job:stream
+        env:
+          YOUTUBE_RTMP_URL: ${{ secrets.YOUTUBE_RTMP_URL }}
+          YOUTUBE_STREAM_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
+          STREAM_INPUT_PATH: ${{ inputs.stream_input_path }}
