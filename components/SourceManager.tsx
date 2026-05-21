@@ -1,6 +1,6 @@
 import { Hash, Rss } from "lucide-react";
 import type { SourceConfig } from "@/lib/types";
-import { monitoredSocialTags } from "@/lib/sources/registry";
+import { monitoredSocialTags, monitoredXVoices } from "@/lib/sources/registry";
 
 export function SourceManager({ sources }: { sources: SourceConfig[] }) {
   return (
@@ -20,6 +20,26 @@ export function SourceManager({ sources }: { sources: SourceConfig[] }) {
           {monitoredSocialTags.conferenceHashtag}, and{" "}
           {monitoredSocialTags.botHandle}. Tagged posts enter the queue as
           social buzz and require human review before airing.
+        </p>
+      </div>
+      <div className="mt-4 border border-ink/10 bg-paper/60 p-4">
+        <div className="text-sm font-black uppercase text-ink">
+          X voices to call out after review
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {monitoredXVoices.map((voice) => (
+            <span
+              key={voice.handle}
+              className="border border-ink/15 bg-white px-3 py-2 text-xs font-bold text-ink/75"
+              title={voice.note}
+            >
+              {voice.label} {voice.handle}
+            </span>
+          ))}
+        </div>
+        <p className="mt-3 text-sm leading-6 text-ink/65">
+          Posts from these handles can become callout ideas, but they still
+          require operator review before airing.
         </p>
       </div>
       <div className="mt-4 grid gap-2">

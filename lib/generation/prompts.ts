@@ -34,6 +34,7 @@ Rules:
 - Treat hashtag, mention, and X/social items as social buzz unless confirmed by official or reputable sources.
 - Call out poster-floor energy when relevant, especially Hall A Posters and Exhibits or poster-wall / W-poster watch items.
 - Call out media-desk items when relevant, especially OncLive, STAT News, The ASCO Post, X posts, and other reviewed broadcast/media sources.
+- If a monitored X voice is included, call out the handle or source name clearly, but keep it review-gated and attributed.
 - Use phrases like "drawing attention," "being discussed," "the company says," "posted," "claimed," "reacted," and "early buzz suggests."
 - Do not tell patients or clinicians what to do.
 - Do not make buy/sell/hold recommendations or price predictions.

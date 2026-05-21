@@ -6,7 +6,7 @@ ASCO Hype is an AI-powered, reporter-style oncology conference coverage channel 
 
 - A Next.js 15 public channel and protected operator dashboard.
 - A review-gated editorial workflow for AI-generated conference commentary.
-- A monitored hashtag and bot mention loop: `#ASCOHype`, `#AskASCOHype`, `#ASCO26`, and `@ASCOHypeAI`.
+- A monitored hashtag, bot mention, and X voice loop: `#ASCOHype`, `#AskASCOHype`, `#ASCO26`, `@ASCOHypeAI`, plus reviewed posts from watched X voices such as `@ASCO`, `@ASCOPost`, `@OncLive`, and `@statnews`.
 - A low-cost deployment shape: Vercel for the app, Supabase for data/auth/storage, GitHub Actions for scheduled jobs, and a small stream worker for FFmpeg/YouTube.
 
 ## What This Is Not
@@ -147,6 +147,7 @@ Ask users to post with:
 - `#AskASCOHype`
 - `#ASCO26`
 - `@ASCOHypeAI`
+- watched X voices: `@ASCO`, `@ASCOPost`, `@OncLive`, `@statnews`
 
 The X ingestion job searches those terms, creates `social_signal` source items, and sends generated commentary to the human review queue. Operators must approve or edit scripts before airing.
 

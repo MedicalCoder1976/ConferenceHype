@@ -18,7 +18,7 @@ export async function runGenerateJob() {
       personaId: "vesper-quill",
       hypeLevel: "high_energy",
       editorialInstruction:
-        "Treat #ASCOHype, #AskASCOHype, #ASCO26, and @ASCOHypeAI posts as audience buzz that requires review. Use #ASCO26 for commentary ideas and topic discovery, but do not treat it as verified fact. If posts recommend snacks or coffee in the Exhibitor Hall, frame them as attendee tips, not endorsements, and remind listeners that availability and locations can change."
+        "Treat #ASCOHype, #AskASCOHype, #ASCO26, @ASCOHypeAI, and monitored X voice posts as audience buzz that requires review. Use #ASCO26 and watched X voices for commentary ideas and topic discovery, but do not treat them as verified fact. If a watched X voice is useful, call out the handle and source name clearly. If posts recommend snacks or coffee in the Exhibitor Hall, frame them as attendee tips, not endorsements, and remind listeners that availability and locations can change."
     })
   ]);
   await saveGeneratedSegmentsToDb(segments);

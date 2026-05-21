@@ -75,6 +75,7 @@ Use these in the public site and X profile:
 - `#AskASCOHype`
 - `#ASCO26`
 - `@ASCOHypeAI`
+- watched X voices: `@ASCO`, `@ASCOPost`, `@OncLive`, `@statnews`
 
 Create or rename the X account to match the bot handle before launch.
 

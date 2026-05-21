@@ -7,6 +7,29 @@ export const monitoredSocialTags = {
   botHandle: "@ASCOHypeAI"
 };
 
+export const monitoredXVoices = [
+  {
+    label: "ASCO",
+    handle: "@ASCO",
+    note: "official meeting and society signal"
+  },
+  {
+    label: "The ASCO Post",
+    handle: "@ASCOPost",
+    note: "oncology meeting media signal"
+  },
+  {
+    label: "OncLive",
+    handle: "@OncLive",
+    note: "oncology media signal"
+  },
+  {
+    label: "STAT",
+    handle: "@statnews",
+    note: "health and medicine media signal"
+  }
+];
+
 export const sourceRegistry: SourceConfig[] = [
   {
     id: "asco-calendar",
@@ -42,8 +65,8 @@ export const sourceRegistry: SourceConfig[] = [
   },
   {
     id: "asco-hype-tags",
-    name: "Audience hashtag and bot mentions",
-    url: `${monitoredSocialTags.primaryHashtag} ${monitoredSocialTags.secondaryHashtag} ${monitoredSocialTags.conferenceHashtag} ${monitoredSocialTags.botHandle}`,
+    name: "Audience tags and X voices",
+    url: `${monitoredSocialTags.primaryHashtag} ${monitoredSocialTags.secondaryHashtag} ${monitoredSocialTags.conferenceHashtag} ${monitoredSocialTags.botHandle} ${monitoredXVoices.map((voice) => voice.handle).join(" ")}`,
     type: "general_social",
     rank: 5,
     enabled: true
