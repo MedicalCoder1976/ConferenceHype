@@ -1,6 +1,10 @@
 import { Hash, Rss } from "lucide-react";
 import type { SourceConfig } from "@/lib/types";
-import { monitoredSocialTags, monitoredXVoices } from "@/lib/sources/registry";
+import {
+  instagramPushPrompts,
+  monitoredSocialTags,
+  monitoredXVoices
+} from "@/lib/sources/registry";
 
 export function SourceManager({ sources }: { sources: SourceConfig[] }) {
   return (
@@ -18,8 +22,10 @@ export function SourceManager({ sources }: { sources: SourceConfig[] }) {
           Monitor {monitoredSocialTags.primaryHashtag},{" "}
           {monitoredSocialTags.secondaryHashtag},{" "}
           {monitoredSocialTags.conferenceHashtag}, and{" "}
-          {monitoredSocialTags.botHandle}. Tagged posts enter the queue as
-          social buzz and require human review before airing.
+          {monitoredSocialTags.botHandle}. Instagram pushes also use{" "}
+          {monitoredSocialTags.instagramPrimaryHashtag} and{" "}
+          {monitoredSocialTags.instagramConferenceHashtag}. Tagged posts enter
+          the queue as social buzz and require human review before airing.
         </p>
       </div>
       <div className="mt-4 border border-ink/10 bg-paper/60 p-4">
@@ -42,6 +48,23 @@ export function SourceManager({ sources }: { sources: SourceConfig[] }) {
           human review queue.
         </p>
       </div>
+      <div className="mt-4 border border-ink/10 bg-paper/60 p-4">
+        <div className="text-sm font-black uppercase text-ink">
+          Instagram push prompts
+        </div>
+        <div className="mt-3 grid gap-2">
+          {instagramPushPrompts.map((item) => (
+            <div key={item.label} className="border border-ink/10 bg-white p-3">
+              <div className="text-xs font-black uppercase text-ink/55">
+                {item.label}
+              </div>
+              <p className="mt-1 text-sm font-semibold leading-6 text-ink/70">
+                {item.prompt}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
       <div className="mt-4 grid gap-2">
         {sources.map((source) => (
           <div
@@ -51,7 +74,7 @@ export function SourceManager({ sources }: { sources: SourceConfig[] }) {
             <div>
               <div className="text-sm font-black text-ink">{source.name}</div>
               <div className="text-xs font-bold uppercase text-ink/50">
-                {source.type} · tier {source.rank}
+                {source.type} - tier {source.rank}
               </div>
             </div>
             <span className="rounded-full bg-paper px-3 py-1 text-xs font-bold uppercase text-ink">

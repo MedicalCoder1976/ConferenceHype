@@ -64,9 +64,9 @@ export function ReviewQueue({ segments }: { segments: Segment[] }) {
               No items are waiting for approval right now
             </h3>
             <p className="mt-2 text-sm font-semibold leading-6 text-ink/65">
-              Use Focus a URL or X post to send a source into this queue. Once
-              an item appears here, edit the script if needed and click Approve
-              for broadcast.
+              Use Focus a URL, X post, or Instagram post to send a source into
+              this queue. Once an item appears here, edit the script if needed
+              and click Approve for broadcast.
             </p>
           </div>
         ) : null}

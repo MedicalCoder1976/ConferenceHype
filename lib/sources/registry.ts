@@ -4,7 +4,9 @@ export const monitoredSocialTags = {
   primaryHashtag: "#ASCOHype",
   secondaryHashtag: "#AskASCOHype",
   conferenceHashtag: "#ASCO26",
-  botHandle: "@ASCOHypeAI"
+  botHandle: "@ASCOHypeAI",
+  instagramPrimaryHashtag: "#ASCOHype",
+  instagramConferenceHashtag: "#ASCO26"
 };
 
 export const monitoredXVoices = [
@@ -27,6 +29,24 @@ export const monitoredXVoices = [
     label: "STAT",
     handle: "@statnews",
     note: "health and medicine media signal"
+  }
+];
+
+export const instagramPushPrompts = [
+  {
+    label: "Snack and coffee watch",
+    prompt:
+      "Ask viewers to tag #ASCOHype and #ASCO26 on Instagram with the best snacks and coffee in the Exhibitor Hall. Treat replies as audience tips until reviewed."
+  },
+  {
+    label: "W-poster watch",
+    prompt:
+      "Invite Instagram posts or reels from the W poster area and Hall A Posters and Exhibits. Ask viewers to verify rooms and locations in the ASCO app and on-site signage."
+  },
+  {
+    label: "Media desk callout",
+    prompt:
+      "Ask viewers to tag #ASCOHype on Instagram when media hits, hallway interviews, or broadcast moments deserve operator review."
   }
 ];
 
@@ -65,18 +85,18 @@ export const sourceRegistry: SourceConfig[] = [
   },
   {
     id: "asco-hype-tags",
-    name: "Audience tags and X voices",
-    url: `${monitoredSocialTags.primaryHashtag} ${monitoredSocialTags.secondaryHashtag} ${monitoredSocialTags.conferenceHashtag} ${monitoredSocialTags.botHandle} ${monitoredXVoices.map((voice) => voice.handle).join(" ")}`,
+    name: "Audience tags, X voices, and Instagram prompts",
+    url: `${monitoredSocialTags.primaryHashtag} ${monitoredSocialTags.secondaryHashtag} ${monitoredSocialTags.conferenceHashtag} ${monitoredSocialTags.botHandle} ${monitoredSocialTags.instagramPrimaryHashtag} ${monitoredSocialTags.instagramConferenceHashtag} ${monitoredXVoices.map((voice) => voice.handle).join(" ")}`,
     type: "general_social",
     rank: 5,
     enabled: true
   },
   {
     id: "manual-instagram-social-watch",
-    name: "Operator Instagram and social watchlist",
+    name: "Operator Instagram intake and push prep",
     url: "manual://instagram-social-watchlist",
     type: "manual",
     rank: 5,
-    enabled: false
+    enabled: true
   }
 ];

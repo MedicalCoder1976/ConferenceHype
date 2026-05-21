@@ -25,8 +25,18 @@ function normalizeFocusedUrl(value?: string) {
   return `https://${trimmed}`;
 }
 
-function getFocusedSourceType(url: string): SourceType {
+function getFocusedPlatform(url: string) {
   if (/\b(x\.com|twitter\.com)\b/i.test(url)) {
+    return "X";
+  }
+  if (/\b(instagram\.com|threads\.net)\b/i.test(url)) {
+    return "Instagram";
+  }
+  return "";
+}
+
+function getFocusedSourceType(url: string): SourceType {
+  if (getFocusedPlatform(url)) {
     return "general_social";
   }
   if (/\basco\.org\b|\bmeetings\.asco\.org\b/i.test(url)) {
@@ -36,9 +46,13 @@ function getFocusedSourceType(url: string): SourceType {
 }
 
 async function summarizeFocusedUrl(url: string, sourceType: SourceType) {
+  const platform = getFocusedPlatform(url);
   const source: SourceConfig = {
     id: `focused-url-${Date.now()}`,
-    name: sourceType === "general_social" ? "Operator-focused X URL" : "Operator-focused URL",
+    name:
+      sourceType === "general_social"
+        ? `Operator-focused ${platform || "social"} URL`
+        : "Operator-focused URL",
     url,
     type: sourceType,
     rank: sourceType === "official" ? 1 : sourceType === "media" ? 2 : 5,
@@ -71,13 +85,16 @@ async function buildFocusedSource({
   const sourceType = normalizedUrl ? getFocusedSourceType(normalizedUrl) : "general_social";
   const url = normalizedUrl || "https://x.com/hashtag/ASCOHype";
   const urlSummary = normalizedUrl ? await summarizeFocusedUrl(url, sourceType) : undefined;
+  const platform = getFocusedPlatform(url);
   const title =
     urlSummary?.title ??
     (sourceType === "general_social"
-      ? "Operator-focused X/social item for ASCO Hype"
+      ? `Operator-focused ${platform || "social"} item for ASCO Hype`
       : "Operator-focused URL for ASCO Hype");
   const sourceName =
-    sourceType === "general_social" ? "Operator-focused X/social item" : "Operator-focused URL";
+    sourceType === "general_social"
+      ? `Operator-focused ${platform || "social"} item`
+      : "Operator-focused URL";
   return {
     id: `focused-url-${Date.now()}`,
     title,
@@ -87,7 +104,7 @@ async function buildFocusedSource({
       postText?.trim() ? `Operator pasted text or tip: ${postText.trim()}` : "",
       operatorNote ? `Operator focus note: ${operatorNote}` : "",
       sourceType === "general_social"
-        ? "This is an operator-selected X/social item. Treat as audience buzz until reviewed."
+        ? `This is an operator-selected ${platform || "social"} item. Treat as audience buzz until reviewed.`
         : "This is an operator-selected URL. Treat it as a source for review before broadcast."
     ]
       .filter(Boolean)
@@ -112,12 +129,12 @@ export async function POST(request: NextRequest) {
       contentType: social ? "social_signal" : "media_roundup",
       editorialInstruction: [
         social
-          ? "Create a short radio-DJ style social desk hit from this operator-focused X/social item."
+          ? "Create a short radio-DJ style social desk hit from this operator-focused X/Instagram/social item."
           : "Create a short radio-DJ style source focus hit from this operator-focused URL.",
         "Make it sound exciting, but clearly label operator-selected items and keep them review-gated.",
         "Do not treat social posts, attendee tips, or scraped page summaries as verified fact unless a primary source is included.",
         "If the post recommends snacks, coffee, a booth, a poster, or a media hit, call it an attendee tip that requires review.",
-        "Mention #ASCOHype as the routing tag for more audience tips."
+        "Mention #ASCOHype as the routing tag for more audience tips on X and Instagram."
       ].join("\n")
     });
 

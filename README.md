@@ -6,7 +6,7 @@ ASCO Hype is an AI-powered, reporter-style oncology conference coverage channel 
 
 - A Next.js 15 public channel and protected operator dashboard.
 - A review-gated editorial workflow for AI-generated conference commentary.
-- A monitored hashtag, bot mention, and X voice loop: `#ASCOHype`, `#AskASCOHype`, `#ASCO26`, `@ASCOHypeAI`, plus reviewed posts from watched X voices such as `@ASCO`, `@ASCOPost`, `@OncLive`, and `@statnews`.
+- A monitored hashtag, bot mention, X voice loop, and Instagram push-prep loop: `#ASCOHype`, `#AskASCOHype`, `#ASCO26`, `@ASCOHypeAI`, plus reviewed posts from watched X voices such as `@ASCO`, `@ASCOPost`, `@OncLive`, and `@statnews`.
 - A low-cost deployment shape: Vercel for the app, Supabase for data/auth/storage, GitHub Actions for scheduled jobs, and a small stream worker for FFmpeg/YouTube.
 
 ## What This Is Not
@@ -93,7 +93,7 @@ Programming rule:
 
 - The 20-minute upcoming-events spine is the core broadcast every day.
 - Social posts, `#ASCOHype`, X, Instagram-style posts, OncLive, STAT News, The ASCO Post, and exhibitor/company updates interrupt that spine only as reviewed media/social segments.
-- Instagram is treated as an operator/manual social watchlist by default unless a compliant provider/API is added later.
+- Instagram is treated as an operator/manual social watchlist and caption/reel prep path by default unless a compliant provider/API is added later.
 
 ### 2. Supabase
 
@@ -151,6 +151,8 @@ Ask users to post with:
 
 The X ingestion job searches those terms, creates `social_signal` source items, and sends generated commentary to the human review queue. Operators must approve or edit scripts before airing.
 
+Instagram posts, reels, and caption ideas can be pasted into the admin Instagram panel. They are treated as manual social signals, generate review-gated commentary, and can use the caption starter for outward posts asking viewers to tag `#ASCOHype` and `#ASCO26`.
+
 ## Useful Commands
 
 ```powershell
@@ -177,6 +179,7 @@ That command expects `ffmpeg`, `STREAM_INPUT_PATH`, `YOUTUBE_RTMP_URL`, and `YOU
 - Confirm Supabase schema and admin login.
 - Confirm RSS ingestion works.
 - Confirm X hashtag ingestion works.
+- Confirm Instagram manual intake and caption prep works.
 - Confirm generated scripts include citations and disclaimer.
 - Confirm social posts are labeled as buzz.
 - Confirm market segments contain no buy/sell/hold recommendations.
