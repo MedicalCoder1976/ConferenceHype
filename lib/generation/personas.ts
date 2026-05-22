@@ -5,7 +5,7 @@ export const personas: Persona[] = [
     id: "echo-sage",
     name: "TumorCrusher",
     specialty: "Main conference anchor and daily agenda",
-    voiceGender: "female",
+    voiceGender: "male",
     voiceEnvKey: "VOICE_ECHO_SAGE",
     style: "radio DJ-style conference hype anchor: upbeat, rhythmic, punchy, source-forward, and careful with uncertainty"
   },

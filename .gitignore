@@ -8,6 +8,8 @@ coverage
 public/rendered/*
 public/clips/*
 !public/rendered/.gitkeep
+!public/rendered/recordings/
+!public/rendered/recordings/**
 !public/clips/.gitkeep
 
 .vercel

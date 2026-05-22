@@ -1,0 +1,18 @@
+{
+  "recordings": [
+    {
+      "id": "tumorcrusher-tyler-cruz-day1-intro-v1",
+      "title": "TumorCrusher ASCO 2026 Day 1 one-minute intro",
+      "personaName": "TumorCrusher",
+      "voiceName": "Tyler Cruz - Cool Energetic DJ",
+      "voiceId": "SA7eD52NRr8WAehitVt1",
+      "provider": "elevenlabs",
+      "durationSeconds": 60,
+      "audioPath": "/rendered/recordings/tumorcrusher-tyler-cruz-day1-intro-v1.mp3",
+      "scriptPath": "/rendered/day1-opening-script.txt",
+      "generatedAt": "2026-05-22T13:33:00-04:00",
+      "reuseCommand": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\render-day1-opening.ps1",
+      "notes": "Renderer copies this cached MP3 into day1-opening-voice.mp3 when the working voice file is missing, avoiding a new ElevenLabs charge for reruns."
+    }
+  ]
+}

@@ -2,14 +2,19 @@ $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
 $renderDir = Join-Path $root "public\rendered"
+$recordingsDir = Join-Path $renderDir "recordings"
 New-Item -ItemType Directory -Force $renderDir | Out-Null
+New-Item -ItemType Directory -Force $recordingsDir | Out-Null
+
+$durationSeconds = 60
+$slideSeconds = [int]($durationSeconds / 6)
 
 $slides = @(
 @"
 TumorCrusher on the desk
 ASCO 2026 is ON
 Friday May 29, 7:00 AM CT test clock
-Day 1 starts loud
+One-minute channel intro
 "@,
 @"
 Day 1 is not a warm-up
@@ -53,30 +58,31 @@ for ($i = 0; $i -lt $slides.Count; $i++) {
 }
 
 $script = @"
-TumorCrusher on the ASCO Hype desk. ASCO 2026 is live on the board, and Day 1 is not a warm-up. It is seven o'clock Central on Friday, May 29, and this is the first fifteen. Quick hits. Fast map. No fake certainty.
+TumorCrusher on the ASCO Hype desk. ASCO 2026 is live on the board, and Day 1 is not a warm-up. It is seven o'clock Central on Friday, May 29. This is the one-minute lock-in.
 
-Here is the signal. Twenty-four agenda sessions. Sixty-seven timed oral abstract presentations. Pediatric Oncology leads the watch board. Medical Education is right behind it. Care Delivery is awake early. Lymphoma and CLL has afternoon heat.
+Quick hits. Twenty-four agenda sessions. Sixty-seven timed oral abstract presentations. Pediatric Oncology leads the early watch board. Medical Education is right behind it.
 
-The setup matters: the official ASCO program index does not show a session starting inside this exact opening window. Translation: this is the ramp. The room map. The watch list. The part where you get oriented before the day starts moving.
+No session starts inside this exact opening window. That makes this the ramp: set the map, mark the rooms, then move when the day moves.
 
-Now circle the hits. One PM Central: Hematologic Malignancies, Lymphoma and CLL, room E450a. One PM Central: Lung Cancer, non-small cell metastatic, Hall D2. Two forty-five Central: Medical Education and Professional Development, room E450b. Rooms can change, so verify in the ASCO app and on-site signage before you make the walk.
+Circle one PM Central: Lymphoma and CLL in E450a, metastatic non-small cell lung cancer in Hall D2, and two forty-five for Medical Education in E450b. Verify rooms before walking.
 
-Audience desk, this is your lane. Coffee line with a real wait? Snack table doing numbers? Poster wall starting to pull a crowd? Media moment forming? Tag #ASCOHype. If it is useful, and if it clears review, it can hit the stream.
-
-One clean reminder before we move: ASCO Hype is interactive AI commentary only. It is not associated with the American Society of Clinical Oncology. It is not medical advice, clinical guidance, scientific validation, legal advice, financial advice, or official reporting.
-
-TumorCrusher here, keeping the dial up. ASCO 2026 Day 1 is on. The board is set. The next hit is coming.
+Coffee line, snack win, poster crowd, media moment, hallway buzz: tag #ASCOHype. If it clears review, it can hit the stream. ASCO Hype is interactive AI commentary only, not official reporting or medical advice. TumorCrusher here. ASCO 2026 Day 1 is on.
 "@
 
 $scriptPath = Join-Path $renderDir "day1-opening-script.txt"
 $voicePath = Join-Path $renderDir "day1-opening-voice.mp3"
+$cachedVoicePath = Join-Path $recordingsDir "tumorcrusher-tyler-cruz-day1-intro-v1.mp3"
 $outputPath = Join-Path $renderDir "fallback-loop.mp4"
 $previewPath = Join-Path $renderDir "fallback-loop-preview.png"
 
 Set-Content -LiteralPath $scriptPath -Value $script -Encoding UTF8
 
+if ((Test-Path -LiteralPath $cachedVoicePath) -and !(Test-Path -LiteralPath $voicePath)) {
+  Copy-Item -LiteralPath $cachedVoicePath -Destination $voicePath -Force
+}
+
 if (!(Test-Path -LiteralPath $voicePath)) {
-  throw "Missing $voicePath. Generate it with the configured TTS provider before rendering."
+  throw "Missing $voicePath. Generate it once with Tyler Cruz and save it to $cachedVoicePath before rendering reruns."
 }
 
 $ffmpeg = Join-Path $root "node_modules\ffmpeg-static\ffmpeg.exe"
@@ -102,16 +108,16 @@ for ($i = 0; $i -lt $slides.Count; $i++) {
 $filter = ($slideFilters -join ";") + ";[v0][v1][v2][v3][v4][v5]concat=n=6:v=1:a=0[v]"
 
 & $ffmpeg -y `
-  -f lavfi -i "color=c=0x11151f:s=1280x720:r=30:d=150" `
-  -f lavfi -i "color=c=0x151a27:s=1280x720:r=30:d=150" `
-  -f lavfi -i "color=c=0x101722:s=1280x720:r=30:d=150" `
-  -f lavfi -i "color=c=0x171925:s=1280x720:r=30:d=150" `
-  -f lavfi -i "color=c=0x11151f:s=1280x720:r=30:d=150" `
-  -f lavfi -i "color=c=0x151a27:s=1280x720:r=30:d=150" `
+  -f lavfi -i "color=c=0x11151f:s=1280x720:r=30:d=$slideSeconds" `
+  -f lavfi -i "color=c=0x151a27:s=1280x720:r=30:d=$slideSeconds" `
+  -f lavfi -i "color=c=0x101722:s=1280x720:r=30:d=$slideSeconds" `
+  -f lavfi -i "color=c=0x171925:s=1280x720:r=30:d=$slideSeconds" `
+  -f lavfi -i "color=c=0x11151f:s=1280x720:r=30:d=$slideSeconds" `
+  -f lavfi -i "color=c=0x151a27:s=1280x720:r=30:d=$slideSeconds" `
   -stream_loop -1 -i $voicePath `
   -filter_complex $filter `
   -map "[v]" -map "6:a" `
-  -t 900 `
+  -t $durationSeconds `
   -c:v libx264 -preset veryfast -pix_fmt yuv420p `
   -c:a aac -b:a 128k `
   -shortest $outputPath
