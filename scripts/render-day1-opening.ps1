@@ -6,7 +6,7 @@ $recordingsDir = Join-Path $renderDir "recordings"
 New-Item -ItemType Directory -Force $renderDir | Out-Null
 New-Item -ItemType Directory -Force $recordingsDir | Out-Null
 
-$durationSeconds = 60
+$durationSeconds = 180
 $slideSeconds = [int]($durationSeconds / 6)
 
 $slides = @(
@@ -15,6 +15,7 @@ TumorCrusher on the desk
 ASCO 2026 is ON
 Friday May 29, 7:00 AM CT test clock
 One-minute channel intro
+Three voice open-source booth test
 "@,
 @"
 Day 1 is not a warm-up
@@ -120,7 +121,7 @@ $filter = ($slideFilters -join ";") + ";[v0][v1][v2][v3][v4][v5]concat=n=6:v=1:a
   -f lavfi -i "color=c=0x171925:s=1280x720:r=30:d=$slideSeconds" `
   -f lavfi -i "color=c=0x11151f:s=1280x720:r=30:d=$slideSeconds" `
   -f lavfi -i "color=c=0x151a27:s=1280x720:r=30:d=$slideSeconds" `
-  -stream_loop -1 -i $voicePath `
+  -i $voicePath `
   -filter_complex $filter `
   -map "[v]" -map "6:a" `
   -t $durationSeconds `
