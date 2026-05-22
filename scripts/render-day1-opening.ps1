@@ -71,7 +71,9 @@ Coffee line, snack win, poster crowd, media moment, hallway buzz: tag #ASCOHype.
 
 $scriptPath = Join-Path $renderDir "day1-opening-script.txt"
 $voicePath = Join-Path $renderDir "day1-opening-voice.mp3"
-$cachedVoicePath = Join-Path $recordingsDir "tumorcrusher-tyler-cruz-day1-intro-v1.mp3"
+$preferredCacheFile = if ($env:INTRO_VOICE_CACHE) { $env:INTRO_VOICE_CACHE } else { "tumorcrusher-free-dj-day1-intro-v1.mp3" }
+$cachedVoicePath = Join-Path $recordingsDir $preferredCacheFile
+$paidVoicePath = Join-Path $recordingsDir "tumorcrusher-tyler-cruz-day1-intro-v1.mp3"
 $outputPath = Join-Path $renderDir "fallback-loop.mp4"
 $previewPath = Join-Path $renderDir "fallback-loop-preview.png"
 
@@ -81,8 +83,12 @@ if ((Test-Path -LiteralPath $cachedVoicePath) -and !(Test-Path -LiteralPath $voi
   Copy-Item -LiteralPath $cachedVoicePath -Destination $voicePath -Force
 }
 
+if ((Test-Path -LiteralPath $paidVoicePath) -and !(Test-Path -LiteralPath $voicePath)) {
+  Copy-Item -LiteralPath $paidVoicePath -Destination $voicePath -Force
+}
+
 if (!(Test-Path -LiteralPath $voicePath)) {
-  throw "Missing $voicePath. Generate it once with Tyler Cruz and save it to $cachedVoicePath before rendering reruns."
+  throw "Missing $voicePath. Generate a free cached recording with scripts\generate-free-dj-voice.ps1, or save a paid recording to $cachedVoicePath before rendering reruns."
 }
 
 $ffmpeg = Join-Path $root "node_modules\ffmpeg-static\ffmpeg.exe"
@@ -123,4 +129,4 @@ $filter = ($slideFilters -join ";") + ";[v0][v1][v2][v3][v4][v5]concat=n=6:v=1:a
   -shortest $outputPath
 
 & $ffmpeg -y -i $outputPath -frames:v 1 -update 1 $previewPath
-& $ffmpeg -hide_banner -i $outputPath
+Write-Host "Rendered fallback loop: $outputPath"

@@ -36,7 +36,7 @@ export function RecordingLibrary({
                   </p>
                 </div>
                 <span className="bg-mint px-2 py-1 text-xs font-black uppercase text-white">
-                  reusable
+                  {recording.provider.includes("free") ? "free" : "reusable"}
                 </span>
               </div>
 
@@ -49,6 +49,7 @@ export function RecordingLibrary({
 
               <dl className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
                 <Info label="voice id" value={recording.voiceId} />
+                <Info label="provider" value={recording.provider} />
                 <Info label="generated" value={recording.generatedAt} />
                 <Info label="audio" value={recording.audioPath} />
                 <Info label="script" value={recording.scriptPath} />

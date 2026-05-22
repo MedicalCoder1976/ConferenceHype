@@ -10,6 +10,8 @@ public/clips/*
 !public/rendered/.gitkeep
 !public/rendered/recordings/
 !public/rendered/recordings/**
+public/rendered/recordings/*.wav
+public/rendered/recordings/*.trimmed.mp3
 !public/clips/.gitkeep
 
 .vercel
