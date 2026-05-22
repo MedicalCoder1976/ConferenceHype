@@ -6,44 +6,45 @@ New-Item -ItemType Directory -Force $renderDir | Out-Null
 
 $slides = @(
 @"
-ASCO Hype - Day 1 Opening
+Echo Sage on the desk
+ASCO 2026 is ON
 Friday May 29, 7:00 AM CT test clock
-Turn it up: first 15 minutes live
-Conference-desk hype from the ASCO agenda spine
+Day 1 starts loud
 "@,
 @"
-Desk map: Day 1 is loaded
+Day 1 is not a warm-up
 24 agenda sessions
 67 timed oral abstract presentations
-Pediatric Oncology leads the watch board
-Every hot take stays review-gated
+Pediatric Oncology leads the board
+Medical Ed is right behind it
 "@,
 @"
-Watch tracks lighting up
+Tracks lighting up
 Pediatric Oncology
-Medical Education and Professional Development
-Care Delivery and Models of Care
-Heme malignancies lymphoma and CLL
+Medical Education
+Care Delivery
+Lymphoma and CLL
 "@,
 @"
-First 15 minutes: launch mode
+Opening window: launch mode
 No session starts in this exact window
-So we set the board, mark the rooms, cue the day
-Verify rooms in the ASCO app and on-site signage
-Audience tips are buzz until approved
+That is the ramp
+Set the map
+Then the day starts moving
 "@,
 @"
-Tentpoles circled in red
-1:00 PM CT: Hematologic Malignancies Lymphoma and CLL, E450a
+Circle the afternoon hits
+1:00 PM CT: Lymphoma and CLL, E450a
 1:00 PM CT: Lung Cancer NSCLC Metastatic, Hall D2
-2:45 PM CT: Medical Education and Professional Development, E450b
-No plenary session is scheduled for Day 1 in this index
+2:45 PM CT: Medical Education, E450b
+Verify rooms before moving
 "@,
 @"
-Audience loop: feed the desk
-Tag #ASCOHype with coffee, snacks, poster-wall buzz, and media moments
-We are watching OncLive, STAT News, The ASCO Post, X, and operator inputs
-If it clears review, it can hit the stream
+Feed the desk
+Coffee lines. Snack wins. Poster crowds.
+Media moments. Hallway buzz.
+Tag #ASCOHype
+If it clears review, it hits the stream
 "@
 )
 
@@ -52,21 +53,19 @@ for ($i = 0; $i -lt $slides.Count; $i++) {
 }
 
 $script = @"
-ASCO Hype is interactive AI commentary only. It is not reporting, journalism, medical education, clinical guidance, scientific validation, legal advice, or financial advice. ASCO Hype is not associated with the American Society of Clinical Oncology in any way.
+Echo Sage on the ASCO Hype desk. ASCO 2026 is live on the board, and Day 1 is not a warm-up. It is seven o'clock Central on Friday, May 29, and this is the first fifteen. Quick hits. Fast map. No fake certainty.
 
-All right, ASCO Hype, wake up the feed. This is the Day 1 opening desk, and for this production rehearsal we are setting the clock to Friday, May 29, seven o'clock Central Time. The doors are opening, the tabs are loaded, the agenda spine is hot, and the first fifteen minutes are about getting everybody locked in before the day starts throwing fastballs.
+Here is the signal. Twenty-four agenda sessions. Sixty-seven timed oral abstract presentations. Pediatric Oncology leads the watch board. Medical Education is right behind it. Care Delivery is awake early. Lymphoma and CLL has afternoon heat.
 
-Here is the board. Day 1 is not empty. It is stacked. Twenty-four agenda sessions. Sixty-seven timed oral abstract presentations. Pediatric Oncology is leading the watch board. Medical Education and Professional Development is right behind it. Care Delivery and Models of Care is on the radar. And later today, Heme malignancies, lymphoma, and CLL gets a major afternoon spotlight.
+The setup matters: the official ASCO program index does not show a session starting inside this exact opening window. Translation: this is the ramp. The room map. The watch list. The part where you get oriented before the day starts moving.
 
-Now, important desk call. The official ASCO program index does not show a session starting in this exact opening window. So we are not inventing drama. We are setting the room map. We are marking the watch tracks. We are getting the audience ready. Every abstract title signal stays provisional until primary sources and full text support it. Every social hit stays buzz until a human operator clears the framing.
+Now circle the hits. One PM Central: Hematologic Malignancies, Lymphoma and CLL, room E450a. One PM Central: Lung Cancer, non-small cell metastatic, Hall D2. Two forty-five Central: Medical Education and Professional Development, room E450b. Rooms can change, so verify in the ASCO app and on-site signage before you make the walk.
 
-Circle these tentpoles. One PM Central, Hematologic Malignancies, Lymphoma and CLL, room E450a. One PM Central, Lung Cancer, non-small cell metastatic, Hall D2. Two forty-five PM Central, Medical Education and Professional Development, room E450b. Say the rooms twice before you move, and still verify in the ASCO app and on-site signage, because conference rooms can change and nobody needs a hallway sprint for the wrong door.
+Audience desk, this is your lane. Coffee line with a real wait? Snack table doing numbers? Poster wall starting to pull a crowd? Media moment forming? Tag #ASCOHype. If it is useful, and if it clears review, it can hit the stream.
 
-And now the audience loop. If you see a coffee line worth knowing about, a snack table with real value, a poster-wall crowd forming, a media moment, a hallway tip, or a booth that is suddenly pulling attention, tag #ASCOHype. We are watching OncLive, STAT News, The ASCO Post, X, and operator-approved floor inputs. If it clears review, it can interrupt the stream.
+One clean reminder before we move: ASCO Hype is interactive AI commentary only. It is not associated with the American Society of Clinical Oncology. It is not medical advice, clinical guidance, scientific validation, legal advice, financial advice, or official reporting.
 
-That is the launch block. ASCO Hype is live, source-forward, fast-moving, and review-gated. Keep the dial here. The next schedule spine hit is coming up.
-
-Reminder: ASCO Hype is interactive AI commentary only. It is not reporting, journalism, medical education, clinical guidance, scientific validation, legal advice, or financial advice.
+Echo Sage here, keeping the dial up. ASCO 2026 Day 1 is on. The board is set. The next hit is coming.
 "@
 
 $scriptPath = Join-Path $renderDir "day1-opening-script.txt"
