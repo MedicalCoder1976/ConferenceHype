@@ -16,17 +16,17 @@
     },
     {
       "id": "tumorcrusher-free-dj-day1-intro-v1",
-      "title": "TumorCrusher free DJ ASCO 2026 Day 1 intro",
+      "title": "TumorCrusher open-source DJ ASCO 2026 Day 1 intro",
       "personaName": "TumorCrusher",
-      "voiceName": "Microsoft David Desktop - free DJ processing",
-      "voiceId": "windows-sapi-microsoft-david-desktop",
-      "provider": "windows-sapi-free",
+      "voiceName": "Kokoro am_puck - open-source neural DJ processing",
+      "voiceId": "kokoro-am_puck",
+      "provider": "kokoro-open-source",
       "durationSeconds": 60,
       "audioPath": "/rendered/recordings/tumorcrusher-free-dj-day1-intro-v1.mp3",
       "scriptPath": "/rendered/day1-opening-script.txt",
-      "generatedAt": "2026-05-22T13:55:00-04:00",
+      "generatedAt": "2026-05-22T11:35:00-04:00",
       "reuseCommand": "& .\\scripts\\generate-free-dj-voice.ps1",
-      "notes": "Generated locally with Windows SAPI and FFmpeg processing. Run the command only when changing the script or voice file; normal video reruns use scripts\\render-day1-opening.ps1 and reuse this cached MP3 without ElevenLabs charges."
+      "notes": "Generated locally with Kokoro open-source neural TTS and FFmpeg broadcast processing. Run the command only when changing the script or voice file; normal video reruns use scripts\\render-day1-opening.ps1 and reuse this cached MP3 without ElevenLabs charges."
     },
     {
       "id": "tumorcrusher-tyler-cruz-day1-intro-v1",

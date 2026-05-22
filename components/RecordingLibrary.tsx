@@ -36,7 +36,10 @@ export function RecordingLibrary({
                   </p>
                 </div>
                 <span className="bg-mint px-2 py-1 text-xs font-black uppercase text-white">
-                  {recording.provider.includes("free") ? "free" : "reusable"}
+                  {recording.provider.includes("free") ||
+                  recording.provider.includes("open-source")
+                    ? "open source"
+                    : "reusable"}
                 </span>
               </div>
 
