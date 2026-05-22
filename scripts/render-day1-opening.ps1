@@ -8,42 +8,42 @@ $slides = @(
 @"
 ASCO Hype - Day 1 Opening
 Friday May 29, 7:00 AM CT test clock
-First 15 minutes: conference-desk ramp
-Source: precomputed ASCO 2026 agenda spine
+Turn it up: first 15 minutes live
+Conference-desk hype from the ASCO agenda spine
 "@,
 @"
-Opening desk map
-24 agenda sessions on Day 1
+Desk map: Day 1 is loaded
+24 agenda sessions
 67 timed oral abstract presentations
-Title-level abstract signals stay provisional
-No medical advice, no scientific validation
+Pediatric Oncology leads the watch board
+Every hot take stays review-gated
 "@,
 @"
-Tracks to watch today
-Pediatric Oncology leads the room map
-Medical Education and Professional Development is close behind
-Care Delivery and Models of Care stays on the board
-Hematologic malignancies lymphoma and CLL anchors the afternoon
+Watch tracks lighting up
+Pediatric Oncology
+Medical Education and Professional Development
+Care Delivery and Models of Care
+Heme malignancies lymphoma and CLL
 "@,
 @"
-First 15-minute read
-No official sessions are scheduled in the next 15 minutes
-Use the opening block to orient listeners
+First 15 minutes: launch mode
+No session starts in this exact window
+So we set the board, mark the rooms, cue the day
 Verify rooms in the ASCO app and on-site signage
-Audience tips remain buzz until operator review
+Audience tips are buzz until approved
 "@,
 @"
-Tentpoles later today
+Tentpoles circled in red
 1:00 PM CT: Hematologic Malignancies Lymphoma and CLL, E450a
 1:00 PM CT: Lung Cancer NSCLC Metastatic, Hall D2
 2:45 PM CT: Medical Education and Professional Development, E450b
 No plenary session is scheduled for Day 1 in this index
 "@,
 @"
-Audience loop
+Audience loop: feed the desk
 Tag #ASCOHype with coffee, snacks, poster-wall buzz, and media moments
-The desk watches OncLive, STAT News, The ASCO Post, X, and operator inputs
-Every broadcast item stays review-gated before it becomes commentary
+We are watching OncLive, STAT News, The ASCO Post, X, and operator inputs
+If it clears review, it can hit the stream
 "@
 )
 
@@ -54,15 +54,17 @@ for ($i = 0; $i -lt $slides.Count; $i++) {
 $script = @"
 ASCO Hype is interactive AI commentary only. It is not reporting, journalism, medical education, clinical guidance, scientific validation, legal advice, or financial advice. ASCO Hype is not associated with the American Society of Clinical Oncology in any way.
 
-Welcome to ASCO Hype for Day 1. For this production rehearsal, we are treating the clock as Friday, May 29 at 7:00 AM Central Time, the opening ramp of ASCO Day 1.
+All right, ASCO Hype, wake up the feed. This is the Day 1 opening desk, and for this production rehearsal we are setting the clock to Friday, May 29, seven o'clock Central Time. The doors are opening, the tabs are loaded, the agenda spine is hot, and the first fifteen minutes are about getting everybody locked in before the day starts throwing fastballs.
 
-Here is the first fifteen-minute desk plan. The official ASCO program index does not show a session starting in this immediate opening window, so the broadcast begins with orientation, not claims. The room map says Day 1 has twenty-four agenda sessions and sixty-seven timed oral abstract presentations. The leading watch tracks are Pediatric Oncology, Medical Education and Professional Development, Care Delivery and Models of Care, and Hematologic Malignancies, Lymphoma and Chronic Lymphocytic Leukemia.
+Here is the board. Day 1 is not empty. It is stacked. Twenty-four agenda sessions. Sixty-seven timed oral abstract presentations. Pediatric Oncology is leading the watch board. Medical Education and Professional Development is right behind it. Care Delivery and Models of Care is on the radar. And later today, Heme malignancies, lymphoma, and CLL gets a major afternoon spotlight.
 
-The operator instruction is simple. Keep the audience grounded in the official schedule. Treat title-level abstract signals as provisional until primary sources and full text are available. Repeat rooms clearly, and tell people to verify locations in the ASCO app and on-site signage.
+Now, important desk call. The official ASCO program index does not show a session starting in this exact opening window. So we are not inventing drama. We are setting the room map. We are marking the watch tracks. We are getting the audience ready. Every abstract title signal stays provisional until primary sources and full text support it. Every social hit stays buzz until a human operator clears the framing.
 
-Later today, the desk is watching the one PM Central rapid oral abstract block for Hematologic Malignancies, Lymphoma and CLL in E450a, the one PM Central Lung Cancer non-small cell metastatic oral abstract session in Hall D2, and the two forty-five PM Medical Education and Professional Development rapid oral session in E450b. No plenary session is scheduled for Day 1 in the provided agenda index.
+Circle these tentpoles. One PM Central, Hematologic Malignancies, Lymphoma and CLL, room E450a. One PM Central, Lung Cancer, non-small cell metastatic, Hall D2. Two forty-five PM Central, Medical Education and Professional Development, room E450b. Say the rooms twice before you move, and still verify in the ASCO app and on-site signage, because conference rooms can change and nobody needs a hallway sprint for the wrong door.
 
-Audience loop: if you find genuinely useful coffee, snacks, poster-wall energy, media moments, or hallway tips, tag #ASCOHype. The desk can review those inputs, but they stay audience buzz until an operator approves the framing. This is the Day 1 opening ramp. The next schedule spine hit takes over after this block.
+And now the audience loop. If you see a coffee line worth knowing about, a snack table with real value, a poster-wall crowd forming, a media moment, a hallway tip, or a booth that is suddenly pulling attention, tag #ASCOHype. We are watching OncLive, STAT News, The ASCO Post, X, and operator-approved floor inputs. If it clears review, it can interrupt the stream.
+
+That is the launch block. ASCO Hype is live, source-forward, fast-moving, and review-gated. Keep the dial here. The next schedule spine hit is coming up.
 
 Reminder: ASCO Hype is interactive AI commentary only. It is not reporting, journalism, medical education, clinical guidance, scientific validation, legal advice, or financial advice.
 "@
