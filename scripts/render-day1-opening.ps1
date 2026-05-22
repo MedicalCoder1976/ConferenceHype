@@ -6,7 +6,7 @@ New-Item -ItemType Directory -Force $renderDir | Out-Null
 
 $slides = @(
 @"
-Echo Sage on the desk
+TumorCrusher on the desk
 ASCO 2026 is ON
 Friday May 29, 7:00 AM CT test clock
 Day 1 starts loud
@@ -53,7 +53,7 @@ for ($i = 0; $i -lt $slides.Count; $i++) {
 }
 
 $script = @"
-Echo Sage on the ASCO Hype desk. ASCO 2026 is live on the board, and Day 1 is not a warm-up. It is seven o'clock Central on Friday, May 29, and this is the first fifteen. Quick hits. Fast map. No fake certainty.
+TumorCrusher on the ASCO Hype desk. ASCO 2026 is live on the board, and Day 1 is not a warm-up. It is seven o'clock Central on Friday, May 29, and this is the first fifteen. Quick hits. Fast map. No fake certainty.
 
 Here is the signal. Twenty-four agenda sessions. Sixty-seven timed oral abstract presentations. Pediatric Oncology leads the watch board. Medical Education is right behind it. Care Delivery is awake early. Lymphoma and CLL has afternoon heat.
 
@@ -65,7 +65,7 @@ Audience desk, this is your lane. Coffee line with a real wait? Snack table doin
 
 One clean reminder before we move: ASCO Hype is interactive AI commentary only. It is not associated with the American Society of Clinical Oncology. It is not medical advice, clinical guidance, scientific validation, legal advice, financial advice, or official reporting.
 
-Echo Sage here, keeping the dial up. ASCO 2026 Day 1 is on. The board is set. The next hit is coming.
+TumorCrusher here, keeping the dial up. ASCO 2026 Day 1 is on. The board is set. The next hit is coming.
 "@
 
 $scriptPath = Join-Path $renderDir "day1-opening-script.txt"

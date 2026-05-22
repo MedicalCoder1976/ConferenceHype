@@ -82,7 +82,7 @@ function buildNoTokenUpcomingSegment(sources: IngestedItem[], now: Date): Segmen
     script,
     contentType: "agenda_preview",
     personaId: "echo-sage",
-    personaName: "Echo Sage",
+    personaName: "TumorCrusher",
     hypeLevel: "standard",
     language: "English",
     status: "approved",

@@ -38,7 +38,7 @@ function createSmokeTestSegment(): Segment {
       "ASCO Hype audio test. This confirms the voice rendering pipeline is connected. This is not medical advice, clinical guidance, scientific validation, legal advice, or financial advice.",
     contentType: "agenda_preview",
     personaId: "echo-sage",
-    personaName: "Echo Sage",
+    personaName: "TumorCrusher",
     hypeLevel: "standard",
     language: "English",
     status: "draft",

@@ -3,7 +3,7 @@ import type { Persona } from "@/lib/types";
 export const personas: Persona[] = [
   {
     id: "echo-sage",
-    name: "Echo Sage",
+    name: "TumorCrusher",
     specialty: "Main conference anchor and daily agenda",
     voiceGender: "female",
     voiceEnvKey: "VOICE_ECHO_SAGE",

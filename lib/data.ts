@@ -22,11 +22,11 @@ export const mockSegments: Segment[] = [
     id: "seg-echo-agenda",
     title: "The ASCO Hype desk opens the 2026 watchlist",
     summary:
-      "Echo Sage frames the countdown, the first wave of agenda attention, and how social posts tagged to ASCO Hype will move through review.",
+      "TumorCrusher frames the countdown, the first wave of agenda attention, and how social posts tagged to ASCO Hype will move through review.",
     script: `${defaultDisclaimer}\n\nWelcome to ASCO Hype. We are watching the 2026 annual meeting buildup like a live conference desk: agenda previews, media roundups, exhibitor signals, and the social posts people tag with #ASCOHype, #ASCO26, or @ASCOHypeAI. The key thing to remember: social posts are buzz, not confirmation, until they are checked against stronger sources.\n\nReminder: ${defaultDisclaimer}`,
     contentType: "agenda_preview",
     personaId: "echo-sage",
-    personaName: "Echo Sage",
+    personaName: "TumorCrusher",
     hypeLevel: "standard",
     language: "English",
     status: "approved",
