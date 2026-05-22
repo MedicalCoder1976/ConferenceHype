@@ -14,7 +14,7 @@ $slides = @(
 TumorCrusher on the desk
 ASCO 2026 is ON
 Friday May 29, 7:00 AM CT test clock
-One-minute channel intro
+Three-minute channel intro
 Three voice open-source booth test
 "@,
 @"
