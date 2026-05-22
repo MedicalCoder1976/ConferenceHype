@@ -22,13 +22,19 @@ if (!(Test-Path -LiteralPath $scriptPath)) {
 
 $performanceLines = @(
   @{ Rate = 2; Pitch = 1.02; Pause = 180; Text = "TumorCrusher on the ASCO Hype desk." },
+  @{ Rate = 2; Pitch = 1.08; Pause = 220; Text = "ASCO 2026 is officially in launch mode." },
   @{ Rate = 2; Pitch = 1.10; Pause = 360; Text = "ASCO 2026 is live, and Day 1 is not a warm-up." },
+  @{ Rate = 1; Pitch = 1.04; Pause = 220; Text = "Day 1 is the signal check, the hallway pulse, and the first big swing of the meeting." },
   @{ Rate = 1; Pitch = 0.98; Pause = 300; Text = "Seven o'clock Central, Friday May 29." },
   @{ Rate = 2; Pitch = 1.06; Pause = 420; Text = "This is the one-minute lock-in." },
   @{ Rate = 3; Pitch = 1.12; Pause = 180; Text = "Quick hits." },
+  @{ Rate = 2; Pitch = 1.06; Pause = 180; Text = "Here is the energy board." },
   @{ Rate = 2; Pitch = 1.01; Pause = 180; Text = "Twenty-four agenda sessions." },
   @{ Rate = 2; Pitch = 1.04; Pause = 220; Text = "Sixty-seven timed oral abstract presentations." },
   @{ Rate = 1; Pitch = 1.06; Pause = 320; Text = "Pediatric Oncology and Medical Education lead the board." },
+  @{ Rate = 1; Pitch = 1.04; Pause = 220; Text = "Lymphoma and CLL is on the afternoon radar." },
+  @{ Rate = 1; Pitch = 1.05; Pause = 340; Text = "Metastatic non-small cell lung cancer is circled in bold." },
+  @{ Rate = 0; Pitch = 0.95; Pause = 260; Text = "Now breathe for the desk reset." },
   @{ Rate = 1; Pitch = 0.96; Pause = 260; Text = "This opening window is the ramp." },
   @{ Rate = 3; Pitch = 1.07; Pause = 120; Text = "Set the map." },
   @{ Rate = 3; Pitch = 1.03; Pause = 120; Text = "Mark the rooms." },
@@ -38,13 +44,17 @@ $performanceLines = @(
   @{ Rate = 1; Pitch = 0.99; Pause = 200; Text = "Metastatic non-small cell lung cancer in Hall D2." },
   @{ Rate = 1; Pitch = 1.01; Pause = 280; Text = "Then two forty-five for Medical Education in E450b." },
   @{ Rate = 0; Pitch = 0.94; Pause = 360; Text = "Verify rooms before walking." },
+  @{ Rate = 1; Pitch = 0.96; Pause = 220; Text = "Rooms move. Lines form. The app wins." },
+  @{ Rate = 1; Pitch = 1.02; Pause = 280; Text = "That is the path through the noise." },
   @{ Rate = 3; Pitch = 1.08; Pause = 110; Text = "Coffee line." },
   @{ Rate = 3; Pitch = 1.12; Pause = 110; Text = "Snack win." },
   @{ Rate = 3; Pitch = 1.06; Pause = 110; Text = "Poster crowd." },
+  @{ Rate = 3; Pitch = 1.08; Pause = 110; Text = "Media moment." },
   @{ Rate = 3; Pitch = 1.11; Pause = 260; Text = "Hallway buzz." },
   @{ Rate = 2; Pitch = 1.07; Pause = 280; Text = "Tag hashtag ASCO Hype." },
   @{ Rate = 0; Pitch = 0.98; Pause = 260; Text = "If it clears review, it can hit the stream." },
   @{ Rate = 0; Pitch = 0.94; Pause = 240; Text = "Interactive AI commentary only. Not official reporting or medical advice." },
+  @{ Rate = 2; Pitch = 1.08; Pause = 160; Text = "Keep your badge close and your room list tighter." },
   @{ Rate = 2; Pitch = 1.12; Pause = 0; Text = "TumorCrusher here. ASCO 2026 Day 1 is on." }
 )
 
@@ -72,7 +82,7 @@ for ($i = 0; $i -lt $performanceLines.Count; $i++) {
   $pitchRate = [int]($sampleRate * $line.Pitch)
   $tempo = [Math]::Round(1 / $line.Pitch, 4)
   & $ffmpeg -hide_banner -loglevel error -y -i $rawPhrase `
-    -af "asetrate=$pitchRate,aresample=$sampleRate,atempo=$tempo,volume=0.95" `
+    -af "silenceremove=start_periods=1:start_duration=0.02:start_threshold=-45dB:stop_periods=1:stop_duration=0.08:stop_threshold=-45dB,asetrate=$pitchRate,aresample=$sampleRate,atempo=$tempo,volume=0.95" `
     -ar $sampleRate -ac 1 $phrase | Out-Null
   $concatFiles += $phrase
 
@@ -92,7 +102,7 @@ Set-Content -LiteralPath $concatPath -Value (($concatFiles | ForEach-Object {
 & $ffmpeg -hide_banner -loglevel error -y -f concat -safe 0 -i $concatPath -c copy $wavPath
 
 & $ffmpeg -hide_banner -loglevel error -y -i $wavPath `
-  -af "volume=0.9,atempo=1.14,equalizer=f=150:t=q:w=1:g=2.2,equalizer=f=2800:t=q:w=1:g=1.2,acompressor=threshold=-20dB:ratio=2.2:attack=12:release=120,alimiter=limit=0.92" `
+  -af "volume=0.9,equalizer=f=150:t=q:w=1:g=2.2,equalizer=f=2800:t=q:w=1:g=1.2,acompressor=threshold=-20dB:ratio=2.2:attack=12:release=120,alimiter=limit=0.92" `
   -t 60 `
   -c:a libmp3lame -b:a 128k $trimmedPath
 

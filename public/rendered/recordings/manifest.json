@@ -1,6 +1,20 @@
 {
   "recordings": [
     {
+      "id": "tumorcrusher-tyler-cruz-reference-v1",
+      "title": "TumorCrusher Tyler Cruz long reference",
+      "personaName": "TumorCrusher",
+      "voiceName": "Tyler Cruz - Cool Energetic DJ",
+      "voiceId": "SA7eD52NRr8WAehitVt1",
+      "provider": "elevenlabs-reference",
+      "durationSeconds": 90,
+      "audioPath": "/rendered/recordings/tumorcrusher-tyler-cruz-reference-v1.mp3",
+      "scriptPath": "/rendered/day1-opening-script.txt",
+      "generatedAt": "2026-05-22T11:20:00-04:00",
+      "reuseCommand": "Reference only. Use this to tune the free DJ generator; do not rerender unless needed.",
+      "notes": "Longer paid Tyler Cruz reference generated once to guide the free Windows SAPI DJ pacing, pauses, and hype contour."
+    },
+    {
       "id": "tumorcrusher-free-dj-day1-intro-v1",
       "title": "TumorCrusher free DJ ASCO 2026 Day 1 intro",
       "personaName": "TumorCrusher",
