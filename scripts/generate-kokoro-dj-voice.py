@@ -11,17 +11,34 @@ from kokoro import KPipeline
 
 
 SAMPLE_RATE = 24000
-DEFAULT_VOICES = ("am_fenrir", "af_bella", "bm_lewis", "am_adam")
+DEFAULT_VOICES = (
+    "am_fenrir",
+    "af_heart",
+    "af_bella",
+    "am_michael",
+    "bm_lewis",
+    "af_sarah",
+    "am_echo",
+    "am_adam",
+)
 VOICE_TITLES = {
     "am_fenrir": "TumorCrusher Fenrir",
+    "af_heart": "TumorCrusher Marisol",
     "af_bella": "TumorCrusher Rebecca",
+    "am_michael": "TumorCrusher Jax",
     "bm_lewis": "TumorCrusher AussieOnc",
+    "af_sarah": "TumorCrusher Maya",
+    "am_echo": "TumorCrusher Cole",
     "am_adam": "TumorCrusher Adam",
 }
 VOICE_MIX = {
     "am_fenrir": {"gain": 1.0, "bass": 0.0},
+    "af_heart": {"gain": 1.08, "bass": 0.14},
     "af_bella": {"gain": 1.05, "bass": 0.12},
+    "am_michael": {"gain": 1.06, "bass": 0.26},
     "bm_lewis": {"gain": 1.08, "bass": 0.28},
+    "af_sarah": {"gain": 1.04, "bass": 0.1},
+    "am_echo": {"gain": 1.05, "bass": 0.22},
     "am_adam": {"gain": 1.08, "bass": 0.42},
 }
 
@@ -107,6 +124,18 @@ VOICE_PERFORMANCES = {
         {"speed": 1.04, "pause": 0.20, "text": "Adam is next, reading the social feed so you do not have to."},
         {"speed": 1.10, "pause": 0.0, "text": "Schedule desk clear. Send it to social."},
     ],
+    "af_heart": [
+        {"speed": 1.06, "pause": 0.12, "text": "Marisol Vega on the TumorCrusher Latina DJ desk."},
+        {"speed": 1.12, "pause": 0.12, "text": "Ask-oh 2026, we are live, bright, and moving with serious heat."},
+        {"speed": 1.10, "pause": 0.10, "text": "Breast, lung, G U, G Y N, skin, colorectal, upper G I, CNS, endocrine, sarcoma."},
+        {"speed": 1.13, "pause": 0.10, "text": "Every track gets a reporter. Every source gets a label."},
+        {"speed": 1.15, "pause": 0.08, "text": "No lazy hype."},
+        {"speed": 1.15, "pause": 0.10, "text": "No mystery claims."},
+        {"speed": 1.10, "pause": 0.12, "text": "Just clean conference energy, fast handoffs, and the room pulse."},
+        {"speed": 1.12, "pause": 0.10, "text": "When the poster wall jumps, I want the why."},
+        {"speed": 1.11, "pause": 0.12, "text": "When the hallway starts buzzing, I want the source."},
+        {"speed": 1.14, "pause": 0.0, "text": "Marisol is in the mix. Ask-oh Hype, sube el volumen."},
+    ],
     "af_bella": [
         {"speed": 1.06, "pause": 0.16, "text": "Rebecca on the TumorCrusher reporter desk, and yes, the energy is already up."},
         {"speed": 1.12, "pause": 0.16, "text": "Ask-oh 2026 Day 1 is not easing in. It is hitting the floor with motion."},
@@ -123,6 +152,16 @@ VOICE_PERFORMANCES = {
         {"speed": 1.10, "pause": 0.18, "text": "And if social gets messy, Adam is waiting with gloves on."},
         {"speed": 1.16, "pause": 0.0, "text": "Rebecca clear. Reporter desk hot. Send it."},
     ],
+    "am_michael": [
+        {"speed": 1.03, "pause": 0.12, "text": "Jax Rivers on the TumorCrusher U.S. prime-time desk."},
+        {"speed": 1.08, "pause": 0.12, "text": "Ask-oh 2026 is running hot, and the hourly voice cycle is now loaded."},
+        {"speed": 1.06, "pause": 0.10, "text": "Top of the hour, we rotate the booth."},
+        {"speed": 1.10, "pause": 0.10, "text": "Schedule check. Disease desk. Social hit. Source check."},
+        {"speed": 1.06, "pause": 0.12, "text": "If lung is moving, we bring the thoracic reporter."},
+        {"speed": 1.06, "pause": 0.12, "text": "If G U catches fire, the G U desk takes it."},
+        {"speed": 1.07, "pause": 0.12, "text": "If the room is full and the hallway is louder, we say that too."},
+        {"speed": 1.08, "pause": 0.0, "text": "Jax clear. Keep the clock tight and the energy up."},
+    ],
     "bm_lewis": [
         {"speed": 1.04, "pause": 0.16, "text": "Aussie Onc on the TumorCrusher global hype desk."},
         {"speed": 1.10, "pause": 0.16, "text": "Ask-oh 2026 is absolutely lighting up, and we are not whispering about it."},
@@ -137,6 +176,24 @@ VOICE_PERFORMANCES = {
         {"speed": 1.10, "pause": 0.18, "text": "Aussie Onc is here for the global conference pulse."},
         {"speed": 1.15, "pause": 0.0, "text": "Back to the desk. Let it rip."},
     ],
+    "af_sarah": [
+        {"speed": 1.01, "pause": 0.12, "text": "Maya Steele on the TumorCrusher science-to-signal desk."},
+        {"speed": 1.06, "pause": 0.12, "text": "Ask-oh 2026 has the volume, but we still read the room carefully."},
+        {"speed": 1.04, "pause": 0.12, "text": "Big claims need sources. Abstract buzz needs context. Social needs a label."},
+        {"speed": 1.06, "pause": 0.10, "text": "Breast and G Y N get the patient-centered lens."},
+        {"speed": 1.05, "pause": 0.10, "text": "CNS and endocrine get the nuance check."},
+        {"speed": 1.08, "pause": 0.10, "text": "Colorectal, upper G I, hepatobiliary, and sarcoma get the signal board."},
+        {"speed": 1.07, "pause": 0.0, "text": "Maya is live. Hype stays high. Attribution stays higher."},
+    ],
+    "am_echo": [
+        {"speed": 1.03, "pause": 0.12, "text": "Cole Maddox on the TumorCrusher late-hour U.S. desk."},
+        {"speed": 1.10, "pause": 0.10, "text": "Ask-oh 2026 does not sleep, so neither does the coverage clock."},
+        {"speed": 1.08, "pause": 0.10, "text": "Every hour gets a fresh voice, a fresh track, and a clean handoff."},
+        {"speed": 1.06, "pause": 0.10, "text": "Breast to lung. G U to G Y N. Skin to colorectal."},
+        {"speed": 1.05, "pause": 0.10, "text": "Upper G I and hepatobiliary. CNS. Endocrine. Soft tissue."},
+        {"speed": 1.09, "pause": 0.10, "text": "If it is official, we anchor it. If it is buzz, we badge it."},
+        {"speed": 1.10, "pause": 0.0, "text": "Cole clear. The cycle is alive."},
+    ],
     "am_adam": [
         {"speed": 0.98, "pause": 0.18, "text": "Adam on social, which means the internet has entered the booth."},
         {"speed": 1.06, "pause": 0.18, "text": "Ask-oh 2026 Day 1 is moving, and the feed is already doing feed things."},
@@ -150,7 +207,7 @@ VOICE_PERFORMANCES = {
         {"speed": 1.12, "pause": 0.14, "text": "Hallway buzz."},
         {"speed": 1.06, "pause": 0.18, "text": "Snack reports are welcome. Snack manifestos are concerning."},
         {"speed": 0.94, "pause": 0.22, "text": "Social posts are buzz until an operator reviews them. We attribute, we verify, then we air."},
-        {"speed": 1.06, "pause": 0.18, "text": "TumorCrusher keeps it moving: Fenrir owns the schedule, Rebecca reports the heat, Aussie Onc brings the global hype, Adam handles the feed."},
+        {"speed": 1.06, "pause": 0.18, "text": "TumorCrusher keeps it moving: Fenrir owns the schedule, Marisol brings the Latina DJ fire, Rebecca reports the heat, Aussie Onc brings the global hype, and Adam handles the feed."},
         {"speed": 1.13, "pause": 0.0, "text": "Ask-oh Hype is live. Post better. We are listening."},
     ],
 }
@@ -265,18 +322,39 @@ def synthesize_lineup(output: Path, recordings_dir: Path, voices: tuple[str, ...
     sf.write(output, combined, SAMPLE_RATE)
 
 
+def synthesize_cycle(output: Path, voices: tuple[str, ...], target_seconds: float) -> None:
+    warnings.filterwarnings("ignore", category=UserWarning)
+    pipeline = KPipeline(lang_code="a", repo_id="hexgrad/Kokoro-82M")
+    seconds_per_voice = target_seconds / max(len(voices), 1)
+    parts = []
+
+    for voice in voices:
+        lines = VOICE_PERFORMANCES[voice]
+        audio = pad_or_trim(apply_voice_mix(synthesize_lines(pipeline, voice, lines), voice), seconds_per_voice)
+        parts.append(audio)
+
+    combined = normalize(crossfade_join(parts, fade_seconds=0.85))
+    output.parent.mkdir(parents=True, exist_ok=True)
+    sf.write(output, pad_or_trim(combined, target_seconds), SAMPLE_RATE)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", required=True)
-    parser.add_argument("--mode", choices=["single", "lineup", "trio"], default="single")
+    parser.add_argument("--mode", choices=["single", "lineup", "trio", "cycle"], default="single")
     parser.add_argument("--voice", default=os.environ.get("KOKORO_DJ_VOICE", "am_puck"))
     parser.add_argument("--voices", default=",".join(DEFAULT_VOICES))
     parser.add_argument("--recordings-dir")
+    parser.add_argument("--target-seconds", type=float, default=180.0)
     args = parser.parse_args()
-    if args.mode in ("lineup", "trio"):
+    if args.mode in ("lineup", "trio", "cycle"):
         voices = tuple(part.strip() for part in args.voices.split(",") if part.strip())
         if len(voices) < 1 or any(voice not in VOICE_PERFORMANCES for voice in voices):
-            raise ValueError("Lineup mode requires supported voices: am_fenrir, af_bella, bm_lewis, am_adam")
+            supported = ", ".join(VOICE_PERFORMANCES.keys())
+            raise ValueError(f"Lineup mode requires supported voices: {supported}")
+        if args.mode == "cycle":
+            synthesize_cycle(Path(args.output), voices, args.target_seconds)
+            return
         if not args.recordings_dir:
             raise ValueError("--recordings-dir is required in lineup mode")
         synthesize_lineup(Path(args.output), Path(args.recordings_dir), voices)

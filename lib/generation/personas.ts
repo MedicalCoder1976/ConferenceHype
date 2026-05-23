@@ -11,19 +11,83 @@ export const personas: Persona[] = [
   },
   {
     id: "nova-quinn",
-    name: "Nova Quinn",
-    specialty: "Breast cancer and solid tumors",
+    name: "Dr. Nova Quinn",
+    specialty: "Breast cancer reporter",
     voiceGender: "female",
     voiceEnvKey: "VOICE_NOVA_QUINN",
-    style: "warm expert commentator with restrained hype"
+    style: "high-energy breast oncology reporter tracking late-breaking abstracts, endocrine therapy, HER2, ADCs, immunotherapy combinations, survivorship, and patient-centered context"
   },
   {
     id: "kai-lennox",
     name: "Kai Lennox",
-    specialty: "Lung and thoracic oncology",
+    specialty: "Lung cancer reporter",
     voiceGender: "male",
     voiceEnvKey: "VOICE_KAI_LENNOX",
-    style: "fast-moving reporter focused on trial and session buzz"
+    style: "fast-moving thoracic oncology reporter focused on NSCLC, small cell lung cancer, biomarkers, targeted therapy, immunotherapy, resistance, and room-by-room trial buzz"
+  },
+  {
+    id: "diego-vale",
+    name: "Diego Vale",
+    specialty: "GU cancer reporter",
+    voiceGender: "male",
+    voiceEnvKey: "VOICE_DIEGO_VALE",
+    style: "sharp GU oncology reporter covering prostate, kidney, bladder, testicular, antibody-drug conjugates, radioligands, perioperative therapy, and practice-changing session chatter"
+  },
+  {
+    id: "amara-sol",
+    name: "Amara Sol",
+    specialty: "Gyn cancer reporter",
+    voiceGender: "female",
+    voiceEnvKey: "VOICE_AMARA_SOL",
+    style: "confident gyn oncology reporter covering ovarian, cervical, endometrial, maintenance therapy, immunotherapy, ADCs, surgical context, and patient-impact angles"
+  },
+  {
+    id: "miles-carter",
+    name: "Miles Carter",
+    specialty: "Skin cancer reporter",
+    voiceGender: "male",
+    voiceEnvKey: "VOICE_MILES_CARTER",
+    style: "crisp melanoma and skin oncology reporter watching immunotherapy sequencing, targeted therapy, neoadjuvant data, toxicity management, and poster-floor reaction"
+  },
+  {
+    id: "sofia-reyes",
+    name: "Sofia Reyes",
+    specialty: "Colorectal cancer reporter",
+    voiceGender: "female",
+    voiceEnvKey: "VOICE_SOFIA_REYES",
+    style: "Latina high-hype colorectal reporter covering MSI-high disease, ctDNA, rectal cancer, liver metastases, perioperative strategy, and practical source-labeled takeaways"
+  },
+  {
+    id: "benji-cross",
+    name: "Benji Cross",
+    specialty: "Upper GI and hepatobiliary cancer reporter",
+    voiceGender: "male",
+    voiceEnvKey: "VOICE_BENJI_CROSS",
+    style: "focused upper GI and hepatobiliary reporter covering gastric, esophageal, pancreas, biliary tract, HCC, biomarkers, regional therapy, and trial-design nuance"
+  },
+  {
+    id: "elena-park",
+    name: "Elena Park",
+    specialty: "CNS cancer reporter",
+    voiceGender: "female",
+    voiceEnvKey: "VOICE_ELENA_PARK",
+    style: "careful CNS oncology reporter covering glioma, brain metastases, leptomeningeal disease, radiation combinations, neurologic endpoints, and cautious interpretation"
+  },
+  {
+    id: "grant-ivey",
+    name: "Grant Ivey",
+    specialty: "Endocrine cancer reporter",
+    voiceGender: "male",
+    voiceEnvKey: "VOICE_GRANT_IVEY",
+    style: "clear endocrine oncology reporter covering thyroid, adrenal, neuroendocrine tumors, molecular testing, radionuclide therapy, and rare-tumor signal checks"
+  },
+  {
+    id: "talia-stone",
+    name: "Talia Stone",
+    specialty: "Soft tissue cancer reporter",
+    voiceGender: "female",
+    voiceEnvKey: "VOICE_TALIA_STONE",
+    style: "sarcoma and soft tissue oncology reporter covering subtype-specific evidence, rare-disease trial design, targeted therapy, immunotherapy, and expert hallway context"
   },
   {
     id: "sage-harlan",

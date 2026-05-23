@@ -4,6 +4,7 @@ import { EmergencyOverride } from "@/components/EmergencyOverride";
 import { FocusSocialPost } from "@/components/FocusSocialPost";
 import { InstagramPushPanel } from "@/components/InstagramPushPanel";
 import { LanguageControls } from "@/components/LanguageControls";
+import { OncologyReporterGrid } from "@/components/OncologyReporterGrid";
 import { RecordingLibrary } from "@/components/RecordingLibrary";
 import { ReviewQueue } from "@/components/ReviewQueue";
 import { SocialVoiceCompetition } from "@/components/SocialVoiceCompetition";
@@ -24,6 +25,7 @@ export default async function AdminPage() {
         <ReviewQueue segments={snapshot.pendingSegments} />
         <div className="grid gap-6">
           <RecordingLibrary recordings={cachedRecordings} />
+          <OncologyReporterGrid />
           <FocusSocialPost />
           <InstagramPushPanel />
           <XVoiceCallouts customVoices={snapshot.xFollowVoices} />

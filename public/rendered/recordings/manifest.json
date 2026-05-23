@@ -15,6 +15,20 @@
       "notes": "Longer paid Tyler Cruz reference generated once to guide the free Windows SAPI DJ pacing, pauses, and hype contour."
     },
     {
+      "id": "tumorcrusher-hourly-cycle-voices-day1-v1",
+      "title": "TumorCrusher hourly cycle: Marisol Latina DJ, three US voices, and core desks",
+      "personaName": "TumorCrusher",
+      "voiceName": "Kokoro am_fenrir + af_heart Marisol + af_bella Rebecca + am_michael Jax + bm_lewis AussieOnc + af_sarah Maya + am_echo Cole + am_adam",
+      "voiceId": "kokoro-hourly-cycle-am_fenrir-af_heart-af_bella-am_michael-bm_lewis-af_sarah-am_echo-am_adam",
+      "provider": "kokoro-open-source",
+      "durationSeconds": 180,
+      "audioPath": "/rendered/recordings/tumorcrusher-hourly-cycle-voices-day1-v1.mp3",
+      "scriptPath": "/rendered/day1-opening-script.txt",
+      "generatedAt": "2026-05-23T03:30:00-04:00",
+      "reuseCommand": "& .\\scripts\\generate-free-dj-voice.ps1",
+      "notes": "Three-minute open-source hourly voice cycle for ASCO coverage. Marisol is the Latina high-hype DJ voice using Kokoro af_heart. Added US voices Jax on am_michael, Maya on af_sarah, and Cole on am_echo. Spoken ASCO is rendered as Ask-oh."
+    },
+    {
       "id": "tumorcrusher-fenrir-rebecca-aussieonc-adam-day1-run-v1",
       "title": "TumorCrusher Fenrir schedule, Rebecca reporter, AussieOnc global hype, and Adam social ASCO 2026 Day 1 run",
       "personaName": "TumorCrusher",

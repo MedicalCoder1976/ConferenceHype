@@ -6,7 +6,7 @@ $recordingsDir = Join-Path $renderDir "recordings"
 New-Item -ItemType Directory -Force $renderDir | Out-Null
 New-Item -ItemType Directory -Force $recordingsDir | Out-Null
 
-$durationSeconds = if ($env:INTRO_DURATION_SECONDS) { [int]$env:INTRO_DURATION_SECONDS } else { 240 }
+$durationSeconds = if ($env:INTRO_DURATION_SECONDS) { [int]$env:INTRO_DURATION_SECONDS } else { 180 }
 $slideSeconds = [int]($durationSeconds / 6)
 
 $slides = @(
@@ -15,37 +15,37 @@ TumorCrusher on the desk
 ASCO 2026 is ON
 Friday May 29, 7:00 AM CT test clock
 Fenrir schedule desk
+Marisol Latina DJ
 Rebecca reporter desk
 AussieOnc global hype
 Adam social desk
 "@,
 @"
-Fenrir has the schedule
-24 agenda sessions
-67 timed oral abstract presentations
-Pediatric Oncology leads the board
-Medical Ed is right behind it
+Hourly voice cycle
+Fenrir / Marisol / Rebecca / Jax
+AussieOnc / Maya / Cole / Adam
+Fresh booth energy every hour
+Saved audio for reruns
 "@,
 @"
-Tracks lighting up
-Pediatric Oncology
-Medical Education
-Care Delivery
-Lymphoma and CLL
+Disease desks assigned
+Breast / Lung / GU / Gyn / Skin
+Colorectal / Upper GI / Hepatobiliary
+CNS / Endocrine / Soft Tissue
 "@,
 @"
-Rebecca and AussieOnc
+Marisol and Rebecca
+Latina DJ hype
 Poster wall motion
 Media desk signals
-Hallway compression
-Global high-hype reporting
+Source-labeled handoffs
 "@,
 @"
-Circle the afternoon hits
-1:00 PM CT: Lymphoma and CLL, E450a
-1:00 PM CT: Lung Cancer NSCLC Metastatic, Hall D2
-2:45 PM CT: Medical Education, E450b
-Verify rooms before moving
+Jax, Maya, and Cole
+US hourly rotation voices
+Science-to-signal reads
+Prime-time and late-hour handoffs
+Keep the facts clean
 "@,
 @"
 Adam reads the feed
@@ -61,24 +61,24 @@ for ($i = 0; $i -lt $slides.Count; $i++) {
 }
 
 $script = @"
-Fenrir on the TumorCrusher schedule desk. Ask-oh 2026 Day 1 is live, and this is the room map.
+Fenrir on the TumorCrusher schedule desk. Ask-oh 2026 Day 1 is live, and the hourly cycle is loading.
 
-Quick hits. Twenty-four agenda sessions. Sixty-seven timed oral abstract presentations. Pediatric Oncology leads the early watch board. Medical Education is right behind it.
+Marisol Vega is on the Latina DJ desk with the volume up. Rebecca has the reporter pulse. Jax Rivers is on the U.S. prime-time desk. AussieOnc has the global hype. Maya Steele has the science-to-signal read. Cole Maddox takes the late-hour handoff. Adam reads the social feed with the sarcasm calibrated.
 
-No session starts inside this exact opening window. That makes this the ramp: set the map, mark the rooms, then move when the day moves.
+Every hour, rotate the booth. Schedule check. Disease desk. Social hit. Source check. If it is official, we anchor it. If it is buzz, we badge it.
 
-Circle one PM Central: Lymphoma and CLL in E450a, metastatic non-small cell lung cancer in Hall D2, and two forty-five for Medical Education in E450b. Verify rooms before walking.
+The disease reporters are assigned: breast, lung, G U, G Y N, skin, colorectal, upper G I and hepatobiliary, CNS, endocrine, and soft tissue.
 
-Rebecca on the reporter desk. She has the high-hype pulse: posters, media hits, hallway motion, and the question everybody asks when the room starts buzzing: why now?
+Nova has breast. Kai has lung. Diego has G U. Amara has G Y N. Miles has skin. Sofia has colorectal. Benji has upper G I and hepatobiliary. Elena has CNS. Grant has endocrine. Talia has soft tissue.
 
-AussieOnc on the global hype desk. He has the international pulse, the room energy, and the reminder to keep the facts clean while the volume is up.
+Ask-oh pronunciation check: we say Ask-oh as one word in spoken scripts, not A S C O as letters.
 
 Adam on social. Coffee line, snack win, poster crowd, media moment, hallway buzz: tag #ASCOHype. If it clears review, it can hit the stream. Ask-oh Hype is interactive AI commentary only, not official reporting or medical advice. TumorCrusher here. Ask-oh 2026 Day 1 is on.
 "@
 
 $scriptPath = Join-Path $renderDir "day1-opening-script.txt"
 $voicePath = Join-Path $renderDir "day1-opening-voice.mp3"
-$preferredCacheFile = if ($env:INTRO_VOICE_CACHE) { $env:INTRO_VOICE_CACHE } else { "tumorcrusher-fenrir-rebecca-aussieonc-adam-day1-run-v1.mp3" }
+$preferredCacheFile = if ($env:INTRO_VOICE_CACHE) { $env:INTRO_VOICE_CACHE } else { "tumorcrusher-hourly-cycle-voices-day1-v1.mp3" }
 $cachedVoicePath = Join-Path $recordingsDir $preferredCacheFile
 $paidVoicePath = Join-Path $recordingsDir "tumorcrusher-tyler-cruz-day1-intro-v1.mp3"
 $outputPath = Join-Path $renderDir "fallback-loop.mp4"
