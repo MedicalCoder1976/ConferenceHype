@@ -125,7 +125,7 @@ VOICE_PERFORMANCES = {
         {"speed": 1.10, "pause": 0.0, "text": "Schedule desk clear. Send it to social."},
     ],
     "af_heart": [
-        {"speed": 1.06, "pause": 0.12, "text": "Marisol Vega on the TumorCrusher Latina DJ desk."},
+        {"speed": 1.06, "pause": 0.12, "text": "Thanks, Fenrir. Marisol Vega on the TumorCrusher Latina DJ desk."},
         {"speed": 1.12, "pause": 0.12, "text": "Ask-oh 2026, we are live, bright, and moving with serious heat."},
         {"speed": 1.10, "pause": 0.10, "text": "Breast, lung, G U, G Y N, skin, colorectal, upper G I, CNS, endocrine, sarcoma."},
         {"speed": 1.13, "pause": 0.10, "text": "Every track gets a reporter. Every source gets a label."},
@@ -137,7 +137,7 @@ VOICE_PERFORMANCES = {
         {"speed": 1.14, "pause": 0.0, "text": "Marisol is in the mix. Ask-oh Hype, sube el volumen."},
     ],
     "af_bella": [
-        {"speed": 1.06, "pause": 0.16, "text": "Rebecca on the TumorCrusher reporter desk, and yes, the energy is already up."},
+        {"speed": 1.06, "pause": 0.16, "text": "Thanks, Marisol. Rebecca on the TumorCrusher reporter desk, and yes, the energy is already up."},
         {"speed": 1.12, "pause": 0.16, "text": "Ask-oh 2026 Day 1 is not easing in. It is hitting the floor with motion."},
         {"speed": 1.10, "pause": 0.14, "text": "Fenrir gave you the map. I am giving you the pulse."},
         {"speed": 1.13, "pause": 0.14, "text": "Watch the posters."},
@@ -153,7 +153,7 @@ VOICE_PERFORMANCES = {
         {"speed": 1.16, "pause": 0.0, "text": "Rebecca clear. Reporter desk hot. Send it."},
     ],
     "am_michael": [
-        {"speed": 1.03, "pause": 0.12, "text": "Jax Rivers on the TumorCrusher U.S. prime-time desk."},
+        {"speed": 1.03, "pause": 0.12, "text": "Thanks, Rebecca. Jax Rivers on the TumorCrusher U.S. prime-time desk."},
         {"speed": 1.08, "pause": 0.12, "text": "Ask-oh 2026 is running hot, and the hourly voice cycle is now loaded."},
         {"speed": 1.06, "pause": 0.10, "text": "Top of the hour, we rotate the booth."},
         {"speed": 1.10, "pause": 0.10, "text": "Schedule check. Disease desk. Social hit. Source check."},
@@ -163,7 +163,7 @@ VOICE_PERFORMANCES = {
         {"speed": 1.08, "pause": 0.0, "text": "Jax clear. Keep the clock tight and the energy up."},
     ],
     "bm_lewis": [
-        {"speed": 1.04, "pause": 0.16, "text": "Aussie Onc on the TumorCrusher global hype desk."},
+        {"speed": 1.04, "pause": 0.16, "text": "Thanks, Jax. Aussie Onc on the TumorCrusher global hype desk."},
         {"speed": 1.10, "pause": 0.16, "text": "Ask-oh 2026 is absolutely lighting up, and we are not whispering about it."},
         {"speed": 1.08, "pause": 0.16, "text": "From the schedule desk to the poster floor, this thing has movement."},
         {"speed": 1.13, "pause": 0.12, "text": "Big room energy."},
@@ -177,7 +177,7 @@ VOICE_PERFORMANCES = {
         {"speed": 1.15, "pause": 0.0, "text": "Back to the desk. Let it rip."},
     ],
     "af_sarah": [
-        {"speed": 1.01, "pause": 0.12, "text": "Maya Steele on the TumorCrusher science-to-signal desk."},
+        {"speed": 1.01, "pause": 0.12, "text": "Thanks, Aussie Onc. Maya Steele on the TumorCrusher science-to-signal desk."},
         {"speed": 1.06, "pause": 0.12, "text": "Ask-oh 2026 has the volume, but we still read the room carefully."},
         {"speed": 1.04, "pause": 0.12, "text": "Big claims need sources. Abstract buzz needs context. Social needs a label."},
         {"speed": 1.06, "pause": 0.10, "text": "Breast and G Y N get the patient-centered lens."},
@@ -186,7 +186,7 @@ VOICE_PERFORMANCES = {
         {"speed": 1.07, "pause": 0.0, "text": "Maya is live. Hype stays high. Attribution stays higher."},
     ],
     "am_echo": [
-        {"speed": 1.03, "pause": 0.12, "text": "Cole Maddox on the TumorCrusher late-hour U.S. desk."},
+        {"speed": 1.03, "pause": 0.12, "text": "Thanks, Maya. Cole Maddox on the TumorCrusher late-hour U.S. desk."},
         {"speed": 1.10, "pause": 0.10, "text": "Ask-oh 2026 does not sleep, so neither does the coverage clock."},
         {"speed": 1.08, "pause": 0.10, "text": "Every hour gets a fresh voice, a fresh track, and a clean handoff."},
         {"speed": 1.06, "pause": 0.10, "text": "Breast to lung. G U to G Y N. Skin to colorectal."},
@@ -195,7 +195,7 @@ VOICE_PERFORMANCES = {
         {"speed": 1.10, "pause": 0.0, "text": "Cole clear. The cycle is alive."},
     ],
     "am_adam": [
-        {"speed": 0.98, "pause": 0.18, "text": "Adam on social, which means the internet has entered the booth."},
+        {"speed": 0.98, "pause": 0.18, "text": "Thanks, Cole. Adam on social, which means the internet has entered the booth."},
         {"speed": 1.06, "pause": 0.18, "text": "Ask-oh 2026 Day 1 is moving, and the feed is already doing feed things."},
         {"speed": 1.10, "pause": 0.14, "text": "Coffee line."},
         {"speed": 1.13, "pause": 0.12, "text": "Snack win."},

@@ -332,9 +332,12 @@ export async function saveIngestedItemsToDb(items: IngestedItem[]) {
   if (!hasSupabase() || items.length === 0) {
     return null;
   }
+  const uniqueItems = Array.from(
+    new Map(items.map((item) => [dedupeHash(item), item])).values()
+  );
   const supabase = createAdminClient();
   const { error } = await supabase.from("ingested_items").upsert(
-    items.map((item) => ({
+    uniqueItems.map((item) => ({
       title: item.title,
       url: item.url,
       excerpt: item.engagementScore

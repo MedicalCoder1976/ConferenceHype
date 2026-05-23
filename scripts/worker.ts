@@ -1,24 +1,25 @@
-import { runGenerateJob } from "@/lib/jobs/generateSegments";
-import { runBriefingJob } from "@/lib/jobs/briefing";
-import { runIngestionJob } from "@/lib/jobs/ingest";
-import { runUpcomingEventsJob } from "@/lib/jobs/upcomingEvents";
-import { logInfo } from "@/lib/logging";
+import { loadEnvConfig } from "@next/env";
 
 async function main() {
+  loadEnvConfig(process.cwd());
+  const { logInfo } = await import("@/lib/logging");
   const command = process.argv[2];
   if (command === "ingest") {
+    const { runIngestionJob } = await import("@/lib/jobs/ingest");
     const items = await runIngestionJob();
     logInfo("worker ingestion finished", { count: items.length });
     console.log(JSON.stringify(items, null, 2));
     return;
   }
   if (command === "generate") {
+    const { runGenerateJob } = await import("@/lib/jobs/generateSegments");
     const segments = await runGenerateJob();
     logInfo("worker generation finished", { count: segments.length });
     console.log(JSON.stringify(segments, null, 2));
     return;
   }
   if (command === "briefing") {
+    const { runBriefingJob } = await import("@/lib/jobs/briefing");
     const briefingNow = process.env.ASCO_BRIEFING_NOW
       ? new Date(process.env.ASCO_BRIEFING_NOW)
       : new Date();
@@ -28,6 +29,7 @@ async function main() {
     return;
   }
   if (command === "upcoming") {
+    const { runUpcomingEventsJob } = await import("@/lib/jobs/upcomingEvents");
     const upcomingNow = process.env.ASCO_UPCOMING_NOW
       ? new Date(process.env.ASCO_UPCOMING_NOW)
       : new Date();

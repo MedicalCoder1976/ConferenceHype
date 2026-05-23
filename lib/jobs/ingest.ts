@@ -41,11 +41,13 @@ export async function runIngestionJob(): Promise<IngestedItem[]> {
     })
   );
 
-  const items = batches
+  const rankedItems = batches
     .flatMap((result) => (result.status === "fulfilled" ? result.value : []))
     .filter(isRelevantItem)
-    .sort((a, b) => a.rank - b.rank)
-    .slice(0, 40);
-  await saveIngestedItemsToDb(items);
-  return items;
+    .sort((a, b) => a.rank - b.rank);
+  const dedupedItems = Array.from(
+    new Map(rankedItems.map((item) => [`${item.url}|${item.title}`, item])).values()
+  ).slice(0, 40);
+  await saveIngestedItemsToDb(dedupedItems);
+  return dedupedItems;
 }

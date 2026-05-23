@@ -63,7 +63,7 @@ for ($i = 0; $i -lt $slides.Count; $i++) {
 $script = @"
 Fenrir on the TumorCrusher schedule desk. Ask-oh 2026 Day 1 is live, and the hourly cycle is loading.
 
-Marisol Vega is on the Latina DJ desk with the volume up. Rebecca has the reporter pulse. Jax Rivers is on the U.S. prime-time desk. AussieOnc has the global hype. Maya Steele has the science-to-signal read. Cole Maddox takes the late-hour handoff. Adam reads the social feed with the sarcasm calibrated.
+Thanks, Fenrir. Marisol Vega is on the Latina DJ desk with the volume up. Thanks, Marisol. Rebecca has the reporter pulse. Thanks, Rebecca. Jax Rivers is on the U.S. prime-time desk. Thanks, Jax. AussieOnc has the global hype. Thanks, AussieOnc. Maya Steele has the science-to-signal read. Thanks, Maya. Cole Maddox takes the late-hour handoff. Thanks, Cole. Adam reads the social feed with the sarcasm calibrated.
 
 Every hour, rotate the booth. Schedule check. Disease desk. Social hit. Source check. If it is official, we anchor it. If it is buzz, we badge it.
 

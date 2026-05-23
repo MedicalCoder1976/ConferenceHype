@@ -14,7 +14,8 @@
     "job:upcoming": "tsx scripts/worker.ts upcoming",
     "job:narrative": "tsx scripts/generate-asco-narrative.ts",
     "job:render": "tsx scripts/ffmpeg-render.ts",
-    "job:stream": "tsx scripts/youtube-rtmp-loop.ts"
+    "job:stream": "tsx scripts/youtube-rtmp-loop.ts",
+    "job:stream:6h": "tsx scripts/youtube-rtmp-loop.ts"
   },
   "dependencies": {
     "@next/swc-wasm-nodejs": "^15.5.18",
