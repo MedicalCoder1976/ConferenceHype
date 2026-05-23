@@ -11,13 +11,15 @@ from kokoro import KPipeline
 
 
 SAMPLE_RATE = 24000
-DEFAULT_VOICES = ("am_fenrir", "am_adam")
+DEFAULT_VOICES = ("am_fenrir", "af_bella", "am_adam")
 VOICE_TITLES = {
     "am_fenrir": "TumorCrusher Fenrir",
+    "af_bella": "TumorCrusher Rebecca",
     "am_adam": "TumorCrusher Adam",
 }
 VOICE_MIX = {
     "am_fenrir": {"gain": 1.0, "bass": 0.0},
+    "af_bella": {"gain": 1.05, "bass": 0.12},
     "am_adam": {"gain": 1.08, "bass": 0.42},
 }
 
@@ -103,6 +105,22 @@ VOICE_PERFORMANCES = {
         {"speed": 1.04, "pause": 0.20, "text": "Adam is next, reading the social feed so you do not have to."},
         {"speed": 1.10, "pause": 0.0, "text": "Schedule desk clear. Send it to social."},
     ],
+    "af_bella": [
+        {"speed": 1.06, "pause": 0.16, "text": "Rebecca on the TumorCrusher reporter desk, and yes, the energy is already up."},
+        {"speed": 1.12, "pause": 0.16, "text": "Ask-oh 2026 Day 1 is not easing in. It is hitting the floor with motion."},
+        {"speed": 1.10, "pause": 0.14, "text": "Fenrir gave you the map. I am giving you the pulse."},
+        {"speed": 1.13, "pause": 0.14, "text": "Watch the posters."},
+        {"speed": 1.15, "pause": 0.14, "text": "Watch the media desk."},
+        {"speed": 1.14, "pause": 0.14, "text": "Watch the hallway compression when a session lets out."},
+        {"speed": 1.08, "pause": 0.18, "text": "Pediatric Oncology and Medical Education are carrying early heat."},
+        {"speed": 1.08, "pause": 0.18, "text": "Lymphoma and CLL, lung cancer, and care delivery are the tracks to keep warm on the board."},
+        {"speed": 1.12, "pause": 0.14, "text": "This is conference reporting with the volume up."},
+        {"speed": 1.07, "pause": 0.20, "text": "Not official reporting, not medical advice, and definitely not a reason to skip checking the source."},
+        {"speed": 1.15, "pause": 0.12, "text": "If the room starts buzzing, we want the why."},
+        {"speed": 1.13, "pause": 0.14, "text": "If the poster wall starts moving, we want the signal."},
+        {"speed": 1.10, "pause": 0.18, "text": "And if social gets messy, Adam is waiting with gloves on."},
+        {"speed": 1.16, "pause": 0.0, "text": "Rebecca clear. Reporter desk hot. Send it."},
+    ],
     "am_adam": [
         {"speed": 0.98, "pause": 0.18, "text": "Adam on social, which means the internet has entered the booth."},
         {"speed": 1.06, "pause": 0.18, "text": "Ask-oh 2026 Day 1 is moving, and the feed is already doing feed things."},
@@ -116,7 +134,7 @@ VOICE_PERFORMANCES = {
         {"speed": 1.12, "pause": 0.14, "text": "Hallway buzz."},
         {"speed": 1.06, "pause": 0.18, "text": "Snack reports are welcome. Snack manifestos are concerning."},
         {"speed": 0.94, "pause": 0.22, "text": "Social posts are buzz until an operator reviews them. We attribute, we verify, then we air."},
-        {"speed": 1.06, "pause": 0.18, "text": "TumorCrusher keeps it moving: Fenrir owns the schedule, Adam handles the feed."},
+        {"speed": 1.06, "pause": 0.18, "text": "TumorCrusher keeps it moving: Fenrir owns the schedule, Rebecca reports the heat, Adam handles the feed."},
         {"speed": 1.13, "pause": 0.0, "text": "Ask-oh Hype is live. Post better. We are listening."},
     ],
 }
@@ -242,7 +260,7 @@ def main() -> None:
     if args.mode in ("lineup", "trio"):
         voices = tuple(part.strip() for part in args.voices.split(",") if part.strip())
         if len(voices) < 1 or any(voice not in VOICE_PERFORMANCES for voice in voices):
-            raise ValueError("Lineup mode requires supported voices: am_fenrir, am_adam")
+            raise ValueError("Lineup mode requires supported voices: am_fenrir, af_bella, am_adam")
         if not args.recordings_dir:
             raise ValueError("--recordings-dir is required in lineup mode")
         synthesize_lineup(Path(args.output), Path(args.recordings_dir), voices)

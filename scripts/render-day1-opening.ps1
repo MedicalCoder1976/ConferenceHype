@@ -6,7 +6,7 @@ $recordingsDir = Join-Path $renderDir "recordings"
 New-Item -ItemType Directory -Force $renderDir | Out-Null
 New-Item -ItemType Directory -Force $recordingsDir | Out-Null
 
-$durationSeconds = if ($env:INTRO_DURATION_SECONDS) { [int]$env:INTRO_DURATION_SECONDS } else { 120 }
+$durationSeconds = if ($env:INTRO_DURATION_SECONDS) { [int]$env:INTRO_DURATION_SECONDS } else { 180 }
 $slideSeconds = [int]($durationSeconds / 6)
 
 $slides = @(
@@ -15,6 +15,7 @@ TumorCrusher on the desk
 ASCO 2026 is ON
 Friday May 29, 7:00 AM CT test clock
 Fenrir schedule desk
+Rebecca reporter desk
 Adam social desk
 "@,
 @"
@@ -32,11 +33,11 @@ Care Delivery
 Lymphoma and CLL
 "@,
 @"
-Opening window: launch mode
-No session starts in this exact window
-That is the ramp
-Set the map
-Then the day starts moving
+Rebecca reports the heat
+Poster wall motion
+Media desk signals
+Hallway compression
+High-hype source-first reporting
 "@,
 @"
 Circle the afternoon hits
@@ -67,12 +68,14 @@ No session starts inside this exact opening window. That makes this the ramp: se
 
 Circle one PM Central: Lymphoma and CLL in E450a, metastatic non-small cell lung cancer in Hall D2, and two forty-five for Medical Education in E450b. Verify rooms before walking.
 
+Rebecca on the reporter desk. She has the high-hype pulse: posters, media hits, hallway motion, and the question everybody asks when the room starts buzzing: why now?
+
 Adam on social. Coffee line, snack win, poster crowd, media moment, hallway buzz: tag #ASCOHype. If it clears review, it can hit the stream. Ask-oh Hype is interactive AI commentary only, not official reporting or medical advice. TumorCrusher here. Ask-oh 2026 Day 1 is on.
 "@
 
 $scriptPath = Join-Path $renderDir "day1-opening-script.txt"
 $voicePath = Join-Path $renderDir "day1-opening-voice.mp3"
-$preferredCacheFile = if ($env:INTRO_VOICE_CACHE) { $env:INTRO_VOICE_CACHE } else { "tumorcrusher-fenrir-adam-day1-run-v1.mp3" }
+$preferredCacheFile = if ($env:INTRO_VOICE_CACHE) { $env:INTRO_VOICE_CACHE } else { "tumorcrusher-fenrir-rebecca-adam-day1-run-v1.mp3" }
 $cachedVoicePath = Join-Path $recordingsDir $preferredCacheFile
 $paidVoicePath = Join-Path $recordingsDir "tumorcrusher-tyler-cruz-day1-intro-v1.mp3"
 $outputPath = Join-Path $renderDir "fallback-loop.mp4"
