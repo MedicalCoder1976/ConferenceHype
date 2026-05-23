@@ -6,7 +6,7 @@ $recordingsDir = Join-Path $renderDir "recordings"
 New-Item -ItemType Directory -Force $renderDir | Out-Null
 New-Item -ItemType Directory -Force $recordingsDir | Out-Null
 
-$durationSeconds = if ($env:INTRO_DURATION_SECONDS) { [int]$env:INTRO_DURATION_SECONDS } else { 180 }
+$durationSeconds = if ($env:INTRO_DURATION_SECONDS) { [int]$env:INTRO_DURATION_SECONDS } else { 240 }
 $slideSeconds = [int]($durationSeconds / 6)
 
 $slides = @(
@@ -16,6 +16,7 @@ ASCO 2026 is ON
 Friday May 29, 7:00 AM CT test clock
 Fenrir schedule desk
 Rebecca reporter desk
+AussieOnc global hype
 Adam social desk
 "@,
 @"
@@ -33,11 +34,11 @@ Care Delivery
 Lymphoma and CLL
 "@,
 @"
-Rebecca reports the heat
+Rebecca and AussieOnc
 Poster wall motion
 Media desk signals
 Hallway compression
-High-hype source-first reporting
+Global high-hype reporting
 "@,
 @"
 Circle the afternoon hits
@@ -70,12 +71,14 @@ Circle one PM Central: Lymphoma and CLL in E450a, metastatic non-small cell lung
 
 Rebecca on the reporter desk. She has the high-hype pulse: posters, media hits, hallway motion, and the question everybody asks when the room starts buzzing: why now?
 
+AussieOnc on the global hype desk. He has the international pulse, the room energy, and the reminder to keep the facts clean while the volume is up.
+
 Adam on social. Coffee line, snack win, poster crowd, media moment, hallway buzz: tag #ASCOHype. If it clears review, it can hit the stream. Ask-oh Hype is interactive AI commentary only, not official reporting or medical advice. TumorCrusher here. Ask-oh 2026 Day 1 is on.
 "@
 
 $scriptPath = Join-Path $renderDir "day1-opening-script.txt"
 $voicePath = Join-Path $renderDir "day1-opening-voice.mp3"
-$preferredCacheFile = if ($env:INTRO_VOICE_CACHE) { $env:INTRO_VOICE_CACHE } else { "tumorcrusher-fenrir-rebecca-adam-day1-run-v1.mp3" }
+$preferredCacheFile = if ($env:INTRO_VOICE_CACHE) { $env:INTRO_VOICE_CACHE } else { "tumorcrusher-fenrir-rebecca-aussieonc-adam-day1-run-v1.mp3" }
 $cachedVoicePath = Join-Path $recordingsDir $preferredCacheFile
 $paidVoicePath = Join-Path $recordingsDir "tumorcrusher-tyler-cruz-day1-intro-v1.mp3"
 $outputPath = Join-Path $renderDir "fallback-loop.mp4"

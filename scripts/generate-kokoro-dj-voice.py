@@ -11,15 +11,17 @@ from kokoro import KPipeline
 
 
 SAMPLE_RATE = 24000
-DEFAULT_VOICES = ("am_fenrir", "af_bella", "am_adam")
+DEFAULT_VOICES = ("am_fenrir", "af_bella", "bm_lewis", "am_adam")
 VOICE_TITLES = {
     "am_fenrir": "TumorCrusher Fenrir",
     "af_bella": "TumorCrusher Rebecca",
+    "bm_lewis": "TumorCrusher AussieOnc",
     "am_adam": "TumorCrusher Adam",
 }
 VOICE_MIX = {
     "am_fenrir": {"gain": 1.0, "bass": 0.0},
     "af_bella": {"gain": 1.05, "bass": 0.12},
+    "bm_lewis": {"gain": 1.08, "bass": 0.28},
     "am_adam": {"gain": 1.08, "bass": 0.42},
 }
 
@@ -121,6 +123,20 @@ VOICE_PERFORMANCES = {
         {"speed": 1.10, "pause": 0.18, "text": "And if social gets messy, Adam is waiting with gloves on."},
         {"speed": 1.16, "pause": 0.0, "text": "Rebecca clear. Reporter desk hot. Send it."},
     ],
+    "bm_lewis": [
+        {"speed": 1.04, "pause": 0.16, "text": "Aussie Onc on the TumorCrusher global hype desk."},
+        {"speed": 1.10, "pause": 0.16, "text": "Ask-oh 2026 is absolutely lighting up, and we are not whispering about it."},
+        {"speed": 1.08, "pause": 0.16, "text": "From the schedule desk to the poster floor, this thing has movement."},
+        {"speed": 1.13, "pause": 0.12, "text": "Big room energy."},
+        {"speed": 1.14, "pause": 0.12, "text": "Sharp agenda signal."},
+        {"speed": 1.12, "pause": 0.16, "text": "And enough hallway noise to make the badges vibrate."},
+        {"speed": 1.06, "pause": 0.18, "text": "Pediatric Oncology, Medical Education, lymphoma, lung cancer, care delivery."},
+        {"speed": 1.11, "pause": 0.16, "text": "That is the radar, and the radar is loud."},
+        {"speed": 1.08, "pause": 0.18, "text": "If a source is official, we say it. If it is social, we label it. If it is nonsense, Adam can roast it."},
+        {"speed": 1.14, "pause": 0.14, "text": "Keep the stream hot, keep the facts clean, and keep the room map open."},
+        {"speed": 1.10, "pause": 0.18, "text": "Aussie Onc is here for the global conference pulse."},
+        {"speed": 1.15, "pause": 0.0, "text": "Back to the desk. Let it rip."},
+    ],
     "am_adam": [
         {"speed": 0.98, "pause": 0.18, "text": "Adam on social, which means the internet has entered the booth."},
         {"speed": 1.06, "pause": 0.18, "text": "Ask-oh 2026 Day 1 is moving, and the feed is already doing feed things."},
@@ -134,7 +150,7 @@ VOICE_PERFORMANCES = {
         {"speed": 1.12, "pause": 0.14, "text": "Hallway buzz."},
         {"speed": 1.06, "pause": 0.18, "text": "Snack reports are welcome. Snack manifestos are concerning."},
         {"speed": 0.94, "pause": 0.22, "text": "Social posts are buzz until an operator reviews them. We attribute, we verify, then we air."},
-        {"speed": 1.06, "pause": 0.18, "text": "TumorCrusher keeps it moving: Fenrir owns the schedule, Rebecca reports the heat, Adam handles the feed."},
+        {"speed": 1.06, "pause": 0.18, "text": "TumorCrusher keeps it moving: Fenrir owns the schedule, Rebecca reports the heat, Aussie Onc brings the global hype, Adam handles the feed."},
         {"speed": 1.13, "pause": 0.0, "text": "Ask-oh Hype is live. Post better. We are listening."},
     ],
 }
@@ -260,7 +276,7 @@ def main() -> None:
     if args.mode in ("lineup", "trio"):
         voices = tuple(part.strip() for part in args.voices.split(",") if part.strip())
         if len(voices) < 1 or any(voice not in VOICE_PERFORMANCES for voice in voices):
-            raise ValueError("Lineup mode requires supported voices: am_fenrir, af_bella, am_adam")
+            raise ValueError("Lineup mode requires supported voices: am_fenrir, af_bella, bm_lewis, am_adam")
         if not args.recordings_dir:
             raise ValueError("--recordings-dir is required in lineup mode")
         synthesize_lineup(Path(args.output), Path(args.recordings_dir), voices)
