@@ -6,7 +6,7 @@ $recordingsDir = Join-Path $renderDir "recordings"
 New-Item -ItemType Directory -Force $renderDir | Out-Null
 New-Item -ItemType Directory -Force $recordingsDir | Out-Null
 
-$durationSeconds = if ($env:INTRO_DURATION_SECONDS) { [int]$env:INTRO_DURATION_SECONDS } else { 60 }
+$durationSeconds = if ($env:INTRO_DURATION_SECONDS) { [int]$env:INTRO_DURATION_SECONDS } else { 120 }
 $slideSeconds = [int]($durationSeconds / 6)
 
 $slides = @(
@@ -14,11 +14,11 @@ $slides = @(
 TumorCrusher on the desk
 ASCO 2026 is ON
 Friday May 29, 7:00 AM CT test clock
-One-minute Adam voice test
-Club-DJ bass pass
+Fenrir schedule desk
+Adam social desk
 "@,
 @"
-Day 1 is not a warm-up
+Fenrir has the schedule
 24 agenda sessions
 67 timed oral abstract presentations
 Pediatric Oncology leads the board
@@ -46,7 +46,7 @@ Circle the afternoon hits
 Verify rooms before moving
 "@,
 @"
-Feed the desk
+Adam reads the feed
 Coffee lines. Snack wins. Poster crowds.
 Media moments. Hallway buzz.
 Tag #ASCOHype
@@ -59,7 +59,7 @@ for ($i = 0; $i -lt $slides.Count; $i++) {
 }
 
 $script = @"
-TumorCrusher on the ASKO Hype desk. ASKO 2026 is live on the board, and Day 1 is not a warm-up. It is seven o'clock Central on Friday, May 29. This is the one-minute lock-in.
+Fenrir on the TumorCrusher schedule desk. ASKO 2026 Day 1 is live, and this is the room map.
 
 Quick hits. Twenty-four agenda sessions. Sixty-seven timed oral abstract presentations. Pediatric Oncology leads the early watch board. Medical Education is right behind it.
 
@@ -67,12 +67,12 @@ No session starts inside this exact opening window. That makes this the ramp: se
 
 Circle one PM Central: Lymphoma and CLL in E450a, metastatic non-small cell lung cancer in Hall D2, and two forty-five for Medical Education in E450b. Verify rooms before walking.
 
-Coffee line, snack win, poster crowd, media moment, hallway buzz: tag #ASCOHype. If it clears review, it can hit the stream. ASKO Hype is interactive AI commentary only, not official reporting or medical advice. TumorCrusher here. ASKO 2026 Day 1 is on.
+Adam on social. Coffee line, snack win, poster crowd, media moment, hallway buzz: tag #ASCOHype. If it clears review, it can hit the stream. ASKO Hype is interactive AI commentary only, not official reporting or medical advice. TumorCrusher here. ASKO 2026 Day 1 is on.
 "@
 
 $scriptPath = Join-Path $renderDir "day1-opening-script.txt"
 $voicePath = Join-Path $renderDir "day1-opening-voice.mp3"
-$preferredCacheFile = if ($env:INTRO_VOICE_CACHE) { $env:INTRO_VOICE_CACHE } else { "tumorcrusher-kokoro-am_adam-minute-v1.mp3" }
+$preferredCacheFile = if ($env:INTRO_VOICE_CACHE) { $env:INTRO_VOICE_CACHE } else { "tumorcrusher-fenrir-adam-day1-run-v1.mp3" }
 $cachedVoicePath = Join-Path $recordingsDir $preferredCacheFile
 $paidVoicePath = Join-Path $recordingsDir "tumorcrusher-tyler-cruz-day1-intro-v1.mp3"
 $outputPath = Join-Path $renderDir "fallback-loop.mp4"

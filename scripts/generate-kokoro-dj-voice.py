@@ -11,14 +11,12 @@ from kokoro import KPipeline
 
 
 SAMPLE_RATE = 24000
-DEFAULT_VOICES = ("am_puck", "am_fenrir", "am_adam")
+DEFAULT_VOICES = ("am_fenrir", "am_adam")
 VOICE_TITLES = {
-    "am_puck": "TumorCrusher Puck",
     "am_fenrir": "TumorCrusher Fenrir",
     "am_adam": "TumorCrusher Adam",
 }
 VOICE_MIX = {
-    "am_puck": {"gain": 1.0, "bass": 0.0},
     "am_fenrir": {"gain": 1.0, "bass": 0.0},
     "am_adam": {"gain": 1.08, "bass": 0.42},
 }
@@ -86,56 +84,40 @@ PERFORMANCE_LINES = [
     {"speed": 1.10, "pause": 0.0, "text": "TumorCrusher here. ASKO 2026 Day 1 is on."},
 ]
 
-TRIO_PERFORMANCES = {
-    "am_puck": [
-        {"speed": 1.04, "pause": 0.18, "text": "TumorCrusher on the ASKO Hype desk."},
-        {"speed": 1.08, "pause": 0.22, "text": "ASKO 2026 is officially in launch mode."},
-        {"speed": 1.06, "pause": 0.34, "text": "Day 1 is not a warm-up. Day 1 is the first big swing of the meeting."},
-        {"speed": 1.02, "pause": 0.24, "text": "Seven o'clock Central, Friday May 29. The badge is on, the app is open, and the room map matters."},
-        {"speed": 1.12, "pause": 0.16, "text": "Quick hits."},
-        {"speed": 1.08, "pause": 0.18, "text": "Twenty-four agenda sessions."},
-        {"speed": 1.08, "pause": 0.18, "text": "Sixty-seven timed oral abstract presentations."},
-        {"speed": 1.04, "pause": 0.22, "text": "Pediatric Oncology and Medical Education lead the early watch board."},
-        {"speed": 1.02, "pause": 0.20, "text": "Lymphoma and CLL is warming up the afternoon radar."},
-        {"speed": 1.04, "pause": 0.26, "text": "Metastatic non-small cell lung cancer is circled in bold."},
-        {"speed": 0.96, "pause": 0.24, "text": "This is interactive conference commentary, not official reporting and not medical advice."},
-        {"speed": 1.10, "pause": 0.18, "text": "Coming across the desk next, Fenrir grabs the room map and turns up the signal."},
-        {"speed": 1.12, "pause": 0.0, "text": "ASKO Hype stays live. Keep it moving."},
-    ],
+VOICE_PERFORMANCES = {
     "am_fenrir": [
-        {"speed": 1.02, "pause": 0.16, "text": "Fenrir on the TumorCrusher desk, taking the handoff."},
-        {"speed": 1.04, "pause": 0.20, "text": "Here is the conference path through the noise."},
-        {"speed": 1.01, "pause": 0.18, "text": "Circle one PM Central."},
-        {"speed": 1.00, "pause": 0.18, "text": "Lymphoma and CLL in E450a."},
-        {"speed": 1.00, "pause": 0.18, "text": "Metastatic non-small cell lung cancer in Hall D2."},
-        {"speed": 1.00, "pause": 0.22, "text": "Then two forty-five for Medical Education in E450b."},
-        {"speed": 0.94, "pause": 0.28, "text": "Verify rooms before walking. Rooms move. Lines form. The app wins."},
-        {"speed": 1.08, "pause": 0.14, "text": "Set the map."},
-        {"speed": 1.08, "pause": 0.14, "text": "Mark the rooms."},
-        {"speed": 1.10, "pause": 0.24, "text": "Move when the day moves."},
-        {"speed": 1.04, "pause": 0.18, "text": "If the hallway buzz clears review, it can hit the stream."},
-        {"speed": 1.06, "pause": 0.20, "text": "Coffee line, snack win, poster crowd, media moment."},
-        {"speed": 1.12, "pause": 0.18, "text": "Tag hashtag ASKO Hype."},
-        {"speed": 1.06, "pause": 0.20, "text": "Adam is next on closeout duty with the final hype sweep."},
-        {"speed": 1.12, "pause": 0.0, "text": "Desk two is clear. Send it."},
+        {"speed": 1.01, "pause": 0.18, "text": "Fenrir on the TumorCrusher schedule desk."},
+        {"speed": 1.05, "pause": 0.20, "text": "ASKO 2026 Day 1 is live, and this is the room map."},
+        {"speed": 1.06, "pause": 0.18, "text": "Quick schedule hit."},
+        {"speed": 1.03, "pause": 0.18, "text": "Twenty-four agenda sessions are on the board."},
+        {"speed": 1.03, "pause": 0.18, "text": "Sixty-seven timed oral abstract presentations are ready to move."},
+        {"speed": 1.00, "pause": 0.20, "text": "Pediatric Oncology and Medical Education lead the early watch list."},
+        {"speed": 1.00, "pause": 0.18, "text": "Circle one PM Central."},
+        {"speed": 0.98, "pause": 0.18, "text": "Lymphoma and CLL in E450a."},
+        {"speed": 0.98, "pause": 0.18, "text": "Metastatic non-small cell lung cancer in Hall D2."},
+        {"speed": 0.98, "pause": 0.20, "text": "Then two forty-five for Medical Education in E450b."},
+        {"speed": 0.93, "pause": 0.28, "text": "Verify every room in the ASKO app and on-site signage before walking."},
+        {"speed": 1.05, "pause": 0.14, "text": "Set the map."},
+        {"speed": 1.06, "pause": 0.14, "text": "Mark the rooms."},
+        {"speed": 1.08, "pause": 0.22, "text": "Move when the day moves."},
+        {"speed": 1.04, "pause": 0.20, "text": "Adam is next, reading the social feed so you do not have to."},
+        {"speed": 1.10, "pause": 0.0, "text": "Schedule desk clear. Send it to social."},
     ],
     "am_adam": [
-        {"speed": 0.98, "pause": 0.18, "text": "Adam on the TumorCrusher desk, final minute, lights down, volume up."},
-        {"speed": 1.05, "pause": 0.18, "text": "ASKO 2026 Day 1 is on the board, and the room is moving."},
-        {"speed": 1.02, "pause": 0.18, "text": "The opening window was the ramp. Now the afternoon hits like the bass drop."},
-        {"speed": 1.07, "pause": 0.14, "text": "Pediatric Oncology. Medical Education. Lymphoma and CLL. Lung cancer. Care delivery."},
-        {"speed": 1.13, "pause": 0.12, "text": "That is the board."},
-        {"speed": 1.15, "pause": 0.18, "text": "That is the pulse."},
-        {"speed": 0.94, "pause": 0.24, "text": "Keep your badge close, keep your room list tighter, and verify every room before you walk."},
-        {"speed": 1.14, "pause": 0.10, "text": "Coffee line."},
-        {"speed": 1.17, "pause": 0.10, "text": "Snack win."},
-        {"speed": 1.14, "pause": 0.10, "text": "Poster crowd."},
-        {"speed": 1.17, "pause": 0.10, "text": "Media moment."},
-        {"speed": 1.19, "pause": 0.20, "text": "Hallway buzz."},
-        {"speed": 1.08, "pause": 0.18, "text": "Tag hashtag ASKO Hype if something deserves the desk."},
-        {"speed": 0.93, "pause": 0.22, "text": "Reminder, this is interactive AI commentary only. Not official reporting. Not medical advice."},
-        {"speed": 1.09, "pause": 0.14, "text": "TumorCrusher here, three voices strong, Adam on the close."},
-        {"speed": 1.16, "pause": 0.0, "text": "ASKO 2026 Day 1 is on. Turn it up."},
+        {"speed": 0.98, "pause": 0.18, "text": "Adam on social, which means the internet has entered the booth."},
+        {"speed": 1.06, "pause": 0.18, "text": "ASKO 2026 Day 1 is moving, and the feed is already doing feed things."},
+        {"speed": 1.10, "pause": 0.14, "text": "Coffee line."},
+        {"speed": 1.13, "pause": 0.12, "text": "Snack win."},
+        {"speed": 1.10, "pause": 0.12, "text": "Poster crowd."},
+        {"speed": 1.15, "pause": 0.16, "text": "Somebody is definitely posting a hallway selfie like it is breaking news."},
+        {"speed": 1.04, "pause": 0.20, "text": "Tag hashtag ASKO Hype when something actually deserves the desk."},
+        {"speed": 0.98, "pause": 0.20, "text": "If it is just a blurry badge photo, congratulations, you have invented evidence-free cardio."},
+        {"speed": 1.12, "pause": 0.14, "text": "Media moment."},
+        {"speed": 1.12, "pause": 0.14, "text": "Hallway buzz."},
+        {"speed": 1.06, "pause": 0.18, "text": "Snack reports are welcome. Snack manifestos are concerning."},
+        {"speed": 0.94, "pause": 0.22, "text": "Social posts are buzz until an operator reviews them. We attribute, we verify, then we air."},
+        {"speed": 1.06, "pause": 0.18, "text": "TumorCrusher keeps it moving: Fenrir owns the schedule, Adam handles the feed."},
+        {"speed": 1.13, "pause": 0.0, "text": "ASKO Hype is live. Post better. We are listening."},
     ],
 }
 
@@ -169,7 +151,7 @@ def bass_boost(audio: np.ndarray, amount: float) -> np.ndarray:
 
 
 def apply_voice_mix(audio: np.ndarray, voice: str) -> np.ndarray:
-    mix = VOICE_MIX.get(voice, VOICE_MIX["am_puck"])
+    mix = VOICE_MIX.get(voice, VOICE_MIX["am_fenrir"])
     tuned = audio * float(mix["gain"])
     tuned = bass_boost(tuned, float(mix["bass"]))
     return normalize(tuned)
@@ -232,14 +214,14 @@ def synthesize(output: Path, voice: str) -> None:
     sf.write(output, audio, SAMPLE_RATE)
 
 
-def synthesize_trio(output: Path, recordings_dir: Path, voices: tuple[str, str, str]) -> None:
+def synthesize_lineup(output: Path, recordings_dir: Path, voices: tuple[str, ...]) -> None:
     warnings.filterwarnings("ignore", category=UserWarning)
     pipeline = KPipeline(lang_code="a", repo_id="hexgrad/Kokoro-82M")
     recordings_dir.mkdir(parents=True, exist_ok=True)
     one_minute_parts = []
 
     for voice in voices:
-        lines = TRIO_PERFORMANCES[voice]
+        lines = VOICE_PERFORMANCES[voice]
         audio = pad_or_trim(apply_voice_mix(synthesize_lines(pipeline, voice, lines), voice), 60.0)
         one_minute_parts.append(audio)
         sf.write(recordings_dir / f"tumorcrusher-kokoro-{voice}-minute-v1.wav", audio, SAMPLE_RATE)
@@ -252,18 +234,18 @@ def synthesize_trio(output: Path, recordings_dir: Path, voices: tuple[str, str, 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", required=True)
-    parser.add_argument("--mode", choices=["single", "trio"], default="single")
+    parser.add_argument("--mode", choices=["single", "lineup", "trio"], default="single")
     parser.add_argument("--voice", default=os.environ.get("KOKORO_DJ_VOICE", "am_puck"))
     parser.add_argument("--voices", default=",".join(DEFAULT_VOICES))
     parser.add_argument("--recordings-dir")
     args = parser.parse_args()
-    if args.mode == "trio":
+    if args.mode in ("lineup", "trio"):
         voices = tuple(part.strip() for part in args.voices.split(",") if part.strip())
-        if len(voices) != 3 or any(voice not in TRIO_PERFORMANCES for voice in voices):
-            raise ValueError("Trio mode requires three supported voices: am_puck, am_fenrir, am_adam")
+        if len(voices) < 1 or any(voice not in VOICE_PERFORMANCES for voice in voices):
+            raise ValueError("Lineup mode requires supported voices: am_fenrir, am_adam")
         if not args.recordings_dir:
-            raise ValueError("--recordings-dir is required in trio mode")
-        synthesize_trio(Path(args.output), Path(args.recordings_dir), voices)  # type: ignore[arg-type]
+            raise ValueError("--recordings-dir is required in lineup mode")
+        synthesize_lineup(Path(args.output), Path(args.recordings_dir), voices)
     else:
         synthesize(Path(args.output), args.voice)
 

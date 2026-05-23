@@ -20,9 +20,9 @@ const now = new Date().toISOString();
 export const mockSegments: Segment[] = [
   {
     id: "seg-echo-agenda",
-    title: "TumorCrusher Adam open-source DJ ASCO 2026 intro",
+    title: "TumorCrusher Fenrir schedule and Adam social ASCO 2026 run",
     summary:
-      "TumorCrusher opens the ASCO 2026 Day 1 test run with a reusable one-minute Kokoro am_adam booth pass tuned for more bass, hype, and club-DJ energy.",
+      "TumorCrusher opens the ASCO 2026 Day 1 test run with Fenrir handling the schedule and room map while Adam reads social media with snarky club-DJ energy.",
     script: `${defaultDisclaimer}\n\nWelcome to ASCO Hype. We are watching the 2026 annual meeting buildup like a live conference desk: agenda previews, media roundups, exhibitor signals, and the social posts people tag with #ASCOHype, #ASCO26, or @ASCOHypeAI. The key thing to remember: social posts are buzz, not confirmation, until they are checked against stronger sources.\n\nReminder: ${defaultDisclaimer}`,
     contentType: "agenda_preview",
     personaId: "echo-sage",
