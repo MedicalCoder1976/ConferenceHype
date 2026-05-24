@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CountdownTimer } from "@/components/CountdownTimer";
 import { PublicPlayer } from "@/components/PublicPlayer";
 import { getPublicSegments, getStreamState } from "@/lib/data";
 import { monitoredSocialTags } from "@/lib/sources/registry";
@@ -33,6 +34,12 @@ export default async function Home() {
               <strong>{monitoredSocialTags.conferenceHashtag}</strong>, or tag{" "}
               <strong>{monitoredSocialTags.botHandle}</strong>.
             </p>
+            <div className="mt-5">
+              <CountdownTimer
+                startAt="2026-05-24T12:00:00Z"
+                label="Three-hour ASCO Hype test stream"
+              />
+            </div>
             <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:max-w-2xl">
               <div className="border-l-4 border-broadcast bg-white/85 p-4 shadow-panel">
                 <div className="text-xl font-black md:text-2xl">May 25</div>
