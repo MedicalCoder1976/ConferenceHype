@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 type CountdownTimerProps = {
   startAt: string;
   label: string;
+  paused?: boolean;
 };
 
 function getRemaining(startAt: string) {
@@ -30,7 +31,7 @@ function formatUnit(value: number) {
   return value.toString().padStart(2, "0");
 }
 
-export function CountdownTimer({ startAt, label }: CountdownTimerProps) {
+export function CountdownTimer({ startAt, label, paused = false }: CountdownTimerProps) {
   const [remaining, setRemaining] = useState(() => getRemaining(startAt));
   const startLabel = useMemo(
     () =>
@@ -68,7 +69,11 @@ export function CountdownTimer({ startAt, label }: CountdownTimerProps) {
           <Clock className="h-5 w-5 text-broadcast" />
           <div>
             <div className="text-xs font-black uppercase tracking-wide text-broadcast">
-              {remaining.isLive ? "Live now" : "Countdown to start"}
+              {paused
+                ? "Stream paused"
+                : remaining.isLive
+                  ? "Live now"
+                  : "Countdown to start"}
             </div>
             <div className="text-sm font-bold text-ink/70">{label}</div>
           </div>
