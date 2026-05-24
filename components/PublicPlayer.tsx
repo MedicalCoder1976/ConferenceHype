@@ -12,7 +12,9 @@ export function PublicPlayer({ streamState, currentSegment }: Props) {
   const hlsUrl = process.env.NEXT_PUBLIC_HLS_URL;
   const streamLabel = audioStreamUrl
     ? "audio saver"
-    : hlsUrl
+    : youtubeId
+      ? "youtube live"
+      : hlsUrl
       ? "low hls"
       : streamState.mode;
 
@@ -59,6 +61,14 @@ export function PublicPlayer({ streamState, currentSegment }: Props) {
               src={audioStreamUrl}
             />
           </div>
+        ) : youtubeId ? (
+          <iframe
+            className="h-full w-full"
+            src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&playsinline=1&controls=1&rel=0`}
+            title="ASCO Hype live stream"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+          />
         ) : hlsUrl ? (
           <video
             className="h-full w-full"
@@ -68,14 +78,6 @@ export function PublicPlayer({ streamState, currentSegment }: Props) {
             playsInline
             preload="metadata"
             src={hlsUrl}
-          />
-        ) : youtubeId ? (
-          <iframe
-            className="h-full w-full"
-            src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&playsinline=1&controls=1&rel=0`}
-            title="ASCO Hype live stream"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
           />
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-3 p-5 text-center text-white md:p-8">
