@@ -4,7 +4,7 @@ $root = Split-Path -Parent $PSScriptRoot
 $musicDir = Join-Path $root "public\music"
 $tmpDir = Join-Path $root ".tmp"
 $durationSeconds = if ($env:GAP_MUSIC_SECONDS) { [int]$env:GAP_MUSIC_SECONDS } else { 360 }
-$version = if ($durationSeconds -le 20) { "20sec-preview-v1" } else { "6min-v3" }
+$version = if ($durationSeconds -le 20) { "20sec-preview-v2" } else { "6min-v4" }
 $outputPath = Join-Path $musicDir "conferencehype-gap-music-$version.mp3"
 $stingerPath = Join-Path $tmpDir "conferencehype-stinger.wav"
 
@@ -22,27 +22,31 @@ $delays = if ($durationSeconds -le 20) { @(6) } else { @(18, 108, 198, 288) }
 $stingers = @()
 for ($i = 0; $i -lt $delays.Count; $i++) {
   $ms = $delays[$i] * 1000
-  $stingers += "[5:a]volume=1.15,adelay=$ms|$ms,apad[s$i]"
+  $stingers += "[7:a]volume=1.10,adelay=$ms|$ms,apad[s$i]"
 }
 $stingerLabels = (0..($delays.Count - 1) | ForEach-Object { "[s$_]" }) -join ""
-$inputCount = 5 + $delays.Count
+$inputCount = 7 + $delays.Count
 
 $filter = @"
-[0:a]volume=1.18[kick];
-[1:a]volume=1.02,lowpass=f=180[bass];
-[2:a]volume=0.32,lowpass=f=900[pad];
-[3:a]volume=0.055,highpass=f=5200,lowpass=f=9200[hatair];
-[4:a]volume=0.20,lowpass=f=260[lowdrive];
+[0:a]volume=1.16,lowpass=f=130[kick];
+[1:a]volume=1.22,lowpass=f=105[sub];
+[2:a]volume=0.72,lowpass=f=230[bassline];
+[3:a]volume=0.18,lowpass=f=780[pad];
+[4:a]volume=0.05,highpass=f=5200,lowpass=f=9600[hatair];
+[5:a]volume='if(between(mod(t\,1)\,0.48\,0.60)\,0.25\,0)':eval=frame,highpass=f=900,lowpass=f=5200[clap];
+[6:a]volume=0.18,lowpass=f=250[lowdrive];
 $($stingers -join ";");
-[kick][bass][pad][hatair][lowdrive]$stingerLabels amix=inputs=${inputCount}:duration=longest:normalize=0,acompressor=threshold=-13dB:ratio=2.4:attack=10:release=180,alimiter=limit=0.93,afade=t=in:st=0:d=1,afade=t=out:st=$($durationSeconds - 2):d=2[out]
+[kick][sub][bassline][pad][hatair][clap][lowdrive]$stingerLabels amix=inputs=${inputCount}:duration=longest:normalize=0,acompressor=threshold=-12dB:ratio=2.2:attack=8:release=180,alimiter=limit=0.94,afade=t=in:st=0:d=1,afade=t=out:st=$($durationSeconds - 2):d=2[out]
 "@
 
 & $ffmpeg -y `
-  -f lavfi -i "aevalsrc=0.95*sin(2*PI*52*t)*exp(-mod(t\,0.50)*18):d=${durationSeconds}:s=44100" `
-  -f lavfi -i "aevalsrc=0.52*sin(2*PI*(65+16*gt(mod(t\,4)\,2))*t)*(0.55+0.45*sin(2*PI*0.125*t)):d=${durationSeconds}:s=44100" `
-  -f lavfi -i "aevalsrc=(sin(2*PI*146.83*t)+0.8*sin(2*PI*185*t)+0.55*sin(2*PI*220*t))*(0.38+0.22*sin(2*PI*0.04*t)):d=${durationSeconds}:s=44100" `
+  -f lavfi -i "aevalsrc=(sin(2*PI*47*t)+0.42*sin(2*PI*94*t))*exp(-mod(t\,0.50)*24):d=${durationSeconds}:s=44100" `
+  -f lavfi -i "aevalsrc=sin(2*PI*(39+5*gt(mod(t\,2)\,1))*t)*(0.70+0.30*gt(mod(t\,0.50)\,0.18)):d=${durationSeconds}:s=44100" `
+  -f lavfi -i "aevalsrc=sin(2*PI*(78+12*gt(mod(t\,4)\,2)+7*gt(mod(t\,1)\,0.5))*t)*(0.42+0.58*gt(mod(t\,0.50)\,0.24)):d=${durationSeconds}:s=44100" `
+  -f lavfi -i "aevalsrc=(sin(2*PI*146.83*t)+0.65*sin(2*PI*196*t)+0.45*sin(2*PI*246.94*t))*(0.28+0.18*sin(2*PI*0.04*t)):d=${durationSeconds}:s=44100" `
   -f lavfi -i "anoisesrc=d=${durationSeconds}:c=pink:r=44100" `
-  -f lavfi -i "aevalsrc=0.38*sin(2*PI*39*t)*(0.45+0.55*gt(mod(t\,2)\,1)):d=${durationSeconds}:s=44100" `
+  -f lavfi -i "anoisesrc=d=${durationSeconds}:c=white:r=44100" `
+  -f lavfi -i "aevalsrc=sin(2*PI*31*t)*(0.40+0.60*gt(mod(t\,2)\,1)):d=${durationSeconds}:s=44100" `
   -i $stingerPath `
   -filter_complex $filter `
   -map "[out]" `
