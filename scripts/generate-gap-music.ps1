@@ -3,7 +3,7 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $musicDir = Join-Path $root "public\music"
 $tmpDir = Join-Path $root ".tmp"
-$outputPath = Join-Path $musicDir "conferencehype-gap-music-6min-v2.mp3"
+$outputPath = Join-Path $musicDir "conferencehype-gap-music-6min-v3.mp3"
 $stingerPath = Join-Path $tmpDir "conferencehype-stinger.wav"
 
 New-Item -ItemType Directory -Force $musicDir | Out-Null
@@ -25,13 +25,13 @@ for ($i = 0; $i -lt $delays.Count; $i++) {
 $stingerLabels = (0..($delays.Count - 1) | ForEach-Object { "[s$_]" }) -join ""
 
 $filter = @"
-[0:a]volume=0.95[kick];
-[1:a]volume=0.78,lowpass=f=180[bass];
-[2:a]volume=0.18,lowpass=f=900[pad];
-[3:a]volume=0.035,highpass=f=5200,lowpass=f=9200[hatair];
-[4:a]volume=0.11,lowpass=f=260[lowdrive];
+[0:a]volume=1.18[kick];
+[1:a]volume=1.02,lowpass=f=180[bass];
+[2:a]volume=0.32,lowpass=f=900[pad];
+[3:a]volume=0.055,highpass=f=5200,lowpass=f=9200[hatair];
+[4:a]volume=0.20,lowpass=f=260[lowdrive];
 $($stingers -join ";");
-[kick][bass][pad][hatair][lowdrive]$stingerLabels amix=inputs=9:duration=longest:normalize=0,acompressor=threshold=-15dB:ratio=2.8:attack=10:release=180,alimiter=limit=0.90,afade=t=in:st=0:d=2,afade=t=out:st=356:d=4[out]
+[kick][bass][pad][hatair][lowdrive]$stingerLabels amix=inputs=9:duration=longest:normalize=0,acompressor=threshold=-13dB:ratio=2.4:attack=10:release=180,alimiter=limit=0.93,afade=t=in:st=0:d=2,afade=t=out:st=356:d=4[out]
 "@
 
 & $ffmpeg -y `

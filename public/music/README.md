@@ -22,3 +22,5 @@ Recommended workflow:
 - `conferencehype-gap-music-6min-v2.mp3`: smoother replacement gap bed with
   fewer ConferenceHype stingers, less high-frequency synth, deeper bass, and no
   chirpy pulse layer.
+- `conferencehype-gap-music-6min-v3.mp3`: louder version of the smoother gap
+  bed with the base music raised while keeping the stingers controlled.
