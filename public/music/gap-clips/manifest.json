@@ -1,0 +1,47 @@
+﻿{
+    "generatedAt":  "2026-05-24T03:17:24.5259936Z",
+    "licenseNote":  "User supplied these as purchased techno tracks for ConferenceHype broadcast use. Keep proof of purchase outside the repo.",
+    "rotationRule":  "Use one 20-second clip between approved broadcast segments, matching nextSpeaker when possible. Each clip includes an ASCOHype channel intro to the next speaker.",
+    "clips":  [
+                  {
+                      "id":  "elevate-fenrir",
+                      "title":  "Elevate into Fenrir",
+                      "sourceTrack":  "Elevate.mp3",
+                      "nextSpeaker":  "Fenrir",
+                      "nextRole":  "schedule desk",
+                      "durationSeconds":  20,
+                      "audioPath":  "/music/gap-clips/conferencehype-gap-elevate-to-fenrir-20s.mp3",
+                      "introText":  "ConferenceHype on the ASCOHype channel. Up next, Fenrir on the schedule desk. Ask-oh energy, keep it moving."
+                  },
+                  {
+                      "id":  "nightclub-rebecca",
+                      "title":  "Nightclub System Overload into Rebecca",
+                      "sourceTrack":  "Nightclub_System_Overload.mp3",
+                      "nextSpeaker":  "Rebecca",
+                      "nextRole":  "high-hype reporter desk",
+                      "durationSeconds":  20,
+                      "audioPath":  "/music/gap-clips/conferencehype-gap-nightclub-to-rebecca-20s.mp3",
+                      "introText":  "ConferenceHype on the ASCOHype channel. Up next, Rebecca on the high-hype reporter desk. Ask-oh energy, keep it moving."
+                  },
+                  {
+                      "id":  "subterranean-adam",
+                      "title":  "Subterranean Pulse into Adam",
+                      "sourceTrack":  "Subterranean_Pulse.mp3",
+                      "nextSpeaker":  "Adam",
+                      "nextRole":  "snarky social feed",
+                      "durationSeconds":  20,
+                      "audioPath":  "/music/gap-clips/conferencehype-gap-subterranean-to-adam-20s.mp3",
+                      "introText":  "ConferenceHype on the ASCOHype channel. Up next, Adam on the snarky social feed. Ask-oh energy, keep it moving."
+                  },
+                  {
+                      "id":  "skyline-aussieonc",
+                      "title":  "Skyline Echo into AussieOnc",
+                      "sourceTrack":  "Skyline_Echo.mp3",
+                      "nextSpeaker":  "AussieOnc",
+                      "nextRole":  "global hype desk",
+                      "durationSeconds":  20,
+                      "audioPath":  "/music/gap-clips/conferencehype-gap-skyline-to-aussieonc-20s.mp3",
+                      "introText":  "ConferenceHype on the ASCOHype channel. Up next, AussieOnc on the global hype desk. Ask-oh energy, keep it moving."
+                  }
+              ]
+}

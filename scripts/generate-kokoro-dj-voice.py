@@ -306,12 +306,13 @@ def synthesize(output: Path, voice: str) -> None:
     sf.write(output, audio, SAMPLE_RATE)
 
 
-def synthesize_stinger(output: Path, voice: str) -> None:
+def synthesize_stinger(output: Path, voice: str, text: str | None = None) -> None:
     warnings.filterwarnings("ignore", category=UserWarning)
     pipeline = KPipeline(lang_code="a", repo_id="hexgrad/Kokoro-82M")
     lines = [
-        {"speed": 1.04, "pause": 0.12, "text": "ConferenceHype!"},
-        {"speed": 1.02, "pause": 0.08, "text": "Ask-oh energy all day."},
+        {"speed": 1.04, "pause": 0.12, "text": line.strip()}
+        for line in (text or "ConferenceHype!\nAsk-oh energy all day.").splitlines()
+        if line.strip()
     ]
     audio = apply_voice_mix(synthesize_lines(pipeline, voice, lines), voice)
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -359,12 +360,13 @@ def main() -> None:
     parser.add_argument("--voices", default=",".join(DEFAULT_VOICES))
     parser.add_argument("--recordings-dir")
     parser.add_argument("--target-seconds", type=float, default=180.0)
+    parser.add_argument("--text")
     args = parser.parse_args()
     if args.mode == "stinger":
         if args.voice not in VOICE_MIX:
             supported = ", ".join(VOICE_MIX.keys())
             raise ValueError(f"Stinger mode requires supported voice: {supported}")
-        synthesize_stinger(Path(args.output), args.voice)
+        synthesize_stinger(Path(args.output), args.voice, args.text)
     elif args.mode in ("lineup", "trio", "cycle"):
         voices = tuple(part.strip() for part in args.voices.split(",") if part.strip())
         if len(voices) < 1 or any(voice not in VOICE_PERFORMANCES for voice in voices):
