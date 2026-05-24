@@ -15,10 +15,10 @@ export function PublicPlayer({ streamState, currentSegment }: Props) {
     : undefined;
   const streamLabel = audioStreamUrl
     ? "audio saver"
-    : hlsUrl
-      ? "low hls"
-      : youtubeId
+    : youtubeId
       ? "youtube"
+      : hlsUrl
+      ? "low hls"
       : streamState.mode;
 
   return (
@@ -64,6 +64,14 @@ export function PublicPlayer({ streamState, currentSegment }: Props) {
               src={audioStreamUrl}
             />
           </div>
+        ) : youtubeWatchUrl ? (
+          <iframe
+            className="h-full w-full"
+            src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&playsinline=1&rel=0`}
+            title="ASCO Hype live stream"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+          />
         ) : hlsUrl ? (
           <video
             className="h-full w-full"
@@ -74,24 +82,6 @@ export function PublicPlayer({ streamState, currentSegment }: Props) {
             preload="metadata"
             src={hlsUrl}
           />
-        ) : youtubeWatchUrl ? (
-          <div className="flex h-full flex-col items-center justify-center gap-4 p-5 text-center text-white md:p-8">
-            <Tv className="h-10 w-10 text-cyanline md:h-12 md:w-12" />
-            <h2 className="text-xl font-black md:text-2xl">Live on YouTube</h2>
-            <p className="max-w-md text-sm text-white/75">
-              YouTube playback may open in a new tab depending on the live
-              event settings.
-            </p>
-            <a
-              className="inline-flex min-h-11 items-center justify-center gap-2 bg-white px-4 py-2 text-sm font-black uppercase text-ink"
-              href={youtubeWatchUrl}
-              target="_blank"
-              rel="noreferrer"
-            >
-              <ExternalLink className="h-4 w-4" />
-              Watch on YouTube
-            </a>
-          </div>
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-3 p-5 text-center text-white md:p-8">
             <Tv className="h-10 w-10 text-cyanline md:h-12 md:w-12" />

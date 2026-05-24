@@ -37,8 +37,7 @@ export default async function Home() {
             <div className="mt-5">
               <CountdownTimer
                 startAt="2026-05-24T12:00:00Z"
-                label="Paused while YouTube link and embedding are confirmed"
-                paused
+                label="One-hour ASCO Hype live stream"
               />
             </div>
             <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:max-w-2xl">
