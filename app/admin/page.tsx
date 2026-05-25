@@ -40,6 +40,15 @@ function todayAtNoonEastern(now = new Date()) {
   return new Date(`${year}-${month}-${day}T12:00:00-04:00`);
 }
 
+function addDays(date: Date, days: number) {
+  return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
+}
+
+function noonEasternForDate(date: Date) {
+  const { year, month, day } = getEasternDateParts(date);
+  return `${year}-${month}-${day}T12:00:00-04:00`;
+}
+
 function resolvePreviewStart(start?: string) {
   if (!start) {
     return new Date();
@@ -59,11 +68,29 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     getCachedRecordings()
   ]);
   const baseTime = baseDate.toISOString();
+  const twoWeekStarts = Array.from({ length: 14 }, (_, index) => {
+    const noon = noonEasternForDate(addDays(new Date(), index));
+    return {
+      href: `/admin?start=${encodeURIComponent(noon)}`,
+      label: new Intl.DateTimeFormat("en-US", {
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false
+      }).format(new Date(noon))
+    };
+  });
   const noonPreviewHref = "/admin?start=today-noon";
   const liveHref = "/admin";
   const previewLabel = new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
+    weekday: "short",
+    month: "2-digit",
+    day: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
     minute: "2-digit",
+    hour12: false,
     timeZoneName: "short"
   }).format(baseDate);
 
@@ -88,6 +115,22 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         >
           Live now view
         </a>
+        <div className="basis-full">
+          <div className="mb-2 text-xs font-black uppercase text-ink/50">
+            14-day noon planning shortcuts
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {twoWeekStarts.map((item) => (
+              <a
+                key={item.href}
+                className="shrink-0 border border-ink/10 bg-paper px-3 py-2 text-xs font-black uppercase text-ink/70 hover:border-broadcast"
+                href={item.href}
+              >
+                {item.label}
+              </a>
+            ))}
+          </div>
+        </div>
       </div>
       <AdminTabs
         broadcast={

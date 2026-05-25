@@ -1,7 +1,7 @@
 import { env } from "@/lib/env";
 import type { Persona } from "@/lib/types";
 
-function applySpokenPronunciations(script: string) {
+export function applySpokenPronunciations(script: string) {
   return script.replace(/\bASCO\b/g, "Ask-oh").replace(/\bASKO\b/g, "Ask-oh");
 }
 

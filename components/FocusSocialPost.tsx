@@ -93,7 +93,8 @@ export function FocusSocialPost() {
       </div>
       <p className="mt-2 text-sm leading-6 text-ink/65">
         Add an X tweet, URL, operator statement, or sponsor message. Choose the
-        voice and optionally repeat the approved card every half hour.
+        voice, create admin-required break-in mentions, and optionally repeat
+        the approved card every half hour.
       </p>
       {message ? (
         <div className="mt-3 border border-cyanline/30 bg-cyanline/10 p-3 text-sm font-bold text-ink">
@@ -110,7 +111,7 @@ export function FocusSocialPost() {
           >
             <option value="x_tweet">X tweet</option>
             <option value="url">URL or article</option>
-            <option value="statement">Operator statement</option>
+            <option value="statement">Operator break-in mention</option>
             <option value="sponsor_message">Sponsor message</option>
           </select>
         </label>

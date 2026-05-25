@@ -45,8 +45,11 @@ function parseStart() {
 
 function timeLabel(date: Date) {
   return new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
     minute: "2-digit",
+    hour12: false,
     timeZoneName: "short"
   }).format(date);
 }
@@ -72,12 +75,12 @@ function renderPreview(slots: BroadcastSlot[], start: Date) {
     `Start: ${timeLabel(start)}`,
     `End: ${timeLabel(end)}`,
     "",
-    "This preview includes schedule/location narration every 10 minutes, music space every 5 minutes, and any approved voice cards scheduled inside the window.",
+    "This preview includes two-minute schedule/location narration every 10 minutes, music space every 5 minutes, and approved voice cards scheduled inside the window.",
     ""
   ];
 
   for (const slot of slots) {
-    lines.push(`## ${timeLabel(slot.at)} - ${slot.kind.toUpperCase()}`);
+    lines.push(`## ${timeLabel(slot.at)} - ${slot.kind.toUpperCase()} (${slot.durationMinutes} min)`);
     if (slot.kind === "music") {
       lines.push("Music bed / transition space.");
       lines.push("");

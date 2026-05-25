@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { getAscoCoreStats, getAscoUpcomingEventSources } from "@/lib/asco2026/core";
 import { saveGeneratedSegmentsToDb } from "@/lib/db";
-import { withSpokenDisclaimer } from "@/lib/generation/disclaimers";
 import type { Citation, IngestedItem, Segment } from "@/lib/types";
 
 function uniqueCitations(sources: IngestedItem[]): Citation[] {
@@ -56,22 +55,16 @@ function buildNoTokenUpcomingSegment(sources: IngestedItem[], now: Date): Segmen
       ];
   const abstractLines = abstractSources.map(compactLine);
 
-  const script = withSpokenDisclaimer(
-    [
-      `ASCO Hype is live on the conference dial. It is ${timeLabel} Chicago time, and this is your high-energy schedule hit from the no-token ASCO 2026 program spine.`,
-      "Keep it locked: we are moving fast and staying source-forward.",
-      `Looking ahead over the next ${stats.scheduleSpineLookaheadMinutes} minutes:`,
-      ...sessionLines,
-      posterSources.length
-        ? `Poster wall callout, W-poster watch, and Hall A energy check: ${posterSources.map(compactLine).join(" ")} Repeat the room before you move, and verify poster locations in the ASCO app and on-site signage because locations can change unexpectedly.`
-        : "Poster wall callout: when the official schedule shows Hall A Posters and Exhibits blocks, we will flag them here with locations.",
-      abstractLines.length
-        ? `Related abstract context on the desk: ${abstractLines.join(" ")}`
-        : "No extra abstract context is being added to this window.",
-      "Media monitor: we are also listening for reviewed broadcast and media signals from OncLive, STAT News, The ASCO Post, X posts, and operator-approved conference-floor reports.",
-      "Between these schedule checks, the channel can be interrupted by monitored X voice callouts, OncLive, STAT News, The ASCO Post, official sources, operator statements, sponsor messages, or other verified source-attributed items."
-    ].join("\n\n")
-  );
+  const script = [
+    `Two-minute schedule check. It is ${timeLabel} Chicago time.`,
+    `Next ${stats.scheduleSpineLookaheadMinutes} minutes: ${sessionLines.join(" ")}`,
+    posterSources.length
+      ? `Poster/location note: ${posterSources.map(compactLine).join(" ")} Verify rooms and halls in the ASCO app and on-site signage.`
+      : "Location note: no specific room or hall is listed in this window; verify any movement in the ASCO app and on-site signage.",
+    abstractLines.length
+      ? `Related abstract pointer: ${abstractLines.join(" ")}`
+      : "No extra abstract pointer in this schedule break."
+  ].join("\n\n");
 
   return {
     id: `schedule-spine-${randomUUID()}`,
@@ -107,8 +100,9 @@ export function buildScheduleRundownSegments(now = new Date(), hours = 3) {
       ...segment,
       id: `virtual-${segment.id}`,
       title: `Schedule/location rundown: ${new Intl.DateTimeFormat("en-US", {
-        hour: "numeric",
+        hour: "2-digit",
         minute: "2-digit",
+        hour12: false,
         timeZoneName: "short"
       }).format(scheduledAt)}`,
       approvedAt: scheduledAt.toISOString(),

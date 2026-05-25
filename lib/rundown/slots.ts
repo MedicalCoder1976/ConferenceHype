@@ -3,6 +3,7 @@ import type { Segment } from "@/lib/types";
 export type BroadcastSlot = {
   at: Date;
   kind: "music" | "schedule" | "statement" | "backup";
+  durationMinutes: number;
   segment?: Segment;
   label: string;
 };
@@ -15,7 +16,18 @@ export function firstSlotTime(segment: Segment) {
   return new Date(segment.approvedAt ?? segment.createdAt);
 }
 
-function placeStatements(segments: Segment[], baseTime: Date, hours: number) {
+function minuteKey(date: Date) {
+  const rounded = new Date(date);
+  rounded.setSeconds(0, 0);
+  return rounded.getTime();
+}
+
+function placeStatements(
+  segments: Segment[],
+  baseTime: Date,
+  hours: number,
+  blockedTimes = new Set<number>()
+) {
   const end = addMinutes(baseTime, hours * 60);
   const sorted = [...segments].sort(
     (a, b) => firstSlotTime(a).getTime() - firstSlotTime(b).getTime()
@@ -29,6 +41,7 @@ function placeStatements(segments: Segment[], baseTime: Date, hours: number) {
       scheduled.push({
         at: slotTime,
         kind: "statement",
+        durationMinutes: 3,
         label: segment.personaName || "Voice statement",
         segment
       });
@@ -39,20 +52,24 @@ function placeStatements(segments: Segment[], baseTime: Date, hours: number) {
     }
   }
 
-  const usedTimes = new Set(scheduled.map((slot) => slot.at.getTime()));
+  const usedTimes = new Set([
+    ...Array.from(blockedTimes),
+    ...scheduled.map((slot) => minuteKey(slot.at))
+  ]);
   const placedFloating: BroadcastSlot[] = [];
   for (const [index, segment] of floating.entries()) {
     let at = addMinutes(baseTime, 2 + index * 12);
-    while (usedTimes.has(at.getTime())) {
-      at = addMinutes(at, 1);
+    while (usedTimes.has(minuteKey(at))) {
+      at = addMinutes(at, 3);
     }
     if (at >= end) {
       break;
     }
-    usedTimes.add(at.getTime());
+    usedTimes.add(minuteKey(at));
     placedFloating.push({
       at,
       kind: "statement",
+      durationMinutes: 3,
       label: segment.personaName || "Voice statement",
       segment
     });
@@ -79,6 +96,7 @@ export function buildBroadcastSlots({
     slots.push({
       at: addMinutes(baseTime, minute),
       kind: "music",
+      durationMinutes: 5,
       label: "Music bed / transition space"
     });
   }
@@ -89,13 +107,16 @@ export function buildBroadcastSlots({
       slots.push({
         at: slotTime,
         kind: "schedule",
-        label: "10-minute session/location rundown",
+        durationMinutes: 2,
+        label: "2-minute schedule/location rundown",
         segment
       });
     }
   }
 
-  return [...slots, ...placeStatements(segments, baseTime, hours)].sort(
+  const blockedTimes = new Set(slots.map((slot) => minuteKey(slot.at)));
+
+  return [...slots, ...placeStatements(segments, baseTime, hours, blockedTimes)].sort(
     (a, b) => a.at.getTime() - b.at.getTime()
   );
 }

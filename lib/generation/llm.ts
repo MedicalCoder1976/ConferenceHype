@@ -4,6 +4,7 @@ import { env } from "@/lib/env";
 import { buildReporterPrompt } from "@/lib/generation/prompts";
 import { getPersona } from "@/lib/generation/personas";
 import { withSpokenDisclaimer } from "@/lib/generation/disclaimers";
+import { applySpokenPronunciations } from "@/lib/media/tts";
 import type { HypeLevel, IngestedItem, Segment } from "@/lib/types";
 
 type GeneratedCitation = string | { label?: string; url?: string };
@@ -93,7 +94,7 @@ export async function generateSegmentFromSources({
     id: `draft-${randomUUID()}`,
     title: parsed.title ?? "Generated ASCO Hype segment",
     summary: parsed.summary ?? "Generated reporter-style segment for review.",
-    script: withSpokenDisclaimer(parsed.script ?? ""),
+    script: withSpokenDisclaimer(applySpokenPronunciations(parsed.script ?? "")),
     contentType: resolvedContentType,
     personaId: persona.id,
     personaName: persona.name,

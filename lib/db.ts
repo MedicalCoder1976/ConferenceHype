@@ -476,6 +476,34 @@ export async function updateSegmentDecisionInDb({
   };
 }
 
+export async function updateSegmentScheduleInDb({
+  segmentId,
+  approvedAt
+}: {
+  segmentId: string;
+  approvedAt: string;
+}) {
+  if (!hasSupabase()) {
+    return null;
+  }
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("segments")
+    .update({
+      approved_at: approvedAt,
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", segmentId)
+    .eq("status", "approved")
+    .select("*")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+  return toSegment(data as SegmentRow);
+}
+
 export async function updateEmergencyStateInDb({
   active,
   message
