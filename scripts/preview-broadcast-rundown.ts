@@ -26,15 +26,15 @@ function easternDateParts(date: Date) {
   };
 }
 
-function todayAtNoonEastern(now = new Date()) {
+function todayAtPlanningEastern(now = new Date()) {
   const { year, month, day } = easternDateParts(now);
-  return new Date(`${year}-${month}-${day}T12:00:00-04:00`);
+  return new Date(`${year}-${month}-${day}T21:00:00-04:00`);
 }
 
 function parseStart() {
-  const start = process.argv[2] ?? process.env.STREAM_PREVIEW_START ?? "today-noon";
-  if (start === "today-noon") {
-    return todayAtNoonEastern();
+  const start = process.argv[2] ?? process.env.STREAM_PREVIEW_START ?? "today-21";
+  if (start === "today-noon" || start === "today-21") {
+    return todayAtPlanningEastern();
   }
   const parsed = new Date(start);
   if (Number.isNaN(parsed.getTime())) {
@@ -70,7 +70,7 @@ function contentLabel(segment?: Segment) {
 function renderPreview(slots: BroadcastSlot[], start: Date) {
   const end = addMinutes(start, 180);
   const lines = [
-    `# ASCO Hype Noon Stream Narration Preview`,
+    `# ASCO Hype 21:00 Planning Slot Preview`,
     "",
     `Start: ${timeLabel(start)}`,
     `End: ${timeLabel(end)}`,
@@ -121,7 +121,7 @@ async function main() {
   ).flatMap((bucket) => bucket.slots);
   const output = renderPreview(slots, start);
   const outputDir = path.join(process.cwd(), ".tmp");
-  const outputPath = path.join(outputDir, "noon-stream-preview.md");
+  const outputPath = path.join(outputDir, "planning-slot-preview.md");
   await mkdir(outputDir, { recursive: true });
   await writeFile(outputPath, output, "utf8");
   console.log(

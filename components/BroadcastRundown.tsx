@@ -21,11 +21,11 @@ async function rejectSegment(segment: Segment) {
   }
 }
 
-async function scheduleSegment(segmentId: string, approvedAt: string) {
+async function scheduleSegment(segmentId: string, approvedAt: string, script?: string) {
   const response = await fetch("/api/admin/schedule", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ segmentId, approvedAt })
+    body: JSON.stringify({ segmentId, approvedAt, script })
   });
   const payload = await response.json();
   if (!response.ok || !payload.ok) {
@@ -77,18 +77,25 @@ function contentLabel(segment?: Segment) {
 
 export function BroadcastRundown({
   segments,
+  reviewSegments,
   scheduleSegments,
   baseTime
 }: {
   segments: Segment[];
+  reviewSegments: Segment[];
   scheduleSegments: Segment[];
   baseTime: string;
 }) {
   const router = useRouter();
   const [visibleSegments, setVisibleSegments] = useState(segments);
+  const [visibleReviewSegments, setVisibleReviewSegments] = useState(reviewSegments);
+  const [drafts, setDrafts] = useState(
+    Object.fromEntries(reviewSegments.map((segment) => [segment.id, segment.script]))
+  );
   const [message, setMessage] = useState("");
   const [pendingId, setPendingId] = useState("");
   const [draggingId, setDraggingId] = useState("");
+  const [selectedSlotAt, setSelectedSlotAt] = useState("");
   const [pending, startTransition] = useTransition();
   const baseDate = useMemo(() => new Date(baseTime), [baseTime]);
   const buckets = useMemo(
@@ -107,6 +114,14 @@ export function BroadcastRundown({
   useEffect(() => {
     setVisibleSegments(segments);
   }, [segments]);
+
+  useEffect(() => {
+    setVisibleReviewSegments(reviewSegments);
+    setDrafts((current) => ({
+      ...Object.fromEntries(reviewSegments.map((segment) => [segment.id, segment.script])),
+      ...current
+    }));
+  }, [reviewSegments]);
 
   const reject = (segment: Segment) => {
     setPendingId(segment.id);
@@ -133,7 +148,12 @@ export function BroadcastRundown({
       try {
         const updated = await scheduleSegment(segmentId, at.toISOString());
         setVisibleSegments((current) =>
-          current.map((segment) => (segment.id === segmentId ? updated : segment))
+          current.some((segment) => segment.id === segmentId)
+            ? current.map((segment) => (segment.id === segmentId ? updated : segment))
+            : [...current, updated]
+        );
+        setVisibleReviewSegments((current) =>
+          current.filter((segment) => segment.id !== segmentId)
         );
         setMessage(`${updated.title} moved to ${timeLabel(at)}.`);
         router.refresh();
@@ -142,6 +162,34 @@ export function BroadcastRundown({
       } finally {
         setPendingId("");
         setDraggingId("");
+      }
+    });
+  };
+
+  const placeReviewCardInSelectedSlot = (segment: Segment) => {
+    if (!selectedSlotAt) {
+      setMessage("Select a time slot in the presentation sequence first.");
+      return;
+    }
+    const at = new Date(selectedSlotAt);
+    setPendingId(segment.id);
+    startTransition(async () => {
+      try {
+        const updated = await scheduleSegment(
+          segment.id,
+          at.toISOString(),
+          drafts[segment.id] ?? segment.script
+        );
+        setVisibleSegments((current) => [...current, updated]);
+        setVisibleReviewSegments((current) =>
+          current.filter((item) => item.id !== segment.id)
+        );
+        setMessage(`${updated.title} approved and placed at ${timeLabel(at)}.`);
+        router.refresh();
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : "Could not place review card.");
+      } finally {
+        setPendingId("");
       }
     });
   };
@@ -157,6 +205,8 @@ export function BroadcastRundown({
           Drag prepared media, X, social, operator, or sponsor cards into a
           24-hour-clock sequence. Schedule/location breaks are capped as
           two-minute blocks with locations; music remains the designated break.
+          Select a time slot, then click a human-review card to approve and
+          place it into that exact sequence position.
         </p>
         <div className="mt-3 inline-flex items-center gap-2 border border-ink/10 bg-paper px-3 py-2 text-xs font-black uppercase text-ink/70">
           <CalendarDays className="h-4 w-4 text-broadcast" />
@@ -244,6 +294,76 @@ export function BroadcastRundown({
             ))}
           </div>
         </div>
+        <div className="border border-ink/10 bg-white p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 className="text-lg font-black text-ink">Human review queue</h3>
+              <p className="mt-1 text-xs font-bold uppercase text-ink/50">
+                Select a presentation time slot, then click Place in selected slot.
+              </p>
+            </div>
+            <span className="border border-ink/10 bg-paper px-2 py-1 text-xs font-black uppercase text-ink/60">
+              Selected: {selectedSlotAt ? timeLabel(selectedSlotAt) : "none"}
+            </span>
+          </div>
+          <div className="mt-3 grid gap-3">
+            {visibleReviewSegments.length === 0 ? (
+              <div className="border border-dashed border-ink/20 bg-paper/60 p-4">
+                <h4 className="text-sm font-black text-ink">
+                  No cards are waiting for human review
+                </h4>
+                <p className="mt-1 text-xs font-semibold leading-5 text-ink/60">
+                  Generated source cards and operator break-in mentions will
+                  appear here before they are placed into the sequence.
+                </p>
+              </div>
+            ) : null}
+            {visibleReviewSegments.map((segment) => (
+              <article key={segment.id} className="border border-ink/10 p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="bg-broadcast px-2 py-1 text-[11px] font-black uppercase text-white">
+                    {contentLabel(segment)}
+                  </span>
+                  <span className="bg-ink px-2 py-1 text-[11px] font-black uppercase text-white">
+                    {segment.personaName}
+                  </span>
+                  <span className="border border-ink/15 px-2 py-1 text-[11px] font-bold uppercase text-ink/70">
+                    confidence {segment.confidenceScore}%
+                  </span>
+                </div>
+                <h4 className="mt-2 text-sm font-black leading-5 text-ink">
+                  {segment.title}
+                </h4>
+                <textarea
+                  className="mt-2 min-h-28 w-full resize-y border border-ink/20 p-2 text-xs leading-5 outline-none focus:border-cyanline"
+                  value={drafts[segment.id] ?? ""}
+                  onChange={(event) =>
+                    setDrafts((current) => ({
+                      ...current,
+                      [segment.id]: event.target.value
+                    }))
+                  }
+                />
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    className="inline-flex min-h-9 items-center justify-center bg-mint px-3 text-xs font-black uppercase text-white disabled:opacity-50"
+                    disabled={pending || !selectedSlotAt}
+                    onClick={() => placeReviewCardInSelectedSlot(segment)}
+                  >
+                    {pendingId === segment.id ? "Placing" : "Place in selected slot"}
+                  </button>
+                  <button
+                    className="inline-flex min-h-9 items-center justify-center border border-ink px-3 text-xs font-black uppercase text-ink disabled:opacity-50"
+                    disabled={pending}
+                    onClick={() => reject(segment)}
+                  >
+                    Reject
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
         {buckets.map((bucket, hourIndex) => (
           <article key={bucket.start.toISOString()} className="border border-ink/10 p-4">
             <div className="flex flex-wrap items-center gap-2">
@@ -271,12 +391,21 @@ export function BroadcastRundown({
                     event.preventDefault();
                     moveToSlot(event.dataTransfer.getData("text/plain"), slot.at);
                   }}
+                  onClick={() => {
+                    if (slot.kind !== "schedule") {
+                      setSelectedSlotAt(slot.at.toISOString());
+                    }
+                  }}
                   className={`p-3 ${
                     slot.kind === "music"
                       ? "border border-dashed border-ink/20 bg-white"
                       : slot.kind === "backup"
                         ? "border border-gold/50 bg-gold/10"
                         : "bg-paper"
+                  } ${
+                    selectedSlotAt === slot.at.toISOString()
+                      ? "outline outline-2 outline-broadcast"
+                      : ""
                   }`}
                 >
                   <div className="flex flex-wrap items-center gap-2">
@@ -289,6 +418,18 @@ export function BroadcastRundown({
                     <span className="border border-ink/10 bg-white px-2 py-1 text-[11px] font-black uppercase text-ink/50">
                       {slot.durationMinutes} min
                     </span>
+                    {slot.kind !== "schedule" ? (
+                      <button
+                        type="button"
+                        className="border border-broadcast bg-white px-2 py-1 text-[11px] font-black uppercase text-broadcast"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setSelectedSlotAt(slot.at.toISOString());
+                        }}
+                      >
+                        Select slot
+                      </button>
+                    ) : null}
                     {slot.segment?.personaName ? (
                       <span className="inline-flex items-center gap-1 border border-ink/15 bg-white px-2 py-1 text-[11px] font-bold uppercase text-ink/70">
                         <Mic2 className="h-3 w-3" />

@@ -478,10 +478,12 @@ export async function updateSegmentDecisionInDb({
 
 export async function updateSegmentScheduleInDb({
   segmentId,
-  approvedAt
+  approvedAt,
+  script
 }: {
   segmentId: string;
   approvedAt: string;
+  script?: string;
 }) {
   if (!hasSupabase()) {
     return null;
@@ -490,11 +492,12 @@ export async function updateSegmentScheduleInDb({
   const { data, error } = await supabase
     .from("segments")
     .update({
+      ...(script ? { script } : {}),
+      status: "approved",
       approved_at: approvedAt,
       updated_at: new Date().toISOString()
     })
     .eq("id", segmentId)
-    .eq("status", "approved")
     .select("*")
     .single();
 

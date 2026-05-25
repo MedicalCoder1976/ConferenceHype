@@ -9,7 +9,6 @@ import { InstagramPushPanel } from "@/components/InstagramPushPanel";
 import { LanguageControls } from "@/components/LanguageControls";
 import { OncologyReporterGrid } from "@/components/OncologyReporterGrid";
 import { RecordingLibrary } from "@/components/RecordingLibrary";
-import { ReviewQueue } from "@/components/ReviewQueue";
 import { SocialVoiceCompetition } from "@/components/SocialVoiceCompetition";
 import { SourceManager } from "@/components/SourceManager";
 import { XVoiceCallouts } from "@/components/XVoiceCallouts";
@@ -35,26 +34,26 @@ function getEasternDateParts(date: Date) {
   };
 }
 
-function todayAtNoonEastern(now = new Date()) {
+function todayAtPlanningEastern(now = new Date()) {
   const { year, month, day } = getEasternDateParts(now);
-  return new Date(`${year}-${month}-${day}T12:00:00-04:00`);
+  return new Date(`${year}-${month}-${day}T21:00:00-04:00`);
 }
 
 function addDays(date: Date, days: number) {
   return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 }
 
-function noonEasternForDate(date: Date) {
+function planningEasternForDate(date: Date) {
   const { year, month, day } = getEasternDateParts(date);
-  return `${year}-${month}-${day}T12:00:00-04:00`;
+  return `${year}-${month}-${day}T21:00:00-04:00`;
 }
 
 function resolvePreviewStart(start?: string) {
   if (!start) {
-    return new Date();
+    return todayAtPlanningEastern();
   }
-  if (start === "today-noon") {
-    return todayAtNoonEastern();
+  if (start === "today-noon" || start === "today-21") {
+    return todayAtPlanningEastern();
   }
   const parsed = new Date(start);
   return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
@@ -69,21 +68,23 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   ]);
   const baseTime = baseDate.toISOString();
   const twoWeekStarts = Array.from({ length: 14 }, (_, index) => {
-    const noon = noonEasternForDate(addDays(new Date(), index));
+    const planningStart = planningEasternForDate(addDays(new Date(), index));
     return {
-      href: `/admin?start=${encodeURIComponent(noon)}`,
+      href: `/admin?start=${encodeURIComponent(planningStart)}`,
       label: new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/New_York",
         month: "2-digit",
         day: "2-digit",
         hour: "2-digit",
         minute: "2-digit",
         hour12: false
-      }).format(new Date(noon))
+      }).format(new Date(planningStart))
     };
   });
-  const noonPreviewHref = "/admin?start=today-noon";
+  const planningPreviewHref = "/admin?start=today-21";
   const liveHref = "/admin";
   const previewLabel = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
     weekday: "short",
     month: "2-digit",
     day: "2-digit",
@@ -105,9 +106,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         </div>
         <a
           className="inline-flex min-h-10 items-center justify-center border border-ink bg-white px-4 text-xs font-black uppercase text-ink"
-          href={noonPreviewHref}
+          href={planningPreviewHref}
         >
-          Today noon preview
+          Today 21:00 plan
         </a>
         <a
           className="inline-flex min-h-10 items-center justify-center bg-ink px-4 text-xs font-black uppercase text-white"
@@ -117,7 +118,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         </a>
         <div className="basis-full">
           <div className="mb-2 text-xs font-black uppercase text-ink/50">
-            14-day noon planning shortcuts
+            Daily 21:00 three-hour planning slots
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1">
             {twoWeekStarts.map((item) => (
@@ -137,11 +138,11 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           <div className="grid gap-6 xl:grid-cols-2">
             <BroadcastRundown
               segments={snapshot.nextBroadcastSegments}
+              reviewSegments={snapshot.pendingSegments}
               scheduleSegments={snapshot.scheduleRundownSegments}
               baseTime={baseTime}
             />
             <div className="grid gap-6">
-              <ReviewQueue segments={snapshot.pendingSegments} />
               <FocusSocialPost />
               <InstagramPushPanel />
               <EmergencyOverride streamState={snapshot.streamState} />
