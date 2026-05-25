@@ -184,13 +184,19 @@ function buildLatestSourceCards(items: IngestedItem[], now: Date) {
   return [...primaryCards, ...alternateCards].slice(0, SOURCE_CARD_TARGET);
 }
 
+function topTractionLeaders(leaders: SocialVoiceLeader[]) {
+  return leaders
+    .filter((leader) => leader.mentions > 0)
+    .slice(0, 5);
+}
+
 async function addCompetitionLeadersToXCallouts(leaders: SocialVoiceLeader[]) {
   await Promise.all(
-    leaders.slice(0, 3).map((leader) =>
+    topTractionLeaders(leaders).map((leader) =>
       addXFollowSourceToDb({
         handle: leader.handle,
         label: leader.label,
-        note: `social voice competition winner; ${leader.momentum} momentum`
+        note: `auto-added from ASCO social voice traction; score ${leader.score}; ${leader.momentum} momentum`
       })
     )
   );
@@ -274,9 +280,7 @@ export async function runGenerateJob() {
   const customVoices = (await getXFollowVoicesFromDb()) ?? [];
   const leaderboard = buildSocialVoiceLeaderboard(socialItems, customVoices);
   const competitionDueNow = shouldRunSocialVoiceCompetition();
-  if (competitionDueNow) {
-    await addCompetitionLeadersToXCallouts(leaderboard);
-  }
+  await addCompetitionLeadersToXCallouts(leaderboard);
   const competitionSegment = competitionDueNow
     ? [buildSocialVoiceCompetitionSegment(leaderboard)]
     : [];

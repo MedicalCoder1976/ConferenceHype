@@ -85,7 +85,7 @@ export async function getStreamState(): Promise<StreamState> {
 
 export async function getAdminSnapshot(baseTime = new Date()) {
   const xFollowVoices = (await getXFollowVoicesFromDb()) ?? [];
-  const recentSocialItems = (await getRecentSocialItemsFromDb(3)) ?? [];
+  const recentSocialItems = (await getRecentSocialItemsFromDb(24)) ?? [];
   const socialVoiceLeaderboard = buildSocialVoiceLeaderboard(
     recentSocialItems,
     xFollowVoices
@@ -113,7 +113,7 @@ export async function getAdminSnapshot(baseTime = new Date()) {
     xFollowVoices,
     socialVoiceLeaderboard,
     nextSocialVoiceCompetition:
-      "Runs from the generation job during every third UTC hour.",
+      "Leaderboard refreshes from recent X/social ingest; top traction voices are added to Source intake every 15-minute generation cycle. The scoreboard card still airs every third UTC hour.",
     socialVoiceCompetitionDueNow: shouldRunSocialVoiceCompetition(),
     analytics
   };

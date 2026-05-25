@@ -29,10 +29,10 @@ export function SocialVoiceCompetition({
         <h2 className="text-xl font-black text-ink">Social voice competition</h2>
       </div>
       <p className="mt-2 text-sm leading-6 text-ink/65">
-        Every 3 hours, the coverage can automatically call out the leading
-        monitored X voices like a scoreboard. The data comes from recent X
-        search results, watched handles, mention counts, and engagement signals.
-        Operators can reject the broadcast card from the rundown.
+        The top ASCO voices are ranked from recent X search results, watched
+        handles, mention counts, and engagement signals. High-traction voices
+        are automatically added to Source intake as X follows so the next
+        social ingest can monitor them.
       </p>
       <div className="mt-3 border border-cyanline/30 bg-cyanline/10 p-3 text-sm font-bold text-ink">
         {dueNow ? "Competition segment is due in this 3-hour block." : cadence}

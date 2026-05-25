@@ -156,6 +156,11 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               <InstagramPushPanel />
               <EmergencyOverride streamState={snapshot.streamState} />
               <SourceManager sources={snapshot.sources} />
+              <SocialVoiceCompetition
+                leaders={snapshot.socialVoiceLeaderboard}
+                cadence={snapshot.nextSocialVoiceCompetition}
+                dueNow={snapshot.socialVoiceCompetitionDueNow}
+              />
               <AnalyticsPanel analytics={snapshot.analytics} />
             </div>
           </div>
@@ -166,11 +171,6 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             <RecordingLibrary recordings={cachedRecordings} />
             <OncologyReporterGrid />
             <XVoiceCallouts customVoices={snapshot.xFollowVoices} />
-            <SocialVoiceCompetition
-              leaders={snapshot.socialVoiceLeaderboard}
-              cadence={snapshot.nextSocialVoiceCompetition}
-              dueNow={snapshot.socialVoiceCompetitionDueNow}
-            />
             <LanguageControls />
           </div>
         }

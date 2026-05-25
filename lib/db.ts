@@ -270,7 +270,7 @@ export async function getRecentSocialItemsFromDb(hours = 3): Promise<IngestedIte
 
 export async function getSocialVoiceLeaderboardFromDb(): Promise<SocialVoiceLeader[] | null> {
   const [items, customVoices] = await Promise.all([
-    getRecentSocialItemsFromDb(3),
+    getRecentSocialItemsFromDb(24),
     getXFollowVoicesFromDb()
   ]);
   if (!items) {
