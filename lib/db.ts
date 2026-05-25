@@ -370,6 +370,42 @@ export async function addXFollowSourceToDb({
   };
 }
 
+export async function addSourceToDb({
+  name,
+  url,
+  type,
+  rank = 3
+}: {
+  name: string;
+  url: string;
+  type: SourceConfig["type"];
+  rank?: number;
+}) {
+  if (!hasSupabase()) {
+    return null;
+  }
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("sources")
+    .upsert(
+      {
+        name,
+        url,
+        type,
+        rank,
+        enabled: true
+      },
+      { onConflict: "url" }
+    )
+    .select("*")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+  return toSource(data as SourceRow);
+}
+
 export async function saveIngestedItemsToDb(items: IngestedItem[]) {
   if (!hasSupabase() || items.length === 0) {
     return null;
