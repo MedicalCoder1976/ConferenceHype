@@ -39,13 +39,28 @@ function todayAtPlanningEastern(now = new Date()) {
   return new Date(`${year}-${month}-${day}T21:00:00-04:00`);
 }
 
-function addDays(date: Date, days: number) {
-  return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
+function addHours(date: Date, hours: number) {
+  return new Date(date.getTime() + hours * 60 * 60 * 1000);
 }
 
-function planningEasternForDate(date: Date) {
-  const { year, month, day } = getEasternDateParts(date);
-  return `${year}-${month}-${day}T21:00:00-04:00`;
+function planningSlotLabel(start: Date) {
+  const end = addHours(start, 3);
+  const startDate = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(start);
+  const startTime = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    hour: "2-digit",
+    hour12: false
+  }).format(start);
+  const endTime = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    hour: "2-digit",
+    hour12: false
+  }).format(end);
+  return `${startDate}, ${startTime}-${endTime}`;
 }
 
 function resolvePreviewStart(start?: string) {
@@ -67,18 +82,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     getCachedRecordings()
   ]);
   const baseTime = baseDate.toISOString();
-  const twoWeekStarts = Array.from({ length: 14 }, (_, index) => {
-    const planningStart = planningEasternForDate(addDays(new Date(), index));
+  const firstPlanningStart = todayAtPlanningEastern();
+  const twoWeekStarts = Array.from({ length: 14 * 8 }, (_, index) => {
+    const planningStart = addHours(firstPlanningStart, index * 3);
     return {
-      href: `/admin?start=${encodeURIComponent(planningStart)}`,
-      label: new Intl.DateTimeFormat("en-US", {
-        timeZone: "America/New_York",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false
-      }).format(new Date(planningStart))
+      href: `/admin?start=${encodeURIComponent(planningStart.toISOString())}`,
+      label: planningSlotLabel(planningStart)
     };
   });
   const planningPreviewHref = "/admin?start=today-21";
@@ -118,7 +127,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         </a>
         <div className="basis-full">
           <div className="mb-2 text-xs font-black uppercase text-ink/50">
-            Daily 21:00 three-hour planning slots
+            Three-hour planning slots
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1">
             {twoWeekStarts.map((item) => (
