@@ -14,6 +14,8 @@ import {
 } from "@/lib/social/leaderboard";
 import type { IngestedItem, Segment, SocialVoiceLeader } from "@/lib/types";
 
+const SOURCE_CARD_TARGET = 12;
+
 async function generateOrScheduleFallback(
   generate: () => Promise<Segment>,
   now: Date
@@ -77,6 +79,109 @@ function isAbstractChatter(item: IngestedItem) {
   return /\b(abstract|oral|poster|trial|phase\s?[123]|orr|pfs|os|mrd|ctdna|biomarker|nsclc|breast cancer|prostate|myeloma|lymphoma|data|results)\b/i.test(
     text
   );
+}
+
+function sourceLabel(item: IngestedItem) {
+  return `${item.sourceName}: ${item.title}. ${item.excerpt}`.slice(0, 280);
+}
+
+function sourceSummary(item: IngestedItem) {
+  const excerpt = item.excerpt.trim();
+  if (!excerpt) {
+    return `${item.sourceName} published or posted this ASCO-related item for review.`;
+  }
+  return excerpt.length > 320 ? `${excerpt.slice(0, 317)}...` : excerpt;
+}
+
+function sourceCardPersona(index: number) {
+  const personas = [
+    { id: "vesper-quill", name: "Vesper Quill", hype: "high_energy" as const },
+    { id: "tumorcrusher", name: "TumorCrusher", hype: "standard" as const },
+    { id: "echo-sage", name: "Echo Sage", hype: "restrained" as const }
+  ];
+  return personas[index % personas.length];
+}
+
+function sourceCardType(item: IngestedItem) {
+  if (isExhibitorChatter(item)) {
+    return "industry_floor" as const;
+  }
+  if (isAbstractChatter(item)) {
+    return "abstract_buzz" as const;
+  }
+  if (item.sourceType.includes("social")) {
+    return "social_signal" as const;
+  }
+  return "media_roundup" as const;
+}
+
+function buildSourceCard(item: IngestedItem, now: Date, index: number, alternate = false): Segment {
+  const persona = sourceCardPersona(index);
+  const contentType = sourceCardType(item);
+  const citation = {
+    label: sourceLabel(item),
+    url: item.url,
+    sourceType: item.sourceType
+  };
+  const summary = sourceSummary(item);
+  const alternateLine = alternate
+    ? "This is a backup angle for the same source item, ready only if the primary version is not already in the hour."
+    : "";
+  const script = [
+    `${persona.name} here with a source-backed ASCO update from ${item.sourceName}.`,
+    `The item is titled "${item.title}".`,
+    summary,
+    alternateLine
+  ]
+    .filter(Boolean)
+    .join(" ");
+  return {
+    id: `latest-source-${randomUUID()}`,
+    title: `${alternate ? "Alternate angle - " : ""}${item.sourceName}: ${item.title}`.slice(0, 140),
+    summary,
+    script,
+    contentType,
+    personaId: persona.id,
+    personaName: persona.name,
+    hypeLevel: persona.hype,
+    language: "en",
+    status: !alternate && isXVoiceCallout(item) ? "approved" : "pending_review",
+    citations: [citation],
+    socialBuzzItems: item.sourceType.includes("social") ? [citation] : [],
+    riskFlags: [
+      "rss_latest_source_card",
+      "source_backed_review_pool",
+      ...(alternate ? ["alternate_angle_do_not_repeat"] : [])
+    ],
+    confidenceScore: item.sourceType === "official" ? 94 : item.sourceType === "media" ? 88 : 82,
+    createdAt: now.toISOString(),
+    approvedAt: !alternate && isXVoiceCallout(item) ? now.toISOString() : undefined
+  };
+}
+
+function buildLatestSourceCards(items: IngestedItem[], now: Date) {
+  const seen = new Set<string>();
+  const eligibleItems = items
+    .filter((item) => {
+      const key = `${item.url || item.title}`.toLowerCase();
+      if (!key || seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return ["official", "media", "company", "verified_social"].includes(item.sourceType);
+    });
+  const primaryCards = eligibleItems
+    .slice(0, SOURCE_CARD_TARGET)
+    .map((item, index) => buildSourceCard(item, now, index));
+  if (primaryCards.length >= SOURCE_CARD_TARGET || eligibleItems.length === 0) {
+    return primaryCards;
+  }
+  const alternateCards = eligibleItems
+    .slice(0, SOURCE_CARD_TARGET - primaryCards.length)
+    .map((item, index) =>
+      buildSourceCard(item, now, primaryCards.length + index, true)
+    );
+  return [...primaryCards, ...alternateCards].slice(0, SOURCE_CARD_TARGET);
 }
 
 async function addCompetitionLeadersToXCallouts(leaders: SocialVoiceLeader[]) {
@@ -175,7 +280,8 @@ export async function runGenerateJob() {
   const competitionSegment = competitionDueNow
     ? [buildSocialVoiceCompetitionSegment(leaderboard)]
     : [];
-  const segments = [...generatedSegments, ...competitionSegment];
+  const latestSourceCards = buildLatestSourceCards(items, now);
+  const segments = [...generatedSegments, ...competitionSegment, ...latestSourceCards];
   await saveGeneratedSegmentsToDb(segments);
   return segments;
 }

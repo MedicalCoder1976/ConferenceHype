@@ -144,14 +144,14 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       </div>
       <AdminTabs
         broadcast={
-          <div className="grid gap-6 xl:grid-cols-2">
+          <div className="grid gap-6">
             <BroadcastRundown
               segments={snapshot.nextBroadcastSegments}
               reviewSegments={snapshot.pendingSegments}
               scheduleSegments={snapshot.scheduleRundownSegments}
               baseTime={baseTime}
             />
-            <div className="grid gap-6">
+            <div className="grid gap-6 xl:grid-cols-2">
               <FocusSocialPost />
               <InstagramPushPanel />
               <EmergencyOverride streamState={snapshot.streamState} />

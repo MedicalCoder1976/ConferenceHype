@@ -3,7 +3,7 @@ import { loadEnvConfig } from "@next/env";
 loadEnvConfig(process.cwd());
 
 const unsafePattern =
-  /\b(early social chatter|unverified buzz|operator-selected audience tip|audience tip|rising energy|snack|coffee|hallway energy|pending review)\b/i;
+  /\b(early social chatter|unverified buzz|operator-selected audience tip|audience tip|rising energy|snack|coffee|hallway energy|pending review|use only the source-attributed material|do not add unsourced names|use it only if that source has not already been placed)\b/i;
 
 async function main() {
   const { createAdminClient } = await import("@/lib/supabase/admin");

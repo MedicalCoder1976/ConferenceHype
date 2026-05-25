@@ -218,9 +218,9 @@ export function BroadcastRundown({
           </div>
         ) : null}
       </div>
-      <div className="grid gap-4 p-5">
+      <div className="grid gap-4 p-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)] xl:items-start">
         {visibleSegments.length === 0 && scheduleSegments.length === 0 ? (
-          <div className="border border-dashed border-ink/20 bg-paper/60 p-5">
+          <div className="border border-dashed border-ink/20 bg-paper/60 p-5 xl:col-start-1">
             <h3 className="text-lg font-black text-ink">
               Nothing is queued for the next 3 hours
             </h3>
@@ -229,7 +229,7 @@ export function BroadcastRundown({
             </p>
           </div>
         ) : null}
-        <div className="border border-ink/10 bg-paper/60 p-4">
+        <div className="border border-ink/10 bg-paper/60 p-4 xl:col-start-2 xl:row-start-1">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-lg font-black text-ink">Ready cards</h3>
             <span className="text-xs font-black uppercase text-ink/50">
@@ -294,7 +294,7 @@ export function BroadcastRundown({
             ))}
           </div>
         </div>
-        <div className="border border-ink/10 bg-white p-4">
+        <div className="border border-ink/10 bg-white p-4 xl:col-start-2 xl:row-start-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h3 className="text-lg font-black text-ink">Human review queue</h3>
@@ -365,7 +365,7 @@ export function BroadcastRundown({
           </div>
         </div>
         {buckets.map((bucket, hourIndex) => (
-          <article key={bucket.start.toISOString()} className="border border-ink/10 p-4">
+          <article key={bucket.start.toISOString()} className="border border-ink/10 p-4 xl:col-start-1">
             <div className="flex flex-wrap items-center gap-2">
               <Clock3 className="h-4 w-4 text-broadcast" />
               <h3 className="text-lg font-black text-ink">
