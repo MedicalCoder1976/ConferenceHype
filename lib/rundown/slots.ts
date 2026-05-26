@@ -2,7 +2,7 @@ import type { Segment } from "@/lib/types";
 
 export type BroadcastSlot = {
   at: Date;
-  kind: "music" | "schedule" | "statement" | "backup";
+  kind: "music" | "schedule" | "social" | "statement" | "backup";
   durationMinutes: number;
   segment?: Segment;
   label: string;
@@ -106,12 +106,14 @@ export function buildBroadcastSlots({
   segments,
   reviewSegments = [],
   scheduleSegments,
+  socialVoiceSegments = [],
   baseTime,
   hours = 3
 }: {
   segments: Segment[];
   reviewSegments?: Segment[];
   scheduleSegments: Segment[];
+  socialVoiceSegments?: Segment[];
   baseTime: Date;
   hours?: number;
 }) {
@@ -120,6 +122,7 @@ export function buildBroadcastSlots({
     addMinutes(baseTime, index * 5)
   );
   const scheduleSlots: BroadcastSlot[] = [];
+  const socialSlots: BroadcastSlot[] = [];
 
   for (const segment of scheduleSegments) {
     const slotTime = firstSlotTime(segment);
@@ -134,7 +137,22 @@ export function buildBroadcastSlots({
     }
   }
 
-  const blockedTimes = new Set(scheduleSlots.map((slot) => minuteKey(slot.at)));
+  for (const segment of socialVoiceSegments) {
+    const slotTime = firstSlotTime(segment);
+    if (slotTime >= baseTime && slotTime < end) {
+      socialSlots.push({
+        at: slotTime,
+        kind: "social",
+        durationMinutes: 2,
+        label: "2-minute rising social voice rundown",
+        segment
+      });
+    }
+  }
+
+  const blockedTimes = new Set(
+    [...scheduleSlots, ...socialSlots].map((slot) => minuteKey(slot.at))
+  );
   const statementSlots = placeStatements(
     [...segments, ...reviewSegments],
     baseTime,
@@ -159,7 +177,7 @@ export function buildBroadcastSlots({
       label: "Music bed / transition space"
     }));
 
-  return [...scheduleSlots, ...statementSlots, ...musicSlots].sort(
+  return [...scheduleSlots, ...socialSlots, ...statementSlots, ...musicSlots].sort(
     (a, b) => a.at.getTime() - b.at.getTime()
   );
 }

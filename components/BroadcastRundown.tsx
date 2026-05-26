@@ -79,11 +79,13 @@ export function BroadcastRundown({
   segments,
   reviewSegments,
   scheduleSegments,
+  socialVoiceSegments,
   baseTime
 }: {
   segments: Segment[];
   reviewSegments: Segment[];
   scheduleSegments: Segment[];
+  socialVoiceSegments: Segment[];
   baseTime: string;
 }) {
   const router = useRouter();
@@ -105,11 +107,12 @@ export function BroadcastRundown({
           segments: visibleSegments,
           reviewSegments: visibleReviewSegments,
           scheduleSegments,
+          socialVoiceSegments,
           baseTime: baseDate
         }),
         baseDate
       ),
-    [visibleSegments, visibleReviewSegments, scheduleSegments, baseDate]
+    [visibleSegments, visibleReviewSegments, scheduleSegments, socialVoiceSegments, baseDate]
   );
 
   useEffect(() => {
@@ -384,19 +387,19 @@ export function BroadcastRundown({
                 <div
                   key={`${slot.kind}-${slot.segment?.id ?? slot.at.toISOString()}-${index}`}
                   onDragOver={(event) => {
-                    if (slot.kind !== "schedule") {
+                    if (slot.kind !== "schedule" && slot.kind !== "social") {
                       event.preventDefault();
                     }
                   }}
                   onDrop={(event) => {
-                    if (slot.kind === "schedule") {
+                    if (slot.kind === "schedule" || slot.kind === "social") {
                       return;
                     }
                     event.preventDefault();
                     moveToSlot(event.dataTransfer.getData("text/plain"), slot.at);
                   }}
                   onClick={() => {
-                    if (slot.kind !== "schedule") {
+                    if (slot.kind !== "schedule" && slot.kind !== "social") {
                       setSelectedSlotAt(slot.at.toISOString());
                     }
                   }}
@@ -422,7 +425,7 @@ export function BroadcastRundown({
                     <span className="border border-ink/10 bg-white px-2 py-1 text-[11px] font-black uppercase text-ink/50">
                       {slot.durationMinutes} min
                     </span>
-                    {slot.kind !== "schedule" ? (
+                    {slot.kind !== "schedule" && slot.kind !== "social" ? (
                       <button
                         type="button"
                         className="border border-broadcast bg-white px-2 py-1 text-[11px] font-black uppercase text-broadcast"

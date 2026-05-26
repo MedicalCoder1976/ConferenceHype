@@ -75,7 +75,7 @@ function renderPreview(slots: BroadcastSlot[], start: Date) {
     `Start: ${timeLabel(start)}`,
     `End: ${timeLabel(end)}`,
     "",
-    "This preview includes two-minute schedule/location narration every 10 minutes, review/ready voice cards filling the remaining 5-minute slots, and music wherever no card is available.",
+    "This preview includes two-minute schedule/location narration every 10 minutes, a two-minute hourly rising-social-voice rundown after the hourly schedule, review/ready voice cards filling the remaining slots, and music wherever no card is available.",
     ""
   ];
 
@@ -105,11 +105,17 @@ function renderPreview(slots: BroadcastSlot[], start: Date) {
 }
 
 async function main() {
-  const [{ filterBroadcastReadySegments }, { getNextBroadcastSegmentsFromDb, getPendingSegmentsFromDb }, { buildScheduleRundownSegments }] =
+  const [
+    { filterBroadcastReadySegments },
+    { getNextBroadcastSegmentsFromDb, getPendingSegmentsFromDb, getSocialVoiceLeaderboardFromDb },
+    { buildScheduleRundownSegments },
+    { buildHourlySocialVoiceRundownSegments }
+  ] =
     await Promise.all([
       import("@/lib/data"),
       import("@/lib/db"),
-      import("@/lib/jobs/upcomingEvents")
+      import("@/lib/jobs/upcomingEvents"),
+      import("@/lib/social/hourlyVoiceRundown")
     ]);
   const start = parseStart();
   const rawApproved = (await getNextBroadcastSegmentsFromDb(120)) ?? [];
@@ -117,11 +123,16 @@ async function main() {
   const approved = filterBroadcastReadySegments(rawApproved);
   const review = filterBroadcastReadySegments(rawReview);
   const scheduleSegments = buildScheduleRundownSegments(start);
+  const socialVoiceSegments = buildHourlySocialVoiceRundownSegments({
+    leaders: (await getSocialVoiceLeaderboardFromDb()) ?? [],
+    baseTime: start
+  });
   const slots = buildBroadcastHourBuckets(
     buildBroadcastSlots({
       segments: approved,
       reviewSegments: review,
       scheduleSegments,
+      socialVoiceSegments,
       baseTime: start
     }),
     start
@@ -142,6 +153,7 @@ async function main() {
         rawReviewCards: rawReview.length,
         reviewBroadcastCards: review.length,
         scheduleNarrations: slots.filter((slot) => slot.kind === "schedule").length,
+        hourlySocialVoiceRundowns: slots.filter((slot) => slot.kind === "social").length,
         voiceCards: slots.filter((slot) => slot.kind === "statement").length,
         backupVoiceCards: slots.filter((slot) => slot.kind === "backup").length,
         musicBeds: slots.filter((slot) => slot.kind === "music").length

@@ -14,6 +14,7 @@ import { SourceManager } from "@/components/SourceManager";
 import { XVoiceCallouts } from "@/components/XVoiceCallouts";
 import { getAdminSnapshot } from "@/lib/data";
 import { getCachedRecordings } from "@/lib/media/recordings";
+import { buildHourlySocialVoiceRundownSegments } from "@/lib/social/hourlyVoiceRundown";
 
 type AdminPageProps = {
   searchParams?: Promise<{ start?: string }>;
@@ -82,6 +83,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     getCachedRecordings()
   ]);
   const baseTime = baseDate.toISOString();
+  const hourlySocialVoiceSegments = buildHourlySocialVoiceRundownSegments({
+    leaders: snapshot.socialVoiceLeaderboard,
+    baseTime: baseDate
+  });
   const firstPlanningStart = todayAtPlanningEastern();
   const twoWeekStarts = Array.from({ length: 14 * 8 }, (_, index) => {
     const planningStart = addHours(firstPlanningStart, index * 3);
@@ -149,6 +154,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               segments={snapshot.nextBroadcastSegments}
               reviewSegments={snapshot.pendingSegments}
               scheduleSegments={snapshot.scheduleRundownSegments}
+              socialVoiceSegments={hourlySocialVoiceSegments}
               baseTime={baseTime}
             />
             <div className="grid gap-6 xl:grid-cols-2">
