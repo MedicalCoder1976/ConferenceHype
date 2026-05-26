@@ -4,6 +4,7 @@ import { runIngestionJob } from "@/lib/jobs/ingest";
 import { buildScheduleFallbackSegment } from "@/lib/jobs/upcomingEvents";
 import {
   addXFollowSourceToDb,
+  getBlacklistedXHandlesFromDb,
   getXFollowVoicesFromDb,
   saveGeneratedSegmentsToDb
 } from "@/lib/db";
@@ -225,15 +226,19 @@ function buildLatestSourceCards(items: IngestedItem[], now: Date) {
   return primaryCards;
 }
 
-function topTractionLeaders(leaders: SocialVoiceLeader[]) {
+function topTractionLeaders(leaders: SocialVoiceLeader[], blacklistedHandles: string[] = []) {
+  const blacklisted = new Set(blacklistedHandles.map((handle) => handle.toLowerCase()));
   return leaders
-    .filter((leader) => leader.mentions > 0)
+    .filter((leader) => leader.mentions > 0 && !blacklisted.has(leader.handle.toLowerCase()))
     .slice(0, TOP_SOCIAL_NARRATIVE_TARGET);
 }
 
-async function addCompetitionLeadersToXCallouts(leaders: SocialVoiceLeader[]) {
+async function addCompetitionLeadersToXCallouts(
+  leaders: SocialVoiceLeader[],
+  blacklistedHandles: string[] = []
+) {
   await Promise.all(
-    topTractionLeaders(leaders).map((leader) =>
+    topTractionLeaders(leaders, blacklistedHandles).map((leader) =>
       addXFollowSourceToDb({
         handle: leader.handle,
         label: leader.label,
@@ -319,9 +324,10 @@ export async function runGenerateJob() {
   );
 
   const customVoices = (await getXFollowVoicesFromDb()) ?? [];
-  const leaderboard = buildSocialVoiceLeaderboard(socialItems, customVoices);
+  const blacklistedHandles = (await getBlacklistedXHandlesFromDb()) ?? [];
+  const leaderboard = buildSocialVoiceLeaderboard(socialItems, customVoices, blacklistedHandles);
   const competitionDueNow = shouldRunSocialVoiceCompetition();
-  await addCompetitionLeadersToXCallouts(leaderboard);
+  await addCompetitionLeadersToXCallouts(leaderboard, blacklistedHandles);
   const competitionSegment = competitionDueNow
     ? [buildSocialVoiceCompetitionSegment(leaderboard)]
     : [];

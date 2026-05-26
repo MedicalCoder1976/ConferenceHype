@@ -7,6 +7,7 @@ import {
   getAnalyticsFromDb,
   getAiredSegmentsFromDb,
   getApprovedSegmentsFromDb,
+  getBlacklistedXHandlesFromDb,
   getNextBroadcastSegmentsFromDb,
   getPendingSegmentsFromDb,
   getRecentSocialItemsFromDb,
@@ -85,10 +86,12 @@ export async function getStreamState(): Promise<StreamState> {
 
 export async function getAdminSnapshot(baseTime = new Date()) {
   const xFollowVoices = (await getXFollowVoicesFromDb()) ?? [];
+  const blacklistedXHandles = (await getBlacklistedXHandlesFromDb()) ?? [];
   const recentSocialItems = (await getRecentSocialItemsFromDb(24)) ?? [];
   const socialVoiceLeaderboard = buildSocialVoiceLeaderboard(
     recentSocialItems,
-    xFollowVoices
+    xFollowVoices,
+    blacklistedXHandles
   );
   const pendingSegments = filterBroadcastReadySegments(
     (await getPendingSegmentsFromDb()) ?? []
@@ -111,6 +114,7 @@ export async function getAdminSnapshot(baseTime = new Date()) {
     streamState: await getStreamState(),
     sources: (await getSourcesFromDb()) ?? sourceRegistry,
     xFollowVoices,
+    blacklistedXHandles,
     socialVoiceLeaderboard,
     nextSocialVoiceCompetition:
       "Leaderboard refreshes from recent X/social ingest; top traction voices are added to Source intake every 15-minute generation cycle. The scoreboard card still airs every third UTC hour.",

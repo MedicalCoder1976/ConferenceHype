@@ -244,8 +244,21 @@ export async function getXFollowVoicesFromDb(): Promise<XVoice[] | null> {
     return null;
   }
   return sources
+    .filter((source) => source.enabled)
     .map(sourceToXVoice)
     .filter((voice): voice is XVoice => Boolean(voice));
+}
+
+export async function getBlacklistedXHandlesFromDb(): Promise<string[] | null> {
+  const sources = await getSourcesFromDb();
+  if (!sources) {
+    return null;
+  }
+  return sources
+    .filter((source) => !source.enabled)
+    .map(sourceToXVoice)
+    .filter((voice): voice is XVoice => Boolean(voice))
+    .map((voice) => voice.handle.toLowerCase());
 }
 
 export async function getRecentSocialItemsFromDb(hours = 3): Promise<IngestedItem[] | null> {
@@ -269,15 +282,16 @@ export async function getRecentSocialItemsFromDb(hours = 3): Promise<IngestedIte
 }
 
 export async function getSocialVoiceLeaderboardFromDb(): Promise<SocialVoiceLeader[] | null> {
-  const [items, customVoices] = await Promise.all([
+  const [items, customVoices, blacklistedHandles] = await Promise.all([
     getRecentSocialItemsFromDb(24),
-    getXFollowVoicesFromDb()
+    getXFollowVoicesFromDb(),
+    getBlacklistedXHandlesFromDb()
   ]);
   if (!items) {
     return null;
   }
   const { buildSocialVoiceLeaderboard } = await import("@/lib/social/leaderboard");
-  return buildSocialVoiceLeaderboard(items, customVoices ?? []);
+  return buildSocialVoiceLeaderboard(items, customVoices ?? [], blacklistedHandles ?? []);
 }
 
 export async function getAnalyticsFromDb() {
@@ -340,6 +354,28 @@ export async function addXFollowSourceToDb({
   const username = handle.replace(/^@/, "");
   const normalizedHandle = `@${username}`;
   const supabase = createAdminClient();
+  const { data: existing, error: existingError } = await supabase
+    .from("sources")
+    .select("*")
+    .eq("url", `https://x.com/${username}`)
+    .maybeSingle();
+
+  if (existingError) {
+    throw existingError;
+  }
+
+  if (existing && !(existing as SourceRow).enabled) {
+    const source = toSource(existing as SourceRow);
+    return {
+      source,
+      voice: {
+        label: label || normalizedHandle,
+        handle: normalizedHandle,
+        note: "blacklisted X follow"
+      } satisfies XVoice
+    };
+  }
+
   const { data, error } = await supabase
     .from("sources")
     .upsert(
@@ -368,6 +404,40 @@ export async function addXFollowSourceToDb({
       note: note || "operator-added X follow"
     } satisfies XVoice
   };
+}
+
+export async function blacklistXFollowSourceInDb({
+  handle,
+  label
+}: {
+  handle: string;
+  label?: string;
+}) {
+  if (!hasSupabase()) {
+    return null;
+  }
+  const username = handle.replace(/^@/, "");
+  const normalizedHandle = `@${username}`;
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("sources")
+    .upsert(
+      {
+        name: `X blacklist: ${label || normalizedHandle}`,
+        url: `https://x.com/${username}`,
+        type: "general_social",
+        rank: 99,
+        enabled: false
+      },
+      { onConflict: "url" }
+    )
+    .select("*")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+  return toSource(data as SourceRow);
 }
 
 export async function addSourceToDb({

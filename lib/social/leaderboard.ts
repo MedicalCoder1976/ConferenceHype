@@ -24,14 +24,16 @@ function scoreFromText(item: IngestedItem) {
 
 export function buildSocialVoiceLeaderboard(
   items: IngestedItem[],
-  customVoices: XVoice[] = []
+  customVoices: XVoice[] = [],
+  blacklistedHandles: string[] = []
 ): SocialVoiceLeader[] {
+  const blacklisted = new Set(blacklistedHandles.map((handle) => handle.toLowerCase()));
   const voices = [...monitoredXVoices, ...customVoices];
   const byHandle = new Map<string, SocialVoiceLeader>();
 
   for (const voice of voices) {
     const handle = normalizeHandle(voice.handle);
-    if (!handle || byHandle.has(handle.toLowerCase())) {
+    if (!handle || blacklisted.has(handle.toLowerCase()) || byHandle.has(handle.toLowerCase())) {
       continue;
     }
     byHandle.set(handle.toLowerCase(), {
@@ -50,6 +52,9 @@ export function buildSocialVoiceLeaderboard(
       continue;
     }
     const key = handle.toLowerCase();
+    if (blacklisted.has(key)) {
+      continue;
+    }
     const existing =
       byHandle.get(key) ??
       ({
