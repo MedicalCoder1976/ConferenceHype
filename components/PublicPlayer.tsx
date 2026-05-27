@@ -9,13 +9,22 @@ type Props = {
 export function PublicPlayer({ streamState, currentSegment }: Props) {
   const audioStreamUrl = process.env.NEXT_PUBLIC_AUDIO_STREAM_URL;
   const youtubeId = process.env.NEXT_PUBLIC_YOUTUBE_VIDEO_ID;
+  const youtubeChannelId =
+    process.env.NEXT_PUBLIC_YOUTUBE_CHANNEL_ID ?? "UCp9ihETXF_55sQIB-vDLvcA";
   const hlsUrl = process.env.NEXT_PUBLIC_HLS_URL;
-  const youtubeWatchUrl = youtubeId
-    ? `https://www.youtube.com/watch?v=${youtubeId}`
-    : undefined;
+  const youtubeEmbedUrl = youtubeChannelId
+    ? `https://www.youtube.com/embed/live_stream?channel=${youtubeChannelId}&autoplay=1&mute=1&playsinline=1&rel=0`
+    : youtubeId
+      ? `https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&playsinline=1&rel=0`
+      : undefined;
+  const youtubeWatchUrl = youtubeChannelId
+    ? `https://www.youtube.com/channel/${youtubeChannelId}/live`
+    : youtubeId
+      ? `https://www.youtube.com/watch?v=${youtubeId}`
+      : undefined;
   const streamLabel = audioStreamUrl
     ? "audio saver"
-    : youtubeId
+    : youtubeEmbedUrl
       ? "youtube"
       : hlsUrl
       ? "low hls"
@@ -64,10 +73,10 @@ export function PublicPlayer({ streamState, currentSegment }: Props) {
               src={audioStreamUrl}
             />
           </div>
-        ) : youtubeWatchUrl ? (
+        ) : youtubeEmbedUrl ? (
           <iframe
             className="h-full w-full"
-            src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&playsinline=1&rel=0`}
+            src={youtubeEmbedUrl}
             title="ASCO Hype live stream"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
