@@ -123,6 +123,30 @@ function uniqueSegments(segments: Segment[]) {
   });
 }
 
+function slotKey(date: Date) {
+  return date.getTime();
+}
+
+function scheduledSegmentsForWindow(segments: Segment[], baseTime: Date, hours: number) {
+  const windowEnd = addMinutes(baseTime, hours * 60);
+  const bySlot = new Map<number, Segment>();
+  const pinnedIds = new Set<string>();
+
+  for (const segment of segments) {
+    if (segment.status !== "approved" || !segment.approvedAt) {
+      continue;
+    }
+    const scheduledAt = firstSlotTime(segment);
+    if (scheduledAt < baseTime || scheduledAt >= windowEnd) {
+      continue;
+    }
+    bySlot.set(slotKey(scheduledAt), segment);
+    pinnedIds.add(segment.id);
+  }
+
+  return { bySlot, pinnedIds };
+}
+
 export function buildBroadcastSlots({
   segments,
   reviewSegments = [],
@@ -138,10 +162,11 @@ export function buildBroadcastSlots({
   baseTime: Date;
   hours?: number;
 }) {
+  const scheduled = scheduledSegmentsForWindow(segments, baseTime, hours);
   const allContent = uniqueSegments([
     ...scheduleSegments,
     ...socialVoiceSegments,
-    ...segments,
+    ...segments.filter((segment) => !scheduled.pinnedIds.has(segment.id)),
     ...reviewSegments
   ]);
   const slots: BroadcastSlot[] = [];
@@ -152,10 +177,12 @@ export function buildBroadcastSlots({
       const slotIndex = hourIndex * CONTENT_SLOTS_PER_HOUR + pairIndex;
       const contentAt = addSeconds(hourStart, pairIndex * (CONTENT_SECONDS + MUSIC_SECONDS));
       const musicAt = addSeconds(contentAt, CONTENT_SECONDS);
+      const scheduledSegment = scheduled.bySlot.get(slotKey(contentAt));
       const sourceSegment =
-        allContent.length > 0
+        scheduledSegment ??
+        (allContent.length > 0
           ? allContent[pairIndex % allContent.length]
-          : makeFallbackSegment(baseTime, slotIndex);
+          : makeFallbackSegment(baseTime, slotIndex));
       const segment = withAssignedVoice(sourceSegment, slotIndex);
       slots.push({
         at: contentAt,

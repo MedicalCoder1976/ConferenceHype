@@ -379,19 +379,20 @@ export function BroadcastRundown({
                 <div
                   key={`${slot.kind}-${slot.segment?.id ?? slot.at.toISOString()}-${index}`}
                   onDragOver={(event) => {
-                    if (slot.kind !== "schedule" && slot.kind !== "social") {
+                    if (slot.kind !== "music") {
                       event.preventDefault();
                     }
                   }}
                   onDrop={(event) => {
-                    if (slot.kind === "schedule" || slot.kind === "social") {
+                    if (slot.kind === "music") {
+                      setMessage("Drop cards on a content slot, not the 10-second music card.");
                       return;
                     }
                     event.preventDefault();
                     moveToSlot(event.dataTransfer.getData("text/plain"), slot.at);
                   }}
                   onClick={() => {
-                    if (slot.kind !== "schedule" && slot.kind !== "social") {
+                    if (slot.kind !== "music") {
                       setSelectedSlotAt(slot.at.toISOString());
                     }
                   }}
