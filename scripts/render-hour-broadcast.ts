@@ -3,7 +3,7 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { loadEnvConfig } from "@next/env";
 import ffmpegPath from "ffmpeg-static";
-import type { IngestedItem, Segment } from "@/lib/types";
+import type { Segment } from "@/lib/types";
 
 const durationSeconds = Number(process.env.HOUR_BROADCAST_SECONDS ?? 3600);
 const renderDir = process.env.HOUR_BROADCAST_DIR ?? "public/rendered/hour-broadcast";
@@ -12,9 +12,7 @@ const outputPath =
 const musicPath =
   process.env.HOUR_BROADCAST_MUSIC ??
   "public/music/conferencehype-gap-music-6min-v3.mp3";
-const voicePath =
-  process.env.HOUR_BROADCAST_VOICE ??
-  "public/rendered/recordings/tumorcrusher-hourly-cycle-voices-day1-v1.mp3";
+const voicePath = process.env.HOUR_BROADCAST_VOICE;
 
 loadEnvConfig(process.cwd());
 
@@ -38,6 +36,13 @@ function cleanText(value: string) {
     .replace(/&gt;/g, ">")
     .replace(/&lt;/g, "<")
     .replace(/%/g, " percent")
+    .replace(/\bwe verify\b/gi, "we attribute")
+    .replace(/\bverify\b/gi, "check")
+    .replace(/\bverified\b/gi, "source-backed")
+    .replace(/\bairtime\b/gi, "the rundown")
+    .replace(/\baired\b/gi, "covered")
+    .replace(/\bairing\b/gi, "playing")
+    .replace(/\bair\b/gi, "play")
     .replace(/[^\x09\x0a\x0d\x20-\x7e]/g, " ")
     .replace(/[^\S\r\n]+/g, " ")
     .trim();
@@ -85,58 +90,61 @@ function formatCard({
     lines.push("", ...wrapLine(`Source: ${source}`, 64).slice(0, 2));
   }
 
-  lines.push("", "ASCO Hype: social/news commentary. Verify clinical details at the source.");
+  lines.push("", "ASCO Hype: social/news commentary. Check clinical details at the source.");
   return lines.join("\n");
 }
 
-function segmentCards(segments: Segment[]) {
-  return segments.map((segment) =>
-    formatCard({
-      eyebrow: `${segment.personaName} / ${segment.contentType.replace(/_/g, " ")}`,
-      title: segment.title,
-      body: segment.summary || segment.script,
-      source: segment.citations[0]?.url
-    })
-  );
-}
-
-function socialCards(items: IngestedItem[]) {
-  return items.map((item) =>
-    formatCard({
-      eyebrow: `${item.author ?? item.sourceName} / ${item.sourceType.replace(/_/g, " ")}`,
-      title: item.title,
-      body: item.excerpt,
-      source: item.url
-    })
-  );
-}
-
 async function buildCards() {
-  const {
-    getApprovedSegmentsFromDb,
-    getPendingSegmentsFromDb,
-    getRecentSocialItemsFromDb
-  } = await import("@/lib/db");
-  const [approved, pending, recentSocial] = await Promise.all([
-    getApprovedSegmentsFromDb(),
-    getPendingSegmentsFromDb(),
-    getRecentSocialItemsFromDb(8)
+  const [
+    { filterBroadcastReadySegments },
+    { getNextBroadcastSegmentsFromDb, getPendingSegmentsFromDb, getSocialVoiceLeaderboardFromDb },
+    { buildScheduleRundownSegments },
+    { buildHourlySocialVoiceRundownSegments },
+    { buildBroadcastSlots }
+  ] = await Promise.all([
+    import("@/lib/data"),
+    import("@/lib/db"),
+    import("@/lib/jobs/upcomingEvents"),
+    import("@/lib/social/hourlyVoiceRundown"),
+    import("@/lib/rundown/slots")
   ]);
-
-  const segments = [...(pending ?? []), ...(approved ?? [])].slice(0, 8);
-  const social = (recentSocial ?? []).slice(0, 26);
-  const cards = [
-    formatCard({
-      eyebrow: "ASCO Hype live desk",
-      title: "One-hour social/news presentation",
-      body:
-        "Current ASCO 2026 official schedule signals, media items, monitored X voices, operator statements, sponsor messages, and music-bed transitions. Vague unverified audience chatter is excluded from broadcast."
+  const baseTime = process.env.HOUR_BROADCAST_START
+    ? new Date(process.env.HOUR_BROADCAST_START)
+    : new Date();
+  const hours = Math.max(1, Math.ceil(durationSeconds / 3600));
+  const [approved, pending, leaderboard] = await Promise.all([
+    getNextBroadcastSegmentsFromDb(180),
+    getPendingSegmentsFromDb(180),
+    getSocialVoiceLeaderboardFromDb()
+  ]);
+  const slots = buildBroadcastSlots({
+    segments: filterBroadcastReadySegments(approved ?? []),
+    reviewSegments: filterBroadcastReadySegments(pending ?? []),
+    scheduleSegments: buildScheduleRundownSegments(baseTime),
+    socialVoiceSegments: buildHourlySocialVoiceRundownSegments({
+      leaders: leaderboard ?? [],
+      baseTime
     }),
-    ...segmentCards(segments),
-    ...socialCards(social)
-  ];
+    baseTime,
+    hours
+  }).filter((slot) => slot.at < new Date(baseTime.getTime() + durationSeconds * 1000));
 
-  return cards.slice(0, 36);
+  return slots.map((slot, index) => ({
+    duration: slot.durationSeconds,
+    text:
+      slot.kind === "music"
+        ? formatCard({
+            eyebrow: "Music card",
+            title: "Ten-second music transition",
+            body: "Short music bed. Next content card follows immediately."
+          })
+        : formatCard({
+            eyebrow: `${slot.segment?.personaName ?? "ASCO Hype"} / ${slot.segment?.contentType.replace(/_/g, " ") ?? "content"}`,
+            title: slot.segment?.title ?? slot.label,
+            body: slot.segment?.script || slot.segment?.summary || slot.label,
+            source: slot.segment?.citations[0]?.url
+          })
+  }));
 }
 
 async function main() {
@@ -145,13 +153,12 @@ async function main() {
   await mkdir(renderDir, { recursive: true });
   await mkdir(path.dirname(outputPath), { recursive: true });
 
-  const slideDuration = Math.ceil(durationSeconds / cards.length);
   const concatLines: string[] = [];
 
   for (let index = 0; index < cards.length; index += 1) {
     const slidePath = path.join(renderDir, `slide-${String(index + 1).padStart(2, "0")}.txt`);
     const imagePath = path.join(renderDir, `slide-${String(index + 1).padStart(2, "0")}.png`);
-    await writeFile(slidePath, cards[index], "utf8");
+    await writeFile(slidePath, cards[index].text, "utf8");
     const color = index % 2 === 0 ? "0x11151f" : "0x151a27";
     const textPath = slidePath.replace(/\\/g, "/");
     const imageFilter =
@@ -172,7 +179,7 @@ async function main() {
       imagePath
     ]);
     const concatPath = path.resolve(imagePath).replace(/\\/g, "/");
-    concatLines.push(`file '${concatPath}'`, `duration ${slideDuration}`);
+    concatLines.push(`file '${concatPath}'`, `duration ${cards[index].duration}`);
   }
   const lastImage = path
     .resolve(renderDir, `slide-${String(cards.length).padStart(2, "0")}.png`)
@@ -181,10 +188,28 @@ async function main() {
   const concatPath = path.join(renderDir, "slides.ffconcat");
   await writeFile(concatPath, concatLines.join("\n"), "utf8");
 
-  const filter =
-    `[1:a]volume=0.18[music];` +
-    `[2:a]volume=0.85[voice];` +
-    `[music][voice]amix=inputs=2:duration=first:dropout_transition=0[a]`;
+  const hasVoice = Boolean(voicePath);
+  const audioArgs = hasVoice
+    ? [
+        "-stream_loop",
+        "-1",
+        "-i",
+        musicPath,
+        "-stream_loop",
+        "-1",
+        "-i",
+        voicePath!,
+        "-filter_complex",
+        "[1:a]volume=0.18[music];[2:a]volume=0.85[voice];[music][voice]amix=inputs=2:duration=first:dropout_transition=0[a]"
+      ]
+    : [
+        "-stream_loop",
+        "-1",
+        "-i",
+        musicPath,
+        "-filter_complex",
+        "[1:a]volume=0.18[a]"
+      ];
 
   const args = [
     "-y",
@@ -194,16 +219,7 @@ async function main() {
     "0",
     "-i",
     concatPath,
-    "-stream_loop",
-    "-1",
-    "-i",
-    musicPath,
-    "-stream_loop",
-    "-1",
-    "-i",
-    voicePath,
-    "-filter_complex",
-    filter,
+    ...audioArgs,
     "-map",
     "0:v",
     "-map",
@@ -229,11 +245,12 @@ async function main() {
     JSON.stringify(
       {
         cards: cards.length,
-        slideDuration,
+        contentCards: cards.filter((card) => card.duration === 110).length,
+        musicCards: cards.filter((card) => card.duration === 10).length,
         durationSeconds,
         outputPath,
         musicPath,
-        voicePath
+        voicePath: voicePath ?? null
       },
       null,
       2

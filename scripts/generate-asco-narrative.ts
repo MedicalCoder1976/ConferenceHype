@@ -52,8 +52,8 @@ type DayNarrative = {
 const DISCLAIMER =
   "ASCO Hype is AI-generated conference commentary for informational and entertainment purposes only. It is not medical, clinical, scientific, legal, or financial advice. Always consult qualified professionals and primary sources.";
 
-const LOCATION_VERIFY =
-  "please verify the room in the ASCO app and on-site signage, because meeting locations can change unexpectedly";
+const LOCATION_CHECK =
+  "please check the room in the ASCO app and on-site signage, because meeting locations can change unexpectedly";
 
 const EXHIBITOR_HALL_PROMPT =
   "Source check: tag #ASCOHype or @ConferenceHype on X with source-attributed articles, official schedule items, media links, or monitored X voice callouts for operator review.";
@@ -65,7 +65,7 @@ const MEDIA_MONITOR_PROMPT =
   "Media monitor callout: keep an ear on reviewed signals from OncLive, STAT News, The ASCO Post, X posts, and other operator-approved broadcast sources. Label media chatter as reported or discussed, not confirmed science unless primary sources support it.";
 
 const POSTER_WALL_PROMPT =
-  "Poster wall callout, W-poster watch: Hall A - Posters and Exhibits is the floor to watch. If a poster wall stop is buzzing, say the hall twice, ask listeners to verify the location in the ASCO app and on-site signage, and invite #ASCOHype posts from attendees on the ground.";
+  "Poster wall callout, W-poster watch: Hall A - Posters and Exhibits is the floor to watch. If a poster wall stop is busy, say the hall twice, ask listeners to check the location in the ASCO app and on-site signage, and invite #ASCOHype posts from attendees on the ground.";
 
 const DAY_LABELS: Record<string, string> = {
   "2026-05-29": "Friday, May 29",
@@ -288,7 +288,7 @@ function spokenLocation(location: string | undefined | null) {
   const room = locationLabel(location);
   const building = mccormickPlaceBuilding(location);
   const place = room.toLowerCase().includes("arie crown") ? `${building}, ${room}` : `${building}, room ${room}`;
-  return `location ${place}; repeat, ${place}; ${LOCATION_VERIFY}`;
+  return `location ${place}; repeat, ${place}; ${LOCATION_CHECK}`;
 }
 
 function formatAbstractLine(abstract: CoreAbstract, sessions: CoreSession[]) {
@@ -460,7 +460,7 @@ function buildNarrative(date: string, sessions: CoreSession[], abstracts: CoreAb
   ];
   const audiencePrompts = [
     `Run this prompt during the morning ramp: ${EXHIBITOR_HALL_PROMPT}`,
-    `Run this prompt around midday for verified source intake: ${EXHIBITOR_HALL_PROMPT}`,
+    `Run this prompt around midday for source-backed intake: ${EXHIBITOR_HALL_PROMPT}`,
     `Run this prompt during the afternoon reset between session blocks: ${EXHIBITOR_HALL_PROMPT}`,
     `Run this prompt during late afternoon and before the wrap: ${WORKOUT_PROMPT}`,
     `Run this poster-floor prompt when Hall A traffic picks up: ${POSTER_WALL_PROMPT}`,
@@ -480,7 +480,7 @@ function buildNarrative(date: string, sessions: CoreSession[], abstracts: CoreAb
     oralAbstracts,
     abstractSignals,
     audiencePrompts,
-    hostOpen: `Welcome to ASCO Hype for ${label}. Turn it up: this is the live conference desk, radio-DJ style, source-forward and moving fast. Today the agenda leans into ${topTrack}, with ${secondTrack} also carrying major attention. We will use the official agenda as the spine, title-level abstract signals as watch points, and verified source-attributed interruptions. ${POSTER_WALL_PROMPT} ${EXHIBITOR_HALL_PROMPT}`,
+    hostOpen: `Welcome to ASCO Hype for ${label}. Turn it up: this is the live conference desk, radio-DJ style, source-forward and moving fast. Today the agenda leans into ${topTrack}, with ${secondTrack} also carrying major attention. We will use the official agenda as the spine, title-level abstract signals as watch points, and source-attributed interruptions. ${POSTER_WALL_PROMPT} ${EXHIBITOR_HALL_PROMPT}`,
     hostClose: `That is the ${label} arc: follow the official schedule, watch the high-density tracks, and treat every abstract-title signal as provisional until primary sources and full text are available. Keep tagging #ASCOHype and @ConferenceHype on X with source-attributed articles, official schedule items, media links, or monitored X voice callouts you want the desk to review. ${DISCLAIMER}`
   };
 }
@@ -494,7 +494,7 @@ function renderMarkdown(narratives: DayNarrative[], index: CoreIndex) {
     "",
     `Important source limitation: ${embargoedCount} abstracts are currently marked embargoed or pending in the provided export. This plan uses session metadata, agenda topics, abstract titles, timing, speakers, and tracks. Refresh after full abstract text is available.`,
     "",
-    `Location narration rule: McCormick Place is a multi-building campus. Repeat every meeting location out loud, then ask viewers to verify the room in the ASCO app and on-site signage because meeting locations can change unexpectedly.`,
+    `Location narration rule: McCormick Place is a multi-building campus. Repeat every meeting location out loud, then ask viewers to check the room in the ASCO app and on-site signage because meeting locations can change unexpectedly.`,
     "",
     `Audience prompt rule: At regular intervals, ask viewers on X to tag #ASCOHype or @ConferenceHype with source-attributed articles, official schedule items, media links, or monitored X voice callouts. Do not use vague audience chatter in the broadcast rundown.`,
     `End-of-day movement prompt rule: Ask listeners to tag @ConferenceHype with steps, walks, runs, gym sessions, and other workouts. Treat those posts as reviewed audience shoutouts for the end-of-day broadcast, not medical or fitness advice.`,
@@ -552,7 +552,7 @@ function renderMarkdown(narratives: DayNarrative[], index: CoreIndex) {
           const cleanedTopics = cleanText(session.topics);
           lines.push(`  - DJ callout: Poster wall energy check. ${cleanedTopics.slice(0, 320)}${cleanedTopics.length > 320 ? "..." : ""}`);
         } else {
-          lines.push("  - DJ callout: Poster wall energy check. Send viewers to verify the Hall A poster location and tag #ASCOHype with what is drawing hallway buzz.");
+          lines.push("  - DJ callout: Poster wall energy check. Send viewers to check the Hall A poster location and tag #ASCOHype with what is drawing attention.");
         }
       }
     }

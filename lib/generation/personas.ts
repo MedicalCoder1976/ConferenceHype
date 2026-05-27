@@ -135,7 +135,7 @@ export const personas: Persona[] = [
     specialty: "Exhibitors, booths, industry floor, and product showcases",
     voiceGender: "female",
     voiceEnvKey: "VOICE_VESPER_QUILL",
-    style: "high-energy floor reporter tracking exhibitor activity, official poster-wall schedule, verified source callouts, sponsor messages, and product showcases"
+    style: "high-energy floor reporter tracking exhibitor activity, official poster-wall schedule, source-backed callouts, sponsor messages, and product showcases"
   }
 ];
 

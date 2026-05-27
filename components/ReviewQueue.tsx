@@ -65,8 +65,9 @@ export function ReviewQueue({ segments }: { segments: Segment[] }) {
       <div className="border-b border-ink/10 p-5">
         <h2 className="text-2xl font-black text-ink">Human review queue</h2>
         <p className="mt-2 text-sm font-semibold text-ink/60">
-          Approve before air. Broadcast-ready items must come from verified
-          sources, articles, monitored X voices, operator statements, or sponsor messages.
+          Approve before placement. Broadcast-ready items must come from
+          source-backed sources, articles, monitored X voices, operator
+          statements, or sponsor messages.
         </p>
         {message ? (
           <div className="mt-3 border border-cyanline/30 bg-cyanline/10 p-3 text-sm font-bold text-ink">

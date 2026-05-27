@@ -143,7 +143,7 @@ export function SourceManager({ sources }: { sources: SourceConfig[] }) {
           {monitoredSocialTags.botHandle}. Instagram pushes also use{" "}
           {monitoredSocialTags.instagramPrimaryHashtag} and{" "}
           {monitoredSocialTags.instagramConferenceHashtag}. Tagged posts enter
-          the queue as social buzz and require human review before airing.
+          the queue as social buzz and require human review before placement.
         </p>
       </div>
       <div className="mt-4 border border-ink/10 bg-paper/60 p-4">

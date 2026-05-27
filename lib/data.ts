@@ -28,7 +28,7 @@ const fullSpokenDisclaimer =
 function isUnsafeForBroadcastRundown(scriptish: string) {
   return (
     scriptish.includes(fullSpokenDisclaimer) ||
-    /\b(early social chatter|unverified buzz|operator-selected audience tip|audience tip|snack|coffee|hallway energy|rising energy|pending review)\b/i.test(
+    /\b(early social chatter|unverified buzz|operator-selected audience tip|audience tip|snack|coffee|hallway energy|rising energy|pending review|we verify|verify|verified|airtime|aired|airing|air)\b/i.test(
       scriptish
     )
   );

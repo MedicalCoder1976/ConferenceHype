@@ -10,77 +10,95 @@ const slideConcatPath =
   process.env.STREAM_SLIDE_CONCAT ?? "public/rendered/hour-broadcast/slides.ffconcat";
 const musicPath =
   process.env.STREAM_MUSIC_PATH ?? "public/music/conferencehype-gap-music-6min-v3.mp3";
-const voicePath =
-  process.env.STREAM_VOICE_PATH ??
-  "public/rendered/recordings/tumorcrusher-hourly-cycle-voices-day1-v1.mp3";
+const voicePath = process.env.STREAM_VOICE_PATH;
 const durationSeconds = process.env.STREAM_DURATION_SECONDS ?? "3600";
 async function main() {
-const { getYoutubeRtmpTarget } = await import("@/lib/media/stream");
-const target = getYoutubeRtmpTarget();
+  const { getYoutubeRtmpTarget } = await import("@/lib/media/stream");
+  const target = getYoutubeRtmpTarget();
 
-const videoInputArgs = videoPath
-  ? ["-re", "-stream_loop", "-1", "-i", videoPath]
-  : ["-re", "-f", "concat", "-safe", "0", "-i", slideConcatPath];
+  const videoInputArgs = videoPath
+    ? ["-re", "-stream_loop", "-1", "-i", videoPath]
+    : ["-re", "-f", "concat", "-safe", "0", "-i", slideConcatPath];
+  const liveAudioArgs = videoPath
+    ? ["-map", "0:a:0"]
+    : voicePath
+      ? [
+        "-stream_loop",
+        "-1",
+        "-i",
+        musicPath,
+        "-stream_loop",
+        "-1",
+        "-i",
+        voicePath,
+        "-filter_complex",
+        "[1:a]volume=0.18[music];[2:a]volume=0.85[voice];[music][voice]amix=inputs=2:duration=longest:dropout_transition=0[a]",
+        "-map",
+        "[a]"
+      ]
+      : [
+        "-stream_loop",
+        "-1",
+        "-i",
+        musicPath,
+        "-filter_complex",
+        "[1:a]volume=0.18[a]",
+        "-map",
+        "[a]"
+      ];
 
-const args = [
-  ...videoInputArgs,
-  "-stream_loop",
-  "-1",
-  "-i",
-  musicPath,
-  "-stream_loop",
-  "-1",
-  "-i",
-  voicePath,
-  "-filter_complex",
-  "[1:a]volume=0.18[music];[2:a]volume=0.85[voice];[music][voice]amix=inputs=2:duration=longest:dropout_transition=0[a]",
-  "-map",
-  "0:v:0",
-  "-map",
-  "[a]",
-  "-t",
-  durationSeconds,
-  "-r",
-  "30",
-  "-c:v",
-  "libx264",
-  "-preset",
-  "ultrafast",
-  "-pix_fmt",
-  "yuv420p",
-  "-g",
-  "60",
-  "-keyint_min",
-  "60",
-  "-sc_threshold",
-  "0",
-  "-force_key_frames",
-  "expr:gte(t,n_forced*2)",
-  "-b:v",
-  "3500k",
-  "-maxrate",
-  "3500k",
-  "-bufsize",
-  "7000k",
-  "-c:a",
-  "aac",
-  "-b:a",
-  "160k",
-  "-f",
-  "flv",
-  target
-];
+  const args = [
+    ...videoInputArgs,
+    "-map",
+    "0:v:0",
+    ...liveAudioArgs,
+    "-t",
+    durationSeconds,
+    "-r",
+    "30",
+    "-c:v",
+    "libx264",
+    "-preset",
+    "ultrafast",
+    "-pix_fmt",
+    "yuv420p",
+    "-g",
+    "60",
+    "-keyint_min",
+    "60",
+    "-sc_threshold",
+    "0",
+    "-force_key_frames",
+    "expr:gte(t,n_forced*2)",
+    "-b:v",
+    "3500k",
+    "-maxrate",
+    "3500k",
+    "-bufsize",
+    "7000k",
+    "-c:a",
+    "aac",
+    "-b:a",
+    "160k",
+    "-f",
+    "flv",
+    target
+  ];
 
-console.log(
-  `${ffmpeg} ${args
-    .map((arg) => (arg === target ? "[redacted-rtmp-target]" : arg))
-    .join(" ")}`
-);
+  console.log(
+    `${ffmpeg} ${args
+      .map((arg) => (arg === target ? "[redacted-rtmp-target]" : arg))
+      .join(" ")}`
+  );
+  if (process.env.STREAM_DRY_RUN === "1") {
+    console.log("STREAM_DRY_RUN=1, not starting FFmpeg.");
+    return;
+  }
 
-const child = spawn(ffmpeg, args, { stdio: "inherit" });
-child.on("exit", (code) => {
-  process.exit(code ?? 0);
-});
+  const child = spawn(ffmpeg, args, { stdio: "inherit" });
+  child.on("exit", (code) => {
+    process.exit(code ?? 0);
+  });
 }
 
 main().catch((error) => {

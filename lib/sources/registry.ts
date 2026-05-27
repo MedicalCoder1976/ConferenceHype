@@ -79,7 +79,7 @@ export const instagramPushPrompts = [
   {
     label: "W-poster watch",
     prompt:
-      "Invite Instagram posts or reels from the W poster area and Hall A Posters and Exhibits. Ask viewers to verify rooms and locations in the ASCO app and on-site signage."
+      "Invite Instagram posts or reels from the W poster area and Hall A Posters and Exhibits. Ask viewers to check rooms and locations in the ASCO app and on-site signage."
   },
   {
     label: "Media desk callout",

@@ -118,7 +118,7 @@ export function AiredHistory({ segments }: { segments: Segment[] }) {
             {xMentions.length === 0 ? (
               <div className="border border-dashed border-ink/20 bg-white p-4">
                 <p className="text-sm font-semibold leading-6 text-ink/65">
-                  No X voice mentions have been recorded from aired segments yet.
+                  No X voice mentions have been recorded from completed segments yet.
                 </p>
               </div>
             ) : null}
@@ -161,7 +161,7 @@ export function AiredHistory({ segments }: { segments: Segment[] }) {
               No talked-about history has been recorded yet
             </h3>
             <p className="mt-2 text-sm font-semibold leading-6 text-ink/65">
-              Once the runner marks aired items as rendered, they will appear
+              Once the runner marks completed items as rendered, they will appear
               here with timestamps.
             </p>
           </div>

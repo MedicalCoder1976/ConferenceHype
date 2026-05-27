@@ -4,7 +4,7 @@ import { Megaphone, Send } from "lucide-react";
 import { useState, useTransition } from "react";
 import { personas } from "@/lib/generation/personas";
 
-type OperatorItemType = "x_tweet" | "url" | "statement" | "sponsor_message";
+type OperatorItemType = "x_tweet" | "url" | "statement" | "sponsor_message" | "emergency_message";
 
 async function focusSocialPost({
   postUrl,
@@ -92,9 +92,9 @@ export function FocusSocialPost() {
         </h2>
       </div>
       <p className="mt-2 text-sm leading-6 text-ink/65">
-        Add an X tweet, URL, operator statement, or sponsor message. Choose the
-        voice, create admin-required break-in mentions, and optionally repeat
-        the approved card every half hour.
+        Add an X tweet, URL, emergency note, operator statement, or sponsor
+        message. The narrator reads free text as a card that can be placed or
+        swapped into the presentation queue.
       </p>
       {message ? (
         <div className="mt-3 border border-cyanline/30 bg-cyanline/10 p-3 text-sm font-bold text-ink">
@@ -111,6 +111,7 @@ export function FocusSocialPost() {
           >
             <option value="x_tweet">X tweet</option>
             <option value="url">URL or article</option>
+            <option value="emergency_message">Emergency content</option>
             <option value="statement">Operator break-in mention</option>
             <option value="sponsor_message">Sponsor message</option>
           </select>
@@ -140,12 +141,12 @@ export function FocusSocialPost() {
         className="mt-2 w-full border border-ink/20 px-3 py-3 text-sm outline-none focus:border-broadcast"
       />
       <label className="mt-4 block text-xs font-black uppercase text-ink/60">
-        Tweet text, statement, sponsor copy, or talking point
+        Tweet text, emergency content, sponsor copy, or talking point
       </label>
       <textarea
         value={postText}
         onChange={(event) => setPostText(event.target.value)}
-        placeholder="Paste the text to read or summarize. Sponsor messages should be clearly sponsor-labeled."
+        placeholder="Paste the exact text to read or summarize. Emergency and sponsor messages should be clearly labeled."
         className="mt-2 min-h-32 w-full resize-y border border-ink/20 p-3 text-sm leading-6 outline-none focus:border-broadcast"
       />
       <label className="mt-4 block text-xs font-black uppercase text-ink/60">

@@ -59,8 +59,8 @@ function buildNoTokenUpcomingSegment(sources: IngestedItem[], now: Date): Segmen
     `Two-minute schedule check. It is ${timeLabel} Chicago time.`,
     `Next ${stats.scheduleSpineLookaheadMinutes} minutes: ${sessionLines.join(" ")}`,
     posterSources.length
-      ? `Poster/location note: ${posterSources.map(compactLine).join(" ")} Verify rooms and halls in the ASCO app and on-site signage.`
-      : "Location note: no specific room or hall is listed in this window; verify any movement in the ASCO app and on-site signage.",
+      ? `Poster/location note: ${posterSources.map(compactLine).join(" ")} Check rooms and halls in the ASCO app and on-site signage.`
+      : "Location note: no specific room or hall is listed in this window; check any movement in the ASCO app and on-site signage.",
     abstractLines.length
       ? `Related abstract pointer: ${abstractLines.join(" ")}`
       : "No extra abstract pointer in this schedule break."

@@ -80,7 +80,9 @@ function renderPreview(slots: BroadcastSlot[], start: Date) {
   ];
 
   for (const slot of slots) {
-    lines.push(`## ${timeLabel(slot.at)} - ${slot.kind.toUpperCase()} (${slot.durationMinutes} min)`);
+    const duration =
+      slot.durationSeconds === 110 ? "1:50" : slot.durationSeconds === 10 ? "0:10" : `${slot.durationMinutes} min`;
+    lines.push(`## ${timeLabel(slot.at)} - ${slot.kind.toUpperCase()} (${duration})`);
     if (slot.kind === "music") {
       lines.push("Music bed / transition space.");
       lines.push("");

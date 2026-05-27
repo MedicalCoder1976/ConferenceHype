@@ -11,7 +11,7 @@ const bodySchema = z.object({
   postText: z.string().max(1200).optional().or(z.literal("")),
   operatorNote: z.string().max(600).optional().or(z.literal("")),
   itemType: z
-    .enum(["x_tweet", "url", "statement", "sponsor_message"])
+    .enum(["x_tweet", "url", "statement", "sponsor_message", "emergency_message"])
     .default("url"),
   personaId: z.string().max(80).default("vesper-quill"),
   approveNow: z.boolean().default(false),
@@ -91,7 +91,7 @@ async function buildFocusedSource({
 }: z.infer<typeof bodySchema>): Promise<IngestedItem> {
   const normalizedUrl = normalizeFocusedUrl(postUrl);
   const sourceType =
-    itemType === "statement" || itemType === "sponsor_message"
+    itemType === "statement" || itemType === "sponsor_message" || itemType === "emergency_message"
       ? "manual"
       : normalizedUrl
         ? getFocusedSourceType(normalizedUrl)
@@ -122,8 +122,11 @@ async function buildFocusedSource({
       itemType === "statement"
         ? "Operator marked this as a direct statement for broadcast."
         : "",
+      itemType === "emergency_message"
+        ? "Operator marked this as emergency content. Read the operator text clearly and directly."
+        : "",
       sourceType === "general_social"
-        ? `This is an operator-selected ${platform || "social"} item. Use only if it is a monitored X voice callout or has a verified source. Do not broadcast vague audience chatter.`
+        ? `This is an operator-selected ${platform || "social"} item. Use only if it is a monitored X voice callout or has a source-backed citation. Do not broadcast vague audience chatter.`
         : "This is an operator-selected item. Keep source attribution clear before broadcast."
     ]
       .filter(Boolean)
@@ -166,24 +169,29 @@ export async function POST(request: NextRequest) {
     const source = await buildFocusedSource(body);
     const social = source.sourceType.includes("social");
     const isSponsor = body.itemType === "sponsor_message";
+    const isEmergency = body.itemType === "emergency_message";
     const status = body.approveNow ? "approved" : "pending_review";
     const segment = await generateSegmentFromSources({
       sources: [source],
       personaId: body.personaId,
       hypeLevel: "high_energy",
-      contentType: isSponsor ? "industry_floor" : social ? "social_signal" : "media_roundup",
+      contentType: isSponsor ? "industry_floor" : isEmergency ? "hype_clip" : social ? "social_signal" : "media_roundup",
       status,
       editorialInstruction: [
         isSponsor
           ? "Create a concise sponsor message read. Make it clearly sponsor-labeled, energetic, and separate from editorial ASCO commentary."
           : social
           ? "Create a short radio-DJ style social desk hit from this operator-focused X/Instagram/social item."
+          : isEmergency
+            ? "Create a concise emergency content read from the operator text. Label it as an operator update and read it clearly without hype filler."
           : body.itemType === "statement"
             ? "Create a concise operator statement for broadcast. Keep the wording clear, direct, and source-labeled."
             : "Create a short radio-DJ style source focus hit from this operator-focused URL.",
         "Make it sound exciting, but clearly label operator-selected items and keep them source-attributed.",
+        "Do not use the words air, aired, airing, airtime, verified, or the phrase we verify in spoken copy.",
+        "Every card should be able to start with any voice name followed by 'from ASCO' before the narrative.",
         "Do not create broadcast material from vague social chatter, snack tips, hallway energy, or audience tips unless the operator marked it as a direct statement or sponsor message.",
-        "Only create a broadcast-ready card from verified source-attributed material, an article, a monitored X voice, an operator statement, or a sponsor message.",
+        "Only create a broadcast-ready card from source-attributed material, an article, a monitored X voice, an operator statement, or a sponsor message.",
         "Mention #ASCOHype only as the routing tag for source-attributed broadcast ideas.",
         body.repeatEveryHalfHour
           ? `The operator requested this card repeat once every half hour for ${body.repeatCount} total reads.`

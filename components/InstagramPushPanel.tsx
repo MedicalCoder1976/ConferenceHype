@@ -27,7 +27,7 @@ async function focusInstagramItem({
 
 const captionStarter = `ASCO Hype is live from the conference desk. Tag ${monitoredSocialTags.instagramPrimaryHashtag}, ${monitoredSocialTags.instagramConferenceHashtag}, and ${monitoredSocialTags.instagramConferenceHypeHandle} with source-attributed articles, official schedule items, media links, or monitored X voice callouts you want considered for broadcast.
 
-Unverified audience chatter is not used in the broadcast rundown. Locations can change unexpectedly, so verify rooms and halls in the ASCO app and on-site signage.`;
+Unsourced audience chatter is not used in the broadcast rundown. Locations can change unexpectedly, so check rooms and halls in the ASCO app and on-site signage.`;
 
 export function InstagramPushPanel() {
   const [postUrl, setPostUrl] = useState("");
@@ -86,7 +86,7 @@ export function InstagramPushPanel() {
       <textarea
         value={postText}
         onChange={(event) => setPostText(event.target.value)}
-        placeholder="Example: W-poster crowd building near Hall A. Verify location before broadcast."
+        placeholder="Example: W-poster crowd building near Hall A. Check location before placement."
         className="mt-2 min-h-28 w-full resize-y border border-ink/20 p-3 text-sm leading-6 outline-none focus:border-broadcast"
       />
       <label className="mt-4 block text-xs font-black uppercase text-ink/60">

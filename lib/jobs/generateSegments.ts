@@ -283,7 +283,7 @@ export async function runGenerateJob() {
                 ? "approved"
                 : undefined,
             editorialInstruction: abstractSources.length
-              ? "Create an abstract/science chatter segment only. Focus on abstracts, trials, posters, data, biomarkers, disease tracks, presenters, and source-attributed scientific discussion. Monitored X voice material may be broadcast when source-attributed. Do not include exhibitor booths, sponsor copy, product-floor chatter, or commercial showcases."
+              ? "Create an abstract/science chatter segment only. Focus on abstracts, trials, posters, data, biomarkers, disease tracks, presenters, and source-attributed scientific discussion. Monitored X voice material may enter the presentation sequence when source-attributed. Do not include exhibitor booths, sponsor copy, product-floor chatter, or commercial showcases."
               : "Create a media/source roundup segment only. Do not mix in exhibitor booths, sponsor copy, product-floor chatter, or commercial showcases."
           }),
         now
@@ -314,8 +314,8 @@ export async function runGenerateJob() {
               status: otherXVoiceItems.length ? "approved" : "pending_review",
               editorialInstruction:
                 otherXVoiceItems.length
-                  ? "This is a monitored X voice callout segment for non-abstract, non-exhibitor items only. It may broadcast without manual approval when source-attributed. Call out the handle and source name clearly, narrate the material directly, and avoid full disclaimer repetition. Do not include abstract data or exhibitor/floor chatter in this segment."
-                  : "Do not create broadcast material from vague non-monitored audience chatter, snack tips, hallway energy, or unverified social buzz. Use only source-attributed material from a monitored X voice, official schedule/session data, an article/media source, an operator statement, or a sponsor message. If the input is only an unverified audience tip, produce a review-only note that should not be used in the broadcast rundown."
+                  ? "This is a monitored X voice callout segment for non-abstract, non-exhibitor items only. It may enter the presentation sequence without manual approval when source-attributed. Call out the handle and source name clearly, narrate the material directly, and avoid full disclaimer repetition. Do not include abstract data or exhibitor/floor chatter in this segment."
+                  : "Do not create presentation material from vague non-monitored audience chatter, snack tips, hallway energy, or unsourced social chatter. Use only source-attributed material from a monitored X voice, official schedule/session data, an article/media source, an operator statement, emergency content, or a sponsor message. If the input is only an unsourced audience tip, produce a review-only note that should not be used in the presentation rundown."
             })
           )
         : Promise.resolve(null)

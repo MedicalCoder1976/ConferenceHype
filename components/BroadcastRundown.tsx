@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, Clock3, GripVertical, Mic2, Music2, Trash2 } from "lucide-react";
+import { CalendarDays, Clock3, GripVertical, Mic2, Music2, RefreshCcw, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { buildBroadcastHourBuckets, buildBroadcastSlots } from "@/lib/rundown/slots";
@@ -98,6 +98,11 @@ export function BroadcastRundown({
   const [pendingId, setPendingId] = useState("");
   const [draggingId, setDraggingId] = useState("");
   const [selectedSlotAt, setSelectedSlotAt] = useState("");
+  const [replaceTarget, setReplaceTarget] = useState<{
+    at: string;
+    segmentId?: string;
+    title?: string;
+  } | null>(null);
   const [pending, startTransition] = useTransition();
   const baseDate = useMemo(() => new Date(baseTime), [baseTime]);
   const buckets = useMemo(
@@ -173,28 +178,46 @@ export function BroadcastRundown({
     });
   };
 
-  const placeReviewCardInSelectedSlot = (segment: Segment) => {
-    if (!selectedSlotAt) {
-      setMessage("Select a time slot in the presentation sequence first.");
+  const replaceWithCard = (segment: Segment) => {
+    if (!replaceTarget) {
+      setMessage("Click Replace on a presentation queue card first.");
       return;
     }
-    const at = new Date(selectedSlotAt);
+    const at = new Date(replaceTarget.at);
     setPendingId(segment.id);
     startTransition(async () => {
       try {
+        if (
+          replaceTarget.segmentId &&
+          replaceTarget.segmentId !== segment.id &&
+          !replaceTarget.segmentId.startsWith("virtual-")
+        ) {
+          const oldSegment = [...visibleSegments, ...visibleReviewSegments].find(
+            (item) => item.id === replaceTarget.segmentId
+          );
+          if (oldSegment) {
+            await rejectSegment(oldSegment);
+          }
+        }
         const updated = await scheduleSegment(
           segment.id,
           at.toISOString(),
           drafts[segment.id] ?? segment.script
         );
-        setVisibleSegments((current) => [...current, updated]);
+        setVisibleSegments((current) => [
+          ...current.filter((item) => item.id !== replaceTarget.segmentId),
+          updated
+        ]);
         setVisibleReviewSegments((current) =>
-          current.filter((item) => item.id !== segment.id)
+          current.filter(
+            (item) => item.id !== segment.id && item.id !== replaceTarget.segmentId
+          )
         );
-        setMessage(`${updated.title} approved and placed at ${timeLabel(at)}.`);
+        setMessage(`${updated.title} replaced ${replaceTarget.title ?? "the selected card"} at ${timeLabel(at)}.`);
+        setReplaceTarget(null);
         router.refresh();
       } catch (error) {
-        setMessage(error instanceof Error ? error.message : "Could not place review card.");
+        setMessage(error instanceof Error ? error.message : "Could not replace card.");
       } finally {
         setPendingId("");
       }
@@ -209,11 +232,10 @@ export function BroadcastRundown({
           <h2 className="text-2xl font-black text-ink">Presentation sequence</h2>
         </div>
         <p className="mt-2 text-sm font-semibold leading-6 text-ink/60">
-          Drag prepared media, X, social, operator, or sponsor cards into a
-          24-hour-clock sequence. Schedule/location breaks are capped as
-          two-minute blocks with locations; music remains the designated break.
-          Select a time slot, then click a human-review card to approve and
-          place it into that exact sequence position.
+          Every hour starts from the top of the card pool and is built as 30
+          content cards at 1:50 each, each followed by a 10-second music card.
+          Voices are assigned across cards; every script starts with the voice
+          name here from ASCO, then moves directly into the narrative.
         </p>
         <div className="mt-3 inline-flex items-center gap-2 border border-ink/10 bg-paper px-3 py-2 text-xs font-black uppercase text-ink/70">
           <CalendarDays className="h-4 w-4 text-broadcast" />
@@ -222,6 +244,13 @@ export function BroadcastRundown({
         {message ? (
           <div className="mt-3 border border-cyanline/30 bg-cyanline/10 p-3 text-sm font-bold text-ink">
             {message}
+          </div>
+        ) : null}
+        {replaceTarget ? (
+          <div className="mt-3 border border-broadcast/30 bg-broadcast/10 p-3 text-sm font-bold text-ink">
+            Replacing {replaceTarget.title ?? "selected card"} at{" "}
+            {timeLabel(replaceTarget.at)}. Click &quot;Replace with this&quot; on a brand
+            new card.
           </div>
         ) : null}
       </div>
@@ -238,13 +267,23 @@ export function BroadcastRundown({
         ) : null}
         <div className="border border-ink/10 bg-paper/60 p-4 xl:col-start-2 xl:row-start-1">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-lg font-black text-ink">Ready cards</h3>
+            <h3 className="text-lg font-black text-ink">Brand new ready cards</h3>
             <span className="text-xs font-black uppercase text-ink/50">
-              {visibleSegments.length} source-backed cards
+              {visibleReviewSegments.length} replacement candidates
             </span>
           </div>
+          <p className="mt-2 text-xs font-bold uppercase leading-5 text-ink/50">
+            These are the only cards outside the presentation queue. Use them to
+            replace existing queue cards, or drag one onto a selected time.
+          </p>
           <div className="mt-3 grid gap-3 md:grid-cols-2">
-            {visibleSegments.map((segment) => (
+            {visibleReviewSegments.length === 0 ? (
+              <div className="border border-dashed border-ink/20 bg-white p-4 text-sm font-bold text-ink/55 md:col-span-2">
+                No brand new cards are waiting. Run ingest/generation or add an
+                operator, emergency, or sponsor message below.
+              </div>
+            ) : null}
+            {visibleReviewSegments.map((segment) => (
               <article
                 key={segment.id}
                 draggable
@@ -262,7 +301,7 @@ export function BroadcastRundown({
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="bg-broadcast px-2 py-1 text-[11px] font-black uppercase text-white">
-                        {segment.personaName}
+                        New
                       </span>
                       <span className="border border-ink/15 px-2 py-1 text-[11px] font-bold uppercase text-ink/70">
                         {contentLabel(segment)}
@@ -295,77 +334,16 @@ export function BroadcastRundown({
                         </ul>
                       ) : null}
                     </details>
+                    <button
+                      type="button"
+                      className="mt-3 inline-flex min-h-9 w-full items-center justify-center gap-2 bg-broadcast px-3 text-xs font-black uppercase text-white disabled:opacity-50"
+                      disabled={pending || !replaceTarget}
+                      onClick={() => replaceWithCard(segment)}
+                    >
+                      <RefreshCcw className="h-3.5 w-3.5" />
+                      {pendingId === segment.id ? "Replacing" : "Replace with this"}
+                    </button>
                   </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        </div>
-        <div className="border border-ink/10 bg-white p-4 xl:col-start-2 xl:row-start-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h3 className="text-lg font-black text-ink">Human review queue</h3>
-              <p className="mt-1 text-xs font-bold uppercase text-ink/50">
-                Select a presentation time slot, then click Place in selected slot.
-              </p>
-            </div>
-            <span className="border border-ink/10 bg-paper px-2 py-1 text-xs font-black uppercase text-ink/60">
-              Selected: {selectedSlotAt ? timeLabel(selectedSlotAt) : "none"}
-            </span>
-          </div>
-          <div className="mt-3 grid gap-3">
-            {visibleReviewSegments.length === 0 ? (
-              <div className="border border-dashed border-ink/20 bg-paper/60 p-4">
-                <h4 className="text-sm font-black text-ink">
-                  No cards are waiting for human review
-                </h4>
-                <p className="mt-1 text-xs font-semibold leading-5 text-ink/60">
-                  Generated source cards and operator break-in mentions will
-                  appear here before they are placed into the sequence.
-                </p>
-              </div>
-            ) : null}
-            {visibleReviewSegments.map((segment) => (
-              <article key={segment.id} className="border border-ink/10 p-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="bg-broadcast px-2 py-1 text-[11px] font-black uppercase text-white">
-                    {contentLabel(segment)}
-                  </span>
-                  <span className="bg-ink px-2 py-1 text-[11px] font-black uppercase text-white">
-                    {segment.personaName}
-                  </span>
-                  <span className="border border-ink/15 px-2 py-1 text-[11px] font-bold uppercase text-ink/70">
-                    confidence {segment.confidenceScore}%
-                  </span>
-                </div>
-                <h4 className="mt-2 text-sm font-black leading-5 text-ink">
-                  {segment.title}
-                </h4>
-                <textarea
-                  className="mt-2 min-h-28 w-full resize-y border border-ink/20 p-2 text-xs leading-5 outline-none focus:border-cyanline"
-                  value={drafts[segment.id] ?? ""}
-                  onChange={(event) =>
-                    setDrafts((current) => ({
-                      ...current,
-                      [segment.id]: event.target.value
-                    }))
-                  }
-                />
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <button
-                    className="inline-flex min-h-9 items-center justify-center bg-mint px-3 text-xs font-black uppercase text-white disabled:opacity-50"
-                    disabled={pending || !selectedSlotAt}
-                    onClick={() => placeReviewCardInSelectedSlot(segment)}
-                  >
-                    {pendingId === segment.id ? "Placing" : "Place in selected slot"}
-                  </button>
-                  <button
-                    className="inline-flex min-h-9 items-center justify-center border border-ink px-3 text-xs font-black uppercase text-ink disabled:opacity-50"
-                    disabled={pending}
-                    onClick={() => reject(segment)}
-                  >
-                    Reject
-                  </button>
                 </div>
               </article>
             ))}
@@ -379,7 +357,7 @@ export function BroadcastRundown({
                 Hour {hourIndex + 1}: {timeLabel(bucket.start)}
               </h3>
               <span className="ml-auto bg-ink px-2 py-1 text-xs font-black uppercase text-white">
-                {bucket.slots.filter((slot) => slot.kind === "statement" || slot.kind === "backup").length} voice cards
+                {bucket.slots.filter((slot) => slot.kind !== "music").length} content / {bucket.slots.filter((slot) => slot.kind === "music").length} music
               </span>
             </div>
             <div className="mt-3 grid gap-3">
@@ -423,18 +401,23 @@ export function BroadcastRundown({
                       {timeLabel(slot.at.toISOString())}
                     </span>
                     <span className="border border-ink/10 bg-white px-2 py-1 text-[11px] font-black uppercase text-ink/50">
-                      {slot.durationMinutes} min
+                      {slot.durationSeconds === 110 ? "1:50" : "0:10"}
                     </span>
-                    {slot.kind !== "schedule" && slot.kind !== "social" ? (
+                    {slot.kind !== "music" ? (
                       <button
                         type="button"
                         className="border border-broadcast bg-white px-2 py-1 text-[11px] font-black uppercase text-broadcast"
                         onClick={(event) => {
                           event.stopPropagation();
+                          setReplaceTarget({
+                            at: slot.at.toISOString(),
+                            segmentId: slot.segment?.id,
+                            title: slot.segment?.title ?? slot.label
+                          });
                           setSelectedSlotAt(slot.at.toISOString());
                         }}
                       >
-                        Select slot
+                        Replace
                       </button>
                     ) : null}
                     {slot.segment?.personaName ? (
@@ -452,7 +435,7 @@ export function BroadcastRundown({
                   {slot.kind === "music" ? (
                     <div className="mt-2 flex items-center gap-2 text-xs font-black uppercase text-ink/50">
                       <Music2 className="h-4 w-4" />
-                      Drop a prepared card here to place it before/after the music break.
+                      Ten-second music card.
                     </div>
                   ) : (
                     <>

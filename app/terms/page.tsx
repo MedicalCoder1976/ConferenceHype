@@ -73,7 +73,7 @@ export default function TermsPage() {
           <TermBlock title="Source and accuracy limits">
             ASCO Hype may reference public posts, links, headlines, abstracts,
             media items, company statements, and audience suggestions. Social
-            posts are treated as conversation signals, not verified facts.
+            posts are treated as conversation signals, not confirmed facts.
             Content may be incomplete, delayed, mistaken, or outdated.
           </TermBlock>
 
