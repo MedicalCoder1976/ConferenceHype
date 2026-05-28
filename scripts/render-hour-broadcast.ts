@@ -38,9 +38,19 @@ function cleanText(value: string) {
     .replace(/&gt;/g, ">")
     .replace(/&lt;/g, "<")
     .replace(/%/g, " percent")
+    // Rule 1: strip URLs from slide text
+    .replace(/https?:\/\/[^\s)\]}>]+/g, "")
+    // Rule 3: strip internal process labels
+    .replace(/\boperator[- ](?:added|selected)\b[^.!?\n]*/gi, "")
+    .replace(/\bmonitored\s+X\s+(?:voice|narrative|voices)\b/gi, "")
+    .replace(/\bsource[- ]backed\s+\w+\s+narrative\b/gi, "")
+    .replace(/\bapproved\s+for\s+broadcast\b/gi, "")
+    .replace(/\baudience\s+tip\b/gi, "")
+    // Rule 4: ≈ → "approx." on slide (shorter than "approximately" for screen space)
+    .replace(/≈/g, "approx.")
     .replace(/\bwe verify\b/gi, "we attribute")
     .replace(/\bverify\b/gi, "check")
-    .replace(/\bverified\b/gi, "source-backed")
+    .replace(/\bverified\b/gi, "sourced")
     .replace(/\bairtime\b/gi, "the rundown")
     .replace(/\baired\b/gi, "covered")
     .replace(/\bairing\b/gi, "playing")
@@ -131,17 +141,27 @@ async function buildCards() {
     hours
   }).filter((slot) => slot.at < new Date(baseTime.getTime() + durationSeconds * 1000));
 
-  return slots.map((slot) => ({
-    duration: slot.durationSeconds,
-    isMusic: slot.kind === "music",
-    personaId: slot.kind !== "music" ? (slot.segment?.personaId ?? "echo-sage") : undefined,
-    script: slot.kind !== "music" ? (slot.segment?.script || slot.segment?.summary || null) : null,
-    text:
-      slot.kind === "music"
+  // Rule 7: gap-clip rotation — 4 approved 20-second techno stingers in public/music/gap-clips/
+  const gapClipPaths = [
+    "public/music/gap-clips/conferencehype-gap-elevate-to-fenrir-20s.mp3",
+    "public/music/gap-clips/conferencehype-gap-nightclub-to-rebecca-20s.mp3",
+    "public/music/gap-clips/conferencehype-gap-subterranean-to-adam-20s.mp3",
+    "public/music/gap-clips/conferencehype-gap-skyline-to-aussieonc-20s.mp3",
+  ];
+  let musicIndex = 0;
+  return slots.map((slot) => {
+    const isMusic = slot.kind === "music";
+    return {
+      duration: slot.durationSeconds,
+      isMusic,
+      gapClipPath: isMusic ? gapClipPaths[musicIndex++ % gapClipPaths.length] : undefined,
+      personaId: !isMusic ? (slot.segment?.personaId ?? "echo-sage") : undefined,
+      script: !isMusic ? (slot.segment?.script || slot.segment?.summary || null) : null,
+      text: isMusic
         ? formatCard({
             eyebrow: "Music card",
-            title: "Ten-second music transition",
-            body: "Short music bed. Next content card follows immediately."
+            title: "Twenty-second music transition",
+            body: "Gap clip playing. Next content card follows immediately."
           })
         : formatCard({
             eyebrow: `${slot.segment?.personaName ?? "ASCO Hype"} / ${slot.segment?.contentType.replace(/_/g, " ") ?? "content"}`,
@@ -149,7 +169,8 @@ async function buildCards() {
             body: slot.segment?.script || slot.segment?.summary || slot.label,
             source: slot.segment?.citations[0]?.url
           })
-  }));
+    };
+  });
 }
 
 async function main() {
@@ -203,6 +224,7 @@ async function main() {
 
   type VoiceEntry = { path: string; startMs: number };
   const voiceEntries: VoiceEntry[] = [];
+  const gapEntries: VoiceEntry[] = [];    // gap-clip stingers, one per music card
   let offsetMs = 0;
 
   // Resolve every card to its cache path and collect the ones that need synthesis
@@ -211,6 +233,14 @@ async function main() {
   const alreadyCached: Array<{ cachePath: string; startMs: number }> = [];
 
   for (const card of cards) {
+    // Rule 7: collect gap-clip start times for music cards
+    if (card.isMusic && card.gapClipPath) {
+      const resolvedGap = path.resolve(card.gapClipPath);
+      if (existsSync(resolvedGap)) {
+        gapEntries.push({ path: resolvedGap, startMs: offsetMs });
+      }
+    }
+
     if (!card.isMusic && card.script && card.personaId) {
       const persona = getPersona(card.personaId);
       const voiceName = process.env[persona.voiceEnvKey];
@@ -284,22 +314,38 @@ async function main() {
   const hasVoice = Boolean(voicePath) || voiceEntries.length > 0;
 
   let audioArgs: string[];
-  if (voiceEntries.length > 0) {
-    // Kokoro per-card voices: each delayed to its slot start, mixed over a music bed
+  if (voiceEntries.length > 0 || gapEntries.length > 0) {
+    // Kokoro per-card voices + gap-clip stingers, all delayed to their slot start,
+    // mixed over a quiet continuous music bed.
+    // Rule 9: music bed raised to 0.25 so it's audible between voice cards.
     const voiceInputArgs = voiceEntries.flatMap((e) => ["-i", e.path]);
-    const filterParts: string[] = [`[1:a]volume=0.15[bed]`];
+    const gapInputArgs = gapEntries.flatMap((e) => ["-i", e.path]);
+    const filterParts: string[] = [`[1:a]volume=0.25[bed]`];
     voiceEntries.forEach((e, i) => {
       filterParts.push(
         `[${i + 2}:a]volume=0.85,adelay=${e.startMs}|${e.startMs}[v${i}]`
       );
     });
-    const mixInputs = [`[bed]`, ...voiceEntries.map((_, i) => `[v${i}]`)].join("");
+    const gapOffset = voiceEntries.length + 2;
+    // Gap clips at 0.70 — prominent, above the bed but below the speaker voice
+    gapEntries.forEach((e, i) => {
+      filterParts.push(
+        `[${gapOffset + i}:a]volume=0.70,adelay=${e.startMs}|${e.startMs}[g${i}]`
+      );
+    });
+    const allStreams = [
+      "[bed]",
+      ...voiceEntries.map((_, i) => `[v${i}]`),
+      ...gapEntries.map((_, i) => `[g${i}]`)
+    ].join("");
+    const totalStreams = 1 + voiceEntries.length + gapEntries.length;
     filterParts.push(
-      `${mixInputs}amix=inputs=${voiceEntries.length + 1}:duration=first:normalize=0[a]`
+      `${allStreams}amix=inputs=${totalStreams}:duration=first:normalize=0[a]`
     );
     audioArgs = [
       "-stream_loop", "-1", "-i", musicPath,
       ...voiceInputArgs,
+      ...gapInputArgs,
       "-filter_complex", filterParts.join(";")
     ];
   } else if (voicePath) {
@@ -307,12 +353,12 @@ async function main() {
       "-stream_loop", "-1", "-i", musicPath,
       "-stream_loop", "-1", "-i", voicePath,
       "-filter_complex",
-      "[1:a]volume=0.15[music];[2:a]volume=0.85[voice];[music][voice]amix=inputs=2:duration=first:dropout_transition=0[a]"
+      "[1:a]volume=0.25[music];[2:a]volume=0.85[voice];[music][voice]amix=inputs=2:duration=first:dropout_transition=0[a]"
     ];
   } else {
     audioArgs = [
       "-stream_loop", "-1", "-i", musicPath,
-      "-filter_complex", "[1:a]volume=0.18[a]"
+      "-filter_complex", "[1:a]volume=0.28[a]"
     ];
   }
 

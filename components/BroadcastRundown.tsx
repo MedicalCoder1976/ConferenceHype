@@ -278,10 +278,10 @@ export function BroadcastRundown({
           <h2 className="text-2xl font-black text-ink">Presentation sequence</h2>
         </div>
         <p className="mt-2 text-sm font-semibold leading-6 text-ink/60">
-          Every hour starts from the top of the card pool and is built as 30
-          content cards at 1:50 each, each followed by a 10-second music card.
-          Voices are assigned across cards; every script starts with the voice
-          name here from ASCO, then moves directly into the narrative.
+          Every hour runs 90 content cards at 20 seconds each, each followed by
+          a 20-second gap-clip music break. Voices are assigned across cards;
+          every script starts with the voice name here from ASCO, then moves
+          directly into the narrative.
         </p>
         <div className="mt-3 inline-flex items-center gap-2 border border-ink/10 bg-paper px-3 py-2 text-xs font-black uppercase text-ink/70">
           <CalendarDays className="h-4 w-4 text-broadcast" />
@@ -437,7 +437,7 @@ export function BroadcastRundown({
                   }}
                   onDrop={(event) => {
                     if (slot.kind === "music") {
-                      setMessage("Drop cards on a content slot, not the 10-second music card.");
+                      setMessage("Drop cards on a content slot, not the 20-second music gap card.");
                       return;
                     }
                     event.preventDefault();
@@ -468,7 +468,7 @@ export function BroadcastRundown({
                       {timeLabel(slot.at.toISOString())}
                     </span>
                     <span className="border border-ink/10 bg-white px-2 py-1 text-[11px] font-black uppercase text-ink/50">
-                      {slot.durationSeconds === 110 ? "1:50" : "0:10"}
+                      {slot.durationSeconds === 20 ? "0:20" : slot.durationSeconds === 10 ? "0:10" : `${String(Math.floor(slot.durationSeconds / 60)).padStart(1, "0")}:${String(slot.durationSeconds % 60).padStart(2, "0")}`}
                     </span>
                     {slot.kind !== "music" ? (
                       <button

@@ -6,7 +6,26 @@ import { env } from "@/lib/env";
 import type { Persona } from "@/lib/types";
 
 export function applySpokenPronunciations(script: string) {
-  return script.replace(/\bASCO\b/g, "Ask-oh").replace(/\bASKO\b/g, "Ask-oh");
+  return script
+    // Rule 5: ASCO → "Ask-oh" (word, not letters A-S-C-O)
+    .replace(/\bASCO\b/g, "Ask-oh")
+    .replace(/\bASKO\b/g, "Ask-oh")
+    // Rule 1: strip URLs — TTS would read out raw links character-by-character
+    .replace(/https?:\/\/[^\s)\]}>]+/g, "")
+    // Rule 3: strip internal process labels that sneak into scripts
+    .replace(/\boperator[- ](?:added|selected)\b[^.!?\n]*/gi, "")
+    .replace(/\bmonitored\s+X\s+(?:voice|narrative|voices)\b/gi, "")
+    .replace(/\bsource[- ]backed\s+\w+\s+narrative\b/gi, "")
+    .replace(/\bapproved\s+for\s+broadcast\b/gi, "")
+    .replace(/\baudience\s+tip\b/gi, "")
+    // Rule 4: ≈ → "approximately"
+    .replace(/≈/g, "approximately")
+    // Rule 6: @ and # in social posts — drop @ entirely, keep hashtag word
+    .replace(/@\w{1,15}/g, "")
+    .replace(/#(\w+)/g, "$1")
+    // Clean up any double spaces left behind
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 function runProcess(command: string, args: string[]): Promise<void> {

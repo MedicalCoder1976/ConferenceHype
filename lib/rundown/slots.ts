@@ -11,9 +11,9 @@ export type BroadcastSlot = {
   replaceable?: boolean;
 };
 
-const CONTENT_SECONDS = 110;
-const MUSIC_SECONDS = 10;
-const CONTENT_SLOTS_PER_HOUR = 30;
+const CONTENT_SECONDS = 20;   // was 110 — match real TTS length, no more silence gaps
+const MUSIC_SECONDS = 20;     // was 10 — matches 20-second gap-clip library
+const CONTENT_SLOTS_PER_HOUR = 90; // was 30 — 90 × 40 s = 3 600 s = 1 h exactly
 
 export function addMinutes(date: Date, minutes: number) {
   return new Date(date.getTime() + minutes * 60 * 1000);
@@ -46,8 +46,30 @@ function stripIntro(value: string) {
     .trim();
 }
 
+// Rule 6 helper: strip @mentions and #tags from social posts
+function cleanSocialScript(value: string): string {
+  return value
+    .replace(/@\w{1,15}/g, "")
+    .replace(/#\w+/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Limit script to roughly 20 seconds of spoken content (~45 words at 135 wpm).
+// Breaks on the last sentence boundary if possible.
+function trimToSpokenLength(text: string, maxWords = 45): string {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  if (words.length <= maxWords) return text.trim();
+  const limited = words.slice(0, maxWords).join(" ");
+  // Try to end on a sentence boundary in the second half of the truncated text
+  const cutPoint = limited.search(/[.!?][^.!?]*$/);
+  if (cutPoint > limited.length * 0.4) return limited.slice(0, cutPoint + 1);
+  return `${limited}.`;
+}
+
 function cleanForbiddenBroadcastPhrases(value: string) {
   return value
+    // Existing internal meta-language replacements
     .replace(/\bwe verify\b/gi, "we attribute")
     .replace(/\bverify\b/gi, "check")
     .replace(/\bverified\b/gi, "source-backed")
@@ -55,13 +77,37 @@ function cleanForbiddenBroadcastPhrases(value: string) {
     .replace(/\baired\b/gi, "covered")
     .replace(/\bairing\b/gi, "playing")
     .replace(/\bair\b/gi, "play")
+    // Rule 1: strip URLs — listeners cannot read a URL
+    .replace(/https?:\/\/[^\s)\]}>]+/g, "")
+    // Rule 3: strip internal process labels
+    .replace(/\boperator[- ](?:added|selected)\b[^.!?\n]*/gi, "")
+    .replace(/\bmonitored\s+X\s+(?:voice|narrative|voices)\b/gi, "")
+    .replace(/\bsource[- ]backed\s+\w+\s+narrative\b/gi, "")
+    .replace(/\bapproved\s+for\s+broadcast\b/gi, "")
+    .replace(/\baudience\s+tip\b/gi, "")
+    .replace(/\bX\s+narrative\b/gi, "social post")
+    .replace(/\bX\s+voice\b/gi, "social voice")
+    .replace(/\bsocial\s+buzz\b/gi, "social chatter")
+    .replace(/\bearly\s+social\s+chatter\b/gi, "early chatter")
+    .replace(/\bunverified\s+buzz\b/gi, "early buzz")
+    // Rule 4: ≈ → "approximately"
+    .replace(/≈/g, "approximately")
     .replace(/\s+/g, " ")
     .trim();
 }
 
 function withAssignedVoice(segment: Segment, slotIndex: number): Segment {
   const persona = voiceForSlot(segment, slotIndex);
-  const narrative = cleanForbiddenBroadcastPhrases(stripIntro(segment.script || segment.summary));
+  let narrative = cleanForbiddenBroadcastPhrases(stripIntro(segment.script || segment.summary));
+
+  // Rule 6: X/social posts — drop @ and # tags, label as ConferenceHype call-out
+  if (segment.contentType === "social_signal") {
+    narrative = `ConferenceHype calls out: ${cleanSocialScript(narrative)}`;
+  }
+
+  // Rule 2: fit inside a 20-second spoken slot (~45 words at 135 wpm)
+  narrative = trimToSpokenLength(narrative, 45);
+
   const summary = cleanForbiddenBroadcastPhrases(segment.summary);
   return {
     ...segment,
@@ -80,7 +126,7 @@ function makeFallbackSegment(baseTime: Date, slotIndex: number): Segment {
     title: "Source-backed ASCO schedule bridge",
     summary:
       "No newer ready card is available for this position, so this slot holds a short official-schedule bridge.",
-    script: `${persona.name} here from ASCO. This is a short schedule bridge while the desk waits for the next source-backed card. The next card stays tied to official schedule items, monitored X voices, articles, operator statements, emergency content, or sponsor messages.`,
+    script: `${persona.name} here from ASCO. Short break while the next confirmed card loads. Coverage continues right after this.`,
     contentType: "agenda_preview",
     personaId: persona.id,
     personaName: persona.name,

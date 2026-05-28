@@ -320,7 +320,7 @@ def synthesize_stinger(output: Path, voice: str, text: str | None = None) -> Non
     warnings.filterwarnings("ignore", category=UserWarning)
     pipeline = KPipeline(lang_code="a", repo_id="hexgrad/Kokoro-82M")
     lines = [
-        {"speed": 1.04, "pause": 0.12, "text": line.strip()}
+        {"speed": 1.12, "pause": 0.10, "text": line.strip()}  # Rule 9: higher energy pace
         for line in (text or "ConferenceHype!\nAsk-oh energy all day.").splitlines()
         if line.strip()
     ]
@@ -430,7 +430,7 @@ def synthesize_batch(batch_file: Path) -> None:
 
         text = str(item["text"])
         output = Path(item["output"])
-        speed = float(item.get("speed", 1.04))
+        speed = float(item.get("speed", 1.15))  # Rule 9: higher energy — 1.15× speaking pace
 
         lines = [
             {"speed": speed, "pause": 0.12, "text": line.strip()}
