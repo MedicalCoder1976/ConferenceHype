@@ -5,8 +5,36 @@ import path from "node:path";
 import { env } from "@/lib/env";
 import type { Persona } from "@/lib/types";
 
+// Convert Roman numerals to digits so TTS doesn't read "eye-eye-eye" instead of "three".
+// Context-aware for Stage/Phase/Type/Grade/Arm/Line (catches I–XII after those words).
+// Safe standalone replacements for multi-char forms that have no other meaning (II, III,
+// VI, VII, VIII, IX). Leaves standalone I (pronoun), IV (intravenous), V, X alone.
+function expandRomanNumerals(text: string): string {
+  const contextWords = "stage|phase|type|grade|arm|line|tier|class|part";
+  const romanMap: Record<string, string> = {
+    XII: "12", XI: "11", X: "10", IX: "9", VIII: "8",
+    VII: "7", VI: "6", V: "5", IV: "4", III: "3", II: "2", I: "1"
+  };
+  // After a context word: replace I–XII
+  let out = text.replace(
+    new RegExp(`\\b(${contextWords})\\s+(XII|XI|X|IX|VIII|VII|VI|V|IV|III|II|I)\\b`, "gi"),
+    (_m, prefix: string, roman: string) => `${prefix} ${romanMap[roman.toUpperCase()]}`
+  );
+  // Standalone multi-char Roman numerals that are unambiguous
+  out = out
+    .replace(/\bXII\b/g, "12")
+    .replace(/\bXI\b/g, "11")
+    .replace(/\bVIII\b/g, "8")
+    .replace(/\bVII\b/g, "7")
+    .replace(/\bVI\b/g, "6")
+    .replace(/\bIX\b/g, "9")
+    .replace(/\bIII\b/g, "3")
+    .replace(/\bII\b/g, "2");
+  return out;
+}
+
 export function applySpokenPronunciations(script: string) {
-  return script
+  return expandRomanNumerals(script)
     // Rule 5: ASCO → "Ask-oh" (word, not letters A-S-C-O)
     .replace(/\bASCO\b/g, "Ask-oh")
     .replace(/\bASKO\b/g, "Ask-oh")
