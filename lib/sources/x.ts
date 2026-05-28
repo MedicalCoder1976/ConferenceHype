@@ -7,18 +7,38 @@ function toXUsername(handle: string) {
   return handle.replace(/^@/, "");
 }
 
+// Broad ASCO-topic hashtags used by oncologists who won't necessarily tag our brand
+const ascoBroadHashtags = [
+  "#ASCO26",
+  "#ASCO2026",
+  "#oncology",
+  "#breastcancer",
+  "#lungcancer",
+  "#colorectalcancer",
+  "#NSCLC",
+  "#immunotherapy",
+  "#ADC",
+  "#HER2",
+  "#BRAF",
+  "#liquidbiopsy",
+  "#ctDNA"
+];
+
 export function buildXSearchQuery(extraVoices: XVoice[] = []) {
-  const tagTerms = [
+  const brandTagTerms = [
     monitoredSocialTags.primaryHashtag,
     monitoredSocialTags.secondaryHashtag,
-    monitoredSocialTags.conferenceHashtag,
-    monitoredSocialTags.conferenceYearHashtag,
     monitoredSocialTags.botHandle,
     monitoredSocialTags.conferenceHypeHandle
   ];
   const voices = [...monitoredXVoices, ...extraVoices].slice(0, 50);
   const voiceTerms = voices.map((voice) => `from:${toXUsername(voice.handle)}`);
-  return `(${[...tagTerms, ...voiceTerms].join(" OR ")}) -is:retweet lang:en`;
+  // Brand tags + monitored voices always included.
+  // Broad ASCO topic hashtags catch oncologists discussing trials without tagging our brand.
+  // Combine as: (brand OR voice) OR (broad ASCO topic tag)
+  const brandOrVoice = [...brandTagTerms, ...voiceTerms].join(" OR ");
+  const broadTopics = ascoBroadHashtags.join(" OR ");
+  return `((${brandOrVoice}) OR (${broadTopics})) -is:retweet lang:en`;
 }
 
 export async function fetchTaggedSocialPosts(extraVoices: XVoice[] = []): Promise<IngestedItem[]> {

@@ -19,11 +19,23 @@ export const monitoredSocialTags = {
 };
 
 export const monitoredXVoices: XVoice[] = [
+  // Official ASCO channels
   {
     label: "ASCO",
     handle: "@ASCO",
     note: "official meeting and society signal"
   },
+  {
+    label: "ASCO University",
+    handle: "@ASCOuniversity",
+    note: "ASCO education and abstract signal"
+  },
+  {
+    label: "JCO — Journal of Clinical Oncology",
+    handle: "@JCO_ASCO",
+    note: "ASCO flagship journal signal"
+  },
+  // Oncology media
   {
     label: "The ASCO Post",
     handle: "@ASCOPost",
@@ -35,10 +47,52 @@ export const monitoredXVoices: XVoice[] = [
     note: "oncology media signal"
   },
   {
-    label: "STAT",
+    label: "STAT News",
     handle: "@statnews",
     note: "health and medicine media signal"
   },
+  {
+    label: "Cancer Network",
+    handle: "@CancerNetwork",
+    note: "oncology news and conference signal"
+  },
+  {
+    label: "Hem/Onc Today",
+    handle: "@HemOncToday",
+    note: "hematology and oncology news signal"
+  },
+  {
+    label: "The Lancet Oncology",
+    handle: "@TheLancetOncol",
+    note: "top-tier oncology journal signal"
+  },
+  {
+    label: "NEJM",
+    handle: "@NEJM",
+    note: "New England Journal signal for major trial readouts at ASCO"
+  },
+  // Major cancer centres
+  {
+    label: "MD Anderson",
+    handle: "@MDAndersonNews",
+    note: "MD Anderson Cancer Center ASCO signal"
+  },
+  {
+    label: "Memorial Sloan Kettering",
+    handle: "@MSKCancerCenter",
+    note: "MSK ASCO signal"
+  },
+  {
+    label: "Dana-Farber",
+    handle: "@DanaFarber",
+    note: "Dana-Farber Cancer Institute ASCO signal"
+  },
+  {
+    label: "NCI",
+    handle: "@NCINews",
+    note: "National Cancer Institute ASCO and research signal"
+  },
+  // ConferenceHype own channel
   {
     label: "ConferenceHype",
     handle: "@ConferenceHype",

@@ -83,39 +83,46 @@ export function SocialVoiceCompetition({
           {message}
         </div>
       ) : null}
-      <div className="mt-4 grid gap-3">
-        {visibleLeaders.map((leader, index) => (
-          <div
-            key={leader.handle}
-            className="grid gap-3 border border-ink/10 p-3 sm:grid-cols-[auto_1fr_auto_auto]"
-          >
-            <div className="flex h-10 w-10 items-center justify-center bg-ink text-sm font-black text-white">
-              {`#${index + 1}`}
-            </div>
-            <div>
-              <div className="text-sm font-black text-ink">
-                {leader.label} <span className="text-broadcast">{leader.handle}</span>
-              </div>
-              <div className="mt-1 text-xs font-bold uppercase text-ink/50">
-                {momentumLabel(leader.momentum)} - {leader.note}
-              </div>
-            </div>
-            <div className="flex items-center gap-2 text-sm font-black text-ink">
-              <Zap className="h-4 w-4 text-broadcast" />
-              {leader.score}
-            </div>
-            <button
-              type="button"
-              className="inline-flex min-h-9 items-center justify-center gap-2 border border-ink bg-white px-3 text-xs font-black uppercase text-ink disabled:opacity-50"
-              disabled={pending}
-              onClick={() => blacklist(leader)}
+      {visibleLeaders.length === 0 ? (
+        <div className="mt-4 border border-ink/10 bg-paper p-4 text-sm font-bold text-ink/60">
+          No voices on the board yet — the social ingest is warming up. Scores will appear once the
+          15-minute X search cycle picks up #ASCO26 activity. Check back shortly.
+        </div>
+      ) : (
+        <div className="mt-4 grid gap-3">
+          {visibleLeaders.map((leader, index) => (
+            <div
+              key={leader.handle}
+              className="grid gap-3 border border-ink/10 p-3 sm:grid-cols-[auto_1fr_auto_auto]"
             >
-              <Ban className="h-4 w-4" />
-              {pendingHandle === leader.handle ? "Blacklisting" : "Blacklist"}
-            </button>
-          </div>
-        ))}
-      </div>
+              <div className="flex h-10 w-10 items-center justify-center bg-ink text-sm font-black text-white">
+                {`#${index + 1}`}
+              </div>
+              <div>
+                <div className="text-sm font-black text-ink">
+                  {leader.label} <span className="text-broadcast">{leader.handle}</span>
+                </div>
+                <div className="mt-1 text-xs font-bold uppercase text-ink/50">
+                  {momentumLabel(leader.momentum)} · {leader.mentions} post{leader.mentions === 1 ? "" : "s"} · {leader.note}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-sm font-black text-ink">
+                <Zap className="h-4 w-4 text-broadcast" />
+                {leader.score}
+              </div>
+              <button
+                type="button"
+                className="inline-flex min-h-9 items-center justify-center gap-2 border border-ink bg-white px-3 text-xs font-black uppercase text-ink disabled:opacity-50"
+                disabled={pending}
+                onClick={() => blacklist(leader)}
+              >
+                <Ban className="h-4 w-4" />
+                {pendingHandle === leader.handle ? "Blacklisting" : "Blacklist"}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }

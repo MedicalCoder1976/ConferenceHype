@@ -1,8 +1,6 @@
 import { monitoredXVoices, type XVoice } from "@/lib/sources/registry";
 import type { IngestedItem, Segment, SocialVoiceLeader } from "@/lib/types";
 
-const fallbackScores = [92, 86, 81, 75, 69, 64, 58, 53];
-
 function normalizeHandle(value?: string) {
   if (!value) {
     return "";
@@ -14,12 +12,23 @@ function normalizeHandle(value?: string) {
   return `@${match[0].replace(/^@/, "")}`;
 }
 
-function scoreFromText(item: IngestedItem) {
+function scoreFromItem(item: IngestedItem) {
+  // Prefer the structured engagement score, fall back to any score embedded in text
+  if (item.engagementScore && item.engagementScore > 0) {
+    return item.engagementScore;
+  }
   const scoreMatch = item.excerpt.match(/Engagement score:\s*(\d+)/i);
   if (scoreMatch?.[1]) {
     return Number(scoreMatch[1]);
   }
-  return item.engagementScore ?? 0;
+  return 0;
+}
+
+function labelForHandle(handle: string, voices: XVoice[]) {
+  const voice = voices.find(
+    (v) => v.handle.toLowerCase() === handle.toLowerCase()
+  );
+  return voice ? { label: voice.label, note: voice.note } : { label: handle, note: "conference social voice" };
 }
 
 export function buildSocialVoiceLeaderboard(
@@ -28,23 +37,11 @@ export function buildSocialVoiceLeaderboard(
   blacklistedHandles: string[] = []
 ): SocialVoiceLeader[] {
   const blacklisted = new Set(blacklistedHandles.map((handle) => handle.toLowerCase()));
-  const voices = [...monitoredXVoices, ...customVoices];
-  const byHandle = new Map<string, SocialVoiceLeader>();
+  const allVoices = [...monitoredXVoices, ...customVoices];
 
-  for (const voice of voices) {
-    const handle = normalizeHandle(voice.handle);
-    if (!handle || blacklisted.has(handle.toLowerCase()) || byHandle.has(handle.toLowerCase())) {
-      continue;
-    }
-    byHandle.set(handle.toLowerCase(), {
-      label: voice.label,
-      handle,
-      note: voice.note,
-      score: 0,
-      mentions: 0,
-      momentum: "new"
-    });
-  }
+  // Score ONLY from real ingested data — no pre-seeding with fake fallback numbers.
+  // Every voice must earn its place by actually appearing in the recent X search results.
+  const byHandle = new Map<string, SocialVoiceLeader>();
 
   for (const item of items) {
     const handle = normalizeHandle(item.author);
@@ -55,37 +52,33 @@ export function buildSocialVoiceLeaderboard(
     if (blacklisted.has(key)) {
       continue;
     }
-    const existing =
-      byHandle.get(key) ??
-      ({
-        label: handle,
-        handle,
-        note: "audience or media social voice",
-        score: 0,
-        mentions: 0,
-        momentum: "new"
-      } satisfies SocialVoiceLeader);
+    const meta = labelForHandle(handle, allVoices);
+    const existing = byHandle.get(key) ?? ({
+      label: meta.label,
+      handle,
+      note: meta.note,
+      score: 0,
+      mentions: 0,
+      momentum: "new"
+    } satisfies SocialVoiceLeader);
 
     existing.mentions += 1;
-    existing.score += 10 + scoreFromText(item);
+    existing.score += 10 + scoreFromItem(item);
     existing.lastSeen = item.publishedAt ?? existing.lastSeen;
-    existing.momentum = existing.mentions > 1 ? "rising" : "steady";
+    existing.momentum = existing.mentions >= 3 ? "rising" : existing.mentions >= 1 ? "steady" : "new";
     byHandle.set(key, existing);
   }
 
-  const ranked = Array.from(byHandle.values()).sort((a, b) => {
-    if (b.score !== a.score) {
-      return b.score - a.score;
-    }
-    return b.mentions - a.mentions;
-  });
+  const ranked = Array.from(byHandle.values())
+    .filter((leader) => leader.mentions > 0)
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return b.mentions - a.mentions;
+    });
 
-  return ranked.slice(0, 8).map((leader, index) => ({
-    ...leader,
-    score: leader.score || fallbackScores[index] || 50,
-    mentions: leader.mentions || 0,
-    momentum: leader.mentions === 0 ? "new" : leader.momentum
-  }));
+  // Return top 10 active voices. If nothing has come in yet, return empty —
+  // the UI will show a "warming up" message instead of fake scores.
+  return ranked.slice(0, 10);
 }
 
 export function shouldRunSocialVoiceCompetition(now = new Date()) {
@@ -111,7 +104,7 @@ export function buildSocialVoiceCompetitionSegment(
     title: "Three-hour social voice leaderboard",
     summary:
       "Competition-style leaderboard for watched X voices and audience social signals.",
-    script: `Social voice scoreboard check. Every three hours, ASCO Hype is ranking the voices lighting up the conference conversation. Winning voices are added to the X callout list for source-attributed broadcast commentary.\n\n${board || "The board is warming up. The desk needs more tagged social signals before crowning a leader."}\n\n${routing}`,
+    script: `Social voice scoreboard check. Every three hours, ASCO Hype ranks the voices lighting up the ASCO conversation on X. Top voices are added to the monitored callout list for source-attributed broadcast commentary.\n\n${board || "The board is still warming up. More ASCO26 signal needed before we can crown a leader."}\n\n${routing}`,
     contentType: "social_signal",
     personaId: "vesper-quill",
     personaName: "Vesper Quill",
