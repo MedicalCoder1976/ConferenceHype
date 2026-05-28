@@ -33,7 +33,7 @@ function createSmokeTestSegment(): Segment {
   return {
     id: `smoke-${new Date().toISOString().replace(/[^0-9]/g, "").slice(0, 14)}`,
     title: "ASCO Hype audio smoke test",
-    summary: "Short render test for the ElevenLabs and FFmpeg audio pipeline.",
+    summary: "Short render test for the Kokoro voice and FFmpeg audio pipeline.",
     script:
       "ASCO Hype audio test. This confirms the voice rendering pipeline is connected. This is not medical advice, clinical guidance, scientific validation, legal advice, or financial advice.",
     contentType: "agenda_preview",

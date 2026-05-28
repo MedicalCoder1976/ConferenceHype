@@ -14,7 +14,12 @@ const bannedAdvicePatterns = [
 
 export function validateSegmentForApproval(segment: Pick<Segment, "title" | "summary" | "script" | "citations" | "contentType">) {
   const errors: string[] = [];
-  if (segment.citations.length === 0) {
+  // agenda_preview and industry_floor are always sourced from verified official
+  // schedule/floor data, so they are trusted without a citation list.
+  // This matches the filterBroadcastReadySegments() exemption in lib/data.ts.
+  const citationRequired =
+    segment.contentType !== "agenda_preview" && segment.contentType !== "industry_floor";
+  if (citationRequired && segment.citations.length === 0) {
     errors.push("At least one citation is required before approval.");
   }
   errors.push(...getUnsafeReviewSourceErrors(segment));

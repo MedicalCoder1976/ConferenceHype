@@ -17,6 +17,10 @@ import { getAdminSnapshot } from "@/lib/data";
 import { getCachedRecordings } from "@/lib/media/recordings";
 import { buildHourlySocialVoiceRundownSegments } from "@/lib/social/hourlyVoiceRundown";
 
+// Prevent Vercel from caching this page so currentBlockStart() always reflects
+// the real server time rather than the build-time snapshot.
+export const dynamic = "force-dynamic";
+
 type AdminPageProps = {
   searchParams?: Promise<{ start?: string }>;
 };
@@ -39,6 +43,15 @@ function getEasternDateParts(date: Date) {
 function todayAtPlanningEastern(now = new Date()) {
   const { year, month, day } = getEasternDateParts(now);
   return new Date(`${year}-${month}-${day}T21:00:00-04:00`);
+}
+
+function currentBlockStart(now = new Date()) {
+  const { year, month, day } = getEasternDateParts(now);
+  const etMidnight = new Date(`${year}-${month}-${day}T00:00:00-04:00`);
+  const msPerBlock = 3 * 60 * 60 * 1000;
+  const msSinceMidnight = now.getTime() - etMidnight.getTime();
+  const blockIndex = Math.floor((msSinceMidnight + msPerBlock) / msPerBlock);
+  return new Date(etMidnight.getTime() + (blockIndex - 1) * msPerBlock);
 }
 
 function addHours(date: Date, hours: number) {
@@ -67,13 +80,13 @@ function planningSlotLabel(start: Date) {
 
 function resolvePreviewStart(start?: string) {
   if (!start) {
-    return todayAtPlanningEastern();
+    return currentBlockStart();
   }
   if (start === "today-noon" || start === "today-21") {
     return todayAtPlanningEastern();
   }
   const parsed = new Date(start);
-  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+  return Number.isNaN(parsed.getTime()) ? currentBlockStart() : parsed;
 }
 
 export default async function AdminPage({ searchParams }: AdminPageProps) {
@@ -92,9 +105,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const presentationSegments = isPastPreview
     ? snapshot.airedSegments
     : snapshot.nextBroadcastSegments;
-  const firstPlanningStart = todayAtPlanningEastern();
-  const twoWeekStarts = Array.from({ length: 28 * 8 + 1 }, (_, index) => {
-    const planningStart = addHours(firstPlanningStart, (index - 14 * 8) * 3);
+  const liveBlock = currentBlockStart();
+  const planningSlots = Array.from({ length: 8 + 7 * 8 }, (_, index) => {
+    const planningStart = addHours(liveBlock, (index - 8) * 3);
     return {
       href: `/admin?start=${encodeURIComponent(planningStart.toISOString())}`,
       label: planningSlotLabel(planningStart)
@@ -138,10 +151,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         <StartStreamButton />
         <div className="basis-full">
           <div className="mb-2 text-xs font-black uppercase text-ink/50">
-            Three-hour planning slots
+            Three-hour planning slots — 24 h back through next week
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1">
-            {twoWeekStarts.map((item) => (
+            {planningSlots.map((item) => (
               <a
                 key={item.href}
                 className="shrink-0 border border-ink/10 bg-paper px-3 py-2 text-xs font-black uppercase text-ink/70 hover:border-broadcast"

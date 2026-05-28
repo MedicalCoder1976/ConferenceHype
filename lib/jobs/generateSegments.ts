@@ -112,6 +112,17 @@ function sourcePriority(item: IngestedItem) {
   return 4;
 }
 
+function isAutoApprovedSource(item: IngestedItem) {
+  const text = `${item.sourceName} ${item.title} ${item.url}`.toLowerCase();
+  return (
+    text.includes("asco post") ||
+    text.includes("ascopost.com") ||
+    text.includes("onclive") ||
+    text.includes("stat news") ||
+    text.includes("statnews.com")
+  );
+}
+
 function sourceCardPersona(index: number) {
   const personas = [
     { id: "vesper-quill", name: "Vesper Quill", hype: "high_energy" as const },
@@ -169,7 +180,7 @@ function buildSourceCard(item: IngestedItem, now: Date, index: number, alternate
     language: "en",
     status:
       !alternate &&
-      (isXVoiceCallout(item) || sourcePriority(item) === 0)
+      (isXVoiceCallout(item) || isAutoApprovedSource(item))
         ? "approved"
         : "pending_review",
     citations: [citation],
@@ -183,7 +194,7 @@ function buildSourceCard(item: IngestedItem, now: Date, index: number, alternate
     createdAt: now.toISOString(),
     approvedAt:
       !alternate &&
-      (isXVoiceCallout(item) || sourcePriority(item) === 0)
+      (isXVoiceCallout(item) || isAutoApprovedSource(item))
         ? now.toISOString()
         : undefined
   };

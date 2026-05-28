@@ -127,21 +127,23 @@ function slotKey(date: Date) {
   return date.getTime();
 }
 
-function scheduledSegmentsForWindow(segments: Segment[], baseTime: Date, hours: number) {
+function scheduledSegmentsForWindow(segmentGroups: Segment[][], baseTime: Date, hours: number) {
   const windowEnd = addMinutes(baseTime, hours * 60);
   const bySlot = new Map<number, Segment>();
   const pinnedIds = new Set<string>();
 
-  for (const segment of segments) {
-    if (segment.status !== "approved" || !segment.approvedAt) {
-      continue;
+  for (const segments of segmentGroups) {
+    for (const segment of segments) {
+      if (segment.status !== "approved" || !segment.approvedAt) {
+        continue;
+      }
+      const scheduledAt = firstSlotTime(segment);
+      if (scheduledAt < baseTime || scheduledAt >= windowEnd) {
+        continue;
+      }
+      bySlot.set(slotKey(scheduledAt), segment);
+      pinnedIds.add(segment.id);
     }
-    const scheduledAt = firstSlotTime(segment);
-    if (scheduledAt < baseTime || scheduledAt >= windowEnd) {
-      continue;
-    }
-    bySlot.set(slotKey(scheduledAt), segment);
-    pinnedIds.add(segment.id);
   }
 
   return { bySlot, pinnedIds };
@@ -162,10 +164,12 @@ export function buildBroadcastSlots({
   baseTime: Date;
   hours?: number;
 }) {
-  const scheduled = scheduledSegmentsForWindow(segments, baseTime, hours);
+  const scheduled = scheduledSegmentsForWindow(
+    [scheduleSegments, socialVoiceSegments, segments],
+    baseTime,
+    hours
+  );
   const allContent = uniqueSegments([
-    ...scheduleSegments,
-    ...socialVoiceSegments,
     ...segments.filter((segment) => !scheduled.pinnedIds.has(segment.id)),
     ...reviewSegments
   ]);

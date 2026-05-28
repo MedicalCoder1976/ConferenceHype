@@ -96,8 +96,12 @@ export async function getAdminSnapshot(baseTime = new Date()) {
   const pendingSegments = filterBroadcastReadySegments(
     (await getPendingSegmentsFromDb()) ?? []
   );
+  // Use the same generous limit as the render script so recently-scheduled
+  // cards (which sort to the end of the approved_at ASC order) are always
+  // included. 42 was too small: if the pool had 43+ approved segments the
+  // newly-pinned card was silently dropped and the UI reverted after refresh.
   const nextBroadcastSegments = filterBroadcastReadySegments(
-    (await getNextBroadcastSegmentsFromDb()) ?? []
+    (await getNextBroadcastSegmentsFromDb(200)) ?? []
   );
   const scheduleRundownSegments = buildScheduleRundownSegments(baseTime);
   const airedSegments = (await getAiredSegmentsFromDb(180)) ?? [];

@@ -401,26 +401,84 @@ def synthesize_cycle(output: Path, voices: tuple[str, ...], target_seconds: floa
     sf.write(output, pad_or_trim(combined, target_seconds), SAMPLE_RATE)
 
 
+def synthesize_batch(batch_file: Path) -> None:
+    """
+    Process a JSON batch file and synthesize all items in a single KPipeline session.
+
+    Input format (array of objects):
+      [{"voice": "am_fenrir", "text": "...", "output": "/tmp/card-0.wav"}, ...]
+
+    The model is loaded once and reused for every item, which is much faster than
+    spawning a separate process per card when rendering a full broadcast block.
+    """
+    import json
+
+    warnings.filterwarnings("ignore", category=UserWarning)
+    items = json.loads(batch_file.read_text(encoding="utf8"))
+    if not items:
+        print("Batch file is empty — nothing to synthesize.")
+        return
+
+    pipeline = KPipeline(lang_code="a", repo_id="hexgrad/Kokoro-82M")
+    total = len(items)
+
+    for index, item in enumerate(items):
+        voice = item["voice"]
+        if voice not in VOICE_MIX:
+            supported = ", ".join(VOICE_MIX.keys())
+            raise ValueError(f"Unsupported voice '{voice}'. Use one of: {supported}")
+
+        text = str(item["text"])
+        output = Path(item["output"])
+        speed = float(item.get("speed", 1.04))
+
+        lines = [
+            {"speed": speed, "pause": 0.12, "text": line.strip()}
+            for line in text.splitlines()
+            if line.strip()
+        ]
+        if not lines:
+            lines = [{"speed": speed, "pause": 0.0, "text": text.strip()}]
+
+        audio = apply_voice_mix(synthesize_lines(pipeline, voice, lines), voice)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        sf.write(str(output), audio, SAMPLE_RATE)
+        print(f"[{index + 1}/{total}] {output.name} ({voice})")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--output", required=True)
-    parser.add_argument("--mode", choices=["single", "lineup", "trio", "cycle", "stinger", "script"], default="single")
+    parser.add_argument("--output")
+    parser.add_argument(
+        "--mode",
+        choices=["single", "lineup", "trio", "cycle", "stinger", "script", "batch"],
+        default="single",
+    )
     parser.add_argument("--voice", default=os.environ.get("KOKORO_DJ_VOICE", "am_puck"))
     parser.add_argument("--voices", default=",".join(DEFAULT_VOICES))
     parser.add_argument("--recordings-dir")
     parser.add_argument("--target-seconds", type=float, default=180.0)
     parser.add_argument("--text")
     parser.add_argument("--script-file")
+    parser.add_argument("--batch-file")
     parser.add_argument("--speaker-gap-seconds", type=float, default=1.5)
     args = parser.parse_args()
-    if args.mode == "script":
+    if args.mode == "batch":
+        if not args.batch_file:
+            raise ValueError("--batch-file is required in batch mode")
+        synthesize_batch(Path(args.batch_file))
+    elif args.mode == "script":
         if not args.script_file:
             raise ValueError("--script-file is required in script mode")
+        if not args.output:
+            raise ValueError("--output is required in script mode")
         synthesize_script_file(Path(args.output), Path(args.script_file), args.speaker_gap_seconds)
     elif args.mode == "stinger":
         if args.voice not in VOICE_MIX:
             supported = ", ".join(VOICE_MIX.keys())
             raise ValueError(f"Stinger mode requires supported voice: {supported}")
+        if not args.output:
+            raise ValueError("--output is required in stinger mode")
         synthesize_stinger(Path(args.output), args.voice, args.text)
     elif args.mode in ("lineup", "trio", "cycle"):
         voices = tuple(part.strip() for part in args.voices.split(",") if part.strip())
@@ -428,12 +486,18 @@ def main() -> None:
             supported = ", ".join(VOICE_PERFORMANCES.keys())
             raise ValueError(f"Lineup mode requires supported voices: {supported}")
         if args.mode == "cycle":
+            if not args.output:
+                raise ValueError("--output is required in cycle mode")
             synthesize_cycle(Path(args.output), voices, args.target_seconds)
             return
         if not args.recordings_dir:
             raise ValueError("--recordings-dir is required in lineup mode")
+        if not args.output:
+            raise ValueError("--output is required in lineup mode")
         synthesize_lineup(Path(args.output), Path(args.recordings_dir), voices)
     else:
+        if not args.output:
+            raise ValueError("--output is required in single mode")
         synthesize(Path(args.output), args.voice)
 
 

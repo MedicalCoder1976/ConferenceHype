@@ -19,17 +19,35 @@ on:
         required: true
         default: "public/rendered/fallback-loop.mp4"
       stream_start_time:
-        description: "ISO start time for rendering the correct rundown cards"
+        description: "ISO start time for rendering the correct rundown cards (leave blank for fallback loop)"
         required: false
         default: ""
   schedule:
-    # 8:00 AM EDT on May 24. Remove after the 2026 test run if not needed again.
-    - cron: "0 12 24 5 *"
+    # ASCO 2026 — May 29–June 2. Six 3-hour blocks per day, 06:00–21:00 ET (EDT = UTC-4).
+    # Each cron fires at the block boundary; the render runs first (~10-15 min),
+    # then the stream starts. The fallback loop covers any brief gap.
+    #
+    # May 29–31 (month 5)
+    - cron: "0 10 29,30,31 5 *"   # 06:00 ET — early morning / pre-session
+    - cron: "0 13 29,30,31 5 *"   # 09:00 ET — morning sessions
+    - cron: "0 16 29,30,31 5 *"   # 12:00 ET — midday
+    - cron: "0 19 29,30,31 5 *"   # 15:00 ET — afternoon sessions
+    - cron: "0 22 29,30,31 5 *"   # 18:00 ET — evening / wrap-up
+    - cron: "0 1  30,31 5 *"      # 21:00 ET → 01:00 UTC (May 30 & 31)
+    # June 1–2 (month 6)
+    - cron: "0 10 1,2 6 *"        # 06:00 ET
+    - cron: "0 13 1,2 6 *"        # 09:00 ET
+    - cron: "0 16 1,2 6 *"        # 12:00 ET
+    - cron: "0 19 1,2 6 *"        # 15:00 ET
+    - cron: "0 22 1,2 6 *"        # 18:00 ET
+    - cron: "0 1  1,2,3 6 *"      # 21:00 ET → 01:00 UTC (Jun 1, 2, and end of Jun 2)
 
 jobs:
   stream:
     runs-on: ubuntu-latest
-    timeout-minutes: ${{ fromJSON(github.event_name == 'schedule' && '180' || inputs.duration_minutes) }}
+    # Schedule: 15 min setup + 15 min render + 180 min stream + 25 min buffer = 235 min
+    # Dispatch: user-chosen duration
+    timeout-minutes: ${{ fromJSON(github.event_name == 'schedule' && '235' || inputs.duration_minutes) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -38,33 +56,83 @@ jobs:
           cache: npm
       - run: npm ci
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      - name: Render current presentation
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.stream_start_time != '' }}
+
+      # Resolve which block to render.
+      # Schedule → auto-detect the current 3-hour ET block boundary.
+      # Dispatch with stream_start_time → use that value.
+      # Dispatch without stream_start_time → skip render, run fallback loop.
+      - name: Resolve block start time
+        id: block
         run: |
-          export HOUR_BROADCAST_SECONDS=$(( ${{ inputs.duration_minutes }} * 60 ))
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            BLOCK_START=$(python3 - <<'EOF'
+          from datetime import datetime, timezone, timedelta
+          et_tz = timezone(timedelta(hours=-4))          # EDT = UTC-4
+          now_et = datetime.now(timezone.utc).astimezone(et_tz)
+          block_hour = (now_et.hour // 3) * 3
+          block_start = now_et.replace(hour=block_hour, minute=0, second=0, microsecond=0)
+          print(block_start.isoformat())
+          EOF
+            )
+            DURATION_SECONDS=10800
+          else
+            BLOCK_START="${{ inputs.stream_start_time }}"
+            DURATION_SECONDS=$(( ${{ inputs.duration_minutes || 5 }} * 60 ))
+          fi
+          echo "block_start=${BLOCK_START}" >> $GITHUB_OUTPUT
+          echo "duration_seconds=${DURATION_SECONDS}" >> $GITHUB_OUTPUT
+
+      - name: Install Kokoro TTS dependencies
+        if: ${{ steps.block.outputs.block_start != '' }}
+        run: pip install kokoro numpy soundfile
+
+      - name: Render current presentation
+        if: ${{ steps.block.outputs.block_start != '' }}
+        run: |
+          export HOUR_BROADCAST_SECONDS=${{ steps.block.outputs.duration_seconds }}
           npx tsx scripts/render-hour-broadcast.ts
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           FFMPEG_PATH: /usr/bin/ffmpeg
-          HOUR_BROADCAST_START: ${{ inputs.stream_start_time }}
+          HOUR_BROADCAST_START: ${{ steps.block.outputs.block_start }}
           HOUR_BROADCAST_OUTPUT: public/rendered/asco-hype-hour-broadcast.mp4
+          KOKORO_PYTHON_CMD: python3
+          VOICE_AETHER_VALE: ${{ secrets.VOICE_AETHER_VALE }}
+          VOICE_AMARA_SOL: ${{ secrets.VOICE_AMARA_SOL }}
+          VOICE_BENJI_CROSS: ${{ secrets.VOICE_BENJI_CROSS }}
+          VOICE_DIEGO_VALE: ${{ secrets.VOICE_DIEGO_VALE }}
+          VOICE_ECHO_SAGE: ${{ secrets.VOICE_ECHO_SAGE }}
+          VOICE_ELENA_PARK: ${{ secrets.VOICE_ELENA_PARK }}
+          VOICE_GRANT_IVEY: ${{ secrets.VOICE_GRANT_IVEY }}
+          VOICE_KAI_LENNOX: ${{ secrets.VOICE_KAI_LENNOX }}
+          VOICE_LUNA_VALE: ${{ secrets.VOICE_LUNA_VALE }}
+          VOICE_MILES_CARTER: ${{ secrets.VOICE_MILES_CARTER }}
+          VOICE_NOVA_QUINN: ${{ secrets.VOICE_NOVA_QUINN }}
+          VOICE_ORION_REED: ${{ secrets.VOICE_ORION_REED }}
+          VOICE_RILEY_KNOX: ${{ secrets.VOICE_RILEY_KNOX }}
+          VOICE_SAGE_HARLAN: ${{ secrets.VOICE_SAGE_HARLAN }}
+          VOICE_SOFIA_REYES: ${{ secrets.VOICE_SOFIA_REYES }}
+          VOICE_TALIA_STONE: ${{ secrets.VOICE_TALIA_STONE }}
+          VOICE_VESPER_QUILL: ${{ secrets.VOICE_VESPER_QUILL }}
+
       - name: Start rendered YouTube stream
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.stream_start_time != '' }}
+        if: ${{ steps.block.outputs.block_start != '' }}
         run: |
-          export STREAM_DURATION_SECONDS=$(( ${{ inputs.duration_minutes }} * 60 ))
+          export STREAM_DURATION_SECONDS=${{ steps.block.outputs.duration_seconds }}
           npx tsx scripts/youtube-hour-presentation-stream.ts
         env:
           YOUTUBE_RTMP_URL: ${{ secrets.YOUTUBE_RTMP_URL }}
           YOUTUBE_STREAM_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
           FFMPEG_PATH: /usr/bin/ffmpeg
           STREAM_VIDEO_PATH: public/rendered/asco-hype-hour-broadcast.mp4
+
       - name: Start fallback YouTube RTMP loop
-        if: ${{ github.event_name != 'workflow_dispatch' || inputs.stream_start_time == '' }}
+        if: ${{ steps.block.outputs.block_start == '' }}
         run: npm run job:stream
         env:
           YOUTUBE_RTMP_URL: ${{ secrets.YOUTUBE_RTMP_URL }}
           YOUTUBE_STREAM_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
-          STREAM_INPUT_PATH: ${{ github.event_name == 'schedule' && 'public/rendered/fallback-loop.mp4' || inputs.stream_input_path }}
-          STREAM_DURATION_SECONDS: ${{ github.event_name == 'schedule' && '10800' || '' }}
+          STREAM_INPUT_PATH: ${{ inputs.stream_input_path || 'public/rendered/fallback-loop.mp4' }}
+          STREAM_DURATION_SECONDS: ""

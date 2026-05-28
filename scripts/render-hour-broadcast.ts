@@ -1,4 +1,6 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { mkdir, rm, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { loadEnvConfig } from "@next/env";
@@ -129,8 +131,11 @@ async function buildCards() {
     hours
   }).filter((slot) => slot.at < new Date(baseTime.getTime() + durationSeconds * 1000));
 
-  return slots.map((slot, index) => ({
+  return slots.map((slot) => ({
     duration: slot.durationSeconds,
+    isMusic: slot.kind === "music",
+    personaId: slot.kind !== "music" ? (slot.segment?.personaId ?? "echo-sage") : undefined,
+    script: slot.kind !== "music" ? (slot.segment?.script || slot.segment?.summary || null) : null,
     text:
       slot.kind === "music"
         ? formatCard({
@@ -188,28 +193,128 @@ async function main() {
   const concatPath = path.join(renderDir, "slides.ffconcat");
   await writeFile(concatPath, concatLines.join("\n"), "utf8");
 
-  const hasVoice = Boolean(voicePath);
-  const audioArgs = hasVoice
-    ? [
-        "-stream_loop",
-        "-1",
-        "-i",
-        musicPath,
-        "-stream_loop",
-        "-1",
-        "-i",
-        voicePath!,
-        "-filter_complex",
-        "[1:a]volume=0.18[music];[2:a]volume=0.85[voice];[music][voice]amix=inputs=2:duration=first:dropout_transition=0[a]"
-      ]
-    : [
-        "-stream_loop",
-        "-1",
-        "-i",
-        musicPath,
-        "-filter_complex",
-        "[1:a]volume=0.18[a]"
-      ];
+  // Per-card Kokoro TTS with file caching — batch synthesis (model loaded once)
+  const voiceCacheDir = path.join(renderDir, "voice-cache");
+  const voiceWavDir = path.join(voiceCacheDir, "wav-tmp");
+  await mkdir(voiceCacheDir, { recursive: true });
+  await mkdir(voiceWavDir, { recursive: true });
+  const { applySpokenPronunciations } = await import("@/lib/media/tts");
+  const { getPersona } = await import("@/lib/generation/personas");
+
+  type VoiceEntry = { path: string; startMs: number };
+  const voiceEntries: VoiceEntry[] = [];
+  let offsetMs = 0;
+
+  // Resolve every card to its cache path and collect the ones that need synthesis
+  type SynthTask = { voice: string; text: string; wavPath: string; cachePath: string; startMs: number };
+  const tasks: SynthTask[] = [];
+  const alreadyCached: Array<{ cachePath: string; startMs: number }> = [];
+
+  for (const card of cards) {
+    if (!card.isMusic && card.script && card.personaId) {
+      const persona = getPersona(card.personaId);
+      const voiceName = process.env[persona.voiceEnvKey];
+      if (voiceName) {
+        const processedScript = applySpokenPronunciations(card.script);
+        const cacheKey = createHash("sha256")
+          .update(`${persona.voiceEnvKey}|${processedScript}`)
+          .digest("hex");
+        const cachePath = path.join(voiceCacheDir, `${cacheKey}.mp3`);
+        if (existsSync(cachePath)) {
+          alreadyCached.push({ cachePath, startMs: offsetMs });
+        } else {
+          const wavPath = path.join(voiceWavDir, `${cacheKey}.wav`);
+          tasks.push({ voice: voiceName, text: processedScript, wavPath, cachePath, startMs: offsetMs });
+        }
+      }
+    }
+    offsetMs += card.duration * 1000;
+  }
+
+  // Add already-cached entries first (preserving time order below)
+  for (const entry of alreadyCached) {
+    voiceEntries.push({ path: entry.cachePath, startMs: entry.startMs });
+  }
+
+  // Synthesize all uncached cards in one Python call — loads KPipeline once
+  if (tasks.length > 0) {
+    const batchJsonPath = path.join(renderDir, "voice-batch.json");
+    await writeFile(
+      batchJsonPath,
+      JSON.stringify(tasks.map((t) => ({ voice: t.voice, text: t.text, output: t.wavPath }))),
+      "utf8"
+    );
+
+    const pyScript = path.resolve("scripts/generate-kokoro-dj-voice.py");
+    // KOKORO_PYTHON_CMD overrides auto-detection (e.g. "python3" on Linux, "py -3.12" on Windows)
+    const rawPyCmd = process.env.KOKORO_PYTHON_CMD;
+    const [pyCmd, ...pyPrefix] = rawPyCmd
+      ? rawPyCmd.split(/\s+/)
+      : process.platform === "win32"
+        ? ["py", "-3.12"]
+        : ["python3"];
+
+    try {
+      console.log(`Synthesizing ${tasks.length} uncached voice card(s) via Kokoro batch...`);
+      await run(pyCmd, [...pyPrefix, pyScript, "--mode", "batch", "--batch-file", batchJsonPath]);
+
+      // Convert each WAV to MP3 and add to cache + voice entries
+      for (const task of tasks) {
+        if (existsSync(task.wavPath)) {
+          try {
+            await run(ffmpeg, ["-y", "-i", task.wavPath, "-c:a", "libmp3lame", "-b:a", "128k", task.cachePath]);
+            voiceEntries.push({ path: task.cachePath, startMs: task.startMs });
+          } catch (convErr) {
+            console.warn(`MP3 conversion failed for ${path.basename(task.wavPath)}: ${convErr}`);
+          } finally {
+            await rm(task.wavPath, { force: true }).catch(() => {});
+          }
+        }
+      }
+    } catch (err) {
+      console.warn(`Kokoro batch TTS failed — broadcast will be music-only: ${err}`);
+    } finally {
+      await rm(batchJsonPath, { force: true }).catch(() => {});
+    }
+  }
+
+  // Sort voice entries by start time so adelay values are ordered
+  voiceEntries.sort((a, b) => a.startMs - b.startMs);
+
+  const hasVoice = Boolean(voicePath) || voiceEntries.length > 0;
+
+  let audioArgs: string[];
+  if (voiceEntries.length > 0) {
+    // Kokoro per-card voices: each delayed to its slot start, mixed over a music bed
+    const voiceInputArgs = voiceEntries.flatMap((e) => ["-i", e.path]);
+    const filterParts: string[] = [`[1:a]volume=0.15[bed]`];
+    voiceEntries.forEach((e, i) => {
+      filterParts.push(
+        `[${i + 2}:a]volume=0.85,adelay=${e.startMs}|${e.startMs}[v${i}]`
+      );
+    });
+    const mixInputs = [`[bed]`, ...voiceEntries.map((_, i) => `[v${i}]`)].join("");
+    filterParts.push(
+      `${mixInputs}amix=inputs=${voiceEntries.length + 1}:duration=first:normalize=0[a]`
+    );
+    audioArgs = [
+      "-stream_loop", "-1", "-i", musicPath,
+      ...voiceInputArgs,
+      "-filter_complex", filterParts.join(";")
+    ];
+  } else if (voicePath) {
+    audioArgs = [
+      "-stream_loop", "-1", "-i", musicPath,
+      "-stream_loop", "-1", "-i", voicePath,
+      "-filter_complex",
+      "[1:a]volume=0.15[music];[2:a]volume=0.85[voice];[music][voice]amix=inputs=2:duration=first:dropout_transition=0[a]"
+    ];
+  } else {
+    audioArgs = [
+      "-stream_loop", "-1", "-i", musicPath,
+      "-filter_complex", "[1:a]volume=0.18[a]"
+    ];
+  }
 
   const args = [
     "-y",
@@ -245,8 +350,9 @@ async function main() {
     JSON.stringify(
       {
         cards: cards.length,
-        contentCards: cards.filter((card) => card.duration === 110).length,
-        musicCards: cards.filter((card) => card.duration === 10).length,
+        contentCards: cards.filter((card) => !card.isMusic).length,
+        musicCards: cards.filter((card) => card.isMusic).length,
+        voiceCardsCached: voiceEntries.length,
         durationSeconds,
         outputPath,
         musicPath,

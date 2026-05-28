@@ -14,20 +14,30 @@ jobs:
           cache: npm
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - run: npm ci
+      - name: Install Kokoro TTS dependencies
+        run: pip install kokoro numpy soundfile
       - run: npm run job:render
         env:
+          KOKORO_PYTHON_CMD: python3
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          VOICE_AETHER_VALE: ${{ secrets.VOICE_AETHER_VALE }}
+          VOICE_AMARA_SOL: ${{ secrets.VOICE_AMARA_SOL }}
+          VOICE_BENJI_CROSS: ${{ secrets.VOICE_BENJI_CROSS }}
+          VOICE_DIEGO_VALE: ${{ secrets.VOICE_DIEGO_VALE }}
           VOICE_ECHO_SAGE: ${{ secrets.VOICE_ECHO_SAGE }}
-          VOICE_NOVA_QUINN: ${{ secrets.VOICE_NOVA_QUINN }}
+          VOICE_ELENA_PARK: ${{ secrets.VOICE_ELENA_PARK }}
+          VOICE_GRANT_IVEY: ${{ secrets.VOICE_GRANT_IVEY }}
           VOICE_KAI_LENNOX: ${{ secrets.VOICE_KAI_LENNOX }}
-          VOICE_SAGE_HARLAN: ${{ secrets.VOICE_SAGE_HARLAN }}
           VOICE_LUNA_VALE: ${{ secrets.VOICE_LUNA_VALE }}
+          VOICE_MILES_CARTER: ${{ secrets.VOICE_MILES_CARTER }}
+          VOICE_NOVA_QUINN: ${{ secrets.VOICE_NOVA_QUINN }}
           VOICE_ORION_REED: ${{ secrets.VOICE_ORION_REED }}
           VOICE_RILEY_KNOX: ${{ secrets.VOICE_RILEY_KNOX }}
-          VOICE_AETHER_VALE: ${{ secrets.VOICE_AETHER_VALE }}
+          VOICE_SAGE_HARLAN: ${{ secrets.VOICE_SAGE_HARLAN }}
+          VOICE_SOFIA_REYES: ${{ secrets.VOICE_SOFIA_REYES }}
+          VOICE_TALIA_STONE: ${{ secrets.VOICE_TALIA_STONE }}
           VOICE_VESPER_QUILL: ${{ secrets.VOICE_VESPER_QUILL }}
       - uses: actions/upload-artifact@v4
         with:

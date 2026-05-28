@@ -1,8 +1,8 @@
 "use client";
 
-import { CalendarDays, Clock3, GripVertical, Mic2, Music2, RefreshCcw, Trash2 } from "lucide-react";
+import { AlertCircle, CalendarDays, Clock3, GripVertical, Mic2, Music2, RefreshCcw, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { buildBroadcastHourBuckets, buildBroadcastSlots } from "@/lib/rundown/slots";
 import type { Segment } from "@/lib/types";
 
@@ -98,6 +98,8 @@ export function BroadcastRundown({
     Object.fromEntries(reviewSegments.map((segment) => [segment.id, segment.script]))
   );
   const [message, setMessage] = useState("");
+  const [isError, setIsError] = useState(false);
+  const messageRef = useRef<HTMLDivElement>(null);
   const [pendingId, setPendingId] = useState("");
   const [draggingId, setDraggingId] = useState("");
   const [selectedSlotAt, setSelectedSlotAt] = useState("");
@@ -135,6 +137,34 @@ export function BroadcastRundown({
     }));
   }, [reviewSegments]);
 
+  const showSuccess = (text: string) => {
+    setIsError(false);
+    setMessage(text);
+  };
+
+  const showError = (text: string) => {
+    setIsError(true);
+    setMessage(text);
+    // Bring the message into view so errors can't be missed.
+    setTimeout(() => messageRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 50);
+  };
+
+  const discard = (segment: Segment) => {
+    setPendingId(segment.id);
+    startTransition(async () => {
+      try {
+        await rejectSegment(segment);
+        setVisibleReviewSegments((current) => current.filter((item) => item.id !== segment.id));
+        showSuccess(`${segment.title} discarded.`);
+        router.refresh();
+      } catch (error) {
+        showError(error instanceof Error ? error.message : "Could not discard card.");
+      } finally {
+        setPendingId("");
+      }
+    });
+  };
+
   const reject = (segment: Segment) => {
     setPendingId(segment.id);
     startTransition(async () => {
@@ -144,10 +174,10 @@ export function BroadcastRundown({
         setVisibleReviewSegments((current) =>
           current.filter((item) => item.id !== segment.id)
         );
-        setMessage(`${segment.title} rejected and removed from rundown.`);
+        showSuccess(`${segment.title} rejected and removed from rundown.`);
         router.refresh();
       } catch (error) {
-        setMessage(error instanceof Error ? error.message : "Could not reject statement.");
+        showError(error instanceof Error ? error.message : "Could not reject statement.");
       } finally {
         setPendingId("");
       }
@@ -170,10 +200,10 @@ export function BroadcastRundown({
         setVisibleReviewSegments((current) =>
           current.filter((segment) => segment.id !== segmentId)
         );
-        setMessage(`${updated.title} moved to ${timeLabel(at)}.`);
+        showSuccess(`${updated.title} moved to ${timeLabel(at)}.`);
         router.refresh();
       } catch (error) {
-        setMessage(error instanceof Error ? error.message : "Could not move card.");
+        showError(error instanceof Error ? error.message : "Could not move card.");
       } finally {
         setPendingId("");
         setDraggingId("");
@@ -183,7 +213,7 @@ export function BroadcastRundown({
 
   const replaceWithCard = (segment: Segment) => {
     if (!replaceTarget) {
-      setMessage("Click Replace on a presentation queue card first.");
+      showError("Select a target slot first — click the Replace button on a presentation queue card, then come back here.");
       return;
     }
     const at = new Date(replaceTarget.at);
@@ -207,6 +237,19 @@ export function BroadcastRundown({
           at.toISOString(),
           drafts[segment.id] ?? segment.script
         );
+        // Reject the displaced card BEFORE refreshing so the server re-fetch
+        // sees both changes committed and doesn't overwrite the optimistic state.
+        if (
+          replacedSegment?.status === "approved" &&
+          replacedSegment.id !== segment.id &&
+          !replacedSegment.id.startsWith("virtual-")
+        ) {
+          await rejectSegment(replacedSegment).catch(() => {
+            showError(
+              `${updated.title} was placed, but the replaced card could not be removed from the database.`
+            );
+          });
+        }
         setVisibleSegments((current) => [
           ...current.filter((item) => item.id !== replaceTarget.segmentId),
           updated
@@ -216,22 +259,11 @@ export function BroadcastRundown({
             (item) => item.id !== segment.id && item.id !== replaceTarget.segmentId
           )
         );
-        setMessage(`${updated.title} replaced ${replaceTarget.title ?? "the selected card"} at ${timeLabel(at)}.`);
+        showSuccess(`${updated.title} replaced ${replaceTarget.title ?? "the selected card"} at ${timeLabel(at)}.`);
         setReplaceTarget(null);
         router.refresh();
-        if (
-          replacedSegment?.status === "approved" &&
-          replacedSegment.id !== segment.id &&
-          !replacedSegment.id.startsWith("virtual-")
-        ) {
-          rejectSegment(replacedSegment).catch(() => {
-            setMessage(
-              `${updated.title} was placed, but the replaced card could not be removed from the database.`
-            );
-          });
-        }
       } catch (error) {
-        setMessage(error instanceof Error ? error.message : "Could not replace card.");
+        showError(error instanceof Error ? error.message : "Could not replace card.");
       } finally {
         setPendingId("");
       }
@@ -256,8 +288,16 @@ export function BroadcastRundown({
           Window starts {fullDateLabel(baseDate)}
         </div>
         {message ? (
-          <div className="mt-3 border border-cyanline/30 bg-cyanline/10 p-3 text-sm font-bold text-ink">
-            {message}
+          <div
+            ref={messageRef}
+            className={`mt-3 flex items-start gap-2 p-3 text-sm font-bold ${
+              isError
+                ? "border border-red-400/50 bg-red-50 text-red-800"
+                : "border border-cyanline/30 bg-cyanline/10 text-ink"
+            }`}
+          >
+            {isError ? <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" /> : null}
+            <span>{message}</span>
           </div>
         ) : null}
         {replaceTarget ? (
@@ -348,15 +388,27 @@ export function BroadcastRundown({
                         </ul>
                       ) : null}
                     </details>
-                    <button
-                      type="button"
-                      className="mt-3 inline-flex min-h-9 w-full items-center justify-center gap-2 bg-broadcast px-3 text-xs font-black uppercase text-white disabled:opacity-50"
-                      disabled={pending || !replaceTarget}
-                      onClick={() => replaceWithCard(segment)}
-                    >
-                      <RefreshCcw className="h-3.5 w-3.5" />
-                      {pendingId === segment.id ? "Replacing" : "Replace with this"}
-                    </button>
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        type="button"
+                        className="inline-flex min-h-9 flex-1 items-center justify-center gap-2 bg-broadcast px-3 text-xs font-black uppercase text-white disabled:opacity-50"
+                        disabled={pending || !replaceTarget}
+                        onClick={() => replaceWithCard(segment)}
+                      >
+                        <RefreshCcw className="h-3.5 w-3.5" />
+                        {pendingId === segment.id ? "Replacing…" : "Replace with this"}
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-flex min-h-9 items-center justify-center gap-1 border border-ink/30 bg-white px-3 text-xs font-black uppercase text-ink/60 disabled:opacity-50"
+                        disabled={pending}
+                        title="Discard — remove this card from the pool"
+                        onClick={() => discard(segment)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        {pendingId === segment.id ? "…" : "Discard"}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </article>

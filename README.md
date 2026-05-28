@@ -91,7 +91,7 @@ Official ASCO schedule/session/location information remains the schedule spine a
 
 ## Scheduled Segments
 
-- Every 10 minutes, include a brief rundown of ongoing and upcoming sessions with locations.
+- Every 20 minutes, include a brief rundown of ongoing and upcoming sessions with locations.
 - Schedule/location rundown segments should be brief and should run for about 2 minutes with locations.
 - Location narration must tell listeners to check the ASCO app and on-site signage because rooms and locations can change.
 - Once per hour after the schedule is announced, include a 2-minute segment naming rising social media voices and who they are.
@@ -105,7 +105,8 @@ Official ASCO schedule/session/location information remains the schedule spine a
 
 - Delete and do not reuse old recorded intros.
 - No canned intros or repeated host banter.
-- Every voice may read any card randomly.
+- Every voice may read any card. Voice assignment is random across the card pool: each content slot is assigned one of the 17 persona voices via a deterministic hash of the segment ID and slot index, so any voice can land on any card and the spread feels random across a broadcast block.
+- The voice API for each persona is called at render time to read the prepared script for that slot. Voice API identifiers are configured per persona via environment variables (`VOICE_ECHO_SAGE`, `VOICE_NOVA_QUINN`, etc.).
 - Every card should start with: "`Voice name` here from ASCO." Then go directly into the narrative.
 - There must be a strict no-repeat policy during broadcast.
 - Speakers must not overlap.
