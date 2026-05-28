@@ -7,38 +7,31 @@ function toXUsername(handle: string) {
   return handle.replace(/^@/, "");
 }
 
-// Broad ASCO-topic hashtags used by oncologists who won't necessarily tag our brand
-const ascoBroadHashtags = [
-  "#ASCO26",
-  "#ASCO2026",
-  "#oncology",
-  "#breastcancer",
-  "#lungcancer",
-  "#colorectalcancer",
-  "#NSCLC",
-  "#immunotherapy",
-  "#ADC",
-  "#HER2",
-  "#BRAF",
-  "#liquidbiopsy",
-  "#ctDNA"
-];
-
 export function buildXSearchQuery(extraVoices: XVoice[] = []) {
-  const brandTagTerms = [
-    monitoredSocialTags.primaryHashtag,
-    monitoredSocialTags.secondaryHashtag,
-    monitoredSocialTags.botHandle,
-    monitoredSocialTags.conferenceHypeHandle
+  // X API Basic tier caps queries at 512 characters.
+  // Keep the query tight: ASCO-specific hashtags + monitored voice follows only.
+  // Broad clinical hashtags (#oncology, #breastcancer etc.) are dropped — they
+  // blow the budget and pull in noise unrelated to the conference.
+  const coreHashtags = [
+    monitoredSocialTags.primaryHashtag,        // #ASCOHype
+    monitoredSocialTags.secondaryHashtag,      // #AskASCOHype
+    monitoredSocialTags.conferenceHashtag,     // #ASCO26
+    monitoredSocialTags.conferenceYearHashtag  // #ASCO2026
   ];
-  const voices = [...monitoredXVoices, ...extraVoices].slice(0, 50);
-  const voiceTerms = voices.map((voice) => `from:${toXUsername(voice.handle)}`);
-  // Brand tags + monitored voices always included.
-  // Broad ASCO topic hashtags catch oncologists discussing trials without tagging our brand.
-  // Combine as: (brand OR voice) OR (broad ASCO topic tag)
-  const brandOrVoice = [...brandTagTerms, ...voiceTerms].join(" OR ");
-  const broadTopics = ascoBroadHashtags.join(" OR ");
-  return `((${brandOrVoice}) OR (${broadTopics})) -is:retweet lang:en`;
+
+  const allVoices = [...monitoredXVoices, ...extraVoices];
+  const voiceTerms = allVoices.map((v) => `from:${toXUsername(v.handle)}`);
+
+  // Build query and trim voices to stay under the 512-char limit
+  const allTerms = [...coreHashtags, ...voiceTerms];
+  const suffix = ") -is:retweet lang:en";
+  let inner = allTerms.join(" OR ");
+  while (`(${inner}${suffix}`.length > 512 && voiceTerms.length > 0) {
+    voiceTerms.pop();
+    inner = [...coreHashtags, ...voiceTerms].join(" OR ");
+  }
+
+  return `(${inner}${suffix}`;
 }
 
 export async function fetchTaggedSocialPosts(extraVoices: XVoice[] = []): Promise<IngestedItem[]> {
