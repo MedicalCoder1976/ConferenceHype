@@ -267,10 +267,15 @@ export async function getRecentSocialItemsFromDb(hours = 3): Promise<IngestedIte
   }
   const since = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
   const supabase = createAdminClient();
+  // Include general_social (X API tweets) AND media/official items
+  // that have an author field set (e.g. RSS articles attributed to a
+  // monitored X voice like @OncLive, @statnews, @ASCOPost).
+  // This keeps the leaderboard alive when the X API is unavailable.
   const { data, error } = await supabase
     .from("ingested_items")
     .select("*")
-    .eq("source_type", "general_social")
+    .in("source_type", ["general_social", "media", "official"])
+    .not("author", "is", null)
     .gte("created_at", since)
     .order("created_at", { ascending: false })
     .limit(80);

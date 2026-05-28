@@ -1,4 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
+import { monitoredXVoices } from "@/lib/sources/registry";
 import type { IngestedItem, SourceConfig } from "@/lib/types";
 
 const parser = new XMLParser({
@@ -22,6 +23,13 @@ export async function fetchRssSource(source: SourceConfig): Promise<IngestedItem
   const rawItems = parsed.rss?.channel?.item ?? parsed.feed?.entry ?? [];
   const items = Array.isArray(rawItems) ? rawItems : [rawItems];
 
+  // Attribute items to the matching monitored X voice handle so they
+  // count in the social voice leaderboard even when the X API is unavailable.
+  const matchingVoice = monitoredXVoices.find(
+    (v) => v.label.toLowerCase() === source.name.toLowerCase()
+  );
+  const author = matchingVoice?.handle;
+
   return items.slice(0, 15).map((item, index) => ({
     id: `${source.id}-${index}-${item.guid?.["#text"] ?? item.link ?? item.title}`,
     title: String(item.title?.["#text"] ?? item.title ?? "Untitled item"),
@@ -30,6 +38,7 @@ export async function fetchRssSource(source: SourceConfig): Promise<IngestedItem
     sourceName: source.name,
     sourceType: source.type,
     rank: source.rank,
-    publishedAt: item.pubDate ?? item.updated
+    publishedAt: item.pubDate ?? item.updated,
+    author
   }));
 }

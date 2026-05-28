@@ -41,6 +41,21 @@ export async function runIngestionJob(): Promise<IngestedItem[]> {
     })
   );
 
+  // Surface fetch errors so they are visible in GitHub Actions logs.
+  batches.forEach((result, i) => {
+    if (result.status === "rejected") {
+      const sourceId = enabled[i]?.id ?? `source-${i}`;
+      console.warn(
+        JSON.stringify({
+          level: "warn",
+          message: "source fetch failed",
+          source: sourceId,
+          error: String((result.reason as Error)?.message ?? result.reason)
+        })
+      );
+    }
+  });
+
   const rankedItems = batches
     .flatMap((result) => (result.status === "fulfilled" ? result.value : []))
     .filter(isRelevantItem)
