@@ -173,9 +173,229 @@ async function buildCards() {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Block-mode card builder — three 20-minute blocks per hour:
+//   Block 1: 2 min schedule  +  2 min hype music  +  16 min ASCO Daily News
+//   Block 2: 2 min schedule  +  2 min hype music  +  16 min Social Desk (duo)
+//   Block 3: 2 min schedule  +  2 min hype music  +  16 min Exhibit Hall
+//
+// Each "pair" = 40 s content card  +  20 s gap-clip music card  = 60 s.
+// 20 pairs × 60 s = 20 min per block; 3 blocks = 60 min = 1 h.
+// ---------------------------------------------------------------------------
+async function buildBlockCards() {
+  const [
+    { generateNewsBlockChunks, generateSocialBlockChunks, generateExhibitorBlockChunks },
+    { getRecentMediaItemsFromDb, getRecentSocialItemsFromDb },
+    { buildScheduleFallbackSegment }
+  ] = await Promise.all([
+    import("@/lib/jobs/generateBroadcastBlocks"),
+    import("@/lib/db"),
+    import("@/lib/jobs/upcomingEvents")
+  ]);
+
+  const baseTime = process.env.HOUR_BROADCAST_START
+    ? new Date(process.env.HOUR_BROADCAST_START)
+    : new Date();
+  const hours = Math.max(1, Math.ceil(durationSeconds / 3600));
+
+  // Fetch source material once; failures are non-fatal
+  const [mediaItems, socialItems] = await Promise.all([
+    getRecentMediaItemsFromDb(3).catch(() => null),
+    getRecentSocialItemsFromDb(3).catch(() => null)
+  ]);
+
+  console.log(
+    JSON.stringify({
+      mode: "blocks",
+      hours,
+      baseTime: baseTime.toISOString(),
+      mediaItems: mediaItems?.length ?? 0,
+      socialItems: socialItems?.length ?? 0
+    })
+  );
+
+  // Generate all LLM content in parallel (3 calls per hour, all hours at once)
+  const hourGenerations = await Promise.all(
+    Array.from({ length: hours }, (_, hourIndex) => {
+      const blockBase = new Date(baseTime.getTime() + hourIndex * 3600 * 1000);
+      return Promise.allSettled([
+        generateNewsBlockChunks(mediaItems ?? [], hourIndex, blockBase),
+        generateSocialBlockChunks(socialItems ?? [], hourIndex, blockBase),
+        generateExhibitorBlockChunks(hourIndex, blockBase)
+      ]);
+    })
+  );
+
+  // Timing constants
+  const CONTENT_SECONDS = 40;
+  const MUSIC_SECONDS = 20;
+  const BLOCK_SCHEDULE_PAIRS = 2;  // 2 × 60 s = 2 min schedule
+  const BLOCK_HYPE_PAIRS = 2;      // 2 × 60 s = 2 min hype music
+  const BLOCK_CONTENT_PAIRS = 16;  // 16 × 60 s = 16 min content
+  const BLOCKS_PER_HOUR = 3;
+  const BLOCK_LABELS = ["ASCO Daily News", "Social Desk", "Exhibit Hall"] as const;
+
+  const gapClipPaths = [
+    "public/music/gap-clips/conferencehype-gap-elevate-to-fenrir-20s.mp3",
+    "public/music/gap-clips/conferencehype-gap-nightclub-to-rebecca-20s.mp3",
+    "public/music/gap-clips/conferencehype-gap-subterranean-to-adam-20s.mp3",
+    "public/music/gap-clips/conferencehype-gap-skyline-to-aussieonc-20s.mp3"
+  ];
+  let musicIndex = 0;
+
+  type Card = {
+    duration: number;
+    isMusic: boolean;
+    gapClipPath?: string;
+    personaId?: string;
+    script?: string | null;
+    text: string;
+  };
+
+  const cards: Card[] = [];
+
+  for (let hourIndex = 0; hourIndex < hours; hourIndex++) {
+    const hourStart = new Date(baseTime.getTime() + hourIndex * 3600 * 1000);
+    const [newsResult, socialResult, exhibitorResult] = hourGenerations[hourIndex];
+
+    const newsChunks = newsResult.status === "fulfilled" ? newsResult.value : [];
+    const socialChunks = socialResult.status === "fulfilled" ? socialResult.value : [];
+    const exhibitorChunks = exhibitorResult.status === "fulfilled" ? exhibitorResult.value : [];
+
+    if (newsResult.status === "rejected") {
+      console.warn(`News block generation failed (hour ${hourIndex}): ${newsResult.reason}`);
+    }
+    if (socialResult.status === "rejected") {
+      console.warn(`Social block generation failed (hour ${hourIndex}): ${socialResult.reason}`);
+    }
+    if (exhibitorResult.status === "rejected") {
+      console.warn(`Exhibitor block generation failed (hour ${hourIndex}): ${exhibitorResult.reason}`);
+    }
+
+    for (let blockIndex = 0; blockIndex < BLOCKS_PER_HOUR; blockIndex++) {
+      const blockLabel = BLOCK_LABELS[blockIndex];
+      const blockOffsetMs =
+        hourIndex * 3600 * 1000 + blockIndex * 20 * 60 * 1000;
+      let slotMs = blockOffsetMs;
+
+      const contentChunks =
+        blockIndex === 0 ? newsChunks
+        : blockIndex === 1 ? socialChunks
+        : exhibitorChunks;
+
+      // ── Phase 1: Schedule (BLOCK_SCHEDULE_PAIRS pairs) ──────────────────
+      for (let p = 0; p < BLOCK_SCHEDULE_PAIRS; p++) {
+        const slotTime = new Date(baseTime.getTime() + slotMs);
+        const seg = buildScheduleFallbackSegment(slotTime);
+        cards.push({
+          duration: CONTENT_SECONDS,
+          isMusic: false,
+          personaId: seg.personaId,
+          script: seg.script || seg.summary || null,
+          text: formatCard({
+            eyebrow: `Schedule — ${seg.personaName}`,
+            title: seg.title,
+            body: seg.script || seg.summary
+          })
+        });
+        cards.push({
+          duration: MUSIC_SECONDS,
+          isMusic: true,
+          gapClipPath: gapClipPaths[musicIndex++ % gapClipPaths.length],
+          text: formatCard({
+            eyebrow: "Music card",
+            title: "Twenty-second music transition",
+            body: "Gap clip playing. Schedule segment continues."
+          })
+        });
+        slotMs += (CONTENT_SECONDS + MUSIC_SECONDS) * 1000;
+      }
+
+      // ── Phase 2: Hype Music (BLOCK_HYPE_PAIRS pairs — no TTS) ──────────
+      for (let p = 0; p < BLOCK_HYPE_PAIRS; p++) {
+        cards.push({
+          duration: CONTENT_SECONDS,
+          isMusic: false,
+          personaId: undefined,
+          script: null, // No TTS — music bed + gap clip play under silent slide
+          text: formatCard({
+            eyebrow: "ASCO HYPE",
+            title: `Music break — ${blockLabel} up next`,
+            body: "Stand by. The next broadcast segment begins shortly."
+          })
+        });
+        cards.push({
+          duration: MUSIC_SECONDS,
+          isMusic: true,
+          gapClipPath: gapClipPaths[musicIndex++ % gapClipPaths.length],
+          text: formatCard({
+            eyebrow: "Music card",
+            title: "Twenty-second hype stinger",
+            body: "Gap clip. Next content segment: " + blockLabel
+          })
+        });
+        slotMs += (CONTENT_SECONDS + MUSIC_SECONDS) * 1000;
+      }
+
+      // ── Phase 3: 16-minute Content Block ────────────────────────────────
+      for (let p = 0; p < BLOCK_CONTENT_PAIRS; p++) {
+        const chunk = contentChunks[p];
+        if (!chunk) {
+          // Fallback: short schedule bridge
+          const slotTime = new Date(baseTime.getTime() + slotMs);
+          const seg = buildScheduleFallbackSegment(slotTime);
+          cards.push({
+            duration: CONTENT_SECONDS,
+            isMusic: false,
+            personaId: seg.personaId,
+            script: seg.script || seg.summary || null,
+            text: formatCard({
+              eyebrow: `${blockLabel} — bridge`,
+              title: seg.title,
+              body: seg.script || seg.summary
+            })
+          });
+        } else {
+          cards.push({
+            duration: CONTENT_SECONDS,
+            isMusic: false,
+            personaId: chunk.personaId,
+            script: chunk.script || null,
+            text: formatCard({
+              eyebrow: `${blockLabel} — ${chunk.personaName}`,
+              title: chunk.title,
+              body: chunk.script
+            })
+          });
+        }
+        cards.push({
+          duration: MUSIC_SECONDS,
+          isMusic: true,
+          gapClipPath: gapClipPaths[musicIndex++ % gapClipPaths.length],
+          text: formatCard({
+            eyebrow: "Music card",
+            title: "Twenty-second music transition",
+            body: `Gap clip. ${blockLabel} continues.`
+          })
+        });
+        slotMs += (CONTENT_SECONDS + MUSIC_SECONDS) * 1000;
+      }
+    }
+  }
+
+  // Trim to durationSeconds just in case of rounding
+  let accumulated = 0;
+  return cards.filter((card) => {
+    if (accumulated >= durationSeconds) return false;
+    accumulated += card.duration;
+    return true;
+  });
+}
+
 async function main() {
   const ffmpeg = process.env.FFMPEG_PATH ?? ffmpegPath ?? "ffmpeg";
-  const cards = await buildCards();
+  const useBlockMode = process.env.HOUR_BROADCAST_MODE === "blocks";
+  const cards = useBlockMode ? await buildBlockCards() : await buildCards();
   await mkdir(renderDir, { recursive: true });
   await mkdir(path.dirname(outputPath), { recursive: true });
 

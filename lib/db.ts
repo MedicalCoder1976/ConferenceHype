@@ -261,6 +261,26 @@ export async function getBlacklistedXHandlesFromDb(): Promise<string[] | null> {
     .map((voice) => voice.handle.toLowerCase());
 }
 
+export async function getRecentMediaItemsFromDb(hours = 3): Promise<IngestedItem[] | null> {
+  if (!hasSupabase()) {
+    return null;
+  }
+  const since = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("ingested_items")
+    .select("*")
+    .eq("source_type", "media")
+    .gte("created_at", since)
+    .order("created_at", { ascending: false })
+    .limit(25);
+
+  if (error) {
+    throw error;
+  }
+  return (data as IngestedItemRow[]).map(toIngestedItem);
+}
+
 export async function getRecentSocialItemsFromDb(hours = 3): Promise<IngestedItem[] | null> {
   if (!hasSupabase()) {
     return null;

@@ -152,6 +152,10 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+          LLM_MODEL: ${{ secrets.LLM_MODEL }}
+          HOUR_BROADCAST_MODE: blocks
           FFMPEG_PATH: /usr/bin/ffmpeg
           HOUR_BROADCAST_START: ${{ steps.block.outputs.block_start }}
           HOUR_BROADCAST_OUTPUT: public/rendered/asco-hype-hour-broadcast.mp4

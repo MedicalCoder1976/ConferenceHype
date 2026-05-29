@@ -152,6 +152,18 @@ export const sourceRegistry: SourceConfig[] = [
     enabled: true
   },
   {
+    // ASCO Daily News — official conference daily publication.
+    // The ingest job will use fetchPageSummary on the base URL.
+    // If a feed URL is discovered (e.g. /feed/), update this URL so
+    // fetchRssSource picks it up automatically (the job routes on "rss"/"feed" in the URL).
+    id: "asco-daily-news",
+    name: "ASCO Daily News",
+    url: "https://dailynews.ascopubs.org/",
+    type: "media",
+    rank: 1,
+    enabled: true
+  },
+  {
     id: "asco-post",
     name: "The ASCO Post",
     url: "https://ascopost.com/rss/",
