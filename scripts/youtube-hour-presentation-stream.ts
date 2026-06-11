@@ -96,8 +96,24 @@ async function main() {
   }
 
   const startedAt = Date.now();
-  const child = spawn(ffmpeg, args, { stdio: "inherit" });
+  const child = spawn(ffmpeg, args, { stdio: ["inherit", "inherit", "pipe"] });
+  let stderr = "";
+  let stable = false;
+  const stabilityTimer = setTimeout(() => {
+    stable = true;
+    console.log("YOUTUBE_RTMP_STABLE: FFmpeg remained connected for 30 seconds.");
+  }, 30_000);
+  child.stderr?.on("data", (chunk: Buffer) => {
+    const text = chunk.toString("utf8");
+    stderr = `${stderr}${text}`.slice(-32_000);
+    process.stderr.write(chunk);
+  });
+  child.on("error", (error) => {
+    clearTimeout(stabilityTimer);
+    console.error(`YOUTUBE_RTMP_SPAWN_ERROR: ${error.message}`);
+  });
   child.on("exit", (code) => {
+    clearTimeout(stabilityTimer);
     const elapsedSeconds = (Date.now() - startedAt) / 1000;
     if (
       process.env.STREAM_DRY_RUN !== "1" &&
@@ -110,6 +126,16 @@ async function main() {
         )}s before the YouTube stream could stabilize.`
       );
       process.exit(1);
+    }
+    if (!stable && code !== 0) {
+      const errorLine = stderr
+        .split("\n")
+        .find((line) =>
+          /error|failed|refused|forbidden|denied|unauthorized|broken pipe/i.test(line)
+        );
+      if (errorLine) {
+        console.error(`YOUTUBE_RTMP_ERROR: ${errorLine.trim()}`);
+      }
     }
     process.exit(code ?? 1);
   });

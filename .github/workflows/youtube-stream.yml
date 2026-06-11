@@ -30,6 +30,9 @@ on:
 jobs:
   stream:
     runs-on: ubuntu-latest
+    concurrency:
+      group: youtube-rtmp-publisher
+      cancel-in-progress: false
     # Schedule: 15 min setup + 20 min render + 180 min stream + 20 min buffer = 235 min
     # Dispatch: user-chosen duration
     timeout-minutes: ${{ fromJSON(github.event_name == 'schedule' && '235' || inputs.duration_minutes) }}
@@ -73,6 +76,29 @@ jobs:
       - name: Install Kokoro TTS dependencies
         if: ${{ steps.block.outputs.block_start != '' }}
         run: pip install kokoro numpy soundfile
+
+      - name: Validate YouTube publishing configuration
+        if: ${{ steps.block.outputs.block_start != '' }}
+        run: |
+          test -n "${YOUTUBE_RTMP_URL}" || {
+            echo "::error::YOUTUBE_RTMP_URL is missing"
+            exit 1
+          }
+          test -n "${YOUTUBE_STREAM_KEY}" || {
+            echo "::error::YOUTUBE_STREAM_KEY is missing"
+            exit 1
+          }
+          case "${YOUTUBE_RTMP_URL}" in
+            rtmp://*|rtmps://*) ;;
+            *)
+              echo "::error::YOUTUBE_RTMP_URL must use rtmp:// or rtmps://"
+              exit 1
+              ;;
+          esac
+          echo "YouTube RTMP configuration is present and structurally valid."
+        env:
+          YOUTUBE_RTMP_URL: ${{ secrets.YOUTUBE_RTMP_URL }}
+          YOUTUBE_STREAM_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
 
       - name: Render current presentation
         if: ${{ steps.block.outputs.block_start != '' }}
@@ -119,6 +145,29 @@ jobs:
             echo "Render is ready. Waiting ${WAIT_SECONDS}s for the selected start time."
             sleep "$WAIT_SECONDS"
           fi
+
+      - name: Validate rendered broadcast media
+        if: ${{ steps.block.outputs.block_start != '' }}
+        run: |
+          test -s public/rendered/asco-hype-hour-broadcast.mp4 || {
+            echo "::error::Rendered broadcast is missing or empty"
+            exit 1
+          }
+          VIDEO_STREAMS=$(ffprobe -v error -select_streams v:0 \
+            -show_entries stream=codec_type -of csv=p=0 \
+            public/rendered/asco-hype-hour-broadcast.mp4 | wc -l)
+          AUDIO_STREAMS=$(ffprobe -v error -select_streams a:0 \
+            -show_entries stream=codec_type -of csv=p=0 \
+            public/rendered/asco-hype-hour-broadcast.mp4 | wc -l)
+          test "${VIDEO_STREAMS}" -ge 1 || {
+            echo "::error::Rendered broadcast has no video stream"
+            exit 1
+          }
+          test "${AUDIO_STREAMS}" -ge 1 || {
+            echo "::error::Rendered broadcast has no audio stream"
+            exit 1
+          }
+          echo "Rendered broadcast contains video and audio."
 
       - name: Start rendered YouTube stream
         if: ${{ steps.block.outputs.block_start != '' }}
