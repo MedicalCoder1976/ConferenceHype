@@ -51,6 +51,7 @@ type SourceRow = {
 
 type IngestedItemRow = {
   id: string;
+  source_id?: string | null;
   title: string;
   url: string;
   excerpt: string;
@@ -59,6 +60,9 @@ type IngestedItemRow = {
   source_rank: number;
   published_at?: string | null;
   created_at: string;
+  sources?: {
+    name?: string | null;
+  } | null;
 };
 
 type SpecialtyXVoiceRow = {
@@ -159,11 +163,14 @@ function toSource(row: SourceRow): SourceConfig {
 function toIngestedItem(row: IngestedItemRow): IngestedItem {
   return {
     id: row.id,
+    sourceId: row.source_id ?? undefined,
     title: row.title,
     url: row.url,
     excerpt: row.excerpt,
     author: row.author ?? undefined,
-    sourceName: row.author ? `${row.author} social item` : "Social item",
+    sourceName:
+      row.sources?.name ??
+      (row.author ? `${row.author} social item` : "Conference source"),
     sourceType: row.source_type,
     rank: row.source_rank,
     publishedAt: row.published_at ?? row.created_at
@@ -729,6 +736,26 @@ export async function getRecentMediaItemsFromDb(hours = 3): Promise<IngestedItem
   return (data as IngestedItemRow[]).map(toIngestedItem);
 }
 
+export async function getRecentIngestedItemsFromDb(
+  hours = 3,
+  limit = 120
+): Promise<IngestedItem[] | null> {
+  if (!hasSupabase()) {
+    return null;
+  }
+  const since = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+  const { data, error } = await createAdminClient()
+    .from("ingested_items")
+    .select("*, sources(name)")
+    .gte("created_at", since)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) {
+    throw error;
+  }
+  return (data as IngestedItemRow[]).map(toIngestedItem);
+}
+
 export async function getRecentSocialItemsFromDb(hours = 3): Promise<IngestedItem[] | null> {
   if (!hasSupabase()) {
     return null;
@@ -809,6 +836,26 @@ export async function upsertSourcesToDb() {
   );
   if (error) {
     throw error;
+  }
+  const activeAudienceSource = sourceRegistry.find((source) =>
+    source.name.toLowerCase().includes("audience tags")
+  );
+  if (activeAudienceSource) {
+    const { error: cleanupError } = await supabase
+      .from("sources")
+      .update({ enabled: false })
+      .ilike("name", "Audience tags%")
+      .neq("url", activeAudienceSource.url);
+    if (cleanupError) {
+      throw cleanupError;
+    }
+    const { error: malformedCleanupError } = await supabase
+      .from("sources")
+      .update({ enabled: false })
+      .like("url", "#ASCOHype%");
+    if (malformedCleanupError) {
+      throw malformedCleanupError;
+    }
   }
 }
 
@@ -1022,6 +1069,7 @@ export async function saveIngestedItemsToDb(items: IngestedItem[]) {
         ? `${item.excerpt}\n\nEngagement score: ${item.engagementScore}`
         : item.excerpt,
       author: item.author,
+      source_id: item.sourceId,
       source_type: item.sourceType,
       source_rank: item.rank,
       published_at: item.publishedAt,

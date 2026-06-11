@@ -14,6 +14,24 @@ import type {
 
 const CARDS_PER_SECTION = 15;
 
+const sourceClaimRules = [
+  { generated: /\bembargo(?:ed|es)?\b/i, source: /\bembargo(?:ed|es)?\b/i, label: "embargo" },
+  { generated: /\baccepted\b/i, source: /\baccepted\b/i, label: "acceptance" },
+  { generated: /\b(?:slated|scheduled|reserved)\b/i, source: /\b(?:slated|scheduled|reserved)\b/i, label: "scheduling" },
+  { generated: /\bwill be (?:featured|presented|shared|released|unveiled|displayed)\b/i, source: /\bwill be (?:featured|presented|shared|released|unveiled|displayed)\b/i, label: "future presentation" },
+  { generated: /\bposter sessions?\b/i, source: /\bposter sessions?\b/i, label: "poster session" },
+  { generated: /\bthousands?\b/i, source: /\bthousands?\b/i, label: "quantity" },
+  { generated: /\bcommercial influence\b/i, source: /\bcommercial influence\b/i, label: "commercial independence" },
+  { generated: /\b(?:demonstrat(?:e|es|ed|ing)|showcas(?:e|es|ed|ing)|launch(?:es|ed|ing)?|highlight(?:s|ed|ing)?)\b/i, source: /\b(?:demonstrat(?:e|es|ed|ing)|showcas(?:e|es|ed|ing)|launch(?:es|ed|ing)?|highlight(?:s|ed|ing)?)\b/i, label: "activity" }
+] as const;
+
+function getUnsupportedSourceClaims(script: string, source: IngestedItem) {
+  const sourceText = `${source.title} ${source.excerpt}`;
+  return sourceClaimRules
+    .filter((rule) => rule.generated.test(script) && !rule.source.test(sourceText))
+    .map((rule) => rule.label);
+}
+
 const sectionNames = {
   journal_watch: [
     "Issue Headlines",
@@ -68,7 +86,7 @@ async function generateSection({
       content: `Create section ${sectionIndex + 1} of a ConferenceHype ${category === "journal_watch" ? "Journal Watch" : "Meeting Watch"} program about ${subjectName}.
 
 Section: ${sectionTitle}
-Return exactly ${CARDS_PER_SECTION} distinct cards. Each card is fresh, source-attributed spoken copy of about 70-85 words. Use only supplied facts. Do not invent people, results, quotes, booth activity, reactions, or clinical significance. Do not give medical advice. Do not recite article titles and do not copy long phrases from titles or excerpts; describe the source in new sentence structure. For conference chatter, clearly distinguish official information, media reporting, and attributed social posts. For exhibition content, discuss a booth or company only when present in a supplied source.
+Return exactly ${CARDS_PER_SECTION} distinct cards. Each card is fresh, source-attributed spoken copy of about 70-85 words. Use only supplied facts. Do not invent people, results, quotes, booth activity, reactions, clinical significance, acceptance status, embargoes, future presentation plans, audience size, or schedule placement. If a source says only that an abstract is publicly listed, say only that the listing identifies the topic, presenter, identifier, and date; do not say it was accepted, is scheduled, will be presented, is in a poster session, or that results are being withheld. Do not give medical advice. Do not recite article titles and do not copy long phrases from titles or excerpts; describe the source in new sentence structure. For conference chatter, clearly distinguish official information, media reporting, and attributed social posts. For exhibition content, discuss a booth or company only when present in a supplied source.
 
 Return JSON: {"cards":[{"title":"...","script":"...","sourceIndex":1,"contentType":"media_roundup"}]}
 Allowed contentType values: abstract_buzz, media_roundup, social_signal, industry_floor.
@@ -77,7 +95,7 @@ Sources:
 ${sourceText}`
     }],
     response_format: { type: "json_object" },
-    temperature: 0.45
+    temperature: category === "meeting_watch" ? 0.15 : 0.45
   });
   const parsed = JSON.parse(response.choices[0]?.message.content ?? "{}") as {
     cards?: Array<{
@@ -100,12 +118,19 @@ ${sourceText}`
     if (safetyErrors.length) {
       throw new Error(`${sectionTitle} card ${index + 1} failed source safety: ${safetyErrors.join(" ")}`);
     }
+    const unsupportedClaims = getUnsupportedSourceClaims(script, source);
+    if (unsupportedClaims.length) {
+      throw new Error(
+        `${sectionTitle} card ${index + 1} added unsupported ${unsupportedClaims.join(", ")} claims.`
+      );
+    }
     const persona = getPersona(index % 2 === 0 ? "echo-sage" : category === "journal_watch" ? "sage-harlan" : "vesper-quill");
     return {
       title: card.title?.trim() || `${sectionTitle} update ${index + 1}`,
       script,
       citationLabel: `${source.sourceName}: ${source.title}`,
       citationUrl: source.url,
+      sourceType: source.sourceType,
       contentType: card.contentType ?? "media_roundup",
       personaId: persona.id
     };
@@ -113,6 +138,57 @@ ${sourceText}`
   if (cards.length !== CARDS_PER_SECTION) {
     throw new Error(`${sectionTitle} returned ${cards.length} cards; ${CARDS_PER_SECTION} are required.`);
   }
+  return { title: sectionTitle, cards };
+}
+
+async function generateSectionWithRetries(
+  input: Parameters<typeof generateSection>[0],
+  attempts = 3
+) {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await generateSection(input);
+    } catch (error) {
+      lastError = error;
+      console.warn(
+        `Editorial section retry ${attempt}/${attempts} for ${input.sectionTitle}: ${String(error)}`
+      );
+    }
+  }
+  console.warn(
+    `Using source-only fallback for ${input.sectionTitle} after generation failed: ${String(lastError)}`
+  );
+  return generateSourceOnlySection(input);
+}
+
+function generateSourceOnlySection({
+  category,
+  sectionTitle,
+  sources
+}: Parameters<typeof generateSection>[0]): EditorialPackageSection {
+  const contentTypeBySection: Record<string, Segment["contentType"]> = {
+    "Abstract Watch": "abstract_buzz",
+    "Exhibition Booths and Industry Floor": "industry_floor",
+    "Conference and Social Chatter": "social_signal",
+    "Media Watch": "media_roundup"
+  };
+  const cards = Array.from({ length: CARDS_PER_SECTION }, (_, index) => {
+    const source = sources[index % sources.length];
+    const persona = getPersona(index % 2 === 0 ? "echo-sage" : "vesper-quill");
+    const qualifier = category === "meeting_watch"
+      ? "For this meeting update, ConferenceHype is using only the organizer or attributed source record."
+      : "For this journal update, ConferenceHype is using only the linked publication record.";
+    return {
+      title: `${sectionTitle} source check ${index + 1}`,
+      script: `${qualifier} ${source.excerpt} We are not extending that record into unstated results, clinical significance, booth activity, attendee reaction, or scheduling claims. The linked source is the reference for this card, and any detail beyond its published wording requires a separate verified source.`,
+      citationLabel: `${source.sourceName}: ${source.title}`,
+      citationUrl: source.url,
+      sourceType: source.sourceType,
+      contentType: contentTypeBySection[sectionTitle] ?? "media_roundup",
+      personaId: persona.id
+    };
+  });
   return { title: sectionTitle, cards };
 }
 
@@ -124,7 +200,7 @@ export async function developJournalWatchPackage(
   const key = `${journal.id}:${journalEditionKey(items)}`;
   const sections = await Promise.all(
     sectionNames.journal_watch.map((title, index) =>
-      generateSection({
+      generateSectionWithRetries({
         category: "journal_watch",
         subjectName: journal.name,
         sectionTitle: title,
@@ -148,15 +224,24 @@ export async function developJournalWatchPackage(
 
 export async function developMeetingWatchPackage(
   conference: MedicalConference,
-  items: IngestedItem[]
+  items: IngestedItem[],
+  editionDate = new Date().toISOString().slice(0, 10)
 ) {
   if (!items.length) throw new Error(`No source material was found for ${conference.name}.`);
-  const date = conference.startDate ?? `${conference.year}-${String(conference.month).padStart(2, "0")}-01`;
+  const date = editionDate;
   const sourceGroups = [
     items.filter((item) => /\b(abstract|poster|oral session|trial|study|scientific program)\b/i.test(`${item.title} ${item.excerpt}`)),
-    items.filter((item) => /\b(exhibit|exhibition|exhibitor|booth|industry floor|company showcase)\b/i.test(`${item.title} ${item.excerpt}`)),
-    items.filter((item) => item.sourceType.includes("social") || /\b(chatter|reaction|discussion|posted)\b/i.test(`${item.title} ${item.excerpt}`)),
-    items.filter((item) => item.sourceType === "media")
+    items.filter((item) => item.sourceType === "company" || /\b(exhibit|exhibition|exhibitor|booth|industry floor|company showcase|sponsor)\b/i.test(`${item.title} ${item.excerpt}`)),
+    items.filter((item) =>
+      item.sourceType.includes("social") ||
+      item.sourceName.toLowerCase().includes("on-site essentials") ||
+      /\b(chatter|reaction|discussion|posted|social media|community conversation|hashtag)\b/i.test(`${item.title} ${item.excerpt}`)
+    ),
+    items.filter((item) =>
+      item.sourceType === "media" ||
+      item.sourceName.toLowerCase().includes("official program") ||
+      item.sourceName.toLowerCase().includes("on-site essentials")
+    )
   ];
   const missing = sectionNames.meeting_watch.filter((_, index) => sourceGroups[index].length === 0);
   if (missing.length) {
@@ -166,7 +251,7 @@ export async function developMeetingWatchPackage(
   }
   const sections = await Promise.all(
     sectionNames.meeting_watch.map((title, index) =>
-      generateSection({
+      generateSectionWithRetries({
         category: "meeting_watch",
         subjectName: conference.name,
         sectionTitle: title,
@@ -210,7 +295,7 @@ export function packageToScheduledSegments(
       citations: [{
         label: card.citationLabel,
         url: card.citationUrl,
-        sourceType: "media"
+        sourceType: card.sourceType ?? "media"
       }],
       socialBuzzItems: [],
       riskFlags: [

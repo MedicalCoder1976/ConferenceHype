@@ -77,6 +77,7 @@ export type AnalyticsSnapshot = {
 
 export type IngestedItem = {
   id: string;
+  sourceId?: string;
   title: string;
   url: string;
   excerpt: string;
@@ -150,6 +151,7 @@ export type EditorialPackageCard = {
   script: string;
   citationLabel: string;
   citationUrl: string;
+  sourceType?: SourceType;
   contentType: ContentType;
   personaId: string;
 };

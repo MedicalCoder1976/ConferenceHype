@@ -19,7 +19,10 @@ const conferenceKeywords = [
   "melanoma",
   "lymphoma",
   "leukemia",
-  "myeloma"
+  "myeloma",
+  "eha",
+  "sponsor",
+  "exhibitor"
 ];
 
 const blockedPatterns = [
