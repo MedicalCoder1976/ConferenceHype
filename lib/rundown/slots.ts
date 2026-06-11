@@ -1,4 +1,5 @@
 import { personas } from "@/lib/generation/personas";
+import { formatVoiceSegment } from "@/lib/broadcast/voiceSegment";
 import type { Segment } from "@/lib/types";
 
 export type BroadcastSlot = {
@@ -55,18 +56,6 @@ function cleanSocialScript(value: string): string {
     .trim();
 }
 
-// Limit script to roughly 40 seconds of spoken content (~90 words at 135 wpm).
-// Breaks on the last sentence boundary if possible.
-function trimToSpokenLength(text: string, maxWords = 90): string {
-  const words = text.trim().split(/\s+/).filter(Boolean);
-  if (words.length <= maxWords) return text.trim();
-  const limited = words.slice(0, maxWords).join(" ");
-  // Try to end on a sentence boundary in the second half of the truncated text
-  const cutPoint = limited.search(/[.!?][^.!?]*$/);
-  if (cutPoint > limited.length * 0.4) return limited.slice(0, cutPoint + 1);
-  return `${limited}.`;
-}
-
 function cleanForbiddenBroadcastPhrases(value: string) {
   return value
     // Existing internal meta-language replacements
@@ -112,7 +101,7 @@ function cleanForbiddenBroadcastPhrases(value: string) {
     .trim();
 }
 
-function withAssignedVoice(segment: Segment, slotIndex: number): Segment {
+function withAssignedVoice(segment: Segment, slotIndex: number, at: Date): Segment {
   const persona = voiceForSlot(segment, slotIndex);
   let narrative = cleanForbiddenBroadcastPhrases(stripIntro(segment.script || segment.summary));
 
@@ -121,15 +110,17 @@ function withAssignedVoice(segment: Segment, slotIndex: number): Segment {
     narrative = `ConferenceHype calls out: ${cleanSocialScript(narrative)}`;
   }
 
-  // Rule 2: fit inside a 40-second spoken slot (~90 words at 135 wpm)
-  narrative = trimToSpokenLength(narrative, 90);
-
   const summary = cleanForbiddenBroadcastPhrases(segment.summary);
   return {
     ...segment,
     personaId: persona.id,
     personaName: persona.name,
-    script: `${persona.name} here from ASCO. ${narrative}`,
+    script: formatVoiceSegment({
+      voiceName: persona.name,
+      topic: segment.title,
+      narrative,
+      at
+    }),
     summary
   };
 }
@@ -249,7 +240,7 @@ export function buildBroadcastSlots({
         (allContent.length > 0
           ? allContent[pairIndex % allContent.length]
           : makeFallbackSegment(baseTime, slotIndex));
-      const segment = withAssignedVoice(sourceSegment, slotIndex);
+      const segment = withAssignedVoice(sourceSegment, slotIndex, contentAt);
       slots.push({
         at: contentAt,
         kind: segmentKind(segment),

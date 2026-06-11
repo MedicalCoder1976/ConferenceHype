@@ -10,6 +10,7 @@ const bodySchema = z.object({
   postUrl: z.string().max(600).optional().or(z.literal("")),
   postText: z.string().max(1200).optional().or(z.literal("")),
   operatorNote: z.string().max(600).optional().or(z.literal("")),
+  sponsorName: z.string().trim().max(160).optional().or(z.literal("")),
   itemType: z
     .enum(["x_tweet", "url", "statement", "sponsor_message", "emergency_message"])
     .default("url"),
@@ -19,6 +20,8 @@ const bodySchema = z.object({
   repeatCount: z.number().int().min(1).max(12).default(1)
 }).refine((body) => body.postUrl?.trim() || body.postText?.trim(), {
   message: "Add a URL, pasted text, or both before focusing for review."
+}).refine((body) => body.itemType !== "sponsor_message" || Boolean(body.sponsorName?.trim()), {
+  message: "Sponsor name is required for paid content."
 });
 
 function normalizeFocusedUrl(value?: string) {
@@ -87,6 +90,7 @@ async function buildFocusedSource({
   postUrl,
   postText,
   operatorNote,
+  sponsorName,
   itemType
 }: z.infer<typeof bodySchema>): Promise<IngestedItem> {
   const normalizedUrl = normalizeFocusedUrl(postUrl);
@@ -117,7 +121,7 @@ async function buildFocusedSource({
       postText?.trim() ? `Operator pasted text or tip: ${postText.trim()}` : "",
       operatorNote ? `Operator focus note: ${operatorNote}` : "",
       itemType === "sponsor_message"
-        ? "Operator marked this as a sponsor message. Read it as sponsor copy, not editorial reporting."
+        ? `Paid content from ${sponsorName}. Read it as a clearly labeled sponsor message, not editorial reporting.`
         : "",
       itemType === "statement"
         ? "Operator marked this as a direct statement for broadcast."
@@ -170,8 +174,8 @@ export async function POST(request: NextRequest) {
     const social = source.sourceType.includes("social");
     const isSponsor = body.itemType === "sponsor_message";
     const isEmergency = body.itemType === "emergency_message";
-    const status = body.approveNow ? "approved" : "pending_review";
-    const segment = await generateSegmentFromSources({
+    const status = body.approveNow && !isSponsor ? "approved" : "pending_review";
+    const generatedSegment = await generateSegmentFromSources({
       sources: [source],
       personaId: body.personaId,
       hypeLevel: "high_energy",
@@ -179,7 +183,7 @@ export async function POST(request: NextRequest) {
       status,
       editorialInstruction: [
         isSponsor
-          ? "Create a concise sponsor message read. Make it clearly sponsor-labeled, energetic, and separate from editorial ASCO commentary."
+          ? `Create a concise paid sponsor message for ${body.sponsorName}. The title and spoken script must explicitly say "Sponsored" or "Sponsor message". Keep it separate from editorial conference commentary and do not imply ConferenceHype endorsement.`
           : social
           ? "Create a short radio-DJ style social desk hit from this operator-focused X/Instagram/social item."
           : isEmergency
@@ -198,10 +202,20 @@ export async function POST(request: NextRequest) {
           : ""
       ].join("\n")
     });
+    const segment = isSponsor
+      ? {
+          ...generatedSegment,
+          title: `Sponsored: ${body.sponsorName} - ${generatedSegment.title}`,
+          summary: `Paid sponsor message from ${body.sponsorName}. ${generatedSegment.summary}`,
+          riskFlags: Array.from(
+            new Set([...generatedSegment.riskFlags, "sponsor_message", "paid_content"])
+          )
+        }
+      : generatedSegment;
 
     const segments = repeatCopies(
       segment,
-      body.approveNow && body.repeatEveryHalfHour,
+      status === "approved" && body.repeatEveryHalfHour,
       body.repeatCount
     );
     const savedSegments = await saveGeneratedSegmentsToDb(segments);
@@ -214,7 +228,9 @@ export async function POST(request: NextRequest) {
       note:
         status === "approved"
           ? "Operator item added to the approved broadcast rundown."
-          : "Focused item created as a pending review segment. Approve it before broadcast."
+          : isSponsor
+            ? "Sponsor message created as paid content in human review. Approve it before placement."
+            : "Focused item created as a pending review segment. Approve it before broadcast."
     });
   } catch (error) {
     return NextResponse.json({ ok: false, error: String(error) }, { status: 400 });

@@ -110,7 +110,7 @@ export async function generateSegmentFromSources({
       parsed.social_buzz_items,
       citationSourceType
     ),
-    riskFlags: parsed.risk_flags ?? [],
+    riskFlags: Array.from(new Set([...(parsed.risk_flags ?? []), "genuine_source_rewrite"])),
     confidenceScore: social ? 76 : 88,
     createdAt: new Date().toISOString()
   };

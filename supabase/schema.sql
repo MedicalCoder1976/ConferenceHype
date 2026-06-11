@@ -100,6 +100,80 @@ create table public.analytics_events (
   created_at timestamptz not null default now()
 );
 
+create table public.specialty_x_voices (
+  id uuid primary key default gen_random_uuid(),
+  specialty text not null,
+  label text not null,
+  handle text not null,
+  note text not null default '',
+  enabled boolean not null default true,
+  rank int not null default 20 check (rank between 1 and 20),
+  score int not null default 0,
+  last_verified_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (specialty, handle)
+);
+
+create table public.medical_conferences (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  acronym text,
+  specialties text[] not null default '{}',
+  start_date date,
+  end_date date,
+  month int not null check (month between 1 and 12),
+  year int not null check (year between 2020 and 2100),
+  city text,
+  country text,
+  timezone text not null default 'America/New_York',
+  official_url text not null,
+  enabled boolean not null default true,
+  operator_added boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (name, year)
+);
+
+create table public.conference_coverage_slots (
+  id uuid primary key default gen_random_uuid(),
+  conference_id uuid not null references public.medical_conferences(id) on delete cascade,
+  starts_at timestamptz not null,
+  duration_hours int not null default 3 check (duration_hours = 3),
+  enabled boolean not null default true,
+  created_at timestamptz not null default now(),
+  unique (conference_id, starts_at)
+);
+
+create table public.oncology_journals (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  abbreviation text not null,
+  rss_url text not null unique,
+  official_url text not null,
+  enabled boolean not null default true,
+  last_issue_key text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table public.editorial_packages (
+  id uuid primary key default gen_random_uuid(),
+  category text not null check (category in ('journal_watch', 'meeting_watch')),
+  title text not null,
+  subject_name text not null,
+  edition_key text not null,
+  source_url text not null,
+  event_date date,
+  intro_script text not null,
+  sections jsonb not null default '[]',
+  status text not null default 'memory' check (status in ('memory', 'scheduled')),
+  scheduled_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (category, edition_key)
+);
+
 create index if not exists ingested_items_source_id_idx
   on public.ingested_items (source_id);
 
@@ -114,6 +188,14 @@ create index if not exists stream_state_current_segment_id_idx
 
 create index if not exists analytics_events_segment_id_idx
   on public.analytics_events (segment_id);
+create index if not exists specialty_x_voices_specialty_rank_idx
+  on public.specialty_x_voices (specialty, enabled, rank);
+create index if not exists medical_conferences_month_year_idx
+  on public.medical_conferences (year, month, enabled);
+create index if not exists conference_coverage_slots_starts_at_idx
+  on public.conference_coverage_slots (starts_at, enabled);
+create index if not exists editorial_packages_category_created_idx
+  on public.editorial_packages (category, created_at desc);
 
 insert into public.stream_state (id) values (1) on conflict (id) do nothing;
 
@@ -123,6 +205,11 @@ alter table public.segments enable row level security;
 alter table public.media_assets enable row level security;
 alter table public.stream_state enable row level security;
 alter table public.analytics_events enable row level security;
+alter table public.specialty_x_voices enable row level security;
+alter table public.medical_conferences enable row level security;
+alter table public.conference_coverage_slots enable row level security;
+alter table public.oncology_journals enable row level security;
+alter table public.editorial_packages enable row level security;
 
 create policy "public can read approved segments"
   on public.segments for select
@@ -167,6 +254,79 @@ create policy "public can insert analytics"
     and jsonb_typeof(metadata) = 'object'
     and pg_column_size(metadata) <= 4096
   );
+
+create policy "authenticated admins can manage specialty voices"
+  on public.specialty_x_voices for all
+  to authenticated
+  using ((select auth.role()) = 'authenticated')
+  with check ((select auth.role()) = 'authenticated');
+
+create policy "authenticated admins can manage medical conferences"
+  on public.medical_conferences for all
+  to authenticated
+  using ((select auth.role()) = 'authenticated')
+  with check ((select auth.role()) = 'authenticated');
+
+create policy "authenticated admins can manage conference coverage"
+  on public.conference_coverage_slots for all
+  to authenticated
+  using ((select auth.role()) = 'authenticated')
+  with check ((select auth.role()) = 'authenticated');
+
+create policy "authenticated admins can manage oncology journals"
+  on public.oncology_journals for all
+  to authenticated
+  using ((select auth.role()) = 'authenticated')
+  with check ((select auth.role()) = 'authenticated');
+
+create policy "authenticated admins can manage editorial packages"
+  on public.editorial_packages for all
+  to authenticated
+  using ((select auth.role()) = 'authenticated')
+  with check ((select auth.role()) = 'authenticated');
+
+create or replace function public.replace_broadcast_segment(
+  p_target_segment_id uuid,
+  p_replacement_segment_id uuid,
+  p_slot_at timestamptz,
+  p_script text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  replacement_row public.segments;
+begin
+  if p_target_segment_id is not null and p_target_segment_id <> p_replacement_segment_id then
+    update public.segments
+      set status = 'pending_review',
+          approved_at = null,
+          updated_at = now()
+      where id = p_target_segment_id;
+  end if;
+
+  update public.segments
+    set script = p_script,
+        status = 'approved',
+        approved_at = p_slot_at,
+        updated_at = now()
+    where id = p_replacement_segment_id
+    returning * into replacement_row;
+
+  if replacement_row.id is null then
+    raise exception 'Replacement segment not found';
+  end if;
+
+  return to_jsonb(replacement_row);
+end;
+$$;
+
+revoke all on function public.replace_broadcast_segment(uuid, uuid, timestamptz, text)
+  from public, anon, authenticated;
+grant execute on function public.replace_broadcast_segment(uuid, uuid, timestamptz, text)
+  to service_role;
 
 do $$
 begin

@@ -4,15 +4,20 @@ import { AdminTabs } from "@/components/AdminTabs";
 import { AiredHistory } from "@/components/AiredHistory";
 import { AnalyticsPanel } from "@/components/AnalyticsPanel";
 import { BroadcastRundown } from "@/components/BroadcastRundown";
+import { ConferencePlanner } from "@/components/ConferencePlanner";
 import { EmergencyOverride } from "@/components/EmergencyOverride";
+import { EditorialMemory } from "@/components/EditorialMemory";
 import { FocusSocialPost } from "@/components/FocusSocialPost";
 import { InstagramPushPanel } from "@/components/InstagramPushPanel";
+import { JournalWatchDesk } from "@/components/JournalWatchDesk";
 import { LanguageControls } from "@/components/LanguageControls";
 import { OncologyReporterGrid } from "@/components/OncologyReporterGrid";
+import { MeetingWatchDesk } from "@/components/MeetingWatchDesk";
 import { RecordingLibrary } from "@/components/RecordingLibrary";
 import { SocialVoiceCompetition } from "@/components/SocialVoiceCompetition";
 import { SourceManager } from "@/components/SourceManager";
 import { StartStreamButton } from "@/components/StartStreamButton";
+import { SpecialtyVoiceDirectory } from "@/components/SpecialtyVoiceDirectory";
 import { XVoiceCallouts } from "@/components/XVoiceCallouts";
 import { getAdminSnapshot } from "@/lib/data";
 import { getCachedRecordings } from "@/lib/media/recordings";
@@ -25,6 +30,10 @@ export const dynamic = "force-dynamic";
 type AdminPageProps = {
   searchParams?: Promise<{ start?: string }>;
 };
+
+const PLANNING_WINDOW_HOURS = 1;
+const PLANNING_HISTORY_HOURS = 24;
+const PLANNING_FUTURE_HOURS = 7 * 24;
 
 function getEasternDateParts(date: Date) {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -49,10 +58,10 @@ function todayAtPlanningEastern(now = new Date()) {
 function currentBlockStart(now = new Date()) {
   const { year, month, day } = getEasternDateParts(now);
   const etMidnight = new Date(`${year}-${month}-${day}T00:00:00-04:00`);
-  const msPerBlock = 3 * 60 * 60 * 1000;
+  const msPerBlock = PLANNING_WINDOW_HOURS * 60 * 60 * 1000;
   const msSinceMidnight = now.getTime() - etMidnight.getTime();
-  const blockIndex = Math.floor((msSinceMidnight + msPerBlock) / msPerBlock);
-  return new Date(etMidnight.getTime() + (blockIndex - 1) * msPerBlock);
+  const blockIndex = Math.floor(msSinceMidnight / msPerBlock);
+  return new Date(etMidnight.getTime() + blockIndex * msPerBlock);
 }
 
 function addHours(date: Date, hours: number) {
@@ -60,7 +69,7 @@ function addHours(date: Date, hours: number) {
 }
 
 function planningSlotLabel(start: Date) {
-  const end = addHours(start, 3);
+  const end = addHours(start, PLANNING_WINDOW_HOURS);
   const startDate = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/New_York",
     month: "2-digit",
@@ -94,26 +103,31 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const params = await searchParams;
   const baseDate = resolvePreviewStart(params?.start);
   const [snapshot, cachedRecordings] = await Promise.all([
-    getAdminSnapshot(baseDate),
+    getAdminSnapshot(baseDate, PLANNING_WINDOW_HOURS),
     getCachedRecordings()
   ]);
   const baseTime = baseDate.toISOString();
   const hourlySocialVoiceSegments = buildHourlySocialVoiceRundownSegments({
     leaders: snapshot.socialVoiceLeaderboard,
-    baseTime: baseDate
+    baseTime: baseDate,
+    hours: PLANNING_WINDOW_HOURS
   });
-  const isPastPreview = baseDate.getTime() < Date.now() - 3 * 60 * 60 * 1000;
+  const isPastPreview =
+    baseDate.getTime() < Date.now() - PLANNING_WINDOW_HOURS * 60 * 60 * 1000;
   const presentationSegments = isPastPreview
     ? snapshot.airedSegments
     : snapshot.nextBroadcastSegments;
   const liveBlock = currentBlockStart();
-  const planningSlots = Array.from({ length: 8 + 7 * 8 }, (_, index) => {
-    const planningStart = addHours(liveBlock, (index - 8) * 3);
-    return {
-      href: `/admin?start=${encodeURIComponent(planningStart.toISOString())}`,
-      label: planningSlotLabel(planningStart)
-    };
-  });
+  const planningSlots = Array.from(
+    { length: PLANNING_HISTORY_HOURS + PLANNING_FUTURE_HOURS },
+    (_, index) => {
+      const planningStart = addHours(liveBlock, index - PLANNING_HISTORY_HOURS);
+      return {
+        href: `/admin?start=${encodeURIComponent(planningStart.toISOString())}`,
+        label: planningSlotLabel(planningStart)
+      };
+    }
+  );
   const planningPreviewHref = "/admin?start=today-21";
   const liveHref = "/admin";
   const previewLabel = new Intl.DateTimeFormat("en-US", {
@@ -152,7 +166,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         <StartStreamButton />
         <div className="basis-full">
           <div className="mb-2 text-xs font-black uppercase text-ink/50">
-            Three-hour planning slots — 24 h back through next week
+            One-hour planning slots — 24 h back through next week
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1">
             {planningSlots.map((item) => (
@@ -177,6 +191,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               scheduleSegments={snapshot.scheduleRundownSegments}
               socialVoiceSegments={hourlySocialVoiceSegments}
               baseTime={baseTime}
+              hours={PLANNING_WINDOW_HOURS}
             />
             <div className="grid gap-6 xl:grid-cols-2">
               <FocusSocialPost />
@@ -192,13 +207,29 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             </div>
           </div>
         }
+        journalWatch={
+          <JournalWatchDesk initialJournals={snapshot.oncologyJournals} />
+        }
+        meetingWatch={
+          <div className="grid gap-6">
+            <MeetingWatchDesk conferences={snapshot.medicalConferences} />
+            <ConferencePlanner
+              initialConferences={snapshot.medicalConferences}
+              initialCoverageSlots={snapshot.conferenceCoverageSlots}
+            />
+          </div>
+        }
+        memory={<EditorialMemory initialPackages={snapshot.editorialPackages} />}
         history={<AiredHistory segments={snapshot.airedSegments} />}
         voices={
-          <div className="grid gap-6 xl:grid-cols-2">
+          <div className="grid gap-6">
+            <SpecialtyVoiceDirectory initialVoices={snapshot.specialtyXVoices} />
+            <div className="grid gap-6 xl:grid-cols-2">
             <RecordingLibrary recordings={cachedRecordings} />
             <OncologyReporterGrid />
             <XVoiceCallouts customVoices={snapshot.xFollowVoices} />
             <LanguageControls />
+            </div>
           </div>
         }
       />

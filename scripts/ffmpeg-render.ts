@@ -6,6 +6,7 @@ import {
   getPendingSegmentsFromDb,
   getSegmentByIdFromDb
 } from "@/lib/db";
+import { formatVoiceSegment } from "@/lib/broadcast/voiceSegment";
 import { getPersona } from "@/lib/generation/personas";
 import { buildSegmentRenderCommand, runCommand } from "@/lib/media/ffmpeg";
 import { synthesizeSpeech } from "@/lib/media/tts";
@@ -54,8 +55,14 @@ async function main() {
   const segment = (await pickSegment()) ?? createSmokeTestSegment();
 
   const persona = getPersona(segment.personaId);
+  const script = formatVoiceSegment({
+    voiceName: persona.name,
+    topic: segment.title,
+    narrative: segment.script,
+    at: new Date()
+  });
   const speech = await synthesizeSpeech({
-    script: segment.script,
+    script,
     persona
   });
 

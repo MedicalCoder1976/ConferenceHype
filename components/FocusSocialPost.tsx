@@ -10,6 +10,7 @@ async function focusSocialPost({
   postUrl,
   postText,
   operatorNote,
+  sponsorName,
   itemType,
   personaId,
   approveNow,
@@ -19,6 +20,7 @@ async function focusSocialPost({
   postUrl: string;
   postText: string;
   operatorNote: string;
+  sponsorName: string;
   itemType: OperatorItemType;
   personaId: string;
   approveNow: boolean;
@@ -32,6 +34,7 @@ async function focusSocialPost({
       postUrl,
       postText,
       operatorNote,
+      sponsorName,
       itemType,
       personaId,
       approveNow,
@@ -50,6 +53,7 @@ export function FocusSocialPost() {
   const [postUrl, setPostUrl] = useState("");
   const [postText, setPostText] = useState("");
   const [operatorNote, setOperatorNote] = useState("");
+  const [sponsorName, setSponsorName] = useState("");
   const [itemType, setItemType] = useState<OperatorItemType>("x_tweet");
   const [personaId, setPersonaId] = useState("vesper-quill");
   const [approveNow, setApproveNow] = useState(true);
@@ -65,6 +69,7 @@ export function FocusSocialPost() {
           postUrl,
           postText,
           operatorNote,
+          sponsorName,
           itemType,
           personaId,
           approveNow,
@@ -77,6 +82,7 @@ export function FocusSocialPost() {
         setPostUrl("");
         setPostText("");
         setOperatorNote("");
+        setSponsorName("");
       } catch (error) {
         setMessage(error instanceof Error ? error.message : "Could not focus the item.");
       }
@@ -149,6 +155,22 @@ export function FocusSocialPost() {
         placeholder="Paste the exact text to read or summarize. Emergency and sponsor messages should be clearly labeled."
         className="mt-2 min-h-32 w-full resize-y border border-ink/20 p-3 text-sm leading-6 outline-none focus:border-broadcast"
       />
+      {itemType === "sponsor_message" ? (
+        <>
+          <label className="mt-4 block text-xs font-black uppercase text-ink/60">
+            Sponsor name
+          </label>
+          <input
+            value={sponsorName}
+            onChange={(event) => setSponsorName(event.target.value)}
+            placeholder="Legal advertiser or sponsor name"
+            className="mt-2 w-full border border-ink/20 px-3 py-3 text-sm outline-none focus:border-broadcast"
+          />
+          <p className="mt-2 text-xs font-bold leading-5 text-ink/60">
+            Sponsor cards always enter human review and remain clearly labeled as paid content.
+          </p>
+        </>
+      ) : null}
       <label className="mt-4 block text-xs font-black uppercase text-ink/60">
         Operator note
       </label>
@@ -162,8 +184,9 @@ export function FocusSocialPost() {
         <label className="flex items-start gap-3 text-sm font-bold text-ink">
           <input
             type="checkbox"
-            checked={approveNow}
+            checked={itemType === "sponsor_message" ? false : approveNow}
             onChange={(event) => setApproveNow(event.target.checked)}
+            disabled={itemType === "sponsor_message"}
             className="mt-1 h-4 w-4"
           />
           Add directly to the approved broadcast rundown
@@ -173,7 +196,7 @@ export function FocusSocialPost() {
             type="checkbox"
             checked={repeatEveryHalfHour}
             onChange={(event) => setRepeatEveryHalfHour(event.target.checked)}
-            disabled={!approveNow}
+            disabled={!approveNow || itemType === "sponsor_message"}
             className="mt-1 h-4 w-4"
           />
           Repeat once every half hour
@@ -186,14 +209,18 @@ export function FocusSocialPost() {
             max={12}
             value={repeatCount}
             onChange={(event) => setRepeatCount(Number(event.target.value))}
-            disabled={!approveNow || !repeatEveryHalfHour}
+            disabled={!approveNow || !repeatEveryHalfHour || itemType === "sponsor_message"}
             className="mt-2 w-28 border border-ink/20 bg-white px-3 py-2 text-sm font-semibold normal-case outline-none focus:border-broadcast disabled:opacity-50"
           />
         </label>
       </div>
       <button
         className="mt-4 inline-flex w-full items-center justify-center gap-2 bg-broadcast px-4 py-3 text-sm font-black uppercase text-white disabled:opacity-50"
-        disabled={pending || (!postUrl.trim() && postText.trim().length < 4)}
+        disabled={
+          pending ||
+          (!postUrl.trim() && postText.trim().length < 4) ||
+          (itemType === "sponsor_message" && sponsorName.trim().length < 2)
+        }
         onClick={submit}
       >
         <Send className="h-4 w-4" />

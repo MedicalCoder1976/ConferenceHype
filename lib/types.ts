@@ -97,3 +97,79 @@ export type SocialVoiceLeader = {
   momentum: "rising" | "steady" | "new";
   lastSeen?: string;
 };
+
+export type SpecialtyXVoice = {
+  id: string;
+  specialty: string;
+  label: string;
+  handle: string;
+  note: string;
+  enabled: boolean;
+  rank: number;
+  score: number;
+  lastVerifiedAt?: string;
+};
+
+export type MedicalConference = {
+  id: string;
+  name: string;
+  acronym?: string;
+  specialties: string[];
+  startDate?: string;
+  endDate?: string;
+  month: number;
+  year: number;
+  city?: string;
+  country?: string;
+  timezone: string;
+  officialUrl: string;
+  enabled: boolean;
+  operatorAdded: boolean;
+};
+
+export type ConferenceCoverageSlot = {
+  id: string;
+  conferenceId: string;
+  startsAt: string;
+  durationHours: number;
+  enabled: boolean;
+};
+
+export type OncologyJournal = {
+  id: string;
+  name: string;
+  abbreviation: string;
+  rssUrl: string;
+  officialUrl: string;
+  enabled: boolean;
+  lastIssueKey?: string;
+};
+
+export type EditorialPackageCard = {
+  title: string;
+  script: string;
+  citationLabel: string;
+  citationUrl: string;
+  contentType: ContentType;
+  personaId: string;
+};
+
+export type EditorialPackageSection = {
+  title: string;
+  cards: EditorialPackageCard[];
+};
+
+export type EditorialPackage = {
+  id: string;
+  category: "journal_watch" | "meeting_watch";
+  title: string;
+  subjectName: string;
+  editionKey: string;
+  sourceUrl: string;
+  eventDate?: string;
+  introScript: string;
+  sections: EditorialPackageSection[];
+  status: "memory" | "scheduled";
+  scheduledAt?: string;
+  createdAt: string;
+};

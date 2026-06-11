@@ -18,5 +18,7 @@ public/rendered/recordings/*.trimmed.mp3
 
 .vercel
 .admin-secret.local.txt
+tmp-*.ts
+tmp-*.ps1
 
 .env*

@@ -40,6 +40,30 @@ function sourceCorpus(sources: IngestedItem[]) {
     .join("\n");
 }
 
+function words(value: string) {
+  return normalize(value).split(" ").filter(Boolean);
+}
+
+function copiedPassages(output: string, sources: IngestedItem[]) {
+  const normalizedOutput = ` ${normalize(output)} `;
+  const matches = new Set<string>();
+  for (const source of sources) {
+    for (const [sourceText, passageLength] of [
+      [source.title, 24],
+      [source.excerpt, 16]
+    ] as const) {
+      const sourceWords = words(sourceText);
+      for (let index = 0; index <= sourceWords.length - passageLength; index += 1) {
+        const passage = sourceWords.slice(index, index + passageLength).join(" ");
+        if (normalizedOutput.includes(` ${passage} `)) {
+          matches.add(passage);
+        }
+      }
+    }
+  }
+  return Array.from(matches);
+}
+
 export function getUnsafeGeneratedSourceErrors({
   segment,
   sources
@@ -61,6 +85,13 @@ export function getUnsafeGeneratedSourceErrors({
     if (!normalizedSourceText.includes(normalize(name))) {
       errors.push(`Generated segment names Dr. ${name}, but that name is not present in the supplied sources.`);
     }
+  }
+
+  const copied = copiedPassages(`${segment.summary}\n${segment.script}`, sources);
+  if (copied.length > 0) {
+    errors.push(
+      `Generated segment copies source wording instead of genuinely rewriting it: "${copied[0]}".`
+    );
   }
 
   return errors;

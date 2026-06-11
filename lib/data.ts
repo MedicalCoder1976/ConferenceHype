@@ -8,11 +8,17 @@ import {
   getAiredSegmentsFromDb,
   getApprovedSegmentsFromDb,
   getBlacklistedXHandlesFromDb,
+  getConferenceCoverageSlotsFromDb,
+  getEditorialPackagesFromDb,
+  getMedicalConferencesFromDb,
+  getOncologyJournalsFromDb,
   getNextBroadcastSegmentsFromDb,
   getPendingSegmentsFromDb,
   getRecentSocialItemsFromDb,
   getSourcesFromDb,
   getStreamStateFromDb,
+  getSpecialtyXVoicesFromDb,
+  upsertAdminCatalogSeedsToDb,
   getXFollowVoicesFromDb
 } from "@/lib/db";
 import {
@@ -43,12 +49,22 @@ function hasVerifiedBroadcastSource(segment: { script: string; summary: string; 
   );
 }
 
-export function filterBroadcastReadySegments<T extends { script: string; summary: string; citations: Citation[]; contentType: string }>(
+export function filterBroadcastReadySegments<T extends {
+  script: string;
+  summary: string;
+  citations: Citation[];
+  contentType: string;
+  riskFlags?: string[];
+}>(
   segments: T[]
 ) {
   return segments.filter((segment) => {
     const text = `${segment.summary}\n${segment.script}`;
+    const isLegacyCopiedSourceCard =
+      segment.riskFlags?.includes("rss_latest_source_card") &&
+      !segment.riskFlags.includes("genuine_source_rewrite");
     return (
+      !isLegacyCopiedSourceCard &&
       !isUnsafeForBroadcastRundown(text) &&
       hasVerifiedBroadcastSource(segment) &&
       getUnsafeReviewSourceErrors({
@@ -84,7 +100,8 @@ export async function getStreamState(): Promise<StreamState> {
   };
 }
 
-export async function getAdminSnapshot(baseTime = new Date()) {
+export async function getAdminSnapshot(baseTime = new Date(), planningHours = 1) {
+  await upsertAdminCatalogSeedsToDb();
   const xFollowVoices = (await getXFollowVoicesFromDb()) ?? [];
   const blacklistedXHandles = (await getBlacklistedXHandlesFromDb()) ?? [];
   const recentSocialItems = (await getRecentSocialItemsFromDb(24)) ?? [];
@@ -103,8 +120,13 @@ export async function getAdminSnapshot(baseTime = new Date()) {
   const nextBroadcastSegments = filterBroadcastReadySegments(
     (await getNextBroadcastSegmentsFromDb(200)) ?? []
   );
-  const scheduleRundownSegments = buildScheduleRundownSegments(baseTime);
+  const scheduleRundownSegments = buildScheduleRundownSegments(baseTime, planningHours);
   const airedSegments = (await getAiredSegmentsFromDb(180)) ?? [];
+  const specialtyXVoices = (await getSpecialtyXVoicesFromDb()) ?? [];
+  const medicalConferences = (await getMedicalConferencesFromDb()) ?? [];
+  const conferenceCoverageSlots = (await getConferenceCoverageSlotsFromDb()) ?? [];
+  const oncologyJournals = (await getOncologyJournalsFromDb()) ?? [];
+  const editorialPackages = (await getEditorialPackagesFromDb()) ?? [];
   const analytics: AnalyticsSnapshot = (await getAnalyticsFromDb()) ?? {
     views: 128,
     clipsCreated: 4,
@@ -120,6 +142,11 @@ export async function getAdminSnapshot(baseTime = new Date()) {
     xFollowVoices,
     blacklistedXHandles,
     socialVoiceLeaderboard,
+    specialtyXVoices,
+    medicalConferences,
+    conferenceCoverageSlots,
+    oncologyJournals,
+    editorialPackages,
     nextSocialVoiceCompetition:
       "Leaderboard refreshes from recent X/social ingest; top traction voices are added to Source intake every 15-minute generation cycle. The scoreboard card still airs every third UTC hour.",
     socialVoiceCompetitionDueNow: shouldRunSocialVoiceCompetition(),

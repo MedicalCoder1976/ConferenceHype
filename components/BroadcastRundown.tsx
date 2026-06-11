@@ -37,6 +37,40 @@ async function scheduleSegment(segmentId: string, approvedAt: string, script?: s
   return payload.segment as Segment;
 }
 
+async function replaceSegment({
+  targetSegmentId,
+  replacementSegmentId,
+  approvedAt,
+  script
+}: {
+  targetSegmentId?: string;
+  replacementSegmentId: string;
+  approvedAt: string;
+  script: string;
+}) {
+  const response = await fetch("/api/admin/replace", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      targetSegmentId:
+        targetSegmentId && !targetSegmentId.startsWith("virtual-")
+          ? targetSegmentId
+          : undefined,
+      replacementSegmentId,
+      approvedAt,
+      script
+    })
+  });
+  const payload = await response.json();
+  if (!response.ok || !payload.ok) {
+    throw new Error(
+      payload.error ??
+        (Array.isArray(payload.errors) ? payload.errors.join(" ") : "Could not replace card.")
+    );
+  }
+  return payload.segment as Segment;
+}
+
 function timeLabel(value?: string | Date) {
   if (!value) {
     return "queued";
@@ -83,13 +117,15 @@ export function BroadcastRundown({
   reviewSegments,
   scheduleSegments,
   socialVoiceSegments,
-  baseTime
+  baseTime,
+  hours = 1
 }: {
   segments: Segment[];
   reviewSegments: Segment[];
   scheduleSegments: Segment[];
   socialVoiceSegments: Segment[];
   baseTime: string;
+  hours?: number;
 }) {
   const router = useRouter();
   const [visibleSegments, setVisibleSegments] = useState(segments);
@@ -118,11 +154,13 @@ export function BroadcastRundown({
           reviewSegments: visibleReviewSegments,
           scheduleSegments,
           socialVoiceSegments,
-          baseTime: baseDate
+          baseTime: baseDate,
+          hours
         }),
-        baseDate
+        baseDate,
+        hours
       ),
-    [visibleSegments, visibleReviewSegments, scheduleSegments, socialVoiceSegments, baseDate]
+    [visibleSegments, visibleReviewSegments, scheduleSegments, socialVoiceSegments, baseDate, hours]
   );
 
   useEffect(() => {
@@ -223,42 +261,36 @@ export function BroadcastRundown({
         const replacedSegment = replaceTarget.segmentId
           ? visibleSegments.find((item) => item.id === replaceTarget.segmentId)
           : undefined;
-        if (
-          replacedSegment?.status === "approved" &&
-          replacedSegment.id !== segment.id &&
-          !replacedSegment.id.startsWith("virtual-")
-        ) {
-          setVisibleSegments((current) =>
-            current.filter((item) => item.id !== replacedSegment.id)
-          );
-        }
-        const updated = await scheduleSegment(
-          segment.id,
-          at.toISOString(),
-          drafts[segment.id] ?? segment.script
-        );
-        // Reject the displaced card BEFORE refreshing so the server re-fetch
-        // sees both changes committed and doesn't overwrite the optimistic state.
-        if (
-          replacedSegment?.status === "approved" &&
-          replacedSegment.id !== segment.id &&
-          !replacedSegment.id.startsWith("virtual-")
-        ) {
-          await rejectSegment(replacedSegment).catch(() => {
-            showError(
-              `${updated.title} was placed, but the replaced card could not be removed from the database.`
-            );
-          });
-        }
+        const updated = await replaceSegment({
+          targetSegmentId: replaceTarget.segmentId,
+          replacementSegmentId: segment.id,
+          approvedAt: at.toISOString(),
+          script: drafts[segment.id] ?? segment.script
+        });
         setVisibleSegments((current) => [
-          ...current.filter((item) => item.id !== replaceTarget.segmentId),
+          ...current.filter(
+            (item) => item.id !== replaceTarget.segmentId && item.id !== segment.id
+          ),
           updated
         ]);
-        setVisibleReviewSegments((current) =>
-          current.filter(
-            (item) => item.id !== segment.id && item.id !== replaceTarget.segmentId
-          )
-        );
+        setVisibleReviewSegments((current) => {
+          const withoutReplacement = current.filter((item) => item.id !== segment.id);
+          if (
+            replacedSegment &&
+            replacedSegment.id !== segment.id &&
+            !replacedSegment.id.startsWith("virtual-")
+          ) {
+            return [
+              {
+                ...replacedSegment,
+                status: "pending_review",
+                approvedAt: undefined
+              },
+              ...withoutReplacement.filter((item) => item.id !== replacedSegment.id)
+            ];
+          }
+          return withoutReplacement;
+        });
         showSuccess(`${updated.title} replaced ${replaceTarget.title ?? "the selected card"} at ${timeLabel(at)}.`);
         setReplaceTarget(null);
         router.refresh();
@@ -312,7 +344,7 @@ export function BroadcastRundown({
         {visibleSegments.length === 0 && scheduleSegments.length === 0 ? (
           <div className="border border-dashed border-ink/20 bg-paper/60 p-5 xl:col-start-1">
             <h3 className="text-lg font-black text-ink">
-              Nothing is queued for the next 3 hours
+              Nothing is queued for the next hour
             </h3>
             <p className="mt-2 text-sm font-semibold leading-6 text-ink/65">
               Approve segments or run generation to load the next-hour rundown.

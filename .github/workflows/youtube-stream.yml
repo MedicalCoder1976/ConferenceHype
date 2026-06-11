@@ -23,39 +23,9 @@ on:
         required: false
         default: ""
   schedule:
-    # ASCO 2026 — May 29–June 2. Six 3-hour blocks per day, 07:00–22:00 ET (EDT = UTC-4).
-    #
-    # Each cron fires 40 min BEFORE the desired air time so the ~20-min render
-    # completes right at the hour. Blocks chain seamlessly:
-    #   • Block N streams for exactly 180 min (3 h).
-    #   • Block N+1 cron fires 40 min before block N ends → render finishes just
-    #     as block N ends → zero gap.
-    #   • Exception: the morning opener (07:00 ET) has no prior stream.
-    #     The workflow streams fallback-loop.mp4 during the render window so
-    #     YouTube always has a signal from ~06:40 ET onward.
-    #
-    # Cron times (UTC, EDT = UTC-4):
-    #   06:40 ET = 10:40 UTC   →  07:00 ET air
-    #   09:40 ET = 13:40 UTC   →  10:00 ET air
-    #   12:40 ET = 16:40 UTC   →  13:00 ET air
-    #   15:40 ET = 19:40 UTC   →  16:00 ET air
-    #   18:40 ET = 22:40 UTC   →  19:00 ET air
-    #   21:40 ET = 01:40 UTC+1 →  22:00 ET air
-    #
-    # May 29–31 (month 5)
-    - cron: "40 10 29,30,31 5 *"   # 06:40 ET → 07:00 ET air (morning opener)
-    - cron: "40 13 29,30,31 5 *"   # 09:40 ET → 10:00 ET air
-    - cron: "40 16 29,30,31 5 *"   # 12:40 ET → 13:00 ET air
-    - cron: "40 19 29,30,31 5 *"   # 15:40 ET → 16:00 ET air
-    - cron: "40 22 29,30,31 5 *"   # 18:40 ET → 19:00 ET air
-    - cron: "40 1  30,31 5 *"      # 21:40 ET → 22:00 ET air  (UTC: May 30, 31)
-    # June 1–2 (month 6)
-    - cron: "40 10 1,2 6 *"        # 06:40 ET → 07:00 ET air
-    - cron: "40 13 1,2 6 *"        # 09:40 ET → 10:00 ET air
-    - cron: "40 16 1,2 6 *"        # 12:40 ET → 13:00 ET air
-    - cron: "40 19 1,2 6 *"        # 15:40 ET → 16:00 ET air
-    - cron: "40 22 1,2 6 *"        # 18:40 ET → 19:00 ET air
-    - cron: "40 1  1,2,3 6 *"      # 21:40 ET → 22:00 ET air  (UTC: Jun 1, 2, 3)
+    # Poll the admin conference coverage plan. A scheduled run only renders
+    # when a saved three-hour block begins 20-35 minutes from the poll.
+    - cron: "*/15 * * * *"
 
 jobs:
   stream:
@@ -72,32 +42,23 @@ jobs:
       - run: npm ci
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
-      # Resolve which 3-hour block to render.
-      # Schedule → compute the NEXT block boundary (look 1 h ahead; blocks anchor at 7 AM ET).
-      # Dispatch with stream_start_time → use that value.
-      # Dispatch without stream_start_time → skip render, run fallback loop.
+      # Resolve a saved conference coverage slot or an explicit dispatch time.
       - name: Resolve block start time
         id: block
         run: |
           if [ "${{ github.event_name }}" = "schedule" ]; then
-            BLOCK_START=$(python3 - <<'EOF'
-          from datetime import datetime, timezone, timedelta
-          et_tz = timezone(timedelta(hours=-4))          # EDT = UTC-4
-          now_et = datetime.now(timezone.utc).astimezone(et_tz)
-          # Look 1 hour ahead to find which block we are *preparing for*.
-          # Crons fire 40 min early; +1 h reliably lands inside the target block hour.
-          target = now_et + timedelta(hours=1)
-          # Conference blocks: 07, 10, 13, 16, 19, 22 ET
-          base_hour = 7
-          if target.hour < base_hour:
-              block_hour = base_hour
-          else:
-              block_index = (target.hour - base_hour) // 3
-              block_hour = base_hour + block_index * 3
-          block_start = target.replace(hour=block_hour, minute=0, second=0, microsecond=0)
-          print(block_start.isoformat())
-          EOF
-            )
+            FROM=$(date -u -d "+20 minutes" +"%Y-%m-%dT%H:%M:%SZ")
+            TO=$(date -u -d "+35 minutes" +"%Y-%m-%dT%H:%M:%SZ")
+            BLOCK_START=$(curl --fail --silent --show-error \
+              --get "${NEXT_PUBLIC_SUPABASE_URL}/rest/v1/conference_coverage_slots" \
+              -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+              -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+              --data-urlencode "select=starts_at" \
+              --data-urlencode "enabled=eq.true" \
+              --data-urlencode "starts_at=gte.${FROM}" \
+              --data-urlencode "starts_at=lt.${TO}" \
+              --data-urlencode "order=starts_at.asc" \
+              --data-urlencode "limit=1" | jq -r '.[0].starts_at // empty')
             DURATION_SECONDS=10800
           else
             BLOCK_START="${{ inputs.stream_start_time }}"
@@ -105,43 +66,13 @@ jobs:
           fi
           echo "block_start=${BLOCK_START}" >> $GITHUB_OUTPUT
           echo "duration_seconds=${DURATION_SECONDS}" >> $GITHUB_OUTPUT
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
       - name: Install Kokoro TTS dependencies
         if: ${{ steps.block.outputs.block_start != '' }}
         run: pip install kokoro numpy soundfile
-
-      # Morning opener only: stream the fallback loop in the background while the
-      # real content renders. This keeps YouTube "live" with music from ~06:40 ET
-      # until the rendered stream takes over at ~07:00 ET.
-      # All other blocks are already covered by the previous block's stream.
-      - name: Start fallback stream during morning render gap
-        if: ${{ github.event_name == 'schedule' && steps.block.outputs.block_start != '' }}
-        run: |
-          # Detect morning opener: block starts at 07:00 ET
-          BLOCK_ET_HOUR=$(python3 -c "
-          from datetime import datetime, timezone, timedelta
-          et_tz = timezone(timedelta(hours=-4))
-          dt = datetime.fromisoformat('${{ steps.block.outputs.block_start }}')
-          print(dt.astimezone(et_tz).hour)
-          ")
-          echo "Block ET hour: ${BLOCK_ET_HOUR}"
-          if [ "$BLOCK_ET_HOUR" = "7" ]; then
-            echo "Morning opener — streaming fallback loop while content renders..."
-            ffmpeg -re -stream_loop -1 \
-              -i public/rendered/fallback-loop.mp4 \
-              -t 2400 \
-              -c:a copy -f flv \
-              "${YOUTUBE_RTMP_URL}/${YOUTUBE_STREAM_KEY}" \
-              -loglevel warning &
-            echo $! > /tmp/fallback_pid.txt
-            echo "Fallback PID: $(cat /tmp/fallback_pid.txt)"
-          else
-            echo "Mid-day block — previous stream covers the render gap, skipping fallback."
-            echo "" > /tmp/fallback_pid.txt
-          fi
-        env:
-          YOUTUBE_RTMP_URL: ${{ secrets.YOUTUBE_RTMP_URL }}
-          YOUTUBE_STREAM_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
 
       - name: Render current presentation
         if: ${{ steps.block.outputs.block_start != '' }}
@@ -155,7 +86,7 @@ jobs:
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
           LLM_MODEL: ${{ secrets.LLM_MODEL }}
-          HOUR_BROADCAST_MODE: blocks
+          HOUR_BROADCAST_MODE: presentation
           FFMPEG_PATH: /usr/bin/ffmpeg
           HOUR_BROADCAST_START: ${{ steps.block.outputs.block_start }}
           HOUR_BROADCAST_OUTPUT: public/rendered/asco-hype-hour-broadcast.mp4
@@ -178,15 +109,15 @@ jobs:
           VOICE_TALIA_STONE: ${{ secrets.VOICE_TALIA_STONE }}
           VOICE_VESPER_QUILL: ${{ secrets.VOICE_VESPER_QUILL }}
 
-      - name: Stop fallback loop before main stream
-        if: ${{ github.event_name == 'schedule' && steps.block.outputs.block_start != '' }}
+      - name: Wait for requested start time
+        if: ${{ steps.block.outputs.block_start != '' }}
         run: |
-          if [ -s /tmp/fallback_pid.txt ]; then
-            FALLBACK_PID=$(cat /tmp/fallback_pid.txt | tr -d '[:space:]')
-            if [ -n "$FALLBACK_PID" ]; then
-              kill "$FALLBACK_PID" 2>/dev/null && echo "Fallback loop stopped (PID $FALLBACK_PID)." || echo "Fallback already ended."
-              sleep 3
-            fi
+          START_EPOCH=$(date -d "${{ steps.block.outputs.block_start }}" +%s)
+          NOW_EPOCH=$(date -u +%s)
+          WAIT_SECONDS=$((START_EPOCH - NOW_EPOCH))
+          if [ "$WAIT_SECONDS" -gt 0 ]; then
+            echo "Render is ready. Waiting ${WAIT_SECONDS}s for the selected start time."
+            sleep "$WAIT_SECONDS"
           fi
 
       - name: Start rendered YouTube stream
@@ -201,7 +132,7 @@ jobs:
           STREAM_VIDEO_PATH: public/rendered/asco-hype-hour-broadcast.mp4
 
       - name: Start fallback YouTube RTMP loop
-        if: ${{ steps.block.outputs.block_start == '' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && steps.block.outputs.block_start == '' }}
         run: npm run job:stream
         env:
           YOUTUBE_RTMP_URL: ${{ secrets.YOUTUBE_RTMP_URL }}
