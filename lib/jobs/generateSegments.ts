@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { generateSegmentFromSources } from "@/lib/generation/llm";
 import { runIngestionJob } from "@/lib/jobs/ingest";
 import { buildScheduleFallbackSegment } from "@/lib/jobs/upcomingEvents";
+import { developAutomaticJournalPackages } from "@/lib/jobs/editorialPackages";
 import {
   addXFollowSourceToDb,
   getBlacklistedXHandlesFromDb,
@@ -16,7 +17,7 @@ import {
 import type { IngestedItem, Segment, SocialVoiceLeader } from "@/lib/types";
 
 const TOP_SOCIAL_NARRATIVE_TARGET = 50;
-const SOURCE_CARD_TARGET = 72;
+const SOURCE_CARD_TARGET = 20;
 
 async function generateOrScheduleFallback(
   generate: () => Promise<Segment>,
@@ -83,18 +84,6 @@ function isAbstractChatter(item: IngestedItem) {
   );
 }
 
-function sourceLabel(item: IngestedItem) {
-  return `${item.sourceName}: ${item.title}. ${item.excerpt}`.slice(0, 280);
-}
-
-function sourceSummary(item: IngestedItem) {
-  const excerpt = item.excerpt.trim();
-  if (!excerpt) {
-    return `${item.sourceName} published or posted this ASCO-related item for review.`;
-  }
-  return excerpt.length > 320 ? `${excerpt.slice(0, 317)}...` : excerpt;
-}
-
 function sourcePriority(item: IngestedItem) {
   const text = `${item.sourceName} ${item.title} ${item.url}`.toLowerCase();
   if (text.includes("asco post") || text.includes("ascopost.com")) {
@@ -145,62 +134,29 @@ function sourceCardType(item: IngestedItem) {
   return "media_roundup" as const;
 }
 
-function buildSourceCard(item: IngestedItem, now: Date, index: number, alternate = false): Segment {
+async function buildSourceCard(item: IngestedItem, index: number): Promise<Segment> {
   const persona = sourceCardPersona(index);
   const contentType = sourceCardType(item);
-  const isSocialNarrative = item.sourceType.includes("social");
-  const citation = {
-    label: sourceLabel(item),
-    url: item.url,
-    sourceType: isSocialNarrative ? ("verified_social" as const) : item.sourceType
-  };
-  const summary = sourceSummary(item);
-  const alternateLine = alternate
-    ? "This is a backup angle for the same source item, ready only if the primary version is not already in the hour."
-    : "";
-  const script = [
-    isSocialNarrative
-      ? `${persona.name} here with a source-backed X narrative from ${item.author ?? item.sourceName}.`
-      : `${persona.name} here with a source-backed ASCO update from ${item.sourceName}.`,
-    `The item is titled "${item.title}".`,
-    summary,
-    alternateLine
-  ]
-    .filter(Boolean)
-    .join(" ");
-  return {
-    id: `latest-source-${randomUUID()}`,
-    title: `${alternate ? "Alternate angle - " : ""}${item.sourceName}: ${item.title}`.slice(0, 140),
-    summary,
-    script,
-    contentType,
+  const autoApproved = isXVoiceCallout(item) || isAutoApprovedSource(item);
+  const generated = await generateSegmentFromSources({
+    sources: [item],
     personaId: persona.id,
-    personaName: persona.name,
     hypeLevel: persona.hype,
-    language: "en",
-    status:
-      !alternate &&
-      (isXVoiceCallout(item) || isAutoApprovedSource(item))
-        ? "approved"
-        : "pending_review",
-    citations: [citation],
-    socialBuzzItems: item.sourceType.includes("social") ? [citation] : [],
-    riskFlags: [
-      "rss_latest_source_card",
-      "source_backed_review_pool",
-      ...(alternate ? ["alternate_angle_do_not_repeat"] : [])
-    ],
-    confidenceScore: item.sourceType === "official" ? 94 : item.sourceType === "media" ? 88 : 82,
-    createdAt: now.toISOString(),
-    approvedAt:
-      !alternate &&
-      (isXVoiceCallout(item) || isAutoApprovedSource(item))
-        ? now.toISOString()
-        : undefined
+    contentType,
+    status: autoApproved ? "approved" : "pending_review",
+    editorialInstruction:
+      "Create one source-grounded card from this item. Genuinely rewrite it in fresh language rather than repeating the title or excerpt. Attribute the source clearly. Preserve only facts, names, numbers, and claims explicitly present in the supplied item. Do not infer outcomes, importance, causation, or clinical meaning."
+  });
+  return {
+    ...generated,
+    riskFlags: Array.from(
+      new Set([...generated.riskFlags, "source_backed_card", "source_backed_review_pool"])
+    ),
+    approvedAt: autoApproved ? new Date().toISOString() : undefined
   };
 }
 
-function buildLatestSourceCards(items: IngestedItem[], now: Date) {
+async function buildLatestSourceCards(items: IngestedItem[]) {
   const seen = new Set<string>();
   const eligibleItems = items
     .filter((item) => {
@@ -231,10 +187,12 @@ function buildLatestSourceCards(items: IngestedItem[], now: Date) {
       (item) => sourcePriority(item) !== 0 && !item.sourceType.includes("social")
     )
   ];
-  const primaryCards = primaryItems
-    .slice(0, SOURCE_CARD_TARGET)
-    .map((item, index) => buildSourceCard(item, now, index));
-  return primaryCards;
+  const primaryCards = await Promise.all(
+    primaryItems
+      .slice(0, SOURCE_CARD_TARGET)
+      .map((item, index) => generateOrNull(() => buildSourceCard(item, index)))
+  );
+  return primaryCards.filter((segment): segment is Segment => Boolean(segment));
 }
 
 function topTractionLeaders(leaders: SocialVoiceLeader[], blacklistedHandles: string[] = []) {
@@ -342,8 +300,11 @@ export async function runGenerateJob() {
   const competitionSegment = competitionDueNow
     ? [buildSocialVoiceCompetitionSegment(leaderboard)]
     : [];
-  const latestSourceCards = buildLatestSourceCards(items, now);
+  const latestSourceCards = await buildLatestSourceCards(items);
   const segments = [...generatedSegments, ...competitionSegment, ...latestSourceCards];
   await saveGeneratedSegmentsToDb(segments);
+  await developAutomaticJournalPackages().catch((error) => {
+    console.warn(`Automatic Journal Watch generation skipped: ${error}`);
+  });
   return segments;
 }

@@ -78,7 +78,7 @@ export function buildSocialVoiceLeaderboard(
 
   // Return top 10 active voices. If nothing has come in yet, return empty —
   // the UI will show a "warming up" message instead of fake scores.
-  return ranked.slice(0, 10);
+  return ranked.slice(0, 20);
 }
 
 export function shouldRunSocialVoiceCompetition(now = new Date()) {

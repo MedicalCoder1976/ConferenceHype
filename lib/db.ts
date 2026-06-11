@@ -2,14 +2,22 @@ import { createHash } from "node:crypto";
 import { hasSupabase } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sourceRegistry, sourceToXVoice, type XVoice } from "@/lib/sources/registry";
+import { conferenceSeeds } from "@/lib/catalog/conferenceSeeds";
+import { specialtyVoiceSeeds } from "@/lib/catalog/specialtyVoiceSeeds";
+import { oncologyJournalSeeds } from "@/lib/catalog/oncologyJournalSeeds";
 import type {
   AnalyticsSnapshot,
   Citation,
+  EditorialPackage,
   IngestedItem,
+  MedicalConference,
+  OncologyJournal,
   Segment,
   SocialVoiceLeader,
+  SpecialtyXVoice,
   SourceConfig,
-  StreamState
+  StreamState,
+  ConferenceCoverageSlot
 } from "@/lib/types";
 
 type SegmentRow = {
@@ -50,6 +58,68 @@ type IngestedItemRow = {
   source_type: SourceConfig["type"];
   source_rank: number;
   published_at?: string | null;
+  created_at: string;
+};
+
+type SpecialtyXVoiceRow = {
+  id: string;
+  specialty: string;
+  label: string;
+  handle: string;
+  note: string;
+  enabled: boolean;
+  rank: number;
+  score: number;
+  last_verified_at?: string | null;
+};
+
+type MedicalConferenceRow = {
+  id: string;
+  name: string;
+  acronym?: string | null;
+  specialties: string[];
+  start_date?: string | null;
+  end_date?: string | null;
+  month: number;
+  year: number;
+  city?: string | null;
+  country?: string | null;
+  timezone: string;
+  official_url: string;
+  enabled: boolean;
+  operator_added: boolean;
+};
+
+type ConferenceCoverageSlotRow = {
+  id: string;
+  conference_id: string;
+  starts_at: string;
+  duration_hours: number;
+  enabled: boolean;
+};
+
+type OncologyJournalRow = {
+  id: string;
+  name: string;
+  abbreviation: string;
+  rss_url: string;
+  official_url: string;
+  enabled: boolean;
+  last_issue_key?: string | null;
+};
+
+type EditorialPackageRow = {
+  id: string;
+  category: EditorialPackage["category"];
+  title: string;
+  subject_name: string;
+  edition_key: string;
+  source_url: string;
+  event_date?: string | null;
+  intro_script: string;
+  sections: EditorialPackage["sections"];
+  status: EditorialPackage["status"];
+  scheduled_at?: string | null;
   created_at: string;
 };
 
@@ -97,6 +167,78 @@ function toIngestedItem(row: IngestedItemRow): IngestedItem {
     sourceType: row.source_type,
     rank: row.source_rank,
     publishedAt: row.published_at ?? row.created_at
+  };
+}
+
+function toSpecialtyXVoice(row: SpecialtyXVoiceRow): SpecialtyXVoice {
+  return {
+    id: row.id,
+    specialty: row.specialty,
+    label: row.label,
+    handle: row.handle,
+    note: row.note,
+    enabled: row.enabled,
+    rank: row.rank,
+    score: row.score,
+    lastVerifiedAt: row.last_verified_at ?? undefined
+  };
+}
+
+function toMedicalConference(row: MedicalConferenceRow): MedicalConference {
+  return {
+    id: row.id,
+    name: row.name,
+    acronym: row.acronym ?? undefined,
+    specialties: row.specialties ?? [],
+    startDate: row.start_date ?? undefined,
+    endDate: row.end_date ?? undefined,
+    month: row.month,
+    year: row.year,
+    city: row.city ?? undefined,
+    country: row.country ?? undefined,
+    timezone: row.timezone,
+    officialUrl: row.official_url,
+    enabled: row.enabled,
+    operatorAdded: row.operator_added
+  };
+}
+
+function toConferenceCoverageSlot(row: ConferenceCoverageSlotRow): ConferenceCoverageSlot {
+  return {
+    id: row.id,
+    conferenceId: row.conference_id,
+    startsAt: row.starts_at,
+    durationHours: row.duration_hours,
+    enabled: row.enabled
+  };
+}
+
+function toOncologyJournal(row: OncologyJournalRow): OncologyJournal {
+  return {
+    id: row.id,
+    name: row.name,
+    abbreviation: row.abbreviation,
+    rssUrl: row.rss_url,
+    officialUrl: row.official_url,
+    enabled: row.enabled,
+    lastIssueKey: row.last_issue_key ?? undefined
+  };
+}
+
+function toEditorialPackage(row: EditorialPackageRow): EditorialPackage {
+  return {
+    id: row.id,
+    category: row.category,
+    title: row.title,
+    subjectName: row.subject_name,
+    editionKey: row.edition_key,
+    sourceUrl: row.source_url,
+    eventDate: row.event_date ?? undefined,
+    introScript: row.intro_script,
+    sections: row.sections ?? [],
+    status: row.status,
+    scheduledAt: row.scheduled_at ?? undefined,
+    createdAt: row.created_at
   };
 }
 
@@ -261,6 +403,312 @@ export async function getBlacklistedXHandlesFromDb(): Promise<string[] | null> {
     .map((voice) => voice.handle.toLowerCase());
 }
 
+export async function getSpecialtyXVoicesFromDb(): Promise<SpecialtyXVoice[] | null> {
+  if (!hasSupabase()) {
+    return null;
+  }
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("specialty_x_voices")
+    .select("*")
+    .order("specialty", { ascending: true })
+    .order("rank", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+  return (data as SpecialtyXVoiceRow[]).map(toSpecialtyXVoice);
+}
+
+export async function upsertSpecialtyXVoiceInDb({
+  specialty,
+  label,
+  handle,
+  note,
+  rank = 20
+}: {
+  specialty: string;
+  label: string;
+  handle: string;
+  note?: string;
+  rank?: number;
+}) {
+  if (!hasSupabase()) {
+    return null;
+  }
+  const normalizedHandle = `@${handle.replace(/^@/, "")}`;
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("specialty_x_voices")
+    .upsert(
+      {
+        specialty,
+        label,
+        handle: normalizedHandle,
+        note: note ?? "",
+        rank: Math.min(20, Math.max(1, rank)),
+        enabled: true,
+        updated_at: new Date().toISOString()
+      },
+      { onConflict: "specialty,handle" }
+    )
+    .select("*")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+  return toSpecialtyXVoice(data as SpecialtyXVoiceRow);
+}
+
+export async function disableSpecialtyXVoiceInDb(id: string) {
+  if (!hasSupabase()) {
+    return null;
+  }
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("specialty_x_voices")
+    .update({ enabled: false, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+  return toSpecialtyXVoice(data as SpecialtyXVoiceRow);
+}
+
+export async function getMedicalConferencesFromDb(): Promise<MedicalConference[] | null> {
+  if (!hasSupabase()) {
+    return null;
+  }
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("medical_conferences")
+    .select("*")
+    .eq("enabled", true)
+    .order("year", { ascending: true })
+    .order("month", { ascending: true })
+    .order("name", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+  return (data as MedicalConferenceRow[]).map(toMedicalConference);
+}
+
+export async function upsertMedicalConferenceInDb(
+  conference: Omit<MedicalConference, "id">
+) {
+  if (!hasSupabase()) {
+    return null;
+  }
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("medical_conferences")
+    .upsert(
+      {
+        name: conference.name,
+        acronym: conference.acronym,
+        specialties: conference.specialties,
+        start_date: conference.startDate,
+        end_date: conference.endDate,
+        month: conference.month,
+        year: conference.year,
+        city: conference.city,
+        country: conference.country,
+        timezone: conference.timezone,
+        official_url: conference.officialUrl,
+        enabled: conference.enabled,
+        operator_added: conference.operatorAdded,
+        updated_at: new Date().toISOString()
+      },
+      { onConflict: "name,year" }
+    )
+    .select("*")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+  return toMedicalConference(data as MedicalConferenceRow);
+}
+
+export async function getConferenceCoverageSlotsFromDb(): Promise<ConferenceCoverageSlot[] | null> {
+  if (!hasSupabase()) {
+    return null;
+  }
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("conference_coverage_slots")
+    .select("*")
+    .eq("enabled", true)
+    .order("starts_at", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+  return (data as ConferenceCoverageSlotRow[]).map(toConferenceCoverageSlot);
+}
+
+export async function getOncologyJournalsFromDb(): Promise<OncologyJournal[] | null> {
+  if (!hasSupabase()) return null;
+  const { data, error } = await createAdminClient()
+    .from("oncology_journals")
+    .select("*")
+    .order("name");
+  if (error) throw new Error(error.message);
+  return (data as OncologyJournalRow[]).map(toOncologyJournal);
+}
+
+export async function getOncologyJournalByIdFromDb(id: string) {
+  if (!hasSupabase()) return null;
+  const { data, error } = await createAdminClient()
+    .from("oncology_journals")
+    .select("*")
+    .eq("id", id)
+    .single();
+  if (error) throw new Error(error.message);
+  return toOncologyJournal(data as OncologyJournalRow);
+}
+
+export async function getMedicalConferenceByIdFromDb(id: string) {
+  if (!hasSupabase()) return null;
+  const { data, error } = await createAdminClient()
+    .from("medical_conferences")
+    .select("*")
+    .eq("id", id)
+    .single();
+  if (error) throw new Error(error.message);
+  return toMedicalConference(data as MedicalConferenceRow);
+}
+
+export async function upsertOncologyJournalInDb(
+  journal: Omit<OncologyJournal, "id" | "lastIssueKey">
+) {
+  if (!hasSupabase()) return null;
+  const { data, error } = await createAdminClient()
+    .from("oncology_journals")
+    .upsert({
+      name: journal.name,
+      abbreviation: journal.abbreviation,
+      rss_url: journal.rssUrl,
+      official_url: journal.officialUrl,
+      enabled: journal.enabled,
+      updated_at: new Date().toISOString()
+    }, { onConflict: "rss_url" })
+    .select("*")
+    .single();
+  if (error) throw new Error(error.message);
+  return toOncologyJournal(data as OncologyJournalRow);
+}
+
+export async function updateOncologyJournalIssueKeyInDb(id: string, issueKey: string) {
+  if (!hasSupabase()) return null;
+  const { error } = await createAdminClient()
+    .from("oncology_journals")
+    .update({ last_issue_key: issueKey, updated_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+export async function getEditorialPackagesFromDb(): Promise<EditorialPackage[] | null> {
+  if (!hasSupabase()) return null;
+  const { data, error } = await createAdminClient()
+    .from("editorial_packages")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data as EditorialPackageRow[]).map(toEditorialPackage);
+}
+
+export async function getEditorialPackageByIdFromDb(id: string) {
+  if (!hasSupabase()) return null;
+  const { data, error } = await createAdminClient()
+    .from("editorial_packages")
+    .select("*")
+    .eq("id", id)
+    .single();
+  if (error) throw new Error(error.message);
+  return toEditorialPackage(data as EditorialPackageRow);
+}
+
+export async function saveEditorialPackageToDb(
+  editorialPackage: Omit<EditorialPackage, "id" | "createdAt">
+) {
+  if (!hasSupabase()) return null;
+  const { data, error } = await createAdminClient()
+    .from("editorial_packages")
+    .upsert({
+      category: editorialPackage.category,
+      title: editorialPackage.title,
+      subject_name: editorialPackage.subjectName,
+      edition_key: editorialPackage.editionKey,
+      source_url: editorialPackage.sourceUrl,
+      event_date: editorialPackage.eventDate,
+      intro_script: editorialPackage.introScript,
+      sections: editorialPackage.sections,
+      status: editorialPackage.status,
+      scheduled_at: editorialPackage.scheduledAt,
+      updated_at: new Date().toISOString()
+    }, { onConflict: "category,edition_key" })
+    .select("*")
+    .single();
+  if (error) throw new Error(error.message);
+  return toEditorialPackage(data as EditorialPackageRow);
+}
+
+export async function markEditorialPackageScheduledInDb(id: string, scheduledAt: string) {
+  if (!hasSupabase()) return null;
+  const { data, error } = await createAdminClient()
+    .from("editorial_packages")
+    .update({ status: "scheduled", scheduled_at: scheduledAt, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return toEditorialPackage(data as EditorialPackageRow);
+}
+
+export async function replaceConferenceCoverageSlotsInDb({
+  conferenceId,
+  startsAt
+}: {
+  conferenceId: string;
+  startsAt: string[];
+}) {
+  if (!hasSupabase()) {
+    return null;
+  }
+  const supabase = createAdminClient();
+  const { error: deleteError } = await supabase
+    .from("conference_coverage_slots")
+    .delete()
+    .eq("conference_id", conferenceId);
+  if (deleteError) {
+    throw deleteError;
+  }
+  if (startsAt.length === 0) {
+    return [];
+  }
+  const { data, error } = await supabase
+    .from("conference_coverage_slots")
+    .insert(
+      startsAt.map((startsAtValue) => ({
+        conference_id: conferenceId,
+        starts_at: startsAtValue,
+        duration_hours: 3,
+        enabled: true
+      }))
+    )
+    .select("*");
+  if (error) {
+    throw error;
+  }
+  return (data as ConferenceCoverageSlotRow[]).map(toConferenceCoverageSlot);
+}
+
 export async function getRecentMediaItemsFromDb(hours = 3): Promise<IngestedItem[] | null> {
   if (!hasSupabase()) {
     return null;
@@ -361,6 +809,63 @@ export async function upsertSourcesToDb() {
   );
   if (error) {
     throw error;
+  }
+}
+
+export async function upsertAdminCatalogSeedsToDb() {
+  if (!hasSupabase()) {
+    return null;
+  }
+  const supabase = createAdminClient();
+  const [voiceResult, conferenceResult, journalResult] = await Promise.all([
+    supabase.from("specialty_x_voices").upsert(
+      specialtyVoiceSeeds.map((voice) => ({
+        specialty: voice.specialty,
+        label: voice.label,
+        handle: voice.handle,
+        note: voice.note,
+        rank: voice.rank,
+        enabled: true
+      })),
+      { onConflict: "specialty,handle", ignoreDuplicates: true }
+    ),
+    supabase.from("medical_conferences").upsert(
+      conferenceSeeds.map((conference) => ({
+        name: conference.name,
+        acronym: conference.acronym,
+        specialties: conference.specialties,
+        start_date: conference.startDate,
+        end_date: conference.endDate,
+        month: conference.month,
+        year: conference.year,
+        city: conference.city,
+        country: conference.country,
+        timezone: conference.timezone,
+        official_url: conference.officialUrl,
+        enabled: true,
+        operator_added: false
+      })),
+      { onConflict: "name,year", ignoreDuplicates: true }
+    ),
+    supabase.from("oncology_journals").upsert(
+      oncologyJournalSeeds.map((journal) => ({
+        name: journal.name,
+        abbreviation: journal.abbreviation,
+        rss_url: journal.rssUrl,
+        official_url: journal.officialUrl,
+        enabled: true
+      })),
+      { onConflict: "rss_url", ignoreDuplicates: true }
+    )
+  ]);
+  if (voiceResult.error) {
+    throw voiceResult.error;
+  }
+  if (conferenceResult.error) {
+    throw conferenceResult.error;
+  }
+  if (journalResult.error) {
+    throw journalResult.error;
   }
 }
 
@@ -632,6 +1137,33 @@ export async function updateSegmentScheduleInDb({
     .select("*")
     .single();
 
+  if (error) {
+    throw error;
+  }
+  return toSegment(data as SegmentRow);
+}
+
+export async function replaceBroadcastSegmentInDb({
+  targetSegmentId,
+  replacementSegmentId,
+  approvedAt,
+  script
+}: {
+  targetSegmentId?: string;
+  replacementSegmentId: string;
+  approvedAt: string;
+  script: string;
+}) {
+  if (!hasSupabase()) {
+    return null;
+  }
+  const supabase = createAdminClient();
+  const { data, error } = await supabase.rpc("replace_broadcast_segment", {
+    p_target_segment_id: targetSegmentId ?? null,
+    p_replacement_segment_id: replacementSegmentId,
+    p_slot_at: approvedAt,
+    p_script: script
+  });
   if (error) {
     throw error;
   }

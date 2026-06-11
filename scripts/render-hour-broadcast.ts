@@ -5,6 +5,7 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { loadEnvConfig } from "@next/env";
 import ffmpegPath from "ffmpeg-static";
+import { formatVoiceSegment } from "@/lib/broadcast/voiceSegment";
 import type { Segment } from "@/lib/types";
 
 const durationSeconds = Number(process.env.HOUR_BROADCAST_SECONDS ?? 3600);
@@ -109,7 +110,13 @@ function formatCard({
 async function buildCards() {
   const [
     { filterBroadcastReadySegments },
-    { getNextBroadcastSegmentsFromDb, getPendingSegmentsFromDb, getSocialVoiceLeaderboardFromDb },
+    {
+      getConferenceCoverageSlotsFromDb,
+      getMedicalConferencesFromDb,
+      getNextBroadcastSegmentsFromDb,
+      getPendingSegmentsFromDb,
+      getSocialVoiceLeaderboardFromDb
+    },
     { buildScheduleRundownSegments },
     { buildHourlySocialVoiceRundownSegments },
     { buildBroadcastSlots }
@@ -124,13 +131,47 @@ async function buildCards() {
     ? new Date(process.env.HOUR_BROADCAST_START)
     : new Date();
   const hours = Math.max(1, Math.ceil(durationSeconds / 3600));
-  const [approved, pending, leaderboard] = await Promise.all([
+  const [approved, pending, leaderboard, coverageSlots, conferences] = await Promise.all([
     getNextBroadcastSegmentsFromDb(180),
     getPendingSegmentsFromDb(180),
-    getSocialVoiceLeaderboardFromDb()
+    getSocialVoiceLeaderboardFromDb(),
+    getConferenceCoverageSlotsFromDb(),
+    getMedicalConferencesFromDb()
   ]);
+  const activeCoverage = (coverageSlots ?? []).find((slot) => {
+    const startsAt = new Date(slot.startsAt).getTime();
+    const endsAt = startsAt + slot.durationHours * 3600 * 1000;
+    return baseTime.getTime() >= startsAt && baseTime.getTime() < endsAt;
+  });
+  const activeConference = activeCoverage
+    ? (conferences ?? []).find((conference) => conference.id === activeCoverage.conferenceId)
+    : undefined;
+  const conferenceOpening: Segment[] = activeConference
+    ? [{
+        id: `conference-opening-${activeConference.id}-${baseTime.toISOString()}`,
+        title: `${activeConference.acronym ?? activeConference.name} coverage desk`,
+        summary: `ConferenceHype coverage is focused on ${activeConference.name}.`,
+        script: `ConferenceHype is now covering ${activeConference.name}. This block follows source-attributed updates across ${activeConference.specialties.join(", ")}. Check the official conference program for schedule and location changes.`,
+        contentType: "agenda_preview",
+        personaId: "echo-sage",
+        personaName: "Echo Sage",
+        hypeLevel: "standard",
+        language: "English",
+        status: "approved",
+        citations: [{
+          label: `${activeConference.name} official site`,
+          url: activeConference.officialUrl,
+          sourceType: "official"
+        }],
+        socialBuzzItems: [],
+        riskFlags: ["conference_coverage_opening", `conference:${activeConference.id}`],
+        confidenceScore: 100,
+        createdAt: baseTime.toISOString(),
+        approvedAt: baseTime.toISOString()
+      }]
+    : [];
   const slots = buildBroadcastSlots({
-    segments: filterBroadcastReadySegments(approved ?? []),
+    segments: filterBroadcastReadySegments([...conferenceOpening, ...(approved ?? [])]),
     reviewSegments: filterBroadcastReadySegments(pending ?? []),
     scheduleSegments: buildScheduleRundownSegments(baseTime),
     socialVoiceSegments: buildHourlySocialVoiceRundownSegments({
@@ -177,14 +218,14 @@ async function buildCards() {
 // Block-mode card builder — three 20-minute blocks per hour:
 //   Block 1: 2 min schedule  +  2 min hype music  +  16 min ASCO Daily News
 //   Block 2: 2 min schedule  +  2 min hype music  +  16 min Social Desk (duo)
-//   Block 3: 2 min schedule  +  2 min hype music  +  16 min Exhibit Hall
+//   Block 3: 2 min schedule  +  2 min hype music  +  16 min Pharma News
 //
 // Each "pair" = 40 s content card  +  20 s gap-clip music card  = 60 s.
 // 20 pairs × 60 s = 20 min per block; 3 blocks = 60 min = 1 h.
 // ---------------------------------------------------------------------------
 async function buildBlockCards() {
   const [
-    { generateNewsBlockChunks, generateSocialBlockChunks, generateExhibitorBlockChunks },
+    { generateNewsBlockChunks, generateSocialBlockChunks, generatePharmaNewsBlockChunks },
     { getRecentMediaItemsFromDb, getRecentSocialItemsFromDb },
     { buildScheduleFallbackSegment }
   ] = await Promise.all([
@@ -221,7 +262,7 @@ async function buildBlockCards() {
       return Promise.allSettled([
         generateNewsBlockChunks(mediaItems ?? [], hourIndex, blockBase),
         generateSocialBlockChunks(socialItems ?? [], hourIndex, blockBase),
-        generateExhibitorBlockChunks(hourIndex, blockBase)
+        generatePharmaNewsBlockChunks(mediaItems ?? [], hourIndex, blockBase)
       ]);
     })
   );
@@ -233,7 +274,7 @@ async function buildBlockCards() {
   const BLOCK_HYPE_PAIRS = 2;      // 2 × 60 s = 2 min hype music
   const BLOCK_CONTENT_PAIRS = 16;  // 16 × 60 s = 16 min content
   const BLOCKS_PER_HOUR = 3;
-  const BLOCK_LABELS = ["ASCO Daily News", "Social Desk", "Exhibit Hall"] as const;
+  const BLOCK_LABELS = ["ASCO Daily News", "Social Desk", "Pharma News"] as const;
 
   const gapClipPaths = [
     "public/music/gap-clips/conferencehype-gap-elevate-to-fenrir-20s.mp3",
@@ -256,11 +297,11 @@ async function buildBlockCards() {
 
   for (let hourIndex = 0; hourIndex < hours; hourIndex++) {
     const hourStart = new Date(baseTime.getTime() + hourIndex * 3600 * 1000);
-    const [newsResult, socialResult, exhibitorResult] = hourGenerations[hourIndex];
+    const [newsResult, socialResult, pharmaResult] = hourGenerations[hourIndex];
 
     const newsChunks = newsResult.status === "fulfilled" ? newsResult.value : [];
     const socialChunks = socialResult.status === "fulfilled" ? socialResult.value : [];
-    const exhibitorChunks = exhibitorResult.status === "fulfilled" ? exhibitorResult.value : [];
+    const pharmaChunks = pharmaResult.status === "fulfilled" ? pharmaResult.value : [];
 
     if (newsResult.status === "rejected") {
       console.warn(`News block generation failed (hour ${hourIndex}): ${newsResult.reason}`);
@@ -268,8 +309,8 @@ async function buildBlockCards() {
     if (socialResult.status === "rejected") {
       console.warn(`Social block generation failed (hour ${hourIndex}): ${socialResult.reason}`);
     }
-    if (exhibitorResult.status === "rejected") {
-      console.warn(`Exhibitor block generation failed (hour ${hourIndex}): ${exhibitorResult.reason}`);
+    if (pharmaResult.status === "rejected") {
+      console.warn(`Pharma news block generation failed (hour ${hourIndex}): ${pharmaResult.reason}`);
     }
 
     for (let blockIndex = 0; blockIndex < BLOCKS_PER_HOUR; blockIndex++) {
@@ -281,21 +322,27 @@ async function buildBlockCards() {
       const contentChunks =
         blockIndex === 0 ? newsChunks
         : blockIndex === 1 ? socialChunks
-        : exhibitorChunks;
+        : pharmaChunks;
 
       // ── Phase 1: Schedule (BLOCK_SCHEDULE_PAIRS pairs) ──────────────────
       for (let p = 0; p < BLOCK_SCHEDULE_PAIRS; p++) {
         const slotTime = new Date(baseTime.getTime() + slotMs);
         const seg = buildScheduleFallbackSegment(slotTime);
+        const script = formatVoiceSegment({
+          voiceName: seg.personaName,
+          topic: seg.title,
+          narrative: seg.script || seg.summary,
+          at: slotTime
+        });
         cards.push({
           duration: CONTENT_SECONDS,
           isMusic: false,
           personaId: seg.personaId,
-          script: seg.script || seg.summary || null,
+          script,
           text: formatCard({
             eyebrow: `Schedule — ${seg.personaName}`,
             title: seg.title,
-            body: seg.script || seg.summary
+            body: script
           })
         });
         cards.push({
@@ -344,27 +391,40 @@ async function buildBlockCards() {
           // Fallback: short schedule bridge
           const slotTime = new Date(baseTime.getTime() + slotMs);
           const seg = buildScheduleFallbackSegment(slotTime);
+          const script = formatVoiceSegment({
+            voiceName: seg.personaName,
+            topic: seg.title,
+            narrative: seg.script || seg.summary,
+            at: slotTime
+          });
           cards.push({
             duration: CONTENT_SECONDS,
             isMusic: false,
             personaId: seg.personaId,
-            script: seg.script || seg.summary || null,
+            script,
             text: formatCard({
               eyebrow: `${blockLabel} — bridge`,
               title: seg.title,
-              body: seg.script || seg.summary
+              body: script
             })
           });
         } else {
+          const slotTime = new Date(baseTime.getTime() + slotMs);
+          const script = formatVoiceSegment({
+            voiceName: chunk.personaName,
+            topic: chunk.title,
+            narrative: chunk.script,
+            at: slotTime
+          });
           cards.push({
             duration: CONTENT_SECONDS,
             isMusic: false,
             personaId: chunk.personaId,
-            script: chunk.script || null,
+            script,
             text: formatCard({
               eyebrow: `${blockLabel} — ${chunk.personaName}`,
               title: chunk.title,
-              body: chunk.script
+              body: script
             })
           });
         }

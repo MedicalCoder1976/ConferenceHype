@@ -4,8 +4,20 @@ import type { IngestedItem, SourceConfig } from "@/lib/types";
 
 const parser = new XMLParser({
   ignoreAttributes: false,
-  attributeNamePrefix: ""
+  attributeNamePrefix: "",
+  processEntities: false
 });
+
+function scalar(value: unknown) {
+  if (value && typeof value === "object" && "#text" in value) {
+    return String((value as { "#text": unknown })["#text"]);
+  }
+  if (value && typeof value === "object") {
+    const nested = Object.values(value as Record<string, unknown>)[0];
+    return scalar(nested);
+  }
+  return value == null ? "" : String(value);
+}
 
 export async function fetchRssSource(source: SourceConfig): Promise<IngestedItem[]> {
   const response = await fetch(source.url, {
@@ -20,7 +32,11 @@ export async function fetchRssSource(source: SourceConfig): Promise<IngestedItem
 
   const xml = await response.text();
   const parsed = parser.parse(xml);
-  const rawItems = parsed.rss?.channel?.item ?? parsed.feed?.entry ?? [];
+  const rawItems =
+    parsed.rss?.channel?.item ??
+    parsed.feed?.entry ??
+    parsed["rdf:RDF"]?.item ??
+    [];
   const items = Array.isArray(rawItems) ? rawItems : [rawItems];
 
   // Attribute items to the matching monitored X voice handle so they
@@ -32,13 +48,19 @@ export async function fetchRssSource(source: SourceConfig): Promise<IngestedItem
 
   return items.slice(0, 15).map((item, index) => ({
     id: `${source.id}-${index}-${item.guid?.["#text"] ?? item.link ?? item.title}`,
-    title: String(item.title?.["#text"] ?? item.title ?? "Untitled item"),
-    url: String(item.link?.href ?? item.link ?? source.url),
-    excerpt: String(item.description ?? item.summary ?? item.content ?? "").slice(0, 700),
+    title: scalar(item.title || "Untitled item"),
+    url: scalar(item.link?.href ?? item.link ?? source.url),
+    excerpt: scalar(
+      item.description ??
+      item.summary ??
+      item.content ??
+      item["content:encoded"] ??
+      ""
+    ).slice(0, 700),
     sourceName: source.name,
     sourceType: source.type,
     rank: source.rank,
-    publishedAt: item.pubDate ?? item.updated,
+    publishedAt: scalar(item.pubDate ?? item.updated ?? item["dc:date"]) || undefined,
     author
   }));
 }

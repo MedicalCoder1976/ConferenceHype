@@ -4,7 +4,7 @@
  * Each hour has three 20-minute blocks:
  *   Block 1 — ASCO Daily News    (2 min schedule + 2 min hype music + 16 min news)
  *   Block 2 — Social Desk        (2 min schedule + 2 min hype music + 16 min duo discussion)
- *   Block 3 — Exhibit Hall       (2 min schedule + 2 min hype music + 16 min exhibitor tour)
+ *   Block 3 — Pharma News        (2 min schedule + 2 min hype music + 16 min pharma news)
  *
  * Each 16-minute content section = 16 × (40s content + 20s music) = 960 s.
  * The LLM returns 16 chunks of ~90 words each (≈ 40 s at 135 wpm).
@@ -13,7 +13,6 @@
 import OpenAI from "openai";
 import { env } from "@/lib/env";
 import { getPersona } from "@/lib/generation/personas";
-import { featuredExhibitors, firstTimeExhibitors } from "@/lib/sources/exhibitors";
 import type { IngestedItem, Segment } from "@/lib/types";
 
 export const CHUNKS_PER_CONTENT_BLOCK = 16; // 16 × 60 s = 16 min
@@ -64,6 +63,21 @@ function trimToSlot(text: string, maxWords = 90): string {
   return `${limited}.`;
 }
 
+function withNamedThankYouHandoff(
+  script: string,
+  speakerName: string,
+  previousSpeakerName?: string
+): string {
+  const cleaned = script.trim();
+  if (!previousSpeakerName || previousSpeakerName === speakerName) {
+    return cleaned;
+  }
+  if (new RegExp(`\\b(thanks|thank you),?\\s+${previousSpeakerName}\\b`, "i").test(cleaned)) {
+    return cleaned;
+  }
+  return trimToSlot(`Thanks, ${previousSpeakerName}. ${cleaned}`);
+}
+
 // ---------------------------------------------------------------------------
 // LLM call
 // ---------------------------------------------------------------------------
@@ -97,7 +111,7 @@ function fallback(
   const persona = getPersona(personaId);
   return Array.from({ length: count }, (_, i) => ({
     title: `${label} update ${i + 1}`,
-    script: `${persona.name} here from ASCO 2026 at McCormick Place, Chicago. Coverage continues — stay with us for more from the conference floor.`,
+    script: `${persona.name} here from the ${label} desk. No new source-backed item is ready for this slot, so stay with us for the next update.`,
     personaId: persona.id,
     personaName: persona.name,
     contentType
@@ -118,6 +132,32 @@ function fallbackFromItems(
       : `Coverage continues from ASCO 2026. More updates coming shortly.`;
     return {
       title: item?.title ?? `ASCO Update ${i + 1}`,
+      script: body,
+      personaId: persona.id,
+      personaName: persona.name,
+      contentType
+    };
+  });
+}
+
+function fallbackFromAttributedItems(
+  items: IngestedItem[],
+  count: number,
+  personaId: string,
+  contentType: Segment["contentType"]
+): BlockChunk[] {
+  const persona = getPersona(personaId);
+  return Array.from({ length: count }, (_, i) => {
+    const item = items[i % Math.max(items.length, 1)];
+    const body = item
+      ? trimToSlot(
+          cleanForBroadcast(
+            `According to ${item.sourceName}, ${item.title}. ${item.excerpt}`
+          )
+        )
+      : `No new source-backed pharma item is ready for this slot.`;
+    return {
+      title: item?.title ?? `Pharma News Update ${i + 1}`,
       script: body,
       personaId: persona.id,
       personaName: persona.name,
@@ -151,9 +191,16 @@ function normalizeChunks(
   const chunks = raw.slice(0, CHUNKS_PER_CONTENT_BLOCK).map((c, i) => {
     const isB = personaB && (c.voice === "B" || (c.voice === undefined && i % 2 === 1));
     const persona = isB ? personaB : personaA;
+    const previousPersona = personaB && i > 0 ? (isB ? personaA : personaB) : null;
     return {
       title: c.title?.trim() || "ASCO Update",
-      script: trimToSlot(cleanForBroadcast(c.script ?? "")),
+      script: personaB
+        ? withNamedThankYouHandoff(
+            trimToSlot(cleanForBroadcast(c.script ?? "")),
+            persona.name,
+            previousPersona?.name
+          )
+        : trimToSlot(cleanForBroadcast(c.script ?? "")),
       personaId: persona.id,
       personaName: persona.name,
       contentType
@@ -262,12 +309,13 @@ export async function generateSocialBlockChunks(
     return Array.from({ length: CHUNKS_PER_CONTENT_BLOCK }, (_, i) => {
       const item = socialItems[i % Math.max(socialItems.length, 1)];
       const persona = i % 2 === 0 ? personaA : personaB;
+      const previousPersona = i > 0 ? (i % 2 === 0 ? personaB : personaA) : null;
       const body = item
         ? trimToSlot(cleanForBroadcast(`${item.title}. ${item.excerpt}`))
         : `Coverage continues from the ASCO social desk.`;
       return {
         title: item?.title ?? `Social Update ${i + 1}`,
-        script: body,
+        script: withNamedThankYouHandoff(body, persona.name, previousPersona?.name),
         personaId: persona.id,
         personaName: persona.name,
         contentType: "social_signal" as const
@@ -287,7 +335,7 @@ export async function generateSocialBlockChunks(
             return `${i + 1}. ${author}${body}`;
           })
           .join("\n")
-      : "No recent social posts available. Discuss general ASCO 2026 conference energy: what oncologists are excited about, which trial results are generating buzz, and what is happening on the exhibit floor.";
+      : "No recent social posts available. Discuss general ASCO 2026 conference energy: what oncologists are excited about, which trial results are generating buzz, and which pharma announcements are drawing attention.";
 
   const prompt = `You are writing a 16-minute live ASCO social media roundup for a radio-style stream.
 Two reporters are having a live, energetic on-air conversation about the latest ASCO posts.
@@ -309,6 +357,7 @@ ABSOLUTE RULES:
 - Attribute claims to the named poster or media outlet
 - For ASCO: pronounce it "Ask-oh"
 - Chunks must alternate voices: chunk 1 = A, chunk 2 = B, chunk 3 = A, etc.
+- Every chunk after the first must thank the previous speaker by name before continuing the handoff.
 
 Latest ASCO social posts:
 ${postLines}
@@ -330,75 +379,91 @@ All ${CHUNKS_PER_CONTENT_BLOCK} chunks required, starting with voice A.`;
 }
 
 // ---------------------------------------------------------------------------
-// Block 3: Exhibit Hall (floor reporter)
+// Block 3: Pharma News (industry news reporter)
 // ---------------------------------------------------------------------------
 
-export async function generateExhibitorBlockChunks(
+export async function generatePharmaNewsBlockChunks(
+  mediaItems: IngestedItem[],
   hourIndex: number,
   baseTime: Date
 ): Promise<BlockChunk[]> {
-  const persona = getPersona("vesper-quill"); // Vesper Quill — exhibit hall reporter
+  const persona = getPersona("aether-vale");
   const timeLabel = chicagoTimeLabel(baseTime);
-
-  // Rotate through featured exhibitors so each hour covers a fresh batch.
-  // 12 exhibitors per block × 16 chunks gives about one company every 1-2 chunks.
-  const allFeatured = [...featuredExhibitors, ...firstTimeExhibitors.slice(0, 20)];
-  const rotateBy = hourIndex * 12;
-  const selected = Array.from(
-    { length: 12 },
-    (_, i) => allFeatured[(rotateBy + i) % allFeatured.length]
-  ).filter(Boolean);
-
-  const exhibitorLines = selected
-    .map((e) => {
-      const cats = e.categories.slice(0, 3).join(", ");
-      const flags = [
-        e.featured ? "major pharma/biotech presence" : "",
-        e.firstTime ? "first-time exhibitor" : ""
-      ]
-        .filter(Boolean)
-        .join(", ");
-      return `- ${e.name}, Booth ${e.booth}${cats ? ` | ${cats}` : ""}${flags ? ` (${flags})` : ""}`;
-    })
-    .join("\n");
+  const pharmaPattern =
+    /\b(pharma|pharmaceutical|biotech|drug|therapy|therapeutic|pipeline|trial|approval|fda|ema|company|companies|manufacturer|sponsor|adc|antibody|immunotherapy|targeted treatment)\b/i;
+  const pharmaItems = mediaItems.filter((item) =>
+    pharmaPattern.test(`${item.sourceName} ${item.title} ${item.excerpt}`)
+  );
 
   if (!env.LLM_API_KEY) {
-    return fallback(CHUNKS_PER_CONTENT_BLOCK, persona.id, "industry_floor", "Exhibit Hall");
+    return pharmaItems.length > 0
+      ? fallbackFromAttributedItems(
+          pharmaItems,
+          CHUNKS_PER_CONTENT_BLOCK,
+          persona.id,
+          "market_watch"
+        )
+      : fallback(CHUNKS_PER_CONTENT_BLOCK, persona.id, "market_watch", "Pharma News");
   }
 
-  const prompt = `You are writing a 16-minute live exhibit hall walkthrough broadcast for ASCO 2026 at McCormick Place, Chicago.
+  if (pharmaItems.length === 0) {
+    return fallback(CHUNKS_PER_CONTENT_BLOCK, persona.id, "market_watch", "Pharma News");
+  }
+
+  const sourceMaterial = pharmaItems
+    .slice(0, 24)
+    .map(
+      (item, i) =>
+        `${i + 1}. [${item.sourceName}] ${cleanForBroadcast(item.title)}.\n   ${cleanForBroadcast(item.excerpt).slice(0, 300)}`
+    )
+    .join("\n\n");
+
+  const prompt = `You are writing a 16-minute live pharma news broadcast tied to ASCO 2026.
 Current Chicago time: ${timeLabel}. Broadcast hour index: ${hourIndex + 1}.
 Reporter: ${persona.name} — ${persona.specialty}
 Style: ${persona.style}
 
-You are live on the exhibit floor, visiting booths, describing what each company is showcasing, and building excitement for attendees to visit.
-Generate EXACTLY ${CHUNKS_PER_CONTENT_BLOCK} chunks. Each chunk is ONE spoken segment (~90 words, ~40 seconds). Together = 16-minute floor tour.
+Cover source-backed pharmaceutical and biotechnology company news, drug-development updates, regulatory developments, partnerships, and trial announcements relevant to the oncology audience.
+Generate EXACTLY ${CHUNKS_PER_CONTENT_BLOCK} chunks. Each chunk is ONE spoken segment (~90 words, ~40 seconds). Together = 16-minute pharma news program.
 
 ABSOLUTE RULES:
 - Zero emojis
 - Zero URLs or web addresses
 - Zero @handles or #hashtags
-- Do not repeat an exhibitor already covered in an earlier chunk of this block
-- Reference booth numbers naturally: "head over to booth...", "right here at booth..."
+- Attribute every factual claim to a named source from the list below
+- Do not repeat a story already covered in an earlier chunk of this block
+- Clearly distinguish company announcements from independent reporting
+- Do not turn company statements into endorsements or validated clinical conclusions
 - No medical advice and no investment advice
-- Sound like an energetic live radio floor reporter walking the hall
+- Do not use buy, sell, hold, stock-price, or investment language
+- Sound like an energetic but precise pharma news reporter
 - For ASCO: pronounce it "Ask-oh"
 
-Featured exhibitors at ASCO 2026 (each company has reserved exhibit space):
-${exhibitorLines}
+Source articles:
+${sourceMaterial}
 
 Return ONLY valid JSON:
-{ "chunks": [ { "title": "Headline (e.g. booth name + angle)", "script": "~90-word spoken copy" }, ... ] }
+{ "chunks": [ { "title": "Pharma headline", "script": "~90-word spoken copy" }, ... ] }
 All ${CHUNKS_PER_CONTENT_BLOCK} chunks required.`;
 
   try {
     const raw = await callLLM(prompt);
     if (raw.length === 0) {
-      return fallback(CHUNKS_PER_CONTENT_BLOCK, persona.id, "industry_floor", "Exhibit Hall");
+      return fallbackFromAttributedItems(
+        pharmaItems,
+        CHUNKS_PER_CONTENT_BLOCK,
+        persona.id,
+        "market_watch"
+      );
     }
-    return normalizeChunks(raw, persona, null, "industry_floor");
+    return normalizeChunks(raw, persona, null, "market_watch");
   } catch (err) {
-    console.warn(`Exhibitor block LLM error (hour ${hourIndex}): ${err}`);
-    return fallback(CHUNKS_PER_CONTENT_BLOCK, persona.id, "industry_floor", "Exhibit Hall");
+    console.warn(`Pharma news block LLM error (hour ${hourIndex}): ${err}`);
+    return fallbackFromAttributedItems(
+      pharmaItems,
+      CHUNKS_PER_CONTENT_BLOCK,
+      persona.id,
+      "market_watch"
+    );
   }
 }

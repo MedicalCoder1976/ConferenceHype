@@ -1,22 +1,31 @@
 "use client";
 
-import { Mic2, Radio, ScrollText } from "lucide-react";
+import { BookOpen, CalendarDays, Library, Mic2, Radio, ScrollText } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
-type TabId = "broadcast" | "history" | "voices";
+type TabId = "broadcast" | "journal-watch" | "meeting-watch" | "memory" | "voices" | "history";
 
 const tabs: Array<{ id: TabId; label: string; icon: typeof Radio }> = [
   { id: "broadcast", label: "Broadcast", icon: Radio },
-  { id: "history", label: "Talked about", icon: ScrollText },
-  { id: "voices", label: "Voices", icon: Mic2 }
+  { id: "journal-watch", label: "Journal Watch", icon: BookOpen },
+  { id: "meeting-watch", label: "Meeting Watch", icon: CalendarDays },
+  { id: "memory", label: "Memory", icon: Library },
+  { id: "voices", label: "Specialty X Voices", icon: Mic2 },
+  { id: "history", label: "Talked about", icon: ScrollText }
 ];
 
 export function AdminTabs({
   broadcast,
+  journalWatch,
+  meetingWatch,
+  memory,
   history,
   voices
 }: {
   broadcast: ReactNode;
+  journalWatch: ReactNode;
+  meetingWatch: ReactNode;
+  memory: ReactNode;
   history: ReactNode;
   voices: ReactNode;
 }) {
@@ -46,6 +55,9 @@ export function AdminTabs({
         })}
       </div>
       {active === "broadcast" ? broadcast : null}
+      {active === "journal-watch" ? journalWatch : null}
+      {active === "meeting-watch" ? meetingWatch : null}
+      {active === "memory" ? memory : null}
       {active === "history" ? history : null}
       {active === "voices" ? voices : null}
     </div>

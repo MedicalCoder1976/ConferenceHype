@@ -10,6 +10,7 @@ import { fetchTaggedSocialPosts } from "@/lib/sources/x";
 import { isRelevantItem } from "@/lib/sources/relevance";
 import {
   getSourcesFromDb,
+  getSpecialtyXVoicesFromDb,
   saveIngestedItemsToDb,
   upsertSourcesToDb
 } from "@/lib/db";
@@ -18,10 +19,18 @@ import type { IngestedItem } from "@/lib/types";
 export async function runIngestionJob(): Promise<IngestedItem[]> {
   await upsertSourcesToDb();
   const configuredSources = (await getSourcesFromDb()) ?? sourceRegistry;
+  const specialtyVoices = (await getSpecialtyXVoicesFromDb()) ?? [];
   const enabled = configuredSources.filter((source) => source.enabled);
   const extraXVoices = enabled
     .map(sourceToXVoice)
     .filter((voice): voice is XVoice => Boolean(voice));
+  const specialtyXVoices = specialtyVoices
+    .filter((voice) => voice.enabled)
+    .map((voice) => ({
+      label: voice.label,
+      handle: voice.handle,
+      note: `${voice.specialty}: ${voice.note}`
+    }));
   const batches = await Promise.allSettled(
     enabled.map(async (source) => {
       const isXSearchSource =
@@ -29,7 +38,7 @@ export async function runIngestionJob(): Promise<IngestedItem[]> {
         source.name.toLowerCase().includes("audience tags") ||
         source.url.includes(monitoredSocialTags.primaryHashtag);
       if (isXSearchSource) {
-        return fetchTaggedSocialPosts(extraXVoices);
+        return fetchTaggedSocialPosts([...extraXVoices, ...specialtyXVoices]);
       }
       if (sourceToXVoice(source)) {
         return [];

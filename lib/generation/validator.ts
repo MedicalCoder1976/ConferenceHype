@@ -12,7 +12,7 @@ const bannedAdvicePatterns = [
   /\bguaranteed\b/i
 ];
 
-export function validateSegmentForApproval(segment: Pick<Segment, "title" | "summary" | "script" | "citations" | "contentType">) {
+export function validateSegmentForApproval(segment: Pick<Segment, "title" | "summary" | "script" | "citations" | "contentType" | "riskFlags">) {
   const errors: string[] = [];
   // agenda_preview and industry_floor are always sourced from verified official
   // schedule/floor data, so they are trusted without a citation list.
@@ -35,6 +35,14 @@ export function validateSegmentForApproval(segment: Pick<Segment, "title" | "sum
     )
   ) {
     errors.push("Social signal scripts must be labeled as attributed posts or monitored X narratives.");
+  }
+  if (
+    segment.riskFlags.includes("sponsor_message") &&
+    !/\b(sponsored|sponsor message|paid content)\b/i.test(
+      `${segment.title}\n${segment.summary}\n${segment.script}`
+    )
+  ) {
+    errors.push("Sponsor cards must be explicitly labeled as sponsored or paid content.");
   }
   return errors;
 }

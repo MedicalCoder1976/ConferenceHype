@@ -35,12 +35,43 @@ export function buildXSearchQuery(extraVoices: XVoice[] = []) {
 }
 
 export async function fetchTaggedSocialPosts(extraVoices: XVoice[] = []): Promise<IngestedItem[]> {
-  const voices = [...monitoredXVoices, ...extraVoices].slice(0, 50);
+  const voices = Array.from(
+    new Map(
+      [...monitoredXVoices, ...extraVoices].map((voice) => [
+        voice.handle.toLowerCase(),
+        voice
+      ])
+    ).values()
+  );
   if (!env.X_BEARER_TOKEN) {
     return [];
   }
 
-  const query = encodeURIComponent(buildXSearchQuery(extraVoices));
+  // Rotate four voice batches per 15-minute ingest cycle. This keeps requests
+  // under X's 512-character query limit while eventually covering large
+  // specialty directories without exhausting the API in one run.
+  const batchSize = 12;
+  const batches = Array.from(
+    { length: Math.ceil(voices.length / batchSize) },
+    (_, index) => voices.slice(index * batchSize, (index + 1) * batchSize)
+  );
+  const rotation = Math.floor(Date.now() / (15 * 60 * 1000));
+  const selectedBatches = Array.from(
+    { length: Math.min(4, batches.length) },
+    (_, index) => batches[(rotation + index) % batches.length]
+  );
+  const results = await Promise.allSettled(
+    selectedBatches.map((batch) => fetchXBatch(batch, voices))
+  );
+  const failed = results.find((result) => result.status === "rejected");
+  if (failed && results.every((result) => result.status === "rejected")) {
+    throw failed.reason;
+  }
+  return results.flatMap((result) => result.status === "fulfilled" ? result.value : []);
+}
+
+async function fetchXBatch(batch: XVoice[], allVoices: XVoice[]): Promise<IngestedItem[]> {
+  const query = encodeURIComponent(buildXSearchQuery(batch));
   const response = await fetch(
     `https://api.x.com/2/tweets/search/recent?query=${query}&max_results=100&tweet.fields=author_id,created_at,public_metrics&expansions=author_id&user.fields=username,name`,
     {
@@ -76,7 +107,7 @@ export async function fetchTaggedSocialPosts(extraVoices: XVoice[] = []): Promis
   return (payload.data ?? []).map((tweet) => {
     const user = tweet.author_id ? usersById.get(tweet.author_id) : undefined;
     const author = user?.username ? `@${user.username}` : tweet.author_id;
-    const watchedVoice = voices.find(
+    const watchedVoice = allVoices.find(
       (voice) => voice.handle.toLowerCase() === author?.toLowerCase()
     );
     const metrics = tweet.public_metrics;
