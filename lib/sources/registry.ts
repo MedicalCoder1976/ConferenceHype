@@ -233,6 +233,134 @@ export const sourceRegistry: SourceConfig[] = [
     enabled: true
   },
   {
+    id: "nejm",
+    name: "New England Journal of Medicine",
+    url: "https://www.nejm.org/action/showFeed?type=etoc&feed=rss&jc=nejm",
+    type: "media",
+    rank: 1,
+    enabled: true
+  },
+  {
+    id: "jama",
+    name: "JAMA",
+    url: "https://jamanetwork.com/rss/site_3/67.xml",
+    type: "media",
+    rank: 1,
+    enabled: true
+  },
+  {
+    id: "nature-medicine",
+    name: "Nature Medicine",
+    url: "https://www.nature.com/nm.rss",
+    type: "media",
+    rank: 1,
+    enabled: true
+  },
+  {
+    id: "annals-oncology",
+    name: "Annals of Oncology",
+    url: "https://www.annalsofoncology.org/current.rss",
+    type: "media",
+    rank: 1,
+    enabled: true
+  },
+  {
+    id: "bmj",
+    name: "The BMJ",
+    url: "https://feeds.bmj.com/bmj/recent",
+    type: "media",
+    rank: 1,
+    enabled: true
+  },
+  {
+    id: "medpage-today",
+    name: "MedPage Today",
+    url: "https://www.medpagetoday.com/rss/headlines.xml",
+    type: "media",
+    rank: 2,
+    enabled: true
+  },
+  {
+    id: "fierce-healthcare",
+    name: "Fierce Healthcare",
+    url: "https://www.fiercehealthcare.com/rss/xml",
+    type: "media",
+    rank: 2,
+    enabled: true
+  },
+  {
+    id: "beckers-healthcare",
+    name: "Becker's Healthcare",
+    url: "https://www.beckershospitalreview.com/",
+    type: "media",
+    rank: 2,
+    enabled: true
+  },
+  {
+    id: "cancer-network",
+    name: "Cancer Network",
+    url: "https://www.cancernetwork.com/",
+    type: "media",
+    rank: 2,
+    enabled: true
+  },
+  {
+    id: "healio-hem-onc",
+    name: "Healio HemOnc Today",
+    url: "https://www.healio.com/news/hematology-oncology",
+    type: "media",
+    rank: 2,
+    enabled: true
+  },
+  {
+    id: "medscape-medical-news",
+    name: "Medscape Medical News",
+    url: "https://www.medscape.com/medical-news",
+    type: "media",
+    rank: 2,
+    enabled: true
+  },
+  {
+    id: "modern-healthcare",
+    name: "Modern Healthcare",
+    url: "https://www.modernhealthcare.com/",
+    type: "media",
+    rank: 2,
+    enabled: true
+  },
+  {
+    id: "endpoints-news",
+    name: "Endpoints News",
+    url: "https://endpts.com/",
+    type: "media",
+    rank: 2,
+    enabled: true
+  },
+  {
+    id: "fierce-biotech",
+    name: "Fierce Biotech",
+    url: "https://www.fiercebiotech.com/rss/xml",
+    type: "media",
+    rank: 2,
+    enabled: true
+  },
+  {
+    id: "biopharma-dive",
+    name: "BioPharma Dive",
+    url: "https://www.biopharmadive.com/feeds/news/",
+    type: "media",
+    rank: 2,
+    enabled: true
+  },
+  {
+    id: "ajmc",
+    name: "The American Journal of Managed Care",
+    url: "https://www.ajmc.com/",
+    type: "media",
+    rank: 2,
+    enabled: true
+  },
+  {
     id: "asco-hype-tags",
     name: "Audience tags, X voices, and Instagram prompts",
     url: `${monitoredSocialTags.primaryHashtag} ${monitoredSocialTags.secondaryHashtag} ${monitoredSocialTags.conferenceHashtag} ${monitoredSocialTags.conferenceYearHashtag} ${monitoredSocialTags.botHandle} ${monitoredSocialTags.conferenceHypeHandle} ${monitoredSocialTags.instagramPrimaryHashtag} ${monitoredSocialTags.instagramConferenceHashtag} ${monitoredSocialTags.instagramConferenceHypeHandle} ${monitoredXVoices.map((voice) => voice.handle).join(" ")}`,

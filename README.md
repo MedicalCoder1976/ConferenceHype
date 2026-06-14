@@ -77,6 +77,8 @@ The dashboard includes:
 - A `Conferences` tab grouped by month and year
 - Conference-day coverage planning in one-hour blocks
 - Full broadcast writeouts with scripts, sources, and delivery links
+- Dated daily coverage decisions for conferences, journal RSS feeds, clinical
+  news outlets, priority topics, exclusions, and operator-added sources
 - Aired history
 - Voice and recording views
 - GitHub Actions stream dispatch through `GITHUB_DISPATCH_TOKEN`

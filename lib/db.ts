@@ -10,6 +10,8 @@ import type {
   BroadcastWriteout,
   BroadcastWriteoutCard,
   Citation,
+  DailyCoverageCustomItem,
+  DailyCoveragePlan,
   EditorialPackage,
   IngestedItem,
   MedicalConference,
@@ -131,6 +133,20 @@ type BroadcastWriteoutRow = {
   cards: BroadcastWriteoutCard[];
   writeout_markdown: string;
   created_at: string;
+  updated_at: string;
+};
+
+type DailyCoveragePlanRow = {
+  id: string;
+  coverage_date: string;
+  conference_ids: string[];
+  journal_ids: string[];
+  source_ids: string[];
+  custom_items: DailyCoverageCustomItem[];
+  priority_topics: string[];
+  exclusions: string[];
+  breaking_news_enabled: boolean;
+  notes: string;
   updated_at: string;
 };
 
@@ -280,6 +296,22 @@ function toBroadcastWriteout(row: BroadcastWriteoutRow): BroadcastWriteout {
     cards: row.cards ?? [],
     writeoutMarkdown: row.writeout_markdown,
     createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
+function toDailyCoveragePlan(row: DailyCoveragePlanRow): DailyCoveragePlan {
+  return {
+    id: row.id,
+    coverageDate: row.coverage_date,
+    conferenceIds: row.conference_ids ?? [],
+    journalIds: row.journal_ids ?? [],
+    sourceIds: row.source_ids ?? [],
+    customItems: row.custom_items ?? [],
+    priorityTopics: row.priority_topics ?? [],
+    exclusions: row.exclusions ?? [],
+    breakingNewsEnabled: row.breaking_news_enabled,
+    notes: row.notes ?? "",
     updatedAt: row.updated_at
   };
 }
@@ -637,6 +669,52 @@ export async function getBroadcastWriteoutsFromDb(
     throw error;
   }
   return (data as BroadcastWriteoutRow[]).map(toBroadcastWriteout);
+}
+
+export async function getDailyCoveragePlanFromDb(
+  coverageDate: string
+): Promise<DailyCoveragePlan | null> {
+  if (!hasSupabase()) {
+    return null;
+  }
+  const { data, error } = await createAdminClient()
+    .from("daily_coverage_plans")
+    .select("*")
+    .eq("coverage_date", coverageDate)
+    .maybeSingle();
+  if (error) {
+    throw error;
+  }
+  return data ? toDailyCoveragePlan(data as DailyCoveragePlanRow) : null;
+}
+
+export async function upsertDailyCoveragePlanInDb(plan: DailyCoveragePlan) {
+  if (!hasSupabase()) {
+    return null;
+  }
+  const { data, error } = await createAdminClient()
+    .from("daily_coverage_plans")
+    .upsert(
+      {
+        coverage_date: plan.coverageDate,
+        conference_ids: plan.conferenceIds,
+        journal_ids: plan.journalIds,
+        source_ids: plan.sourceIds,
+        custom_items: plan.customItems,
+        priority_topics: plan.priorityTopics,
+        exclusions: plan.exclusions,
+        breaking_news_enabled: plan.breakingNewsEnabled,
+        notes: plan.notes,
+        updated_at: new Date().toISOString()
+      },
+      { onConflict: "coverage_date" }
+    )
+    .select("*")
+    .single();
+  if (error) {
+    throw error;
+  }
+  return toDailyCoveragePlan(data as DailyCoveragePlanRow);
 }
 
 export async function upsertBroadcastWriteoutInDb(

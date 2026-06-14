@@ -6,6 +6,7 @@ import { AnalyticsPanel } from "@/components/AnalyticsPanel";
 import { BroadcastRundown } from "@/components/BroadcastRundown";
 import { BroadcastWriteoutArchive } from "@/components/BroadcastWriteoutArchive";
 import { ConferencePlanner } from "@/components/ConferencePlanner";
+import { DailyCoveragePlanner } from "@/components/DailyCoveragePlanner";
 import { EmergencyOverride } from "@/components/EmergencyOverride";
 import { EditorialMemory } from "@/components/EditorialMemory";
 import { FocusSocialPost } from "@/components/FocusSocialPost";
@@ -185,6 +186,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       <AdminTabs
         broadcast={
           <div className="grid gap-6">
+            <DailyCoveragePlanner
+              initialPlan={snapshot.dailyCoveragePlan}
+              conferences={snapshot.medicalConferences}
+              journals={snapshot.oncologyJournals}
+              sources={snapshot.sources}
+            />
             <BroadcastRundown
               key={baseTime}
               segments={presentationSegments}

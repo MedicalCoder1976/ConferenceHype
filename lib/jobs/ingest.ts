@@ -12,6 +12,9 @@ import { isRelevantItem } from "@/lib/sources/relevance";
 import {
   getSourcesFromDb,
   getSpecialtyXVoicesFromDb,
+  getDailyCoveragePlanFromDb,
+  getMedicalConferencesFromDb,
+  getOncologyJournalsFromDb,
   saveIngestedItemsToDb,
   upsertSourcesToDb
 } from "@/lib/db";
@@ -20,8 +23,66 @@ import type { IngestedItem } from "@/lib/types";
 export async function runIngestionJob(): Promise<IngestedItem[]> {
   await upsertSourcesToDb();
   const configuredSources = (await getSourcesFromDb()) ?? sourceRegistry;
+  const coverageDate = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(new Date());
+  const dailyPlan = await getDailyCoveragePlanFromDb(coverageDate);
+  const [journals, conferences] = await Promise.all([
+    getOncologyJournalsFromDb(),
+    getMedicalConferencesFromDb()
+  ]);
   const specialtyVoices = (await getSpecialtyXVoicesFromDb()) ?? [];
-  const enabled = configuredSources.filter((source) => source.enabled);
+  const selectedConfiguredSources = configuredSources.filter(
+    (source) =>
+      source.enabled &&
+      (!dailyPlan || dailyPlan.sourceIds.includes(source.id)) &&
+      (dailyPlan?.breakingNewsEnabled !== false || source.type !== "general_social")
+  );
+  const additionalSources = dailyPlan
+    ? [
+        ...(journals ?? [])
+          .filter((journal) => dailyPlan.journalIds.includes(journal.id))
+          .map((journal) => ({
+            id: `daily-journal-${journal.id}`,
+            name: journal.name,
+            url: journal.rssUrl,
+            type: "official" as const,
+            rank: 1,
+            enabled: true
+          })),
+        ...(conferences ?? [])
+          .filter((conference) => dailyPlan.conferenceIds.includes(conference.id))
+          .map((conference) => ({
+            id: `daily-conference-${conference.id}`,
+            name: conference.name,
+            url: conference.officialUrl,
+            type: "official" as const,
+            rank: 1,
+            enabled: true
+          })),
+        ...dailyPlan.customItems
+          .filter((item) => item.url)
+          .map((item) => ({
+            id: `daily-custom-${item.id}`,
+            name: item.label,
+            url: item.url!,
+            type: "manual" as const,
+            rank: 1,
+            enabled: true
+          }))
+      ]
+    : [];
+  const enabled = Array.from(
+    new Map(
+      [...selectedConfiguredSources, ...additionalSources].map((source) => [
+        source.url,
+        source
+      ])
+    ).values()
+  );
   const extraXVoices = enabled
     .map(sourceToXVoice)
     .filter((voice): voice is XVoice => Boolean(voice));
@@ -34,7 +95,7 @@ export async function runIngestionJob(): Promise<IngestedItem[]> {
     }));
   const batches = await Promise.allSettled(
     enabled.map(async (source) => {
-      if (source.type === "manual") {
+      if (source.type === "manual" && !/^https?:\/\//i.test(source.url)) {
         return [];
       }
       const isXSearchSource =
@@ -79,8 +140,24 @@ export async function runIngestionJob(): Promise<IngestedItem[]> {
 
   const rankedItems = batches
     .flatMap((result) => (result.status === "fulfilled" ? result.value : []))
+    .map((item) =>
+      item.sourceId?.startsWith("daily-") ? { ...item, sourceId: undefined } : item
+    )
     .filter(isRelevantItem)
+    .filter((item) => {
+      if (!dailyPlan?.exclusions.length) return true;
+      const text = `${item.title} ${item.excerpt} ${item.sourceName}`.toLowerCase();
+      return !dailyPlan.exclusions.some((term) => text.includes(term.toLowerCase()));
+    })
     .sort((a, b) => {
+      const priorityScore = (item: IngestedItem) => {
+        const text = `${item.title} ${item.excerpt}`.toLowerCase();
+        return (dailyPlan?.priorityTopics ?? []).filter((term) =>
+          text.includes(term.toLowerCase())
+        ).length;
+      };
+      const priorityDifference = priorityScore(b) - priorityScore(a);
+      if (priorityDifference !== 0) return priorityDifference;
       if (a.sourceType.includes("social") && b.sourceType.includes("social")) {
         return (b.engagementScore ?? 0) - (a.engagementScore ?? 0);
       }

@@ -10,6 +10,7 @@ import {
   getBlacklistedXHandlesFromDb,
   getBroadcastWriteoutsFromDb,
   getConferenceCoverageSlotsFromDb,
+  getDailyCoveragePlanFromDb,
   getEditorialPackagesFromDb,
   getMedicalConferencesFromDb,
   getOncologyJournalsFromDb,
@@ -129,6 +130,33 @@ export async function getAdminSnapshot(baseTime = new Date(), planningHours = 1)
   const conferenceCoverageSlots = (await getConferenceCoverageSlotsFromDb()) ?? [];
   const oncologyJournals = (await getOncologyJournalsFromDb()) ?? [];
   const editorialPackages = (await getEditorialPackagesFromDb()) ?? [];
+  const sources = (await getSourcesFromDb()) ?? sourceRegistry;
+  const coverageDate = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(baseTime);
+  const savedDailyCoveragePlan = await getDailyCoveragePlanFromDb(coverageDate);
+  const dailyCoveragePlan = savedDailyCoveragePlan ?? {
+    coverageDate,
+    conferenceIds: medicalConferences
+      .filter(
+        (conference) =>
+          conference.startDate &&
+          conference.endDate &&
+          coverageDate >= conference.startDate &&
+          coverageDate <= conference.endDate
+      )
+      .map((conference) => conference.id),
+    journalIds: oncologyJournals.filter((journal) => journal.enabled).map((journal) => journal.id),
+    sourceIds: sources.filter((source) => source.enabled).map((source) => source.id),
+    customItems: [],
+    priorityTopics: [],
+    exclusions: [],
+    breakingNewsEnabled: true,
+    notes: ""
+  };
   const analytics: AnalyticsSnapshot = (await getAnalyticsFromDb()) ?? {
     views: 128,
     clipsCreated: 4,
@@ -141,7 +169,7 @@ export async function getAdminSnapshot(baseTime = new Date(), planningHours = 1)
     airedSegments,
     broadcastWriteouts,
     streamState: await getStreamState(),
-    sources: (await getSourcesFromDb()) ?? sourceRegistry,
+    sources,
     xFollowVoices,
     blacklistedXHandles,
     socialVoiceLeaderboard,
@@ -150,6 +178,7 @@ export async function getAdminSnapshot(baseTime = new Date(), planningHours = 1)
     conferenceCoverageSlots,
     oncologyJournals,
     editorialPackages,
+    dailyCoveragePlan,
     nextSocialVoiceCompetition:
       "Leaderboard refreshes from recent X/social ingest; top traction voices are added to Source intake every 15-minute generation cycle. The scoreboard card is available in every approved one-hour block.",
     socialVoiceCompetitionDueNow: shouldRunSocialVoiceCompetition(),
