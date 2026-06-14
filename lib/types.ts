@@ -154,6 +154,37 @@ export type ConferenceCoverageSlot = {
   updatedAt?: string;
 };
 
+export type BroadcastWriteoutCard = {
+  position: number;
+  startsAt: string;
+  durationSeconds: number;
+  kind: "content" | "music";
+  title: string;
+  personaName?: string;
+  contentType?: ContentType;
+  script?: string;
+  sourceLabel?: string;
+  sourceUrl?: string;
+};
+
+export type BroadcastWriteout = {
+  id: string;
+  coverageSlotId?: string;
+  startsAt: string;
+  durationMinutes: number;
+  title: string;
+  status: ConferenceCoverageSlot["youtubeStatus"];
+  youtubeVideoId?: string;
+  youtubeUrl?: string;
+  workflowRunId?: string;
+  workflowUrl?: string;
+  deliveryError?: string;
+  cards: BroadcastWriteoutCard[];
+  writeoutMarkdown: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type OncologyJournal = {
   id: string;
   name: string;

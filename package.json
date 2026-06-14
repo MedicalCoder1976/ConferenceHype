@@ -19,7 +19,6 @@
     "preview:planning": "tsx scripts/preview-broadcast-rundown.ts today-21",
     "job:render": "tsx scripts/ffmpeg-render.ts",
     "job:stream": "tsx scripts/youtube-rtmp-loop.ts",
-    "job:stream:6h": "tsx scripts/youtube-rtmp-loop.ts",
     "music:gap": "powershell.exe -ExecutionPolicy Bypass -File scripts\\generate-gap-music.ps1",
     "music:licensed-gaps": "powershell.exe -ExecutionPolicy Bypass -File scripts\\generate-licensed-gap-clips.ps1"
   },

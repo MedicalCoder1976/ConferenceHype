@@ -6,14 +6,10 @@ on:
       duration_minutes:
         description: "Maximum stream duration before GitHub stops the job"
         required: true
-        default: "5"
+        default: "60"
         type: choice
         options:
-          - "5"
-          - "15"
-          - "30"
           - "60"
-          - "180"
       stream_input_path:
         description: "Video file to loop into YouTube"
         required: true
@@ -75,7 +71,7 @@ jobs:
             SLOT_ID="${{ inputs.coverage_slot_id }}"
             BLOCK_START="${{ inputs.stream_start_time }}"
             CONFERENCE_NAME="ConferenceHype"
-            DURATION_SECONDS=$(( ${{ inputs.duration_minutes || 5 }} * 60 ))
+            DURATION_SECONDS=$(( ${{ inputs.duration_minutes || 60 }} * 60 ))
           fi
           if [ -z "${BLOCK_START}" ]; then
             echo "::notice::No approved programming block is ready for publishing."
@@ -163,6 +159,10 @@ jobs:
           HOUR_BROADCAST_MODE: presentation
           FFMPEG_PATH: /usr/bin/ffmpeg
           HOUR_BROADCAST_START: ${{ steps.block.outputs.block_start }}
+          BROADCAST_TITLE: ${{ steps.block.outputs.broadcast_title }}
+          COVERAGE_SLOT_ID: ${{ steps.block.outputs.slot_id }}
+          YOUTUBE_VIDEO_ID: ${{ steps.youtube.outputs.youtube_video_id }}
+          YOUTUBE_VIDEO_URL: ${{ steps.youtube.outputs.youtube_url }}
           HOUR_BROADCAST_OUTPUT: public/rendered/asco-hype-hour-broadcast.mp4
           KOKORO_PYTHON_CMD: python3
           VOICE_AETHER_VALE: ${{ secrets.VOICE_AETHER_VALE }}

@@ -1,14 +1,15 @@
 "use client";
 
-import { BookOpen, CalendarDays, Library, Mic2, Radio, ScrollText } from "lucide-react";
+import { BookOpen, CalendarDays, FileText, Library, Mic2, Radio, ScrollText } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
-type TabId = "broadcast" | "journal-watch" | "meeting-watch" | "memory" | "voices" | "history";
+type TabId = "broadcast" | "journal-watch" | "meeting-watch" | "writeouts" | "memory" | "voices" | "history";
 
 const tabs: Array<{ id: TabId; label: string; icon: typeof Radio }> = [
   { id: "broadcast", label: "Broadcast", icon: Radio },
   { id: "journal-watch", label: "Journal Watch", icon: BookOpen },
   { id: "meeting-watch", label: "Meeting Watch", icon: CalendarDays },
+  { id: "writeouts", label: "Writeouts", icon: FileText },
   { id: "memory", label: "Memory", icon: Library },
   { id: "voices", label: "Specialty X Voices", icon: Mic2 },
   { id: "history", label: "Talked about", icon: ScrollText }
@@ -18,6 +19,7 @@ export function AdminTabs({
   broadcast,
   journalWatch,
   meetingWatch,
+  writeouts,
   memory,
   history,
   voices
@@ -25,6 +27,7 @@ export function AdminTabs({
   broadcast: ReactNode;
   journalWatch: ReactNode;
   meetingWatch: ReactNode;
+  writeouts: ReactNode;
   memory: ReactNode;
   history: ReactNode;
   voices: ReactNode;
@@ -57,6 +60,7 @@ export function AdminTabs({
       {active === "broadcast" ? broadcast : null}
       {active === "journal-watch" ? journalWatch : null}
       {active === "meeting-watch" ? meetingWatch : null}
+      {active === "writeouts" ? writeouts : null}
       {active === "memory" ? memory : null}
       {active === "history" ? history : null}
       {active === "voices" ? voices : null}

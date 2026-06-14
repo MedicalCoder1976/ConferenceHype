@@ -91,7 +91,7 @@ export function buildScheduleFallbackSegment(now = new Date()) {
   return buildNoTokenUpcomingSegment(sources, now);
 }
 
-export function buildScheduleRundownSegments(now = new Date(), hours = 3) {
+export function buildScheduleRundownSegments(now = new Date(), hours = 1) {
   const totalMinutes = hours * 60;
   return Array.from({ length: totalMinutes / 20 }, (_, index) => {
     const scheduledAt = new Date(now.getTime() + index * 20 * 60 * 1000);

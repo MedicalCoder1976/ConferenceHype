@@ -76,7 +76,7 @@ export function SocialVoiceCompetition({
         social ingest can monitor them.
       </p>
       <div className="mt-3 border border-cyanline/30 bg-cyanline/10 p-3 text-sm font-bold text-ink">
-        {dueNow ? "Competition segment is due in this 3-hour block." : cadence}
+        {dueNow ? "Competition segment is available in this one-hour block." : cadence}
       </div>
       {message ? (
         <div className="mt-3 border border-ink/10 bg-paper p-3 text-sm font-bold text-ink">

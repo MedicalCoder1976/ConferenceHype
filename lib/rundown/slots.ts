@@ -208,7 +208,7 @@ export function buildBroadcastSlots({
   scheduleSegments,
   socialVoiceSegments = [],
   baseTime,
-  hours = 3
+  hours = 1
 }: {
   segments: Segment[];
   reviewSegments?: Segment[];
@@ -264,7 +264,7 @@ export function buildBroadcastSlots({
   return slots.sort((a, b) => a.at.getTime() - b.at.getTime());
 }
 
-export function buildBroadcastHourBuckets(slots: BroadcastSlot[], baseTime: Date, hours = 3) {
+export function buildBroadcastHourBuckets(slots: BroadcastSlot[], baseTime: Date, hours = 1) {
   return Array.from({ length: hours }, (_, hourIndex) => {
     const start = addMinutes(baseTime, hourIndex * 60);
     const end = addMinutes(start, 60);
