@@ -24,7 +24,7 @@ export default async function Home() {
               </span>
             </div>
             <h1 className="max-w-4xl text-4xl font-black leading-[0.95] text-ink sm:text-5xl lg:text-6xl xl:text-7xl">
-              ASCO Hype
+              ConferenceHype
             </h1>
             <p className="mt-4 max-w-2xl text-base font-semibold leading-7 text-ink/78 lg:text-lg lg:leading-8">
               Interactive Conference Commentary if you cannot attend. Better if
@@ -57,7 +57,7 @@ export default async function Home() {
               </a>
               <a
                 href={`https://x.com/intent/tweet?text=${encodeURIComponent(
-                  `Suggesting a topic for ASCO Hype ${monitoredSocialTags.primaryHashtag}`
+                  `Suggesting a topic for ConferenceHype ${monitoredSocialTags.primaryHashtag}`
                 )}`}
                 className="inline-flex min-h-12 items-center justify-center border border-ink bg-white/80 px-5 py-3 text-sm font-black uppercase text-ink"
               >
@@ -76,9 +76,9 @@ export default async function Home() {
           <h2 className="text-xl font-black">Important disclaimer</h2>
           <div className="mt-3 grid gap-3 text-sm leading-6 text-white/78">
             <p>
-              ASCO Hype is interactive AI commentary only. It is not reporting,
+              ConferenceHype is interactive AI commentary only. It is not reporting,
               journalism, medical education, clinical guidance, scientific
-              validation, legal advice, or financial advice. ASCO Hype is not
+              validation, legal advice, or financial advice. ConferenceHype is not
               associated with the American Society of Clinical Oncology in any
               way.
             </p>

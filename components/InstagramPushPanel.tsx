@@ -25,7 +25,7 @@ async function focusInstagramItem({
   return payload as { segment?: { title?: string } };
 }
 
-const captionStarter = `ASCO Hype is live from the conference desk. Tag ${monitoredSocialTags.instagramPrimaryHashtag}, ${monitoredSocialTags.instagramConferenceHashtag}, and ${monitoredSocialTags.instagramConferenceHypeHandle} with source-attributed articles, official schedule items, media links, or monitored X voice callouts you want considered for broadcast.
+const captionStarter = `ConferenceHype is live from the conference desk. Tag ${monitoredSocialTags.instagramPrimaryHashtag}, ${monitoredSocialTags.instagramConferenceHashtag}, and ${monitoredSocialTags.instagramConferenceHypeHandle} with source-attributed articles, official schedule items, media links, or monitored X voice callouts you want considered for broadcast.
 
 Unsourced audience chatter is not used in the broadcast rundown. Locations can change unexpectedly, so check rooms and halls in the ASCO app and on-site signage.`;
 

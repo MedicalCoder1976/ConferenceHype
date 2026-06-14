@@ -1,4 +1,4 @@
-# ASCO Hype Launch Checklist
+# ConferenceHype Launch Checklist
 
 This is the operator checklist for getting the app online.
 
@@ -21,7 +21,7 @@ Create one long password for the operator dashboard.
 Example shape:
 
 ```txt
-asco-hype-admin-long-random-value-change-me
+conferencehype-admin-long-random-value-change-me
 ```
 
 Use it as `ADMIN_SHARED_SECRET`.
@@ -33,7 +33,7 @@ After it is set, `/admin` redirects to `/admin/login`.
 ```powershell
 git init
 git add .
-git commit -m "Initial ASCO Hype app"
+git commit -m "Initial ConferenceHype app"
 git branch -M main
 git remote add origin YOUR_GITHUB_REPO_URL
 git push -u origin main
@@ -71,10 +71,8 @@ Add:
 
 Use these in the public site and X profile:
 
-- `#ASCOHype`
-- `#AskASCOHype`
+- `#ConferenceHype`
 - `#ASCO26`
-- `@ASCOHypeAI`
 - `@ConferenceHype`
 - watched X voices: `@ASCO`, `@ASCOPost`, `@OncLive`, `@statnews`
 
@@ -125,7 +123,7 @@ Before May 25:
 
 - Run a 2-hour unlisted stream.
 - Test emergency override.
-- Test one social post with `#ASCOHype`.
+- Test one social post with `#ConferenceHype`.
 - Test one steps/workout social post with `@ConferenceHype` for end-of-day shoutout review.
 - Test one generated clip.
 - Confirm disclaimers and Terms links are visible.

@@ -79,7 +79,7 @@ jobs:
           echo "slot_id=${SLOT_ID}" >> $GITHUB_OUTPUT
           echo "block_start=${BLOCK_START}" >> $GITHUB_OUTPUT
           echo "duration_seconds=${DURATION_SECONDS}" >> $GITHUB_OUTPUT
-          echo "broadcast_title=${CONFERENCE_NAME} live programming - ${BLOCK_START}" >> $GITHUB_OUTPUT
+          echo "broadcast_title=ConferenceHype: ${CONFERENCE_NAME} live programming - ${BLOCK_START}" >> $GITHUB_OUTPUT
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -163,7 +163,7 @@ jobs:
           COVERAGE_SLOT_ID: ${{ steps.block.outputs.slot_id }}
           YOUTUBE_VIDEO_ID: ${{ steps.youtube.outputs.youtube_video_id }}
           YOUTUBE_VIDEO_URL: ${{ steps.youtube.outputs.youtube_url }}
-          HOUR_BROADCAST_OUTPUT: public/rendered/asco-hype-hour-broadcast.mp4
+          HOUR_BROADCAST_OUTPUT: public/rendered/conferencehype-hour-broadcast.mp4
           KOKORO_PYTHON_CMD: python3
           VOICE_AETHER_VALE: ${{ secrets.VOICE_AETHER_VALE }}
           VOICE_AMARA_SOL: ${{ secrets.VOICE_AMARA_SOL }}
@@ -197,16 +197,16 @@ jobs:
       - name: Validate rendered broadcast media
         if: ${{ steps.block.outputs.block_start != '' }}
         run: |
-          test -s public/rendered/asco-hype-hour-broadcast.mp4 || {
+          test -s public/rendered/conferencehype-hour-broadcast.mp4 || {
             echo "::error::Rendered broadcast is missing or empty"
             exit 1
           }
           VIDEO_STREAMS=$(ffprobe -v error -select_streams v:0 \
             -show_entries stream=codec_type -of csv=p=0 \
-            public/rendered/asco-hype-hour-broadcast.mp4 | wc -l)
+            public/rendered/conferencehype-hour-broadcast.mp4 | wc -l)
           AUDIO_STREAMS=$(ffprobe -v error -select_streams a:0 \
             -show_entries stream=codec_type -of csv=p=0 \
-            public/rendered/asco-hype-hour-broadcast.mp4 | wc -l)
+            public/rendered/conferencehype-hour-broadcast.mp4 | wc -l)
           test "${VIDEO_STREAMS}" -ge 1 || {
             echo "::error::Rendered broadcast has no video stream"
             exit 1
@@ -226,7 +226,7 @@ jobs:
           YOUTUBE_RTMP_URL: ${{ steps.youtube.outputs.rtmp_url }}
           YOUTUBE_STREAM_KEY: ${{ steps.youtube.outputs.stream_key }}
           FFMPEG_PATH: /usr/bin/ffmpeg
-          STREAM_VIDEO_PATH: public/rendered/asco-hype-hour-broadcast.mp4
+          STREAM_VIDEO_PATH: public/rendered/conferencehype-hour-broadcast.mp4
           COVERAGE_SLOT_ID: ${{ steps.block.outputs.slot_id }}
           YOUTUBE_VIDEO_ID: ${{ steps.youtube.outputs.youtube_video_id }}
           YOUTUBE_VIDEO_URL: ${{ steps.youtube.outputs.youtube_url }}

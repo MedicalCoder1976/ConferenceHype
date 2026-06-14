@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Admin Login | ASCO Hype"
+  title: "Admin Login | ConferenceHype"
 };
 
 export default function AdminLoginPage() {

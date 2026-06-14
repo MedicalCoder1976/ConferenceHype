@@ -48,7 +48,7 @@ export function YoutubeFrame({ channelId, videoId, className }: Props) {
       key={key}
       className={className}
       src={embedUrl}
-      title="ASCO Hype live stream"
+      title="ConferenceHype live stream"
       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
       allowFullScreen
     />

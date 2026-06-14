@@ -1150,13 +1150,6 @@ export async function upsertSourcesToDb() {
     if (cleanupError) {
       throw cleanupError;
     }
-    const { error: malformedCleanupError } = await supabase
-      .from("sources")
-      .update({ enabled: false })
-      .like("url", "#ASCOHype%");
-    if (malformedCleanupError) {
-      throw malformedCleanupError;
-    }
   }
 }
 

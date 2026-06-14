@@ -97,14 +97,14 @@ export function buildSocialVoiceCompetitionSegment(
     )
     .join("\n");
   const routing =
-    "Tag #ASCOHype, #ASCO26, and #ASCO2026 on X or Instagram to nominate the next monitored voice, official schedule item, article, or media moment.";
+    "Tag #ConferenceHype, #ASCO26, and #ASCO2026 on X or Instagram to nominate the next monitored voice, official schedule item, article, or media moment.";
 
   return {
     id: `social-voice-competition-${now.toISOString()}`,
     title: "Hourly social voice leaderboard",
     summary:
       "Competition-style leaderboard for watched X voices and audience social signals.",
-    script: `Social voice scoreboard check. Every hour, ASCO Hype ranks the voices lighting up the ASCO conversation on X. Top voices are added to the monitored callout list for source-attributed broadcast commentary.\n\n${board || "The board is still warming up. More ASCO26 signal needed before we can crown a leader."}\n\n${routing}`,
+    script: `Social voice scoreboard check. Every hour, ConferenceHype ranks the voices lighting up the ASCO conversation on X. Top voices are added to the monitored callout list for source-attributed broadcast commentary.\n\n${board || "The board is still warming up. More ASCO26 signal needed before we can crown a leader."}\n\n${routing}`,
     contentType: "social_signal",
     personaId: "vesper-quill",
     personaName: "Vesper Quill",

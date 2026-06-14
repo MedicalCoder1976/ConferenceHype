@@ -99,7 +99,7 @@ export async function runIngestionJob(): Promise<IngestedItem[]> {
         return [];
       }
       const isXSearchSource =
-        source.id === "asco-hype-tags" ||
+        source.id === "conferencehype-tags" ||
         source.name.toLowerCase().includes("audience tags") ||
         source.url.includes(monitoredSocialTags.primaryHashtag);
       if (isXSearchSource) {

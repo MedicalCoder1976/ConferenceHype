@@ -31,7 +31,7 @@ import { getUnsafeReviewSourceErrors } from "@/lib/generation/sourceSafety";
 import type { AnalyticsSnapshot, Citation, StreamState } from "@/lib/types";
 
 const fullSpokenDisclaimer =
-  "ASCO Hype is interactive AI commentary only. It is not reporting, journalism, medical education, clinical guidance, scientific validation, legal advice, or financial advice. ASCO Hype is not associated with the American Society of Clinical Oncology in any way.";
+  "ConferenceHype is interactive AI commentary only. It is not reporting, journalism, medical education, clinical guidance, scientific validation, legal advice, or financial advice. ConferenceHype is not associated with the American Society of Clinical Oncology in any way.";
 
 function isUnsafeForBroadcastRundown(scriptish: string) {
   return (
@@ -97,7 +97,7 @@ export async function getStreamState(): Promise<StreamState> {
         : "preview",
     emergencyActive: false,
     emergencyMessage:
-      "ASCO Hype automation is paused while the operator desk reviews the queue.",
+      "ConferenceHype automation is paused while the operator desk reviews the queue.",
     currentSegmentId: undefined
   };
 }

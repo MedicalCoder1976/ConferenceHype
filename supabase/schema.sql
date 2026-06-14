@@ -87,7 +87,7 @@ create table public.stream_state (
   id int primary key default 1 check (id = 1),
   mode text not null default 'preview',
   emergency_active boolean not null default false,
-  emergency_message text not null default 'ASCO Hype automation is paused while the operator desk reviews the queue.',
+  emergency_message text not null default 'ConferenceHype automation is paused while the operator desk reviews the queue.',
   current_segment_id uuid references public.segments(id),
   updated_at timestamptz not null default now()
 );

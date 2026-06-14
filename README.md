@@ -1,4 +1,4 @@
-# ASCO Hype
+# ConferenceHype
 
 ConferenceHype is a Next.js medical-event commentary website, admin dashboard,
 media generator, and YouTube RTMP broadcast pipeline. The first programming
@@ -20,7 +20,7 @@ read as current behavior.
 
 ## Product Boundaries
 
-- ASCO Hype is interactive AI conference commentary.
+- ConferenceHype is interactive AI conference commentary.
 - It is not medical education, clinical guidance, scientific validation,
   journalism, legal advice, or financial advice.
 - It is not associated with the American Society of Clinical Oncology.
@@ -240,15 +240,14 @@ Current sources include:
 
 The X recent-search query includes:
 
-- `#ASCOHype`
-- `#AskASCOHype`
+- `#ConferenceHype`
 - `#ASCO26`
 - `#ASCO2026`
 - Posts from monitored X accounts
 
 The query is trimmed to remain within the X Basic tier 512-character limit.
 The current query does not separately search mention terms for
-`@ASCOHypeAI` or `@ConferenceHype` unless those accounts are included as
+`@ConferenceHype` unless that account is included as
 monitored `from:` voices.
 
 Fetch failures are logged as warnings instead of being silently discarded.

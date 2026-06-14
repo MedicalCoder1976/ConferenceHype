@@ -12,7 +12,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             </div>
             <div>
               <h1 className="text-2xl font-black text-ink">
-                ASCO Hype operator desk
+                ConferenceHype operator desk
               </h1>
               <p className="text-sm font-semibold text-ink/60">
                 Verified-source reporter coverage, source intake, and stream
