@@ -7,18 +7,23 @@ export type XVoice = {
 };
 
 export const monitoredSocialTags = {
-  primaryHashtag: "#ASCOHype",
-  secondaryHashtag: "#AskASCOHype",
-  conferenceHashtag: "#ASCO26",
-  conferenceYearHashtag: "#ASCO2026",
+  primaryHashtag: "#ConferenceHype",
+  secondaryHashtag: "#EHA2026",
+  conferenceHashtag: "#EHA26",
+  conferenceYearHashtag: "#EHA2026",
   botHandle: "@ASCOHypeAI",
   conferenceHypeHandle: "@ConferenceHype",
-  instagramPrimaryHashtag: "#ASCOHype",
-  instagramConferenceHashtag: "#ASCO26",
+  instagramPrimaryHashtag: "#ConferenceHype",
+  instagramConferenceHashtag: "#EHA2026",
   instagramConferenceHypeHandle: "@ConferenceHype"
 };
 
 export const monitoredXVoices: XVoice[] = [
+  {
+    label: "European Hematology Association",
+    handle: "@EHA_Hematology",
+    note: "official EHA2026 Congress, program, abstract, and on-site signal"
+  },
   // Official ASCO channels
   {
     label: "ASCO",
@@ -143,6 +148,46 @@ export const instagramPushPrompts = [
 ];
 
 export const sourceRegistry: SourceConfig[] = [
+  {
+    id: "eha-2026-abstract-library",
+    name: "EHA2026 official abstract library",
+    url: "https://library.ehaweb.org/eha/#!*menu=6*browseby=3*sortby=2*ce_id=2934",
+    type: "official",
+    rank: 1,
+    enabled: true
+  },
+  {
+    id: "eha-2026-program",
+    name: "EHA2026 official program",
+    url: "https://ehaweb.org/connect-network/eha2026-congress/eha2026-program",
+    type: "official",
+    rank: 1,
+    enabled: true
+  },
+  {
+    id: "eha-2026-onsite",
+    name: "EHA2026 on-site essentials",
+    url: "https://ehaweb.org/connect-network/eha2026-congress/eha2026-on-site-essentials",
+    type: "official",
+    rank: 1,
+    enabled: true
+  },
+  {
+    id: "eha-2026-exhibition",
+    name: "EHA2026 exhibition and sponsorship information",
+    url: "https://ehaweb.org/connect-network/eha2026-congress/eha2026-sponsorship-opportunities",
+    type: "company",
+    rank: 2,
+    enabled: true
+  },
+  {
+    id: "eha-2026-media",
+    name: "EHA2026 official media information",
+    url: "https://ehaweb.org/connect-network/eha2026-congress/eha2026-media-registration",
+    type: "media",
+    rank: 1,
+    enabled: true
+  },
   {
     id: "asco-calendar",
     name: "ASCO meeting calendar",

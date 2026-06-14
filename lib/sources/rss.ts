@@ -22,7 +22,7 @@ function scalar(value: unknown) {
 export async function fetchRssSource(source: SourceConfig): Promise<IngestedItem[]> {
   const response = await fetch(source.url, {
     headers: {
-      "User-Agent": "ASCOHypeBot/0.1 reporter-style conference coverage"
+      "User-Agent": "ConferenceHypeBot/0.1 source-attributed summaries"
     },
     next: { revalidate: 900 }
   });
@@ -48,6 +48,7 @@ export async function fetchRssSource(source: SourceConfig): Promise<IngestedItem
 
   return items.slice(0, 15).map((item, index) => ({
     id: `${source.id}-${index}-${item.guid?.["#text"] ?? item.link ?? item.title}`,
+    sourceId: source.id,
     title: scalar(item.title || "Untitled item"),
     url: scalar(item.link?.href ?? item.link ?? source.url),
     excerpt: scalar(

@@ -6,6 +6,7 @@ import {
 } from "@/lib/sources/registry";
 import { fetchRssSource } from "@/lib/sources/rss";
 import { fetchPageSummary } from "@/lib/sources/scraper";
+import { fetchEhaSource } from "@/lib/sources/eha";
 import { fetchTaggedSocialPosts } from "@/lib/sources/x";
 import { isRelevantItem } from "@/lib/sources/relevance";
 import {
@@ -33,6 +34,9 @@ export async function runIngestionJob(): Promise<IngestedItem[]> {
     }));
   const batches = await Promise.allSettled(
     enabled.map(async (source) => {
+      if (source.type === "manual") {
+        return [];
+      }
       const isXSearchSource =
         source.id === "asco-hype-tags" ||
         source.name.toLowerCase().includes("audience tags") ||
@@ -42,6 +46,14 @@ export async function runIngestionJob(): Promise<IngestedItem[]> {
       }
       if (sourceToXVoice(source)) {
         return [];
+      }
+      if (
+        source.url.includes("library.ehaweb.org/eha/") ||
+        source.url.includes("eha2026-on-site-essentials") ||
+        source.url.includes("eha2026-sponsorship-opportunities") ||
+        source.url.includes("eha2026-media-registration")
+      ) {
+        return fetchEhaSource(source);
       }
       if (source.url.includes("rss") || source.url.includes("feed")) {
         return fetchRssSource(source);

@@ -166,9 +166,33 @@ Each Meeting Watch package contains:
 The generator may discuss only material present in the supplied official,
 media, or attributed social sources. A lack of source material causes package
 development to fail visibly rather than filling sections with invented
-abstracts, booth activity, or conference reactions. The first card includes:
+abstracts, booth activity, or conference reactions. Generated sections are
+retried when a source-safety check fails. If retries are exhausted, the package
+uses explicitly limited source-only cards rather than unsupported model copy.
+The first card includes:
 `Hi this is the ConferenceHype channel Meeting Watch on [Conference Name] and
 date [Date].`
+
+#### EHA 2026 Broadcast
+
+The EHA 2026 preparation job ingests the official public abstract library,
+program, on-site essentials, sponsor directory, and media-registration page.
+Sponsor-directory records identify listed sponsors only and do not imply
+specific booth activity, products, presentations, or endorsement. Official
+community information must not be described as attendee sentiment or live
+social chatter.
+
+The planned broadcast starts June 12, 2026 at 08:00 CEST and covers four
+continuous 24-hour days in 32 three-hour blocks. Because the Congress ends
+June 14, the June 15 programming is a post-meeting recap day.
+
+```powershell
+npm run job:eha2026
+```
+
+The job is idempotent for the selected start date: it rewrites the conference
+coverage blocks, reuses an existing Meeting Watch package for that edition
+when present, and schedules a new package only once.
 
 ### Editorial Memory
 
@@ -201,6 +225,7 @@ manually.
 
 Current sources include:
 
+- EHA 2026 official abstract, program, on-site, sponsor, and media pages
 - Official ASCO pages
 - ASCO Daily News
 - The ASCO Post

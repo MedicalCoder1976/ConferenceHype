@@ -3,8 +3,7 @@ import { z } from "zod";
 import { assertAdminRequest } from "@/lib/auth";
 import {
   getMedicalConferenceByIdFromDb,
-  getRecentMediaItemsFromDb,
-  getRecentSocialItemsFromDb,
+  getRecentIngestedItemsFromDb,
   saveEditorialPackageToDb
 } from "@/lib/db";
 import { developMeetingWatchPackage } from "@/lib/editorial/packages";
@@ -27,10 +26,7 @@ export async function POST(request: NextRequest) {
       rank: 1,
       enabled: true
     });
-    const recent = [
-      ...((await getRecentMediaItemsFromDb(24 * 14)) ?? []),
-      ...((await getRecentSocialItemsFromDb(24 * 14)) ?? [])
-    ];
+    const recent = (await getRecentIngestedItemsFromDb(24 * 30, 240)) ?? [];
     const terms = [conference.name, conference.acronym].filter(Boolean).map((value) => value!.toLowerCase());
     const relevant = recent.filter((item) =>
       terms.some((term) => `${item.title} ${item.excerpt} ${item.sourceName}`.toLowerCase().includes(term))

@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import ffmpegPath from "ffmpeg-static";
 import { loadEnvConfig } from "@next/env";
+import { updateConferenceCoverageDeliveryInDb } from "@/lib/db";
 
 loadEnvConfig(process.cwd());
 
@@ -12,6 +13,36 @@ const musicPath =
   process.env.STREAM_MUSIC_PATH ?? "public/music/conferencehype-gap-music-6min-v3.mp3";
 const voicePath = process.env.STREAM_VOICE_PATH;
 const durationSeconds = process.env.STREAM_DURATION_SECONDS ?? "3600";
+const coverageSlotId = process.env.COVERAGE_SLOT_ID;
+
+async function updateDelivery(
+  youtubeStatus: "live" | "completed" | "failed",
+  deliveryError?: string
+) {
+  if (!coverageSlotId) return;
+  try {
+    await updateConferenceCoverageDeliveryInDb(coverageSlotId, {
+      youtubeStatus,
+      youtubeVideoId: process.env.YOUTUBE_VIDEO_ID,
+      youtubeUrl: process.env.YOUTUBE_VIDEO_URL,
+      workflowRunId: process.env.GITHUB_RUN_ID,
+      workflowUrl:
+        process.env.GITHUB_SERVER_URL &&
+        process.env.GITHUB_REPOSITORY &&
+        process.env.GITHUB_RUN_ID
+          ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
+          : undefined,
+      streamStartedAt: youtubeStatus === "live" ? new Date().toISOString() : undefined,
+      streamEndedAt:
+        youtubeStatus === "completed" || youtubeStatus === "failed"
+          ? new Date().toISOString()
+          : undefined,
+      deliveryError: deliveryError ?? null
+    });
+  } catch (error) {
+    console.error(`YOUTUBE_DELIVERY_UPDATE_ERROR: ${String(error)}`);
+  }
+}
 async function main() {
   const { getYoutubeRtmpTarget } = await import("@/lib/media/stream");
   const target = getYoutubeRtmpTarget();
@@ -96,8 +127,26 @@ async function main() {
   }
 
   const startedAt = Date.now();
-  const child = spawn(ffmpeg, args, { stdio: "inherit" });
-  child.on("exit", (code) => {
+  const child = spawn(ffmpeg, args, { stdio: ["inherit", "inherit", "pipe"] });
+  let stderr = "";
+  let stable = false;
+  const stabilityTimer = setTimeout(() => {
+    stable = true;
+    console.log("YOUTUBE_RTMP_STABLE: FFmpeg remained connected for 30 seconds.");
+    void updateDelivery("live");
+  }, 30_000);
+  child.stderr?.on("data", (chunk: Buffer) => {
+    const text = chunk.toString("utf8");
+    stderr = `${stderr}${text}`.slice(-32_000);
+    process.stderr.write(chunk);
+  });
+  child.on("error", (error) => {
+    clearTimeout(stabilityTimer);
+    console.error(`YOUTUBE_RTMP_SPAWN_ERROR: ${error.message}`);
+    void updateDelivery("failed", error.message);
+  });
+  child.on("exit", async (code) => {
+    clearTimeout(stabilityTimer);
     const elapsedSeconds = (Date.now() - startedAt) / 1000;
     if (
       process.env.STREAM_DRY_RUN !== "1" &&
@@ -111,6 +160,20 @@ async function main() {
       );
       process.exit(1);
     }
+    if (!stable && code !== 0) {
+      const errorLine = stderr
+        .split("\n")
+        .find((line) =>
+          /error|failed|refused|forbidden|denied|unauthorized|broken pipe/i.test(line)
+        );
+      if (errorLine) {
+        console.error(`YOUTUBE_RTMP_ERROR: ${errorLine.trim()}`);
+      }
+    }
+    await updateDelivery(
+      code === 0 ? "completed" : "failed",
+      code === 0 ? undefined : `FFmpeg exited with code ${code ?? "unknown"}.`
+    );
     process.exit(code ?? 1);
   });
 }

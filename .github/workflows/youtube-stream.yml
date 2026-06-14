@@ -22,17 +22,22 @@ on:
         description: "ISO start time for rendering the correct rundown cards (leave blank for fallback loop)"
         required: false
         default: ""
+      coverage_slot_id:
+        description: "Optional conference coverage slot UUID for delivery tracking"
+        required: false
+        default: ""
   schedule:
-    # Poll the admin conference coverage plan. A scheduled run only renders
-    # when a saved three-hour block begins 20-35 minutes from the poll.
+    # Poll the approved admin programming plan. Rendering starts far enough
+    # ahead of each one-hour slot to finish before its scheduled airtime.
     - cron: "*/15 * * * *"
 
 jobs:
   stream:
     runs-on: ubuntu-latest
-    # Schedule: 15 min setup + 20 min render + 180 min stream + 20 min buffer = 235 min
-    # Dispatch: user-chosen duration
-    timeout-minutes: ${{ fromJSON(github.event_name == 'schedule' && '235' || inputs.duration_minutes) }}
+    # Schedule: setup + render + one-hour stream + buffer.
+    # Rendering for the next hour may overlap the current live hour, so the
+    # workflow must not use a job-wide concurrency lock.
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -47,25 +52,38 @@ jobs:
         id: block
         run: |
           if [ "${{ github.event_name }}" = "schedule" ]; then
-            FROM=$(date -u -d "+20 minutes" +"%Y-%m-%dT%H:%M:%SZ")
-            TO=$(date -u -d "+35 minutes" +"%Y-%m-%dT%H:%M:%SZ")
-            BLOCK_START=$(curl --fail --silent --show-error \
+            FROM=$(date -u -d "+45 minutes" +"%Y-%m-%dT%H:%M:%SZ")
+            TO=$(date -u -d "+60 minutes" +"%Y-%m-%dT%H:%M:%SZ")
+            RECORD=$(curl --fail --silent --show-error \
               --get "${NEXT_PUBLIC_SUPABASE_URL}/rest/v1/conference_coverage_slots" \
               -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
               -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
-              --data-urlencode "select=starts_at" \
+              --data-urlencode "select=id,starts_at,duration_hours,medical_conferences(name,acronym)" \
               --data-urlencode "enabled=eq.true" \
+              --data-urlencode "approval_status=eq.approved" \
+              --data-urlencode "youtube_status=eq.not_scheduled" \
               --data-urlencode "starts_at=gte.${FROM}" \
               --data-urlencode "starts_at=lt.${TO}" \
               --data-urlencode "order=starts_at.asc" \
-              --data-urlencode "limit=1" | jq -r '.[0].starts_at // empty')
-            DURATION_SECONDS=10800
+              --data-urlencode "limit=1" | jq -c '.[0] // {}')
+            SLOT_ID=$(jq -r '.id // empty' <<< "${RECORD}")
+            BLOCK_START=$(jq -r '.starts_at // empty' <<< "${RECORD}")
+            DURATION_HOURS=$(jq -r '.duration_hours // 1' <<< "${RECORD}")
+            CONFERENCE_NAME=$(jq -r '.medical_conferences.acronym // .medical_conferences.name // "ConferenceHype"' <<< "${RECORD}")
+            DURATION_SECONDS=$((DURATION_HOURS * 3600))
           else
+            SLOT_ID="${{ inputs.coverage_slot_id }}"
             BLOCK_START="${{ inputs.stream_start_time }}"
+            CONFERENCE_NAME="ConferenceHype"
             DURATION_SECONDS=$(( ${{ inputs.duration_minutes || 5 }} * 60 ))
           fi
+          if [ -z "${BLOCK_START}" ]; then
+            echo "::notice::No approved programming block is ready for publishing."
+          fi
+          echo "slot_id=${SLOT_ID}" >> $GITHUB_OUTPUT
           echo "block_start=${BLOCK_START}" >> $GITHUB_OUTPUT
           echo "duration_seconds=${DURATION_SECONDS}" >> $GITHUB_OUTPUT
+          echo "broadcast_title=${CONFERENCE_NAME} live programming - ${BLOCK_START}" >> $GITHUB_OUTPUT
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -73,6 +91,62 @@ jobs:
       - name: Install Kokoro TTS dependencies
         if: ${{ steps.block.outputs.block_start != '' }}
         run: pip install kokoro numpy soundfile
+
+      - name: Mark programming block as rendering
+        if: ${{ steps.block.outputs.slot_id != '' }}
+        run: npx tsx scripts/update-youtube-delivery.ts
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          COVERAGE_SLOT_ID: ${{ steps.block.outputs.slot_id }}
+          YOUTUBE_DELIVERY_STATUS: rendering
+
+      - name: Validate YouTube broadcast automation
+        if: ${{ steps.block.outputs.block_start != '' }}
+        run: |
+          if [ -n "${YOUTUBE_OAUTH_CLIENT_ID}" ] && [ -n "${YOUTUBE_OAUTH_CLIENT_SECRET}" ] && [ -n "${YOUTUBE_OAUTH_REFRESH_TOKEN}" ]; then
+            echo "YouTube OAuth configuration is present; a fresh video will be created."
+          elif [ -n "${YOUTUBE_RTMP_URL}" ] && [ -n "${YOUTUBE_STREAM_KEY}" ]; then
+            echo "::warning::OAuth is missing; this run will reuse the legacy YouTube broadcast."
+          else
+            echo "::error::Neither YouTube OAuth nor legacy RTMP publishing is fully configured."
+            exit 1
+          fi
+        env:
+          YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
+          YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
+          YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
+          YOUTUBE_RTMP_URL: ${{ secrets.YOUTUBE_RTMP_URL }}
+          YOUTUBE_STREAM_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
+
+      - name: Create and bind fresh YouTube broadcast
+        id: youtube
+        if: ${{ steps.block.outputs.block_start != '' }}
+        run: npx tsx scripts/create-youtube-broadcast.ts
+        env:
+          YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
+          YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
+          YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
+          YOUTUBE_RTMP_URL: ${{ secrets.YOUTUBE_RTMP_URL }}
+          YOUTUBE_STREAM_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
+          YOUTUBE_LEGACY_VIDEO_ID: ${{ secrets.NEXT_PUBLIC_YOUTUBE_VIDEO_ID }}
+          YOUTUBE_PRIVACY_STATUS: ${{ vars.YOUTUBE_PRIVACY_STATUS || 'unlisted' }}
+          BROADCAST_START_AT: ${{ steps.block.outputs.block_start }}
+          BROADCAST_DURATION_SECONDS: ${{ steps.block.outputs.duration_seconds }}
+          BROADCAST_TITLE: ${{ steps.block.outputs.broadcast_title }}
+
+      - name: Save YouTube video link
+        if: ${{ steps.block.outputs.slot_id != '' }}
+        run: npx tsx scripts/update-youtube-delivery.ts
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          COVERAGE_SLOT_ID: ${{ steps.block.outputs.slot_id }}
+          YOUTUBE_DELIVERY_STATUS: queued
+          YOUTUBE_VIDEO_ID: ${{ steps.youtube.outputs.youtube_video_id }}
+          YOUTUBE_VIDEO_URL: ${{ steps.youtube.outputs.youtube_url }}
 
       - name: Render current presentation
         if: ${{ steps.block.outputs.block_start != '' }}
@@ -120,16 +194,45 @@ jobs:
             sleep "$WAIT_SECONDS"
           fi
 
+      - name: Validate rendered broadcast media
+        if: ${{ steps.block.outputs.block_start != '' }}
+        run: |
+          test -s public/rendered/asco-hype-hour-broadcast.mp4 || {
+            echo "::error::Rendered broadcast is missing or empty"
+            exit 1
+          }
+          VIDEO_STREAMS=$(ffprobe -v error -select_streams v:0 \
+            -show_entries stream=codec_type -of csv=p=0 \
+            public/rendered/asco-hype-hour-broadcast.mp4 | wc -l)
+          AUDIO_STREAMS=$(ffprobe -v error -select_streams a:0 \
+            -show_entries stream=codec_type -of csv=p=0 \
+            public/rendered/asco-hype-hour-broadcast.mp4 | wc -l)
+          test "${VIDEO_STREAMS}" -ge 1 || {
+            echo "::error::Rendered broadcast has no video stream"
+            exit 1
+          }
+          test "${AUDIO_STREAMS}" -ge 1 || {
+            echo "::error::Rendered broadcast has no audio stream"
+            exit 1
+          }
+          echo "Rendered broadcast contains video and audio."
+
       - name: Start rendered YouTube stream
         if: ${{ steps.block.outputs.block_start != '' }}
         run: |
           export STREAM_DURATION_SECONDS=${{ steps.block.outputs.duration_seconds }}
           npx tsx scripts/youtube-hour-presentation-stream.ts
         env:
-          YOUTUBE_RTMP_URL: ${{ secrets.YOUTUBE_RTMP_URL }}
-          YOUTUBE_STREAM_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
+          YOUTUBE_RTMP_URL: ${{ steps.youtube.outputs.rtmp_url }}
+          YOUTUBE_STREAM_KEY: ${{ steps.youtube.outputs.stream_key }}
           FFMPEG_PATH: /usr/bin/ffmpeg
           STREAM_VIDEO_PATH: public/rendered/asco-hype-hour-broadcast.mp4
+          COVERAGE_SLOT_ID: ${{ steps.block.outputs.slot_id }}
+          YOUTUBE_VIDEO_ID: ${{ steps.youtube.outputs.youtube_video_id }}
+          YOUTUBE_VIDEO_URL: ${{ steps.youtube.outputs.youtube_url }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
       - name: Start fallback YouTube RTMP loop
         if: ${{ github.event_name == 'workflow_dispatch' && steps.block.outputs.block_start == '' }}
@@ -139,3 +242,16 @@ jobs:
           YOUTUBE_STREAM_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
           STREAM_INPUT_PATH: ${{ inputs.stream_input_path || 'public/rendered/fallback-loop.mp4' }}
           STREAM_DURATION_SECONDS: ""
+
+      - name: Record failed YouTube delivery
+        if: ${{ always() && steps.block.outputs.slot_id != '' && job.status == 'failure' }}
+        run: npx tsx scripts/update-youtube-delivery.ts
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          COVERAGE_SLOT_ID: ${{ steps.block.outputs.slot_id }}
+          YOUTUBE_DELIVERY_STATUS: failed
+          YOUTUBE_VIDEO_ID: ${{ steps.youtube.outputs.youtube_video_id }}
+          YOUTUBE_VIDEO_URL: ${{ steps.youtube.outputs.youtube_url }}
+          YOUTUBE_DELIVERY_ERROR: GitHub Actions failed before the YouTube delivery completed. Open the workflow run for the exact failing step.

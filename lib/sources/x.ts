@@ -9,14 +9,14 @@ function toXUsername(handle: string) {
 
 export function buildXSearchQuery(extraVoices: XVoice[] = []) {
   // X API Basic tier caps queries at 512 characters.
-  // Keep the query tight: ASCO-specific hashtags + monitored voice follows only.
+  // Keep the query tight: active conference hashtags + monitored voice follows only.
   // Broad clinical hashtags (#oncology, #breastcancer etc.) are dropped — they
   // blow the budget and pull in noise unrelated to the conference.
   const coreHashtags = [
-    monitoredSocialTags.primaryHashtag,        // #ASCOHype
-    monitoredSocialTags.secondaryHashtag,      // #AskASCOHype
-    monitoredSocialTags.conferenceHashtag,     // #ASCO26
-    monitoredSocialTags.conferenceYearHashtag  // #ASCO2026
+    monitoredSocialTags.primaryHashtag,
+    monitoredSocialTags.secondaryHashtag,
+    monitoredSocialTags.conferenceHashtag,
+    monitoredSocialTags.conferenceYearHashtag
   ];
 
   const allVoices = [...monitoredXVoices, ...extraVoices];
