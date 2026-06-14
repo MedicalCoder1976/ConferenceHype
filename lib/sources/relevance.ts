@@ -33,7 +33,11 @@ const blockedPatterns = [
 ];
 
 export function isRelevantItem(item: IngestedItem) {
-  if (item.sourceType === "official" || item.sourceType.includes("social")) {
+  if (
+    item.sourceType === "official" ||
+    item.sourceType === "manual" ||
+    item.sourceType.includes("social")
+  ) {
     return true;
   }
   const haystack = `${item.title} ${item.excerpt} ${item.url}`.toLowerCase();

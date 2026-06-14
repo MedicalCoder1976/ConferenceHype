@@ -185,6 +185,27 @@ export type BroadcastWriteout = {
   updatedAt: string;
 };
 
+export type DailyCoverageCustomItem = {
+  id: string;
+  label: string;
+  url?: string;
+  notes?: string;
+};
+
+export type DailyCoveragePlan = {
+  id?: string;
+  coverageDate: string;
+  conferenceIds: string[];
+  journalIds: string[];
+  sourceIds: string[];
+  customItems: DailyCoverageCustomItem[];
+  priorityTopics: string[];
+  exclusions: string[];
+  breakingNewsEnabled: boolean;
+  notes: string;
+  updatedAt?: string;
+};
+
 export type OncologyJournal = {
   id: string;
   name: string;
