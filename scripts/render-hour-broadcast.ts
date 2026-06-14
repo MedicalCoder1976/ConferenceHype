@@ -6,7 +6,7 @@ import { spawn } from "node:child_process";
 import { loadEnvConfig } from "@next/env";
 import ffmpegPath from "ffmpeg-static";
 import { formatVoiceSegment } from "@/lib/broadcast/voiceSegment";
-import type { Segment } from "@/lib/types";
+import type { BroadcastWriteoutCard, ContentType, Segment } from "@/lib/types";
 
 const durationSeconds = Number(process.env.HOUR_BROADCAST_SECONDS ?? 3600);
 const renderDir = process.env.HOUR_BROADCAST_DIR ?? "public/rendered/hour-broadcast";
@@ -18,6 +18,20 @@ const musicPath =
 const voicePath = process.env.HOUR_BROADCAST_VOICE;
 
 loadEnvConfig(process.cwd());
+
+type Card = {
+  duration: number;
+  isMusic: boolean;
+  gapClipPath?: string;
+  personaId?: string;
+  personaName?: string;
+  contentType?: ContentType;
+  title?: string;
+  sourceLabel?: string;
+  sourceUrl?: string;
+  script?: string | null;
+  text: string;
+};
 
 function run(command: string, args: string[]) {
   return new Promise<void>((resolve, reject) => {
@@ -107,7 +121,7 @@ function formatCard({
   return lines.join("\n");
 }
 
-async function buildCards() {
+async function buildCards(): Promise<Card[]> {
   const [
     { filterBroadcastReadySegments },
     {
@@ -132,8 +146,8 @@ async function buildCards() {
     : new Date();
   const hours = Math.max(1, Math.ceil(durationSeconds / 3600));
   const [approved, pending, leaderboard, coverageSlots, conferences] = await Promise.all([
-    getNextBroadcastSegmentsFromDb(180),
-    getPendingSegmentsFromDb(180),
+    getNextBroadcastSegmentsFromDb(200),
+    getPendingSegmentsFromDb(200),
     getSocialVoiceLeaderboardFromDb(),
     getConferenceCoverageSlotsFromDb(),
     getMedicalConferencesFromDb()
@@ -197,6 +211,11 @@ async function buildCards() {
       isMusic,
       gapClipPath: isMusic ? gapClipPaths[musicIndex++ % gapClipPaths.length] : undefined,
       personaId: !isMusic ? (slot.segment?.personaId ?? "echo-sage") : undefined,
+      personaName: !isMusic ? slot.segment?.personaName : undefined,
+      contentType: !isMusic ? slot.segment?.contentType : undefined,
+      title: slot.segment?.title ?? slot.label,
+      sourceLabel: !isMusic ? slot.segment?.citations[0]?.label : undefined,
+      sourceUrl: !isMusic ? slot.segment?.citations[0]?.url : undefined,
       script: !isMusic ? (slot.segment?.script || slot.segment?.summary || null) : null,
       text: isMusic
         ? formatCard({
@@ -223,7 +242,7 @@ async function buildCards() {
 // Each "pair" = 40 s content card  +  20 s gap-clip music card  = 60 s.
 // 20 pairs × 60 s = 20 min per block; 3 blocks = 60 min = 1 h.
 // ---------------------------------------------------------------------------
-async function buildBlockCards() {
+async function buildBlockCards(): Promise<Card[]> {
   const [
     { generateNewsBlockChunks, generateSocialBlockChunks, generatePharmaNewsBlockChunks },
     { getRecentMediaItemsFromDb, getRecentSocialItemsFromDb },
@@ -241,8 +260,8 @@ async function buildBlockCards() {
 
   // Fetch source material once; failures are non-fatal
   const [mediaItems, socialItems] = await Promise.all([
-    getRecentMediaItemsFromDb(3).catch(() => null),
-    getRecentSocialItemsFromDb(3).catch(() => null)
+    getRecentMediaItemsFromDb(1).catch(() => null),
+    getRecentSocialItemsFromDb(1).catch(() => null)
   ]);
 
   console.log(
@@ -283,15 +302,6 @@ async function buildBlockCards() {
     "public/music/gap-clips/conferencehype-gap-skyline-to-aussieonc-20s.mp3"
   ];
   let musicIndex = 0;
-
-  type Card = {
-    duration: number;
-    isMusic: boolean;
-    gapClipPath?: string;
-    personaId?: string;
-    script?: string | null;
-    text: string;
-  };
 
   const cards: Card[] = [];
 
@@ -452,10 +462,81 @@ async function buildBlockCards() {
   });
 }
 
+function cardTitle(card: Card) {
+  const nonemptyLines = card.text.split("\n").filter((line) => line.trim());
+  return card.title ?? nonemptyLines[1] ?? nonemptyLines[0] ?? "Broadcast card";
+}
+
+function buildWriteoutCards(cards: Card[], startsAt: Date): BroadcastWriteoutCard[] {
+  let elapsedSeconds = 0;
+  return cards.map((card, index) => {
+    const cardStartsAt = new Date(startsAt.getTime() + elapsedSeconds * 1000);
+    elapsedSeconds += card.duration;
+    return {
+      position: index + 1,
+      startsAt: cardStartsAt.toISOString(),
+      durationSeconds: card.duration,
+      kind: card.isMusic ? "music" : "content",
+      title: cardTitle(card),
+      personaName: card.personaName,
+      contentType: card.contentType,
+      script: card.script ?? undefined,
+      sourceLabel: card.sourceLabel,
+      sourceUrl: card.sourceUrl
+    };
+  });
+}
+
+function buildWriteoutMarkdown(title: string, cards: BroadcastWriteoutCard[]) {
+  const lines = [`# ${title}`, ""];
+  for (const card of cards) {
+    if (card.kind === "music") {
+      continue;
+    }
+    lines.push(`## ${card.position}. ${card.title}`);
+    lines.push(`Start: ${card.startsAt}`);
+    if (card.personaName) lines.push(`Voice: ${card.personaName}`);
+    if (card.contentType) lines.push(`Type: ${card.contentType.replace(/_/g, " ")}`);
+    lines.push("", card.script?.trim() || "No spoken script.", "");
+    if (card.sourceUrl) {
+      lines.push(`Source: ${card.sourceLabel ?? card.sourceUrl} (${card.sourceUrl})`, "");
+    }
+  }
+  return `${lines.join("\n").trim()}\n`;
+}
+
+async function saveBroadcastWriteout(cards: Card[]) {
+  const { upsertBroadcastWriteoutInDb } = await import("@/lib/db");
+  const startsAt = process.env.HOUR_BROADCAST_START
+    ? new Date(process.env.HOUR_BROADCAST_START)
+    : new Date();
+  const title =
+    process.env.BROADCAST_TITLE ??
+    `ConferenceHype programming - ${startsAt.toISOString()}`;
+  const writeoutCards = buildWriteoutCards(cards, startsAt);
+  await upsertBroadcastWriteoutInDb({
+    coverageSlotId: process.env.COVERAGE_SLOT_ID || undefined,
+    startsAt: startsAt.toISOString(),
+    durationMinutes: 60,
+    title,
+    status: "rendering",
+    youtubeVideoId: process.env.YOUTUBE_VIDEO_ID || undefined,
+    youtubeUrl: process.env.YOUTUBE_VIDEO_URL || undefined,
+    workflowRunId: process.env.GITHUB_RUN_ID || undefined,
+    workflowUrl:
+      process.env.GITHUB_SERVER_URL && process.env.GITHUB_REPOSITORY && process.env.GITHUB_RUN_ID
+        ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
+        : undefined,
+    cards: writeoutCards,
+    writeoutMarkdown: buildWriteoutMarkdown(title, writeoutCards)
+  });
+}
+
 async function main() {
   const ffmpeg = process.env.FFMPEG_PATH ?? ffmpegPath ?? "ffmpeg";
   const useBlockMode = process.env.HOUR_BROADCAST_MODE === "blocks";
   const cards = useBlockMode ? await buildBlockCards() : await buildCards();
+  await saveBroadcastWriteout(cards);
   await mkdir(renderDir, { recursive: true });
   await mkdir(path.dirname(outputPath), { recursive: true });
 

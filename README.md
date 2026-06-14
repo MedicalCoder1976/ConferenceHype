@@ -75,15 +75,16 @@ The dashboard includes:
 - Source and monitored-X management
 - A clear `Specialty X Voices` tab with delete/disable controls
 - A `Conferences` tab grouped by month and year
-- Conference-day coverage planning in three-hour blocks
+- Conference-day coverage planning in one-hour blocks
+- Full broadcast writeouts with scripts, sources, and delivery links
 - Aired history
 - Voice and recording views
 - GitHub Actions stream dispatch through `GITHUB_DISPATCH_TOKEN`
 
 The admin Start Stream action dispatches `.github/workflows/youtube-stream.yml`
-with a start time and one of these durations: 5, 15, 30, 60, or 180 minutes.
-The scheduled workflow polls saved conference coverage every 15 minutes and
-only starts a three-hour render when a selected coverage block is approaching.
+for a one-hour broadcast. The scheduled workflow polls saved conference
+coverage every 15 minutes and only starts a render when an approved one-hour
+block is approaching.
 
 ### Specialty X Voices
 
@@ -104,9 +105,9 @@ The conference catalog groups major meetings by month, year, and specialty.
 Operators can add or update meetings and select exact coverage dates when a
 verified date range is available.
 
-Each selected conference day starts with two three-hour coverage blocks,
+Each selected conference day starts with two one-hour coverage blocks,
 defaulting to 09:00 and 15:00 in the conference timezone. Operators can add
-more three-hour blocks up to eight blocks, covering the full 24-hour day.
+more one-hour blocks up to 24 blocks, covering the full day.
 Outside saved conference coverage blocks, the normal verified default
 broadcast rundown remains active.
 
@@ -183,7 +184,7 @@ community information must not be described as attendee sentiment or live
 social chatter.
 
 The planned broadcast starts June 12, 2026 at 08:00 CEST and covers four
-continuous 24-hour days in 32 three-hour blocks. Because the Congress ends
+continuous 24-hour days in 96 one-hour blocks. Because the Congress ends
 June 14, the June 15 programming is a post-meeting recap day.
 
 ```powershell
@@ -289,7 +290,7 @@ Current timing:
 - 40-second content card
 - 20-second music card after every content card
 - 60 content/music pairs per hour
-- 180 content cards and 180 music cards in a three-hour render
+- 60 content cards and 60 music cards in a one-hour render
 
 Content scripts are cleaned and limited to roughly 90 words. Persona assignment
 is deterministic across the 17 personas using the segment ID and slot index.
@@ -325,10 +326,9 @@ The block content uses 40-second content cards followed by 20-second music
 cards. News uses `echo-sage`, Social Desk alternates `echo-sage` and
 `nova-quinn`, and Pharma News uses the company-watch persona `aether-vale`.
 
-When `LLM_API_KEY` is configured, a three-hour scheduled render attempts three
-generation requests per hour, for nine requests total. Without a key, the
-generators use source-derived fallback copy. Recent media and social data are
-fetched once and reused across those hours. The Pharma News block filters recent
+When `LLM_API_KEY` is configured, each scheduled hour attempts three generation
+requests. Without a key, the generators use source-derived fallback copy.
+Recent media and social data are fetched once for that hour. The Pharma News block filters recent
 media for pharmaceutical, biotechnology, drug-development, regulatory, company,
 and oncology-treatment terms. It attributes factual claims to the supplied
 sources and does not use the static exhibitor directory.
@@ -409,7 +409,7 @@ with music-only output.
 `.github/workflows/youtube-stream.yml` currently:
 
 1. Installs Node dependencies, FFmpeg, and Kokoro dependencies.
-2. Resolves a three-hour block start.
+2. Resolves a one-hour block start.
 3. Starts a temporary fallback RTMP stream only for the calculated 7 AM Eastern
    opener.
 4. Renders the complete MP4.
@@ -434,8 +434,8 @@ The simpler fallback publisher uses `npm run job:stream`, loops
 - GitHub scheduled workflows can begin late; the workflow does not wait for an
   exact broadcast boundary after rendering.
 - Rendering and streaming happen in the same job.
-- Scheduled jobs have a 235-minute timeout that includes setup, rendering, and
-  a requested 180-minute stream.
+- Scheduled jobs have a 180-minute timeout that includes setup, rendering, and
+  the one-hour stream.
 - Manually dispatched jobs use the selected stream duration as the entire job
   timeout, so setup and rendering reduce the available streaming time.
 - No workflow concurrency group prevents two jobs from publishing to the same
@@ -548,7 +548,7 @@ Dry-run the fallback RTMP command without connecting:
 
 ```powershell
 $env:STREAM_DRY_RUN="1"
-$env:STREAM_DURATION_SECONDS="10800"
+$env:STREAM_DURATION_SECONDS="3600"
 npm run job:stream
 ```
 

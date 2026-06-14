@@ -9,7 +9,7 @@ function voiceLine(leader: SocialVoiceLeader, index: number) {
 export function buildHourlySocialVoiceRundownSegments({
   leaders,
   baseTime,
-  hours = 3
+  hours = 1
 }: {
   leaders: SocialVoiceLeader[];
   baseTime: Date;

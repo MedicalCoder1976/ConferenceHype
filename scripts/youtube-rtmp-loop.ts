@@ -6,9 +6,7 @@ async function main() {
   loadEnvConfig(process.cwd());
   const { getYoutubeRtmpTarget } = await import("@/lib/media/stream");
   const input = process.env.STREAM_INPUT_PATH ?? "public/rendered/fallback-loop.mp4";
-  const durationSeconds =
-    process.env.STREAM_DURATION_SECONDS ??
-    (process.env.npm_lifecycle_event === "job:stream:6h" ? "21600" : undefined);
+  const durationSeconds = process.env.STREAM_DURATION_SECONDS ?? "3600";
   const target = getYoutubeRtmpTarget();
   const args = [
     "-re",

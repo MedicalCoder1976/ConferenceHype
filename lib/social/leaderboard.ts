@@ -81,8 +81,8 @@ export function buildSocialVoiceLeaderboard(
   return ranked.slice(0, 20);
 }
 
-export function shouldRunSocialVoiceCompetition(now = new Date()) {
-  return now.getUTCHours() % 3 === 0;
+export function shouldRunSocialVoiceCompetition() {
+  return true;
 }
 
 export function buildSocialVoiceCompetitionSegment(
@@ -101,10 +101,10 @@ export function buildSocialVoiceCompetitionSegment(
 
   return {
     id: `social-voice-competition-${now.toISOString()}`,
-    title: "Three-hour social voice leaderboard",
+    title: "Hourly social voice leaderboard",
     summary:
       "Competition-style leaderboard for watched X voices and audience social signals.",
-    script: `Social voice scoreboard check. Every three hours, ASCO Hype ranks the voices lighting up the ASCO conversation on X. Top voices are added to the monitored callout list for source-attributed broadcast commentary.\n\n${board || "The board is still warming up. More ASCO26 signal needed before we can crown a leader."}\n\n${routing}`,
+    script: `Social voice scoreboard check. Every hour, ASCO Hype ranks the voices lighting up the ASCO conversation on X. Top voices are added to the monitored callout list for source-attributed broadcast commentary.\n\n${board || "The board is still warming up. More ASCO26 signal needed before we can crown a leader."}\n\n${routing}`,
     contentType: "social_signal",
     personaId: "vesper-quill",
     personaName: "Vesper Quill",

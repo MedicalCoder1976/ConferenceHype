@@ -7,6 +7,8 @@ import { specialtyVoiceSeeds } from "@/lib/catalog/specialtyVoiceSeeds";
 import { oncologyJournalSeeds } from "@/lib/catalog/oncologyJournalSeeds";
 import type {
   AnalyticsSnapshot,
+  BroadcastWriteout,
+  BroadcastWriteoutCard,
   Citation,
   EditorialPackage,
   IngestedItem,
@@ -112,6 +114,24 @@ type ConferenceCoverageSlotRow = {
   stream_ended_at?: string | null;
   delivery_error?: string | null;
   updated_at?: string | null;
+};
+
+type BroadcastWriteoutRow = {
+  id: string;
+  coverage_slot_id?: string | null;
+  starts_at: string;
+  duration_minutes: number;
+  title: string;
+  status: BroadcastWriteout["status"];
+  youtube_video_id?: string | null;
+  youtube_url?: string | null;
+  workflow_run_id?: string | null;
+  workflow_url?: string | null;
+  delivery_error?: string | null;
+  cards: BroadcastWriteoutCard[];
+  writeout_markdown: string;
+  created_at: string;
+  updated_at: string;
 };
 
 type OncologyJournalRow = {
@@ -241,6 +261,26 @@ function toConferenceCoverageSlot(row: ConferenceCoverageSlotRow): ConferenceCov
     streamEndedAt: row.stream_ended_at ?? undefined,
     deliveryError: row.delivery_error ?? undefined,
     updatedAt: row.updated_at ?? undefined
+  };
+}
+
+function toBroadcastWriteout(row: BroadcastWriteoutRow): BroadcastWriteout {
+  return {
+    id: row.id,
+    coverageSlotId: row.coverage_slot_id ?? undefined,
+    startsAt: row.starts_at,
+    durationMinutes: row.duration_minutes,
+    title: row.title,
+    status: row.status,
+    youtubeVideoId: row.youtube_video_id ?? undefined,
+    youtubeUrl: row.youtube_url ?? undefined,
+    workflowRunId: row.workflow_run_id ?? undefined,
+    workflowUrl: row.workflow_url ?? undefined,
+    deliveryError: row.delivery_error ?? undefined,
+    cards: row.cards ?? [],
+    writeoutMarkdown: row.writeout_markdown,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
   };
 }
 
@@ -582,6 +622,57 @@ export async function getConferenceCoverageSlotsFromDb(): Promise<ConferenceCove
   return (data as ConferenceCoverageSlotRow[]).map(toConferenceCoverageSlot);
 }
 
+export async function getBroadcastWriteoutsFromDb(
+  limit = 200
+): Promise<BroadcastWriteout[] | null> {
+  if (!hasSupabase()) {
+    return null;
+  }
+  const { data, error } = await createAdminClient()
+    .from("broadcast_writeouts")
+    .select("*")
+    .order("starts_at", { ascending: false })
+    .limit(limit);
+  if (error) {
+    throw error;
+  }
+  return (data as BroadcastWriteoutRow[]).map(toBroadcastWriteout);
+}
+
+export async function upsertBroadcastWriteoutInDb(
+  writeout: Omit<BroadcastWriteout, "id" | "createdAt" | "updatedAt">
+) {
+  if (!hasSupabase()) {
+    return null;
+  }
+  const { data, error } = await createAdminClient()
+    .from("broadcast_writeouts")
+    .upsert(
+      {
+        coverage_slot_id: writeout.coverageSlotId,
+        starts_at: writeout.startsAt,
+        duration_minutes: writeout.durationMinutes,
+        title: writeout.title,
+        status: writeout.status,
+        youtube_video_id: writeout.youtubeVideoId,
+        youtube_url: writeout.youtubeUrl,
+        workflow_run_id: writeout.workflowRunId,
+        workflow_url: writeout.workflowUrl,
+        delivery_error: writeout.deliveryError,
+        cards: writeout.cards,
+        writeout_markdown: writeout.writeoutMarkdown,
+        updated_at: new Date().toISOString()
+      },
+      { onConflict: writeout.coverageSlotId ? "coverage_slot_id" : "starts_at" }
+    )
+    .select("*")
+    .single();
+  if (error) {
+    throw error;
+  }
+  return toBroadcastWriteout(data as BroadcastWriteoutRow);
+}
+
 export async function getOncologyJournalsFromDb(): Promise<OncologyJournal[] | null> {
   if (!hasSupabase()) return null;
   const { data, error } = await createAdminClient()
@@ -809,7 +900,9 @@ export async function updateConferenceCoverageDeliveryInDb(
   if (!hasSupabase()) {
     return null;
   }
-  const { data, error } = await createAdminClient()
+  const supabase = createAdminClient();
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
     .from("conference_coverage_slots")
     .update({
       youtube_status: patch.youtubeStatus,
@@ -820,7 +913,7 @@ export async function updateConferenceCoverageDeliveryInDb(
       stream_started_at: patch.streamStartedAt,
       stream_ended_at: patch.streamEndedAt,
       delivery_error: patch.deliveryError,
-      updated_at: new Date().toISOString()
+      updated_at: now
     })
     .eq("id", slotId)
     .select("*")
@@ -828,10 +921,25 @@ export async function updateConferenceCoverageDeliveryInDb(
   if (error) {
     throw error;
   }
+  const { error: writeoutError } = await supabase
+    .from("broadcast_writeouts")
+    .update({
+      status: patch.youtubeStatus,
+      youtube_video_id: patch.youtubeVideoId,
+      youtube_url: patch.youtubeUrl,
+      workflow_run_id: patch.workflowRunId,
+      workflow_url: patch.workflowUrl,
+      delivery_error: patch.deliveryError,
+      updated_at: now
+    })
+    .eq("coverage_slot_id", slotId);
+  if (writeoutError) {
+    throw writeoutError;
+  }
   return toConferenceCoverageSlot(data as ConferenceCoverageSlotRow);
 }
 
-export async function getRecentMediaItemsFromDb(hours = 3): Promise<IngestedItem[] | null> {
+export async function getRecentMediaItemsFromDb(hours = 1): Promise<IngestedItem[] | null> {
   if (!hasSupabase()) {
     return null;
   }
@@ -852,7 +960,7 @@ export async function getRecentMediaItemsFromDb(hours = 3): Promise<IngestedItem
 }
 
 export async function getRecentIngestedItemsFromDb(
-  hours = 3,
+  hours = 1,
   limit = 120
 ): Promise<IngestedItem[] | null> {
   if (!hasSupabase()) {
@@ -871,7 +979,7 @@ export async function getRecentIngestedItemsFromDb(
   return (data as IngestedItemRow[]).map(toIngestedItem);
 }
 
-export async function getRecentSocialItemsFromDb(hours = 3): Promise<IngestedItem[] | null> {
+export async function getRecentSocialItemsFromDb(hours = 1): Promise<IngestedItem[] | null> {
   if (!hasSupabase()) {
     return null;
   }

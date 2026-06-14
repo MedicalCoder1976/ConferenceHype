@@ -5,7 +5,7 @@ import { env } from "@/lib/env";
 
 const bodySchema = z.object({
   startAt: z.string().datetime(),
-  durationMinutes: z.enum(["5", "15", "30", "60", "180"]).default("180")
+  durationMinutes: z.literal("60").default("60")
 });
 
 export async function POST(request: NextRequest) {

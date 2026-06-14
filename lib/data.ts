@@ -8,6 +8,7 @@ import {
   getAiredSegmentsFromDb,
   getApprovedSegmentsFromDb,
   getBlacklistedXHandlesFromDb,
+  getBroadcastWriteoutsFromDb,
   getConferenceCoverageSlotsFromDb,
   getEditorialPackagesFromDb,
   getMedicalConferencesFromDb,
@@ -121,7 +122,8 @@ export async function getAdminSnapshot(baseTime = new Date(), planningHours = 1)
     (await getNextBroadcastSegmentsFromDb(200)) ?? []
   );
   const scheduleRundownSegments = buildScheduleRundownSegments(baseTime, planningHours);
-  const airedSegments = (await getAiredSegmentsFromDb(180)) ?? [];
+  const airedSegments = (await getAiredSegmentsFromDb(200)) ?? [];
+  const broadcastWriteouts = (await getBroadcastWriteoutsFromDb()) ?? [];
   const specialtyXVoices = (await getSpecialtyXVoicesFromDb()) ?? [];
   const medicalConferences = (await getMedicalConferencesFromDb()) ?? [];
   const conferenceCoverageSlots = (await getConferenceCoverageSlotsFromDb()) ?? [];
@@ -137,6 +139,7 @@ export async function getAdminSnapshot(baseTime = new Date(), planningHours = 1)
     nextBroadcastSegments,
     scheduleRundownSegments,
     airedSegments,
+    broadcastWriteouts,
     streamState: await getStreamState(),
     sources: (await getSourcesFromDb()) ?? sourceRegistry,
     xFollowVoices,
@@ -148,7 +151,7 @@ export async function getAdminSnapshot(baseTime = new Date(), planningHours = 1)
     oncologyJournals,
     editorialPackages,
     nextSocialVoiceCompetition:
-      "Leaderboard refreshes from recent X/social ingest; top traction voices are added to Source intake every 15-minute generation cycle. The scoreboard card still airs every third UTC hour.",
+      "Leaderboard refreshes from recent X/social ingest; top traction voices are added to Source intake every 15-minute generation cycle. The scoreboard card is available in every approved one-hour block.",
     socialVoiceCompetitionDueNow: shouldRunSocialVoiceCompetition(),
     analytics
   };

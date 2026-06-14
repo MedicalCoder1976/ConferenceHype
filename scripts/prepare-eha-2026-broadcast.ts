@@ -48,8 +48,8 @@ async function main() {
   }
 
   const slotStarts = Array.from(
-    { length: coverageDays * 8 },
-    (_, index) => new Date(startsAt.getTime() + index * 3 * 60 * 60 * 1000).toISOString()
+    { length: coverageDays * 24 },
+    (_, index) => new Date(startsAt.getTime() + index * 60 * 60 * 1000).toISOString()
   );
   await replaceConferenceCoverageSlotsInDb({
     conferenceId: conference.id,
@@ -115,7 +115,7 @@ async function main() {
     timezone: conference.timezone,
     coverageStart: slotStarts[0],
     coverageEnd: new Date(
-      new Date(slotStarts.at(-1)!).getTime() + 3 * 60 * 60 * 1000
+      new Date(slotStarts.at(-1)!).getTime() + 60 * 60 * 1000
     ).toISOString(),
     coverageSlots: slotStarts.length,
     packageId: editorialPackage.id,

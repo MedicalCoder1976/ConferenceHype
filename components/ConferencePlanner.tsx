@@ -293,7 +293,7 @@ export function ConferencePlanner({
           )}
           <div className="mt-4 grid gap-2 sm:grid-cols-4">
             {slotTimes.map((time, index) => (
-              <input key={`${time}-${index}`} type="time" step="10800" value={time} onChange={(event) => setSlotTimes((current) => current.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} className="border border-ink/20 px-3 py-2" />
+              <input key={`${time}-${index}`} type="time" step="3600" value={time} onChange={(event) => setSlotTimes((current) => current.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} className="border border-ink/20 px-3 py-2" />
             ))}
             {slotTimes.length < 24 ? <button type="button" onClick={() => setSlotTimes((current) => [...current, "18:00"])} className="inline-flex items-center justify-center gap-2 border border-ink px-3 py-2 text-xs font-black uppercase"><Plus className="h-4 w-4" /> Add one-hour block</button> : null}
           </div>
