@@ -100,6 +100,18 @@ type ConferenceCoverageSlotRow = {
   starts_at: string;
   duration_hours: number;
   enabled: boolean;
+  approval_status: ConferenceCoverageSlot["approvalStatus"];
+  approved_at?: string | null;
+  approval_scope?: ConferenceCoverageSlot["approvalScope"] | null;
+  youtube_status: ConferenceCoverageSlot["youtubeStatus"];
+  youtube_video_id?: string | null;
+  youtube_url?: string | null;
+  workflow_run_id?: string | null;
+  workflow_url?: string | null;
+  stream_started_at?: string | null;
+  stream_ended_at?: string | null;
+  delivery_error?: string | null;
+  updated_at?: string | null;
 };
 
 type OncologyJournalRow = {
@@ -216,7 +228,19 @@ function toConferenceCoverageSlot(row: ConferenceCoverageSlotRow): ConferenceCov
     conferenceId: row.conference_id,
     startsAt: row.starts_at,
     durationHours: row.duration_hours,
-    enabled: row.enabled
+    enabled: row.enabled,
+    approvalStatus: row.approval_status ?? "draft",
+    approvedAt: row.approved_at ?? undefined,
+    approvalScope: row.approval_scope ?? undefined,
+    youtubeStatus: row.youtube_status ?? "not_scheduled",
+    youtubeVideoId: row.youtube_video_id ?? undefined,
+    youtubeUrl: row.youtube_url ?? undefined,
+    workflowRunId: row.workflow_run_id ?? undefined,
+    workflowUrl: row.workflow_url ?? undefined,
+    streamStartedAt: row.stream_started_at ?? undefined,
+    streamEndedAt: row.stream_ended_at ?? undefined,
+    deliveryError: row.delivery_error ?? undefined,
+    updatedAt: row.updated_at ?? undefined
   };
 }
 
@@ -550,7 +574,6 @@ export async function getConferenceCoverageSlotsFromDb(): Promise<ConferenceCove
   const { data, error } = await supabase
     .from("conference_coverage_slots")
     .select("*")
-    .eq("enabled", true)
     .order("starts_at", { ascending: true });
 
   if (error) {
@@ -689,31 +712,123 @@ export async function replaceConferenceCoverageSlotsInDb({
     return null;
   }
   const supabase = createAdminClient();
-  const { error: deleteError } = await supabase
+  const { data: existingRows, error: existingError } = await supabase
     .from("conference_coverage_slots")
-    .delete()
+    .select("*")
     .eq("conference_id", conferenceId);
-  if (deleteError) {
-    throw deleteError;
+  if (existingError) {
+    throw existingError;
   }
+
+  const desiredStarts = new Set(startsAt.map((value) => new Date(value).toISOString()));
+  const existing = (existingRows as ConferenceCoverageSlotRow[]) ?? [];
+  const removableIds = existing
+    .filter(
+      (slot) =>
+        !desiredStarts.has(new Date(slot.starts_at).toISOString()) &&
+        !["live", "completed"].includes(slot.youtube_status ?? "not_scheduled")
+    )
+    .map((slot) => slot.id);
+  if (removableIds.length) {
+    const { error: disableError } = await supabase
+      .from("conference_coverage_slots")
+      .update({ enabled: false, updated_at: new Date().toISOString() })
+      .in("id", removableIds);
+    if (disableError) {
+      throw disableError;
+    }
+  }
+
   if (startsAt.length === 0) {
     return [];
   }
   const { data, error } = await supabase
     .from("conference_coverage_slots")
-    .insert(
+    .upsert(
       startsAt.map((startsAtValue) => ({
         conference_id: conferenceId,
         starts_at: startsAtValue,
-        duration_hours: 3,
-        enabled: true
-      }))
+        duration_hours: 1,
+        enabled: true,
+        updated_at: new Date().toISOString()
+      })),
+      { onConflict: "conference_id,starts_at" }
     )
     .select("*");
   if (error) {
     throw error;
   }
   return (data as ConferenceCoverageSlotRow[]).map(toConferenceCoverageSlot);
+}
+
+export async function updateConferenceCoverageApprovalInDb({
+  slotIds,
+  action,
+  approvalScope
+}: {
+  slotIds: string[];
+  action: "approve" | "draft" | "reject";
+  approvalScope: "slot" | "day" | "week";
+}) {
+  if (!hasSupabase()) {
+    return null;
+  }
+  const now = new Date().toISOString();
+  const approvalStatus =
+    action === "approve" ? "approved" : action === "reject" ? "rejected" : "draft";
+  const { data, error } = await createAdminClient()
+    .from("conference_coverage_slots")
+    .update({
+      approval_status: approvalStatus,
+      approved_at: action === "approve" ? now : null,
+      approval_scope: action === "approve" ? approvalScope : null,
+      delivery_error: null,
+      updated_at: now
+    })
+    .in("id", slotIds)
+    .select("*");
+  if (error) {
+    throw error;
+  }
+  return (data as ConferenceCoverageSlotRow[]).map(toConferenceCoverageSlot);
+}
+
+export async function updateConferenceCoverageDeliveryInDb(
+  slotId: string,
+  patch: {
+    youtubeStatus: ConferenceCoverageSlot["youtubeStatus"];
+    youtubeVideoId?: string;
+    youtubeUrl?: string;
+    workflowRunId?: string;
+    workflowUrl?: string;
+    streamStartedAt?: string;
+    streamEndedAt?: string;
+    deliveryError?: string | null;
+  }
+) {
+  if (!hasSupabase()) {
+    return null;
+  }
+  const { data, error } = await createAdminClient()
+    .from("conference_coverage_slots")
+    .update({
+      youtube_status: patch.youtubeStatus,
+      youtube_video_id: patch.youtubeVideoId,
+      youtube_url: patch.youtubeUrl,
+      workflow_run_id: patch.workflowRunId,
+      workflow_url: patch.workflowUrl,
+      stream_started_at: patch.streamStartedAt,
+      stream_ended_at: patch.streamEndedAt,
+      delivery_error: patch.deliveryError,
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", slotId)
+    .select("*")
+    .single();
+  if (error) {
+    throw error;
+  }
+  return toConferenceCoverageSlot(data as ConferenceCoverageSlotRow);
 }
 
 export async function getRecentMediaItemsFromDb(hours = 3): Promise<IngestedItem[] | null> {

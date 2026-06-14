@@ -139,9 +139,23 @@ create table public.conference_coverage_slots (
   id uuid primary key default gen_random_uuid(),
   conference_id uuid not null references public.medical_conferences(id) on delete cascade,
   starts_at timestamptz not null,
-  duration_hours int not null default 3 check (duration_hours = 3),
+  duration_hours int not null default 1 check (duration_hours between 1 and 24),
   enabled boolean not null default true,
+  approval_status text not null default 'draft'
+    check (approval_status in ('draft', 'approved', 'rejected')),
+  approved_at timestamptz,
+  approval_scope text check (approval_scope in ('slot', 'day', 'week')),
+  youtube_status text not null default 'not_scheduled'
+    check (youtube_status in ('not_scheduled', 'queued', 'rendering', 'live', 'completed', 'failed')),
+  youtube_video_id text,
+  youtube_url text,
+  workflow_run_id text,
+  workflow_url text,
+  stream_started_at timestamptz,
+  stream_ended_at timestamptz,
+  delivery_error text,
   created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
   unique (conference_id, starts_at)
 );
 
@@ -194,6 +208,9 @@ create index if not exists medical_conferences_month_year_idx
   on public.medical_conferences (year, month, enabled);
 create index if not exists conference_coverage_slots_starts_at_idx
   on public.conference_coverage_slots (starts_at, enabled);
+create index if not exists conference_coverage_slots_publish_queue_idx
+  on public.conference_coverage_slots (approval_status, youtube_status, starts_at)
+  where enabled = true;
 create index if not exists editorial_packages_category_created_idx
   on public.editorial_packages (category, created_at desc);
 

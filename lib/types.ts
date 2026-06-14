@@ -134,6 +134,24 @@ export type ConferenceCoverageSlot = {
   startsAt: string;
   durationHours: number;
   enabled: boolean;
+  approvalStatus: "draft" | "approved" | "rejected";
+  approvedAt?: string;
+  approvalScope?: "slot" | "day" | "week";
+  youtubeStatus:
+    | "not_scheduled"
+    | "queued"
+    | "rendering"
+    | "live"
+    | "completed"
+    | "failed";
+  youtubeVideoId?: string;
+  youtubeUrl?: string;
+  workflowRunId?: string;
+  workflowUrl?: string;
+  streamStartedAt?: string;
+  streamEndedAt?: string;
+  deliveryError?: string;
+  updatedAt?: string;
 };
 
 export type OncologyJournal = {

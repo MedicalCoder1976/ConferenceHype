@@ -1,11 +1,23 @@
 "use client";
 
-import { CalendarDays, Plus, Save } from "lucide-react";
+import {
+  CalendarCheck,
+  CalendarDays,
+  CheckCircle2,
+  ExternalLink,
+  Plus,
+  Save,
+  Youtube
+} from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
 import { medicalSpecialties } from "@/lib/catalog/medicalSpecialties";
 import type { ConferenceCoverageSlot, MedicalConference } from "@/lib/types";
 
 const monthLabel = new Intl.DateTimeFormat("en-US", { month: "long" });
+const defaultSlotTimes = Array.from(
+  { length: 9 },
+  (_, index) => `${String(index + 9).padStart(2, "0")}:00`
+);
 
 function datesBetween(start?: string, end?: string) {
   if (!start || !end) return [];
@@ -41,6 +53,32 @@ function zonedDateTimeToIso(date: string, time: string, timeZone: string) {
   return guess.toISOString();
 }
 
+function localDateKey(startsAt: string, timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(new Date(startsAt));
+  const value = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
+  return `${value("year")}-${value("month")}-${value("day")}`;
+}
+
+function localSlotLabel(startsAt: string, durationHours: number, timeZone: string) {
+  const start = new Date(startsAt);
+  const end = new Date(start.getTime() + durationHours * 60 * 60 * 1000);
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hour: "numeric",
+    minute: "2-digit"
+  });
+  return `${formatter.format(start)}-${formatter.format(end)}`;
+}
+
+function deliveryLabel(status: ConferenceCoverageSlot["youtubeStatus"]) {
+  return status.replaceAll("_", " ");
+}
+
 export function ConferencePlanner({
   initialConferences,
   initialCoverageSlots
@@ -52,7 +90,7 @@ export function ConferencePlanner({
   const [coverageSlots, setCoverageSlots] = useState(initialCoverageSlots);
   const [selectedConferenceId, setSelectedConferenceId] = useState("");
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
-  const [slotTimes, setSlotTimes] = useState(["09:00", "15:00"]);
+  const [slotTimes, setSlotTimes] = useState(defaultSlotTimes);
   const [message, setMessage] = useState("");
   const [formError, setFormError] = useState("");
   const [pending, startTransition] = useTransition();
@@ -73,6 +111,32 @@ export function ConferencePlanner({
 
   const selectedConference = conferences.find((conference) => conference.id === selectedConferenceId);
   const availableDates = datesBetween(selectedConference?.startDate, selectedConference?.endDate);
+  const scheduleDays = useMemo(() => {
+    const groups = new Map<
+      string,
+      { conference: MedicalConference; slots: ConferenceCoverageSlot[] }
+    >();
+    for (const slot of coverageSlots) {
+      const conference = conferences.find((item) => item.id === slot.conferenceId);
+      if (!conference) continue;
+      const date = localDateKey(slot.startsAt, conference.timezone);
+      const key = `${conference.id}:${date}`;
+      const group = groups.get(key) ?? { conference, slots: [] };
+      group.slots.push(slot);
+      groups.set(key, group);
+    }
+    return Array.from(groups.entries())
+      .map(([key, value]) => ({
+        key,
+        date: key.slice(key.lastIndexOf(":") + 1),
+        conference: value.conference,
+        slots: value.slots.sort(
+          (left, right) =>
+            new Date(left.startsAt).getTime() - new Date(right.startsAt).getTime()
+        )
+      }))
+      .sort((left, right) => left.date.localeCompare(right.date));
+  }, [conferences, coverageSlots]);
 
   const saveConference = () => startTransition(async () => {
     try {
@@ -110,13 +174,64 @@ export function ConferencePlanner({
         });
         const payload = await response.json();
         if (!response.ok || !payload.ok) throw new Error(payload.error ?? "Could not save coverage.");
+        const replacements = new Map(
+          (payload.slots as ConferenceCoverageSlot[]).map((slot) => [slot.id, slot])
+        );
         setCoverageSlots((current) => [
-          ...current.filter((slot) => slot.conferenceId !== selectedConference.id),
-          ...payload.slots
+          ...current.map((slot) => replacements.get(slot.id) ?? slot),
+          ...(payload.slots as ConferenceCoverageSlot[]).filter(
+            (slot) => !current.some((item) => item.id === slot.id)
+          )
         ]);
-        setMessage(`${payload.slots.length} three-hour coverage blocks saved for ${selectedConference.name}.`);
+        setMessage(`${payload.slots.length} one-hour programming blocks saved for ${selectedConference.name}.`);
       } catch (error) {
         setMessage(error instanceof Error ? error.message : "Could not save coverage.");
+      }
+    });
+  };
+
+  const updateApproval = (
+    slots: ConferenceCoverageSlot[],
+    action: "approve" | "draft" | "reject",
+    approvalScope: "slot" | "day" | "week"
+  ) => {
+    const mutableSlots = slots.filter(
+      (slot) => !["live", "completed"].includes(slot.youtubeStatus)
+    );
+    if (!mutableSlots.length) {
+      setMessage("Completed or live YouTube deliveries cannot be changed.");
+      return;
+    }
+    startTransition(async () => {
+      try {
+        const response = await fetch("/api/admin/conference-coverage", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            slotIds: mutableSlots.map((slot) => slot.id),
+            action,
+            approvalScope
+          })
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) {
+          throw new Error(payload.error ?? "Could not update programming approval.");
+        }
+        const replacements = new Map(
+          (payload.slots as ConferenceCoverageSlot[]).map((slot) => [slot.id, slot])
+        );
+        setCoverageSlots((current) =>
+          current.map((slot) => replacements.get(slot.id) ?? slot)
+        );
+        setMessage(
+          `${payload.slots.length} ${approvalScope} programming block${
+            payload.slots.length === 1 ? "" : "s"
+          } ${action === "approve" ? "approved" : action === "reject" ? "blocked" : "returned to draft"}.`
+        );
+      } catch (error) {
+        setMessage(
+          error instanceof Error ? error.message : "Could not update programming approval."
+        );
       }
     });
   };
@@ -125,7 +240,7 @@ export function ConferencePlanner({
     <section className="grid gap-5">
       <div className="border border-ink/10 bg-white p-5 shadow-panel">
         <div className="flex items-center gap-2"><CalendarDays className="h-5 w-5 text-broadcast" /><h2 className="text-xl font-black">Medical conference coverage</h2></div>
-        <p className="mt-2 text-sm leading-6 text-ink/65">Browse major conferences by month and specialty. Selected conference days start with two three-hour blocks; add more start times to cover up to the full day. Default broadcast fills all other time.</p>
+        <p className="mt-2 text-sm leading-6 text-ink/65">Browse major conferences by month and specialty. Coverage is planned in one-hour blocks, then approved by slot, day, or week before the YouTube publisher can pick it up.</p>
         {message ? <div className="mt-3 border border-cyanline/30 bg-cyanline/10 p-3 text-sm font-bold">{message}</div> : null}
       </div>
 
@@ -148,7 +263,7 @@ export function ConferencePlanner({
                         if (existing.length) {
                           setSlotTimes(Array.from(new Set(existing.map((slot) => new Intl.DateTimeFormat("en-US", { timeZone: conference.timezone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(slot.startsAt))))));
                         } else {
-                          setSlotTimes(["09:00", "15:00"]);
+                          setSlotTimes(defaultSlotTimes);
                         }
                       }} className="bg-broadcast px-3 py-2 text-xs font-black uppercase text-white">Select coverage days</button>
                       <a href={conference.officialUrl} target="_blank" rel="noreferrer" className="border border-ink px-3 py-2 text-xs font-black uppercase">Official site</a>
@@ -180,11 +295,151 @@ export function ConferencePlanner({
             {slotTimes.map((time, index) => (
               <input key={`${time}-${index}`} type="time" step="10800" value={time} onChange={(event) => setSlotTimes((current) => current.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} className="border border-ink/20 px-3 py-2" />
             ))}
-            {slotTimes.length < 8 ? <button type="button" onClick={() => setSlotTimes((current) => [...current, "21:00"])} className="inline-flex items-center justify-center gap-2 border border-ink px-3 py-2 text-xs font-black uppercase"><Plus className="h-4 w-4" /> Add 3-hour block</button> : null}
+            {slotTimes.length < 24 ? <button type="button" onClick={() => setSlotTimes((current) => [...current, "18:00"])} className="inline-flex items-center justify-center gap-2 border border-ink px-3 py-2 text-xs font-black uppercase"><Plus className="h-4 w-4" /> Add one-hour block</button> : null}
           </div>
           <button type="button" disabled={pending || availableDates.length === 0} onClick={saveCoverage} className="mt-4 inline-flex min-h-11 items-center gap-2 bg-ink px-4 text-sm font-black uppercase text-white disabled:opacity-50"><Save className="h-4 w-4" /> Save coverage plan</button>
         </div>
       ) : null}
+
+      <div className="border border-ink/10 bg-white p-5 shadow-panel">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <CalendarCheck className="h-5 w-5 text-broadcast" />
+              <h3 className="text-lg font-black">Programming approval and YouTube delivery</h3>
+            </div>
+            <p className="mt-2 text-sm font-semibold text-ink/60">
+              Approve complete days or the next seven days. Live and completed blocks remain locked as delivery history.
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={pending || coverageSlots.length === 0}
+            onClick={() => {
+              const now = Date.now();
+              const weekEnd = now + 7 * 24 * 60 * 60 * 1000;
+              updateApproval(
+                coverageSlots.filter((slot) => {
+                  const startsAt = new Date(slot.startsAt).getTime();
+                  return slot.enabled && startsAt >= now && startsAt < weekEnd;
+                }),
+                "approve",
+                "week"
+              );
+            }}
+            className="inline-flex min-h-11 items-center gap-2 bg-broadcast px-4 text-xs font-black uppercase text-white disabled:opacity-50"
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            Approve next seven days
+          </button>
+        </div>
+
+        <div className="mt-5 grid gap-4">
+          {scheduleDays.length === 0 ? (
+            <div className="border border-dashed border-ink/20 p-5 text-sm font-bold text-ink/50">
+              No conference programming blocks have been saved yet.
+            </div>
+          ) : (
+            scheduleDays.map((day) => (
+              <article key={day.key} className="border border-ink/10">
+                <div className="flex flex-wrap items-center justify-between gap-3 bg-paper px-4 py-3">
+                  <div>
+                    <div className="text-sm font-black">{day.conference.name}</div>
+                    <div className="text-xs font-bold uppercase text-ink/50">
+                      {day.date} · {day.conference.timezone}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => updateApproval(day.slots, "draft", "day")}
+                      className="border border-ink px-3 py-2 text-xs font-black uppercase"
+                    >
+                      Return day to draft
+                    </button>
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => updateApproval(day.slots, "approve", "day")}
+                      className="bg-ink px-3 py-2 text-xs font-black uppercase text-white"
+                    >
+                      Approve entire day
+                    </button>
+                  </div>
+                </div>
+                <div className="divide-y divide-ink/10">
+                  {day.slots.map((slot) => (
+                    <div
+                      key={slot.id}
+                      className={`grid gap-3 px-4 py-3 md:grid-cols-[150px_130px_1fr_auto] md:items-center ${
+                        slot.enabled ? "" : "opacity-50"
+                      }`}
+                    >
+                      <div className="text-sm font-black">
+                        {localSlotLabel(slot.startsAt, slot.durationHours, day.conference.timezone)}
+                      </div>
+                      <button
+                        type="button"
+                        disabled={
+                          pending || ["live", "completed"].includes(slot.youtubeStatus)
+                        }
+                        onClick={() =>
+                          updateApproval(
+                            [slot],
+                            slot.approvalStatus === "approved" ? "draft" : "approve",
+                            "slot"
+                          )
+                        }
+                        className={`px-3 py-2 text-xs font-black uppercase disabled:cursor-not-allowed ${
+                          slot.approvalStatus === "approved"
+                            ? "bg-emerald-700 text-white"
+                            : "border border-ink/20 bg-white text-ink"
+                        }`}
+                      >
+                        {slot.approvalStatus}
+                      </button>
+                      <div>
+                        <div className="flex items-center gap-2 text-xs font-black uppercase">
+                          <Youtube className="h-4 w-4 text-red-600" />
+                          {deliveryLabel(slot.youtubeStatus)}
+                        </div>
+                        {slot.deliveryError ? (
+                          <div className="mt-1 text-xs font-semibold text-red-700">
+                            {slot.deliveryError}
+                          </div>
+                        ) : null}
+                      </div>
+                      <div className="flex gap-2">
+                        {slot.youtubeUrl ? (
+                          <a
+                            href={slot.youtubeUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 border border-red-200 px-3 py-2 text-xs font-black uppercase text-red-700"
+                          >
+                            Video <ExternalLink className="h-3 w-3" />
+                          </a>
+                        ) : null}
+                        {slot.workflowUrl ? (
+                          <a
+                            href={slot.workflowUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 border border-ink/20 px-3 py-2 text-xs font-black uppercase"
+                          >
+                            Run <ExternalLink className="h-3 w-3" />
+                          </a>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </article>
+            ))
+          )}
+        </div>
+      </div>
 
       <div className="border border-ink/10 bg-white p-5 shadow-panel">
         <h3 className="text-lg font-black">Add or update conference</h3>

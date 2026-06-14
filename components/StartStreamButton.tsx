@@ -15,7 +15,7 @@ export function StartStreamButton() {
         const response = await fetch("/api/admin/start-stream", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ startAt, durationMinutes: "180" })
+          body: JSON.stringify({ startAt, durationMinutes: "60" })
         });
         const payload = await response.json();
         if (!response.ok || !payload.ok) {
