@@ -22,8 +22,8 @@ select
   now(),
   now()
 from public.conference_coverage_slots slot
-cross join generate_series(1, 2) as offset_hour
-where slot.duration_hours = 3
+cross join lateral generate_series(1, greatest(slot.duration_hours - 1, 0)) as offset_hour
+where slot.duration_hours > 1
   and slot.starts_at >= date_trunc('hour', now())
   and slot.youtube_status not in ('live', 'completed')
 on conflict (conference_id, starts_at) do update
@@ -35,6 +35,6 @@ set
 update public.conference_coverage_slots
 set duration_hours = 1,
     updated_at = now()
-where duration_hours = 3
+where duration_hours > 1
   and starts_at >= date_trunc('hour', now())
   and youtube_status not in ('live', 'completed');
