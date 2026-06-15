@@ -70,7 +70,7 @@ function contentLabel(segment?: Segment) {
 function renderPreview(slots: BroadcastSlot[], start: Date) {
   const end = addMinutes(start, 60);
   const lines = [
-    `# ASCO Hype One-hour Planning Slot Preview`,
+    `# ConferenceHype One-hour Planning Slot Preview`,
     "",
     `Start: ${timeLabel(start)}`,
     `End: ${timeLabel(end)}`,

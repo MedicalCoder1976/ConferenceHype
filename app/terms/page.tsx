@@ -2,8 +2,8 @@ import Link from "next/link";
 import { monitoredSocialTags } from "@/lib/sources/registry";
 
 export const metadata = {
-  title: "Terms and Conditions | ASCO Hype",
-  description: "Terms, restrictions, and disclaimers for ASCO Hype."
+  title: "Terms and Conditions | ConferenceHype",
+  description: "Terms, restrictions, and disclaimers for ConferenceHype."
 };
 
 export default function TermsPage() {
@@ -11,34 +11,27 @@ export default function TermsPage() {
     <main className="min-h-screen bg-paper px-5 py-8 md:px-8">
       <div className="mx-auto max-w-4xl">
         <Link href="/" className="text-sm font-bold text-broadcast">
-          Back to ASCO Hype
+          Back to ConferenceHype
         </Link>
         <h1 className="mt-5 text-4xl font-black text-ink md:text-6xl">
           Terms and Conditions
         </h1>
         <p className="mt-4 text-lg leading-8 text-ink/72">
-          These terms explain how ASCO Hype should and should not be used.
+          These terms explain how ConferenceHype should and should not be used.
           Accessing the site, stream, clips, or topic-suggestion tags means you
           agree to these restrictions.
         </p>
 
         <section className="mt-8 grid gap-5">
           <TermBlock title="AI commentary only">
-            ASCO Hype is interactive AI commentary. It is not reporting,
+            ConferenceHype is interactive AI commentary. It is not reporting,
             journalism, medical education, clinical guidance, scientific
             validation, legal advice, or financial advice. Content may be
             generated, summarized, transformed, translated, or voiced by AI.
           </TermBlock>
 
-          <TermBlock title="No ASCO affiliation">
-            ASCO Hype is not associated with, endorsed by, sponsored by, or
-            affiliated with the American Society of Clinical Oncology in any
-            way. ASCO and related meeting names belong to their respective
-            owners.
-          </TermBlock>
-
           <TermBlock title="No medical or clinical reliance">
-            Do not use ASCO Hype to make medical, treatment, diagnostic,
+            Do not use ConferenceHype to make medical, treatment, diagnostic,
             research, patient-care, or clinical decisions. Always consult
             official conference materials, original publications, qualified
             clinicians, and other primary sources.
@@ -59,7 +52,7 @@ export default function TermsPage() {
             {monitoredSocialTags.conferenceHypeHandle} may be considered as
             topic suggestions or end-of-day audience items. Steps, workouts,
             walks, runs, and gym-session posts may be mentioned only after
-            review. Tagging ASCO Hype does not guarantee coverage, accuracy,
+            review. Tagging ConferenceHype does not guarantee coverage, accuracy,
             approval, publication, compensation, or response.
           </TermBlock>
 
@@ -71,7 +64,7 @@ export default function TermsPage() {
           </TermBlock>
 
           <TermBlock title="Source and accuracy limits">
-            ASCO Hype may reference public posts, links, headlines, abstracts,
+            ConferenceHype may reference public posts, links, headlines, abstracts,
             media items, company statements, and audience suggestions. Social
             posts are treated as conversation signals, not confirmed facts.
             Content may be incomplete, delayed, mistaken, or outdated.

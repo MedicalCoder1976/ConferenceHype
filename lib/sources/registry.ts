@@ -11,11 +11,11 @@ export const monitoredSocialTags = {
   secondaryHashtag: "#EHA2026",
   conferenceHashtag: "#EHA26",
   conferenceYearHashtag: "#EHA2026",
-  botHandle: "@ASCOHypeAI",
-  conferenceHypeHandle: "@ConferenceHype",
+  botHandle: "@conferencehype",
+  conferenceHypeHandle: "@conferencehype",
   instagramPrimaryHashtag: "#ConferenceHype",
   instagramConferenceHashtag: "#EHA2026",
-  instagramConferenceHypeHandle: "@ConferenceHype"
+  instagramConferenceHypeHandle: "@conferencehype"
 };
 
 export const monitoredXVoices: XVoice[] = [
@@ -128,7 +128,7 @@ export const instagramPushPrompts = [
   {
     label: "Verified source watch",
     prompt:
-      "Ask viewers to tag #ASCOHype, #ASCO26, #ASCO2026, and @ConferenceHype on Instagram only with source-attributed articles, official schedule items, media links, or monitored X voice callouts."
+      "Ask viewers to tag #ConferenceHype, #ASCO26, #ASCO2026, and @ConferenceHype on Instagram only with source-attributed articles, official schedule items, media links, or monitored X voice callouts."
   },
   {
     label: "Steps and workout watch",
@@ -143,7 +143,7 @@ export const instagramPushPrompts = [
   {
     label: "Media desk callout",
     prompt:
-      "Ask viewers to tag #ASCOHype and @ConferenceHype on Instagram when media links, official sources, or monitored X voice callouts deserve operator review."
+      "Ask viewers to tag #ConferenceHype and @ConferenceHype on Instagram when media links, official sources, or monitored X voice callouts deserve operator review."
   }
 ];
 
@@ -265,14 +265,6 @@ export const sourceRegistry: SourceConfig[] = [
     enabled: true
   },
   {
-    id: "bmj",
-    name: "The BMJ",
-    url: "https://feeds.bmj.com/bmj/recent",
-    type: "media",
-    rank: 1,
-    enabled: true
-  },
-  {
     id: "medpage-today",
     name: "MedPage Today",
     url: "https://www.medpagetoday.com/rss/headlines.xml",
@@ -361,7 +353,7 @@ export const sourceRegistry: SourceConfig[] = [
     enabled: true
   },
   {
-    id: "asco-hype-tags",
+    id: "conferencehype-tags",
     name: "Audience tags, X voices, and Instagram prompts",
     url: `${monitoredSocialTags.primaryHashtag} ${monitoredSocialTags.secondaryHashtag} ${monitoredSocialTags.conferenceHashtag} ${monitoredSocialTags.conferenceYearHashtag} ${monitoredSocialTags.botHandle} ${monitoredSocialTags.conferenceHypeHandle} ${monitoredSocialTags.instagramPrimaryHashtag} ${monitoredSocialTags.instagramConferenceHashtag} ${monitoredSocialTags.instagramConferenceHypeHandle} ${monitoredXVoices.map((voice) => voice.handle).join(" ")}`,
     type: "general_social",

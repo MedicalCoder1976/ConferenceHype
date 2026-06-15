@@ -58,6 +58,10 @@ export type StreamState = {
   emergencyActive: boolean;
   emergencyMessage: string;
   currentSegmentId?: string;
+  youtubeVideoId?: string;
+  youtubeUrl?: string;
+  youtubeStatus?: ConferenceCoverageSlot["youtubeStatus"];
+  continuousEnabled?: boolean;
 };
 
 export type SourceConfig = {

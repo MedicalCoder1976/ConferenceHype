@@ -1,6 +1,6 @@
 # Low-Bandwidth Operating Rule
 
-ASCO Hype should assume conference bandwidth is congested. Thousands of people may be sharing hotel, convention center, or mobile networks.
+ConferenceHype should assume conference bandwidth is congested. Thousands of people may be sharing hotel, convention center, or mobile networks.
 
 ## Public Site
 

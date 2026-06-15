@@ -22,7 +22,7 @@ async function focusXVoice({
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       postUrl: handleToUrl(handle),
-      postText: `${label} ${handle} is a watched X voice for ASCO Hype commentary ideas.`,
+      postText: `${label} ${handle} is a watched X voice for ConferenceHype commentary ideas.`,
       operatorNote: `${note}. Treat this as a source-attributed X voice callout for broadcast.`,
       itemType: "x_tweet",
       personaId: "vesper-quill",

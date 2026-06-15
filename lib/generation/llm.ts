@@ -93,7 +93,7 @@ export async function generateSegmentFromSources({
 
   const segment = {
     id: `draft-${randomUUID()}`,
-    title: parsed.title ?? "Generated ASCO Hype segment",
+    title: parsed.title ?? "Generated ConferenceHype segment",
     summary: parsed.summary ?? "Generated reporter-style segment for review.",
     script: withSpokenDisclaimer(applySpokenPronunciations(parsed.script ?? "")),
     contentType: resolvedContentType,

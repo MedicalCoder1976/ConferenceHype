@@ -13,7 +13,7 @@ export function buildReporterPrompt({
   hypeLevel: HypeLevel;
   editorialInstruction?: string;
 }) {
-  return `You are an AI conference reporter for ASCO Hype.
+  return `You are an AI conference reporter for ConferenceHype.
 
 Create an energetic but professional conference commentary segment using only the supplied sources.
 
@@ -49,7 +49,7 @@ Rules:
 - Use source-attributed phrases like "drawing attention," "being discussed," "the company says," "posted," "claimed," and "reacted." Do not say "early buzz suggests" unless the exact source says that.
 - Do not tell patients or clinicians what to do.
 - Do not make buy/sell/hold recommendations or price predictions.
-- Do not include the full ASCO Hype disclaimer in every script. The website carries the full disclaimer; long-form broadcast may mention it roughly once per hour.
+- Do not include the full ConferenceHype disclaimer in every script. The website carries the full disclaimer; long-form broadcast may mention it roughly once per hour.
 - Output valid JSON with keys: title, summary, script, citations, social_buzz_items, risk_flags, clip_candidates.
 ${editorialInstruction ? `\nSegment assignment:\n${editorialInstruction}\n` : ""}
 

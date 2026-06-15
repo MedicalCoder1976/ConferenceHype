@@ -11,7 +11,7 @@ import type { BroadcastWriteoutCard, ContentType, Segment } from "@/lib/types";
 const durationSeconds = Number(process.env.HOUR_BROADCAST_SECONDS ?? 3600);
 const renderDir = process.env.HOUR_BROADCAST_DIR ?? "public/rendered/hour-broadcast";
 const outputPath =
-  process.env.HOUR_BROADCAST_OUTPUT ?? "public/rendered/asco-hype-hour-broadcast.mp4";
+  process.env.HOUR_BROADCAST_OUTPUT ?? "public/rendered/conferencehype-hour-broadcast.mp4";
 const musicPath =
   process.env.HOUR_BROADCAST_MUSIC ??
   "public/music/conferencehype-gap-music-6min-v3.mp3";
@@ -117,7 +117,7 @@ function formatCard({
     lines.push("", ...wrapLine(`Source: ${source}`, 64).slice(0, 2));
   }
 
-  lines.push("", "ASCO Hype: social/news commentary. Check clinical details at the source.");
+  lines.push("", "ConferenceHype: social/news commentary. Check clinical details at the source.");
   return lines.join("\n");
 }
 
@@ -224,7 +224,7 @@ async function buildCards(): Promise<Card[]> {
             body: "Gap clip playing. Next content card follows immediately."
           })
         : formatCard({
-            eyebrow: `${slot.segment?.personaName ?? "ASCO Hype"} / ${slot.segment?.contentType.replace(/_/g, " ") ?? "content"}`,
+            eyebrow: `${slot.segment?.personaName ?? "ConferenceHype"} / ${slot.segment?.contentType.replace(/_/g, " ") ?? "content"}`,
             title: slot.segment?.title ?? slot.label,
             body: slot.segment?.script || slot.segment?.summary || slot.label,
             source: slot.segment?.citations[0]?.url
@@ -376,7 +376,7 @@ async function buildBlockCards(): Promise<Card[]> {
           personaId: undefined,
           script: null, // No TTS — music bed + gap clip play under silent slide
           text: formatCard({
-            eyebrow: "ASCO HYPE",
+            eyebrow: "CONFERENCEHYPE",
             title: `Music break — ${blockLabel} up next`,
             body: "Stand by. The next broadcast segment begins shortly."
           })

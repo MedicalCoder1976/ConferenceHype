@@ -25,7 +25,7 @@ on:
   schedule:
     # Poll the approved admin programming plan. Rendering starts far enough
     # ahead of each one-hour slot to finish before its scheduled airtime.
-    - cron: "*/15 * * * *"
+    - cron: "15 * * * *"
 
 jobs:
   stream:
@@ -67,6 +67,20 @@ jobs:
             DURATION_HOURS=$(jq -r '.duration_hours // 1' <<< "${RECORD}")
             CONFERENCE_NAME=$(jq -r '.medical_conferences.acronym // .medical_conferences.name // "ConferenceHype"' <<< "${RECORD}")
             DURATION_SECONDS=$((DURATION_HOURS * 3600))
+            if [ -z "${BLOCK_START}" ]; then
+              CONTINUOUS=$(curl --fail --silent --show-error \
+                --get "${NEXT_PUBLIC_SUPABASE_URL}/rest/v1/stream_state" \
+                -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+                -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+                --data-urlencode "select=continuous_enabled" \
+                --data-urlencode "id=eq.1" \
+                --data-urlencode "limit=1" | jq -r '.[0].continuous_enabled // false')
+              if [ "${CONTINUOUS}" = "true" ]; then
+                BLOCK_START=$(date -u -d "+45 minutes" +"%Y-%m-%dT%H:00:00Z")
+                CONFERENCE_NAME="ConferenceHype"
+                DURATION_SECONDS=3600
+              fi
+            fi
           else
             SLOT_ID="${{ inputs.coverage_slot_id }}"
             BLOCK_START="${{ inputs.stream_start_time }}"
@@ -79,7 +93,7 @@ jobs:
           echo "slot_id=${SLOT_ID}" >> $GITHUB_OUTPUT
           echo "block_start=${BLOCK_START}" >> $GITHUB_OUTPUT
           echo "duration_seconds=${DURATION_SECONDS}" >> $GITHUB_OUTPUT
-          echo "broadcast_title=${CONFERENCE_NAME} live programming - ${BLOCK_START}" >> $GITHUB_OUTPUT
+          echo "broadcast_title=ConferenceHype: ${CONFERENCE_NAME} live programming - ${BLOCK_START}" >> $GITHUB_OUTPUT
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -133,7 +147,7 @@ jobs:
           BROADCAST_TITLE: ${{ steps.block.outputs.broadcast_title }}
 
       - name: Save YouTube video link
-        if: ${{ steps.block.outputs.slot_id != '' }}
+        if: ${{ steps.block.outputs.block_start != '' }}
         run: npx tsx scripts/update-youtube-delivery.ts
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
@@ -163,7 +177,7 @@ jobs:
           COVERAGE_SLOT_ID: ${{ steps.block.outputs.slot_id }}
           YOUTUBE_VIDEO_ID: ${{ steps.youtube.outputs.youtube_video_id }}
           YOUTUBE_VIDEO_URL: ${{ steps.youtube.outputs.youtube_url }}
-          HOUR_BROADCAST_OUTPUT: public/rendered/asco-hype-hour-broadcast.mp4
+          HOUR_BROADCAST_OUTPUT: public/rendered/conferencehype-hour-broadcast.mp4
           KOKORO_PYTHON_CMD: python3
           VOICE_AETHER_VALE: ${{ secrets.VOICE_AETHER_VALE }}
           VOICE_AMARA_SOL: ${{ secrets.VOICE_AMARA_SOL }}
@@ -197,16 +211,16 @@ jobs:
       - name: Validate rendered broadcast media
         if: ${{ steps.block.outputs.block_start != '' }}
         run: |
-          test -s public/rendered/asco-hype-hour-broadcast.mp4 || {
+          test -s public/rendered/conferencehype-hour-broadcast.mp4 || {
             echo "::error::Rendered broadcast is missing or empty"
             exit 1
           }
           VIDEO_STREAMS=$(ffprobe -v error -select_streams v:0 \
             -show_entries stream=codec_type -of csv=p=0 \
-            public/rendered/asco-hype-hour-broadcast.mp4 | wc -l)
+            public/rendered/conferencehype-hour-broadcast.mp4 | wc -l)
           AUDIO_STREAMS=$(ffprobe -v error -select_streams a:0 \
             -show_entries stream=codec_type -of csv=p=0 \
-            public/rendered/asco-hype-hour-broadcast.mp4 | wc -l)
+            public/rendered/conferencehype-hour-broadcast.mp4 | wc -l)
           test "${VIDEO_STREAMS}" -ge 1 || {
             echo "::error::Rendered broadcast has no video stream"
             exit 1
@@ -226,7 +240,7 @@ jobs:
           YOUTUBE_RTMP_URL: ${{ steps.youtube.outputs.rtmp_url }}
           YOUTUBE_STREAM_KEY: ${{ steps.youtube.outputs.stream_key }}
           FFMPEG_PATH: /usr/bin/ffmpeg
-          STREAM_VIDEO_PATH: public/rendered/asco-hype-hour-broadcast.mp4
+          STREAM_VIDEO_PATH: public/rendered/conferencehype-hour-broadcast.mp4
           COVERAGE_SLOT_ID: ${{ steps.block.outputs.slot_id }}
           YOUTUBE_VIDEO_ID: ${{ steps.youtube.outputs.youtube_video_id }}
           YOUTUBE_VIDEO_URL: ${{ steps.youtube.outputs.youtube_url }}

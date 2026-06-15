@@ -3,7 +3,8 @@ name: Generate review segments
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/15 * * * *"
+    # One fresh source pull and generation pass per hour.
+    - cron: "10 * * * *"
 
 jobs:
   generate:

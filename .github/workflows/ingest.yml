@@ -3,7 +3,9 @@ name: Ingest sources
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/15 * * * *"
+    # Daily safety pull. The hourly generation job also ingests immediately
+    # before generating, so a frequent standalone ingestion job is redundant.
+    - cron: "5 5 * * *"
 
 jobs:
   ingest:

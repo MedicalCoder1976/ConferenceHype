@@ -165,10 +165,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         >
           Live now view
         </Link>
-        <StartStreamButton />
+        <StartStreamButton
+          initialEnabled={snapshot.streamState.continuousEnabled ?? false}
+        />
         <div className="basis-full">
           <div className="mb-2 text-xs font-black uppercase text-ink/50">
-            One-hour planning slots — 24 h back through next week
+            One-hour planning slots - 24 h back through next week
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1">
             {planningSlots.map((item) => (

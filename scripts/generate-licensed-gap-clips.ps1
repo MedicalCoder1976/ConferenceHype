@@ -56,14 +56,10 @@ $clips = @(
 
 $manifestItems = @()
 foreach ($clip in $clips) {
-  if (!(Test-Path -LiteralPath $clip.Source)) {
-    throw "Missing licensed source track: $($clip.Source)"
-  }
-
   $musicClip = Join-Path $tmpDir "$($clip.Id)-music.wav"
   $intro = Join-Path $tmpDir "$($clip.Id)-intro.wav"
   $output = Join-Path $clipDir $clip.Output
-  $introText = "ConferenceHype on the ASCOHype channel. Up next, $($clip.NextSpeaker) on the $($clip.NextRole). Ask-oh energy, keep it moving."
+  $introText = "This is ConferenceHype. Up next, $($clip.NextSpeaker) on the $($clip.NextRole). Ask-oh energy, keep it moving."
 
   py -3.12 (Join-Path $root "scripts\generate-kokoro-dj-voice.py") `
     --mode stinger `
@@ -71,16 +67,31 @@ foreach ($clip in $clips) {
     --text $introText `
     --output $intro
 
-  & $ffmpeg -y `
-    -ss $clip.Start `
-    -i $clip.Source `
-    -t 20 `
-    -af "loudnorm=I=-16:LRA=8:TP=-1.5,afade=t=in:st=0:d=0.6,afade=t=out:st=19:d=1" `
-    -ar 44100 `
-    -ac 2 `
-    $musicClip
+  if (Test-Path -LiteralPath $clip.Source) {
+    & $ffmpeg -y `
+      -ss $clip.Start `
+      -i $clip.Source `
+      -t 20 `
+      -af "loudnorm=I=-16:LRA=8:TP=-1.5,afade=t=in:st=0:d=0.6,afade=t=out:st=19:d=1" `
+      -ar 44100 `
+      -ac 2 `
+      $musicClip
+  } elseif (Test-Path -LiteralPath $output) {
+    # The first 10 seconds of the existing licensed clip precede its spoken ID.
+    # Reuse only that clean music section when the purchased master was moved.
+    & $ffmpeg -y `
+      -i $output `
+      -t 10 `
+      -af "loudnorm=I=-16:LRA=8:TP=-1.5,afade=t=in:st=0:d=0.6" `
+      -ar 44100 `
+      -ac 2 `
+      $musicClip
+  } else {
+    throw "Missing licensed source track and existing clip for $($clip.Id)"
+  }
 
   & $ffmpeg -y `
+    -stream_loop 1 `
     -i $musicClip `
     -i $intro `
     -filter_complex "[0:a]volume=1.0[music];[1:a]volume=1.35,adelay=10500|10500,apad[intro];[music][intro]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.94[out]" `
@@ -107,7 +118,7 @@ foreach ($clip in $clips) {
 $manifest = [ordered]@{
   generatedAt = (Get-Date).ToUniversalTime().ToString("o")
   licenseNote = "User supplied these as purchased techno tracks for ConferenceHype broadcast use. Keep proof of purchase outside the repo."
-  rotationRule = "Use one 20-second clip between approved broadcast segments, matching nextSpeaker when possible. Each clip includes an ASCOHype channel intro to the next speaker."
+  rotationRule = "Use one 20-second clip between approved broadcast segments, matching nextSpeaker when possible. Each clip includes a ConferenceHype channel intro to the next speaker."
   clips = $manifestItems
 }
 

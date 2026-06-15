@@ -3,7 +3,7 @@ name: Generate ASCO upcoming-events spine
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/20 * * * *"
+    - cron: "25 */6 * * *"
 
 jobs:
   upcoming:

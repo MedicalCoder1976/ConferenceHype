@@ -100,14 +100,14 @@ async function buildFocusedSource({
       : normalizedUrl
         ? getFocusedSourceType(normalizedUrl)
         : "general_social";
-  const url = normalizedUrl || "https://x.com/hashtag/ASCOHype";
+  const url = normalizedUrl || "https://x.com/hashtag/ConferenceHype";
   const urlSummary = normalizedUrl ? await summarizeFocusedUrl(url, sourceType) : undefined;
   const platform = getFocusedPlatform(url);
   const title =
     urlSummary?.title ??
     (sourceType === "general_social"
-      ? `Operator-focused ${platform || "social"} item for ASCO Hype`
-      : "Operator-focused URL for ASCO Hype");
+      ? `Operator-focused ${platform || "social"} item for ConferenceHype`
+      : "Operator-focused URL for ConferenceHype");
   const sourceName =
     sourceType === "general_social"
       ? `Operator-focused ${platform || "social"} item`
@@ -196,7 +196,7 @@ export async function POST(request: NextRequest) {
         "Every card should be able to start with any voice name followed by 'from ASCO' before the narrative.",
         "Do not create broadcast material from vague social chatter, snack tips, hallway energy, or audience tips unless the operator marked it as a direct statement or sponsor message.",
         "Only create a broadcast-ready card from source-attributed material, an article, a monitored X voice, an operator statement, or a sponsor message.",
-        "Mention #ASCOHype only as the routing tag for source-attributed broadcast ideas.",
+        "Mention #ConferenceHype only as the routing tag for source-attributed broadcast ideas.",
         body.repeatEveryHalfHour
           ? `The operator requested this card repeat once every half hour for ${body.repeatCount} total reads.`
           : ""

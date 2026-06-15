@@ -18,7 +18,7 @@ Recommended workflow:
 - `gap-clips/*.mp3`: 20-second clips generated from user-supplied purchased
   techno tracks in `C:\Users\lijos\Downloads`: `Elevate.mp3`,
   `Nightclub_System_Overload.mp3`, `Subterranean_Pulse.mp3`, and
-  `Skyline_Echo.mp3`. Each clip includes a Kokoro open-source ASCOHype channel
+  `Skyline_Echo.mp3`. Each clip includes a Kokoro open-source ConferenceHype channel
   intro to the next speaker. Keep purchase/license proof outside the repo.
 - `conferencehype-gap-music-6min-v1.mp3`: generated in-repo with
   `scripts/generate-gap-music.ps1` using synthetic ffmpeg tones/noise and

@@ -9,8 +9,8 @@ const youtubeStatus = process.env.YOUTUBE_DELIVERY_STATUS as
   | ConferenceCoverageSlot["youtubeStatus"]
   | undefined;
 
-if (!slotId || !youtubeStatus) {
-  throw new Error("COVERAGE_SLOT_ID and YOUTUBE_DELIVERY_STATUS are required.");
+if (!youtubeStatus) {
+  throw new Error("YOUTUBE_DELIVERY_STATUS is required.");
 }
 
 await updateConferenceCoverageDeliveryInDb(slotId, {
@@ -26,4 +26,8 @@ await updateConferenceCoverageDeliveryInDb(slotId, {
   deliveryError: process.env.YOUTUBE_DELIVERY_ERROR ?? null
 });
 
-console.log(`Updated coverage slot ${slotId} to ${youtubeStatus}.`);
+console.log(
+  slotId
+    ? `Updated coverage slot ${slotId} and public stream to ${youtubeStatus}.`
+    : `Updated public stream to ${youtubeStatus}.`
+);
