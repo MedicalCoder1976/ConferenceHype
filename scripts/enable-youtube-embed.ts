@@ -108,6 +108,68 @@ async function main() {
       after: { enableEmbed: updated.contentDetails?.enableEmbed }
     })
   );
+
+  const videoResponse = await fetch(
+    `https://www.googleapis.com/youtube/v3/videos?part=status&id=${encodeURIComponent(broadcastId)}`,
+    { headers: { Authorization: authorization } }
+  );
+  if (!videoResponse.ok) {
+    throw new Error(
+      `YouTube video lookup failed: ${videoResponse.status} ${await videoResponse.text()}`
+    );
+  }
+
+  const videoPayload = (await videoResponse.json()) as {
+    items?: Array<{
+      id: string;
+      status?: Record<string, unknown>;
+    }>;
+  };
+  const video = videoPayload.items?.[0];
+  if (!video) {
+    throw new Error(`YouTube video ${broadcastId} was not found.`);
+  }
+
+  console.log(
+    JSON.stringify({
+      broadcastId,
+      videoBefore: { embeddable: video.status?.embeddable }
+    })
+  );
+
+  if (video.status?.embeddable !== true) {
+    const videoUpdateResponse = await fetch(
+      "https://www.googleapis.com/youtube/v3/videos?part=status",
+      {
+        method: "PUT",
+        headers: {
+          Authorization: authorization,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          id: broadcastId,
+          status: {
+            ...video.status,
+            embeddable: true
+          }
+        })
+      }
+    );
+    if (!videoUpdateResponse.ok) {
+      throw new Error(
+        `YouTube video embed update failed: ${videoUpdateResponse.status} ${await videoUpdateResponse.text()}`
+      );
+    }
+    const videoUpdated = (await videoUpdateResponse.json()) as {
+      status?: { embeddable?: boolean };
+    };
+    console.log(
+      JSON.stringify({
+        broadcastId,
+        videoAfter: { embeddable: videoUpdated.status?.embeddable }
+      })
+    );
+  }
 }
 
 main().catch((error) => {
