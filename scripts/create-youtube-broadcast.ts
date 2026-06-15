@@ -85,6 +85,7 @@ const broadcastResponse = await fetch(
         selfDeclaredMadeForKids: false
       },
       contentDetails: {
+        enableEmbed: true,
         enableAutoStart: true,
         enableAutoStop: true,
         enableDvr: true,
