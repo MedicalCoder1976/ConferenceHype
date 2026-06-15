@@ -130,10 +130,10 @@ function makeFallbackSegment(baseTime: Date, slotIndex: number): Segment {
   const createdAt = addSeconds(baseTime, slotIndex * (CONTENT_SECONDS + MUSIC_SECONDS)).toISOString();
   return {
     id: `virtual-source-backed-hold-${createdAt}-${slotIndex}`,
-    title: "Source-backed ASCO schedule bridge",
+    title: "Source-backed conference schedule bridge",
     summary:
       "No newer ready card is available for this position, so this slot holds a short official-schedule bridge.",
-    script: `${persona.name} here from ASCO. Short break while the next confirmed card loads. Coverage continues right after this.`,
+    script: `${persona.name} here from ConferenceHype. Short break while the next confirmed card loads. Coverage continues right after this.`,
     contentType: "agenda_preview",
     personaId: persona.id,
     personaName: persona.name,
@@ -142,8 +142,8 @@ function makeFallbackSegment(baseTime: Date, slotIndex: number): Segment {
     status: "approved",
     citations: [
       {
-        label: "ASCO meeting calendar",
-        url: "https://meetings.asco.org/",
+        label: "EHA official program",
+        url: "https://ehaweb.org/connect-network/eha2026-congress/eha2026-program",
         sourceType: "official"
       }
     ],
@@ -255,7 +255,7 @@ export function buildBroadcastSlots({
         kind: "music",
         durationMinutes: MUSIC_SECONDS / 60,
         durationSeconds: MUSIC_SECONDS,
-        label: "20-second music card",
+        label: "20-second transition",
         replaceable: false
       });
     }

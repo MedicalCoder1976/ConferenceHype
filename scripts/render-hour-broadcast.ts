@@ -5,7 +5,11 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { loadEnvConfig } from "@next/env";
 import ffmpegPath from "ffmpeg-static";
-import { formatVoiceSegment } from "@/lib/broadcast/voiceSegment";
+import {
+  formatVoiceSegment,
+  stripBroadcastDisclaimer
+} from "@/lib/broadcast/voiceSegment";
+import { defaultDisclaimer } from "@/lib/generation/disclaimers";
 import type { BroadcastWriteoutCard, ContentType, Segment } from "@/lib/types";
 
 const durationSeconds = Number(process.env.HOUR_BROADCAST_SECONDS ?? 3600);
@@ -32,6 +36,10 @@ type Card = {
   script?: string | null;
   text: string;
 };
+
+const DISCLAIMER_INTERVAL_SECONDS = 15 * 60;
+const BROADCAST_DISCLAIMER =
+  `${defaultDisclaimer} ConferenceHype is independent and is not affiliated with conference organizers, presenters, sponsors, or exhibitors.`;
 
 function run(command: string, args: string[]) {
   return new Promise<void>((resolve, reject) => {
@@ -110,15 +118,72 @@ function formatCard({
     "",
     ...wrapLine(title, 43).slice(0, 3),
     "",
-    ...wrapLine(body, 58).slice(0, 10)
+    ...wrapLine(stripBroadcastDisclaimer(body), 58).slice(0, 10)
   ];
 
   if (source) {
     lines.push("", ...wrapLine(`Source: ${source}`, 64).slice(0, 2));
   }
 
-  lines.push("", "ConferenceHype: social/news commentary. Check clinical details at the source.");
   return lines.join("\n");
+}
+
+function formatTransitionCard(nextLabel?: string) {
+  return formatCard({
+    eyebrow: "ConferenceHype live",
+    title: nextLabel ? `${nextLabel} continues shortly` : "Coverage continues shortly",
+    body: "Stay with ConferenceHype for the next source-attributed update."
+  });
+}
+
+function applyPresentationPolicy(cards: Card[]) {
+  let elapsedSeconds = 0;
+  let nextDisclaimerAt = DISCLAIMER_INTERVAL_SECONDS;
+
+  return cards.map((card) => {
+    const startsAt = elapsedSeconds;
+    elapsedSeconds += card.duration;
+
+    if (card.isMusic) {
+      return {
+        ...card,
+        text: formatTransitionCard()
+      };
+    }
+
+    const cleanedScript = card.script
+      ? stripBroadcastDisclaimer(card.script)
+      : card.script;
+    const cleanedCard = {
+      ...card,
+      script: cleanedScript,
+      text: stripBroadcastDisclaimer(card.text)
+    };
+
+    if (startsAt < nextDisclaimerAt) {
+      return cleanedCard;
+    }
+
+    while (nextDisclaimerAt <= startsAt) {
+      nextDisclaimerAt += DISCLAIMER_INTERVAL_SECONDS;
+    }
+
+    return {
+      ...cleanedCard,
+      personaId: "echo-sage",
+      personaName: "Echo Sage",
+      contentType: undefined,
+      title: "Important ConferenceHype notice",
+      sourceLabel: undefined,
+      sourceUrl: undefined,
+      script: BROADCAST_DISCLAIMER,
+      text: formatCard({
+        eyebrow: "ConferenceHype / important notice",
+        title: "Independent AI commentary",
+        body: BROADCAST_DISCLAIMER
+      })
+    };
+  });
 }
 
 async function buildCards(): Promise<Card[]> {
@@ -202,6 +267,8 @@ async function buildCards(): Promise<Card[]> {
     "public/music/gap-clips/conferencehype-gap-nightclub-to-rebecca-20s.mp3",
     "public/music/gap-clips/conferencehype-gap-subterranean-to-adam-20s.mp3",
     "public/music/gap-clips/conferencehype-gap-skyline-to-aussieonc-20s.mp3",
+    "public/music/conferencehype-gap-music-20sec-preview-v1.mp3",
+    "public/music/conferencehype-gap-music-20sec-preview-v2.mp3"
   ];
   let musicIndex = 0;
   return slots.map((slot) => {
@@ -218,11 +285,7 @@ async function buildCards(): Promise<Card[]> {
       sourceUrl: !isMusic ? slot.segment?.citations[0]?.url : undefined,
       script: !isMusic ? (slot.segment?.script || slot.segment?.summary || null) : null,
       text: isMusic
-        ? formatCard({
-            eyebrow: "Music card",
-            title: "Twenty-second music transition",
-            body: "Gap clip playing. Next content card follows immediately."
-          })
+        ? formatTransitionCard()
         : formatCard({
             eyebrow: `${slot.segment?.personaName ?? "ConferenceHype"} / ${slot.segment?.contentType.replace(/_/g, " ") ?? "content"}`,
             title: slot.segment?.title ?? slot.label,
@@ -235,7 +298,7 @@ async function buildCards(): Promise<Card[]> {
 
 // ---------------------------------------------------------------------------
 // Block-mode card builder — three 20-minute blocks per hour:
-//   Block 1: 2 min schedule  +  2 min hype music  +  16 min ASCO Daily News
+//   Block 1: 2 min schedule  +  2 min hype music  +  16 min Conference News
 //   Block 2: 2 min schedule  +  2 min hype music  +  16 min Social Desk (duo)
 //   Block 3: 2 min schedule  +  2 min hype music  +  16 min Pharma News
 //
@@ -293,13 +356,15 @@ async function buildBlockCards(): Promise<Card[]> {
   const BLOCK_HYPE_PAIRS = 2;      // 2 × 60 s = 2 min hype music
   const BLOCK_CONTENT_PAIRS = 16;  // 16 × 60 s = 16 min content
   const BLOCKS_PER_HOUR = 3;
-  const BLOCK_LABELS = ["ASCO Daily News", "Social Desk", "Pharma News"] as const;
+  const BLOCK_LABELS = ["Conference News", "Social Desk", "Pharma News"] as const;
 
   const gapClipPaths = [
     "public/music/gap-clips/conferencehype-gap-elevate-to-fenrir-20s.mp3",
     "public/music/gap-clips/conferencehype-gap-nightclub-to-rebecca-20s.mp3",
     "public/music/gap-clips/conferencehype-gap-subterranean-to-adam-20s.mp3",
-    "public/music/gap-clips/conferencehype-gap-skyline-to-aussieonc-20s.mp3"
+    "public/music/gap-clips/conferencehype-gap-skyline-to-aussieonc-20s.mp3",
+    "public/music/conferencehype-gap-music-20sec-preview-v1.mp3",
+    "public/music/conferencehype-gap-music-20sec-preview-v2.mp3"
   ];
   let musicIndex = 0;
 
@@ -359,11 +424,7 @@ async function buildBlockCards(): Promise<Card[]> {
           duration: MUSIC_SECONDS,
           isMusic: true,
           gapClipPath: gapClipPaths[musicIndex++ % gapClipPaths.length],
-          text: formatCard({
-            eyebrow: "Music card",
-            title: "Twenty-second music transition",
-            body: "Gap clip playing. Schedule segment continues."
-          })
+          text: formatTransitionCard()
         });
         slotMs += (CONTENT_SECONDS + MUSIC_SECONDS) * 1000;
       }
@@ -377,19 +438,15 @@ async function buildBlockCards(): Promise<Card[]> {
           script: null, // No TTS — music bed + gap clip play under silent slide
           text: formatCard({
             eyebrow: "CONFERENCEHYPE",
-            title: `Music break — ${blockLabel} up next`,
-            body: "Stand by. The next broadcast segment begins shortly."
+            title: blockLabel,
+            body: "Live conference commentary continues shortly."
           })
         });
         cards.push({
           duration: MUSIC_SECONDS,
           isMusic: true,
           gapClipPath: gapClipPaths[musicIndex++ % gapClipPaths.length],
-          text: formatCard({
-            eyebrow: "Music card",
-            title: "Twenty-second hype stinger",
-            body: "Gap clip. Next content segment: " + blockLabel
-          })
+          text: formatTransitionCard()
         });
         slotMs += (CONTENT_SECONDS + MUSIC_SECONDS) * 1000;
       }
@@ -442,11 +499,7 @@ async function buildBlockCards(): Promise<Card[]> {
           duration: MUSIC_SECONDS,
           isMusic: true,
           gapClipPath: gapClipPaths[musicIndex++ % gapClipPaths.length],
-          text: formatCard({
-            eyebrow: "Music card",
-            title: "Twenty-second music transition",
-            body: `Gap clip. ${blockLabel} continues.`
-          })
+          text: formatTransitionCard()
         });
         slotMs += (CONTENT_SECONDS + MUSIC_SECONDS) * 1000;
       }
@@ -535,7 +588,9 @@ async function saveBroadcastWriteout(cards: Card[]) {
 async function main() {
   const ffmpeg = process.env.FFMPEG_PATH ?? ffmpegPath ?? "ffmpeg";
   const useBlockMode = process.env.HOUR_BROADCAST_MODE === "blocks";
-  const cards = useBlockMode ? await buildBlockCards() : await buildCards();
+  const cards = applyPresentationPolicy(
+    useBlockMode ? await buildBlockCards() : await buildCards()
+  );
   await saveBroadcastWriteout(cards);
   await mkdir(renderDir, { recursive: true });
   await mkdir(path.dirname(outputPath), { recursive: true });

@@ -2,7 +2,7 @@
  * LLM-powered 16-minute content generators for the 3-block-per-hour broadcast structure.
  *
  * Each hour has three 20-minute blocks:
- *   Block 1 — ASCO Daily News    (2 min schedule + 2 min hype music + 16 min news)
+ *   Block 1 — Conference News    (2 min schedule + 2 min hype music + 16 min news)
  *   Block 2 — Social Desk        (2 min schedule + 2 min hype music + 16 min duo discussion)
  *   Block 3 — Pharma News        (2 min schedule + 2 min hype music + 16 min pharma news)
  *
@@ -129,9 +129,9 @@ function fallbackFromItems(
     const item = items[i % Math.max(items.length, 1)];
     const body = item
       ? trimToSlot(cleanForBroadcast(`${item.title}. ${item.excerpt}`))
-      : `Coverage continues from ASCO 2026. More updates coming shortly.`;
+      : "Conference coverage continues. More updates are coming shortly.";
     return {
-      title: item?.title ?? `ASCO Update ${i + 1}`,
+      title: item?.title ?? `Conference Update ${i + 1}`,
       script: body,
       personaId: persona.id,
       personaName: persona.name,
@@ -180,7 +180,7 @@ function normalizeChunks(
     const isB = personaB && i % 2 === 1;
     const persona = isB ? personaB : personaA;
     return {
-      title: "ASCO Conference Update",
+      title: "Conference Update",
       script: `${persona.name} here. Coverage continues from the conference. More updates coming right up.`,
       personaId: persona.id,
       personaName: persona.name,
@@ -193,7 +193,7 @@ function normalizeChunks(
     const persona = isB ? personaB : personaA;
     const previousPersona = personaB && i > 0 ? (isB ? personaA : personaB) : null;
     return {
-      title: c.title?.trim() || "ASCO Update",
+      title: c.title?.trim() || "Conference Update",
       script: personaB
         ? withNamedThankYouHandoff(
             trimToSlot(cleanForBroadcast(c.script ?? "")),
@@ -227,7 +227,7 @@ function chicagoTimeLabel(date: Date): string {
 }
 
 // ---------------------------------------------------------------------------
-// Block 1: ASCO Daily News (single anchor)
+// Block 1: Conference News (single anchor)
 // ---------------------------------------------------------------------------
 
 export async function generateNewsBlockChunks(
@@ -251,9 +251,9 @@ export async function generateNewsBlockChunks(
               `${i + 1}. [${item.sourceName}] ${cleanForBroadcast(item.title)}.\n   ${cleanForBroadcast(item.excerpt).slice(0, 300)}`
           )
           .join("\n\n")
-      : "No ingested articles available. Use general ASCO 2026 conference context: the annual meeting runs May 29 – June 2 at McCormick Place, Chicago, covering late-breaking clinical trials in targeted therapy, immunotherapy, ADCs, and patient-centered oncology research.";
+      : "No ingested articles are available. Use only general medical-conference context without inventing dates, locations, findings, or attendee reaction.";
 
-  const prompt = `You are writing a 16-minute live ASCO conference news broadcast for a radio-style stream.
+  const prompt = `You are writing a 16-minute live medical-conference news broadcast for a radio-style stream.
 Current Chicago time: ${timeLabel}. Broadcast hour index: ${hourIndex + 1}.
 Reporter: ${persona.name} — ${persona.specialty}
 Style: ${persona.style}
@@ -268,7 +268,6 @@ ABSOLUTE RULES (violations disqualify a chunk):
 - No stock intros ("Hello everyone, I'm...") — dive straight into the news
 - No medical advice and no investment advice
 - Attribute every factual claim to a named source from the list below
-- For ASCO: pronounce it "Ask-oh" (already written as you will speak it)
 - Each chunk must be substantively different — cover a new story or angle
 
 Source articles:
@@ -312,7 +311,7 @@ export async function generateSocialBlockChunks(
       const previousPersona = i > 0 ? (i % 2 === 0 ? personaB : personaA) : null;
       const body = item
         ? trimToSlot(cleanForBroadcast(`${item.title}. ${item.excerpt}`))
-        : `Coverage continues from the ASCO social desk.`;
+        : "Coverage continues from the conference social desk.";
       return {
         title: item?.title ?? `Social Update ${i + 1}`,
         script: withNamedThankYouHandoff(body, persona.name, previousPersona?.name),
@@ -335,10 +334,10 @@ export async function generateSocialBlockChunks(
             return `${i + 1}. ${author}${body}`;
           })
           .join("\n")
-      : "No recent social posts available. Discuss general ASCO 2026 conference energy: what oncologists are excited about, which trial results are generating buzz, and which pharma announcements are drawing attention.";
+      : "No recent social posts are available. Use a brief source-neutral bridge and do not invent reactions, rankings, or claims.";
 
-  const prompt = `You are writing a 16-minute live ASCO social media roundup for a radio-style stream.
-Two reporters are having a live, energetic on-air conversation about the latest ASCO posts.
+  const prompt = `You are writing a 16-minute live medical-conference social media roundup for a radio-style stream.
+Two reporters are having a live, energetic on-air conversation about the latest source-attributed conference posts.
 Current Chicago time: ${timeLabel}. Broadcast hour index: ${hourIndex + 1}.
 
 Reporter A: ${personaA.name} — ${personaA.specialty} — ${personaA.style}
@@ -355,11 +354,10 @@ ABSOLUTE RULES:
 - No stock intros — jump straight into the conversation
 - No medical advice and no investment advice
 - Attribute claims to the named poster or media outlet
-- For ASCO: pronounce it "Ask-oh"
 - Chunks must alternate voices: chunk 1 = A, chunk 2 = B, chunk 3 = A, etc.
 - Every chunk after the first must thank the previous speaker by name before continuing the handoff.
 
-Latest ASCO social posts:
+Latest conference social posts:
 ${postLines}
 
 Return ONLY valid JSON:
@@ -418,7 +416,7 @@ export async function generatePharmaNewsBlockChunks(
     )
     .join("\n\n");
 
-  const prompt = `You are writing a 16-minute live pharma news broadcast tied to ASCO 2026.
+  const prompt = `You are writing a 16-minute live pharma news broadcast tied to current medical-conference coverage.
 Current Chicago time: ${timeLabel}. Broadcast hour index: ${hourIndex + 1}.
 Reporter: ${persona.name} — ${persona.specialty}
 Style: ${persona.style}
@@ -437,7 +435,6 @@ ABSOLUTE RULES:
 - No medical advice and no investment advice
 - Do not use buy, sell, hold, stock-price, or investment language
 - Sound like an energetic but precise pharma news reporter
-- For ASCO: pronounce it "Ask-oh"
 
 Source articles:
 ${sourceMaterial}

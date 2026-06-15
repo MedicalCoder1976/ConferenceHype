@@ -5,7 +5,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "ConferenceHype",
-  description: "Interactive AI commentary for people following ASCO 2026.",
+  description: "Interactive AI commentary for people following medical conferences.",
   metadataBase: new URL("https://conferencehype.com"),
   alternates: {
     canonical: "/"
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "ConferenceHype",
     description:
-      "Interactive AI commentary for ASCO 2026 topic suggestions, social buzz, and follow-along listening.",
+      "Interactive AI commentary for medical-conference topic suggestions, social signals, and follow-along listening.",
     type: "website"
   }
 };

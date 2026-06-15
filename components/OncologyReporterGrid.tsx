@@ -10,7 +10,7 @@ export function OncologyReporterGrid() {
       </div>
       <p className="mt-3 text-sm leading-6 text-ink/65">
         Disease desks are assigned for source-labeled coverage throughout the
-        day. Spoken scripts pronounce ASCO as Ask-oh.
+        day. Spoken scripts use the official conference and source names.
       </p>
 
       <div className="mt-4 grid gap-3">

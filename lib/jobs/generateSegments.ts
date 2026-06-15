@@ -29,9 +29,9 @@ async function generateOrScheduleFallback(
     return {
       ...buildScheduleFallbackSegment(now),
       id: `schedule-fallback-${randomUUID()}`,
-      title: "Schedule fallback: ASCO program spine",
+      title: "Schedule fallback: official conference sources",
       summary:
-        "LLM script generation did not produce a usable real script, so broadcast defaults to the official ASCO schedule spine with no mock data."
+        "LLM script generation did not produce a usable real script, so broadcast defaults to configured official conference sources with no mock data."
     };
   }
 }
@@ -86,9 +86,6 @@ function isAbstractChatter(item: IngestedItem) {
 
 function sourcePriority(item: IngestedItem) {
   const text = `${item.sourceName} ${item.title} ${item.url}`.toLowerCase();
-  if (text.includes("asco post") || text.includes("ascopost.com")) {
-    return 0;
-  }
   if (item.sourceType.includes("social")) {
     return 1;
   }
@@ -104,8 +101,6 @@ function sourcePriority(item: IngestedItem) {
 function isAutoApprovedSource(item: IngestedItem) {
   const text = `${item.sourceName} ${item.title} ${item.url}`.toLowerCase();
   return (
-    text.includes("asco post") ||
-    text.includes("ascopost.com") ||
     text.includes("onclive") ||
     text.includes("stat news") ||
     text.includes("statnews.com")
@@ -181,11 +176,8 @@ async function buildLatestSourceCards(items: IngestedItem[]) {
     .filter((item) => item.sourceType.includes("social"))
     .slice(0, TOP_SOCIAL_NARRATIVE_TARGET);
   const primaryItems = [
-    ...eligibleItems.filter((item) => sourcePriority(item) === 0),
     ...topSocialItems,
-    ...eligibleItems.filter(
-      (item) => sourcePriority(item) !== 0 && !item.sourceType.includes("social")
-    )
+    ...eligibleItems.filter((item) => !item.sourceType.includes("social"))
   ];
   const primaryCards = await Promise.all(
     primaryItems
@@ -211,7 +203,7 @@ async function addCompetitionLeadersToXCallouts(
       addXFollowSourceToDb({
         handle: leader.handle,
         label: leader.label,
-        note: `auto-added from ASCO social voice traction; score ${leader.score}; ${leader.momentum} momentum`
+        note: `auto-added from conference social voice traction; score ${leader.score}; ${leader.momentum} momentum`
       })
     )
   );

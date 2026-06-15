@@ -1,7 +1,6 @@
 import type { IngestedItem } from "@/lib/types";
 
 const conferenceKeywords = [
-  "asco",
   "oncology",
   "cancer",
   "tumor",

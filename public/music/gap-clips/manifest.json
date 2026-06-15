@@ -1,5 +1,5 @@
 ﻿{
-    "generatedAt":  "2026-06-14T02:44:38.1458554Z",
+    "generatedAt":  "2026-06-15T17:36:50.9642810Z",
     "licenseNote":  "User supplied these as purchased techno tracks for ConferenceHype broadcast use. Keep proof of purchase outside the repo.",
     "rotationRule":  "Use one 20-second clip between approved broadcast segments, matching nextSpeaker when possible. Each clip includes a ConferenceHype channel intro to the next speaker.",
     "clips":  [
@@ -11,7 +11,7 @@
                       "nextRole":  "schedule desk",
                       "durationSeconds":  20,
                       "audioPath":  "/music/gap-clips/conferencehype-gap-elevate-to-fenrir-20s.mp3",
-                      "introText":  "This is ConferenceHype. Up next, Fenrir on the schedule desk. Ask-oh energy, keep it moving."
+                      "introText":  "This is ConferenceHype. Up next, Fenrir on the schedule desk. Conference energy, keep it moving."
                   },
                   {
                       "id":  "nightclub-rebecca",
@@ -21,7 +21,7 @@
                       "nextRole":  "high-hype reporter desk",
                       "durationSeconds":  20,
                       "audioPath":  "/music/gap-clips/conferencehype-gap-nightclub-to-rebecca-20s.mp3",
-                      "introText":  "This is ConferenceHype. Up next, Rebecca on the high-hype reporter desk. Ask-oh energy, keep it moving."
+                      "introText":  "This is ConferenceHype. Up next, Rebecca on the high-hype reporter desk. Conference energy, keep it moving."
                   },
                   {
                       "id":  "subterranean-adam",
@@ -31,7 +31,7 @@
                       "nextRole":  "snarky social feed",
                       "durationSeconds":  20,
                       "audioPath":  "/music/gap-clips/conferencehype-gap-subterranean-to-adam-20s.mp3",
-                      "introText":  "This is ConferenceHype. Up next, Adam on the snarky social feed. Ask-oh energy, keep it moving."
+                      "introText":  "This is ConferenceHype. Up next, Adam on the snarky social feed. Conference energy, keep it moving."
                   },
                   {
                       "id":  "skyline-aussieonc",
@@ -41,7 +41,7 @@
                       "nextRole":  "global hype desk",
                       "durationSeconds":  20,
                       "audioPath":  "/music/gap-clips/conferencehype-gap-skyline-to-aussieonc-20s.mp3",
-                      "introText":  "This is ConferenceHype. Up next, AussieOnc on the global hype desk. Ask-oh energy, keep it moving."
+                      "introText":  "This is ConferenceHype. Up next, AussieOnc on the global hype desk. Conference energy, keep it moving."
                   }
               ]
 }

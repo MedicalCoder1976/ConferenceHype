@@ -1122,7 +1122,7 @@ export async function getRecentSocialItemsFromDb(hours = 1): Promise<IngestedIte
   const supabase = createAdminClient();
   // Include general_social (X API tweets) AND media/official items
   // that have an author field set (e.g. RSS articles attributed to a
-  // monitored X voice like @OncLive, @statnews, @ASCOPost).
+  // monitored X voice like @OncLive, @statnews, or @EHA_Hematology).
   // This keeps the leaderboard alive when the X API is unavailable.
   const { data, error } = await supabase
     .from("ingested_items")

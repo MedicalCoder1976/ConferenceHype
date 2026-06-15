@@ -16,7 +16,7 @@ function normalizeXHandle(value: string) {
     .split(/[/?#]/)[0]
     .replace(/^@/, "");
   if (!/^[A-Za-z0-9_]{1,15}$/.test(handle)) {
-    throw new Error("Use a valid X handle like @ASCO or x.com/ASCO.");
+    throw new Error("Use a valid X handle like @EHA_Hematology or x.com/EHA_Hematology.");
   }
   return `@${handle}`;
 }

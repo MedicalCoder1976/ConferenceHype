@@ -35,9 +35,6 @@ function expandRomanNumerals(text: string): string {
 
 export function applySpokenPronunciations(script: string) {
   return expandRomanNumerals(script)
-    // Rule 5: ASCO → "Ask-oh" (word, not letters A-S-C-O)
-    .replace(/\bASCO\b/g, "Ask-oh")
-    .replace(/\bASKO\b/g, "Ask-oh")
     // Rule 1: strip URLs — TTS would read out raw links character-by-character
     .replace(/https?:\/\/[^\s)\]}>]+/g, "")
     .replace(/\bwww\.\S+/g, "")

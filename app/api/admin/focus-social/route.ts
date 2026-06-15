@@ -49,9 +49,6 @@ function getFocusedSourceType(url: string): SourceType {
   if (getFocusedPlatform(url)) {
     return "general_social";
   }
-  if (/\basco\.org\b|\bmeetings\.asco\.org\b/i.test(url)) {
-    return "official";
-  }
   return "media";
 }
 
@@ -193,7 +190,7 @@ export async function POST(request: NextRequest) {
             : "Create a short radio-DJ style source focus hit from this operator-focused URL.",
         "Make it sound exciting, but clearly label operator-selected items and keep them source-attributed.",
         "Do not use the words air, aired, airing, airtime, verified, or the phrase we verify in spoken copy.",
-        "Every card should be able to start with any voice name followed by 'from ASCO' before the narrative.",
+        "Every card should be able to start with any voice name followed by 'from ConferenceHype' before the narrative.",
         "Do not create broadcast material from vague social chatter, snack tips, hallway energy, or audience tips unless the operator marked it as a direct statement or sponsor message.",
         "Only create a broadcast-ready card from source-attributed material, an article, a monitored X voice, an operator statement, or a sponsor message.",
         "Mention #ConferenceHype only as the routing tag for source-attributed broadcast ideas.",

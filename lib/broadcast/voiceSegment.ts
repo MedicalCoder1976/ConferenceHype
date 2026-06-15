@@ -41,14 +41,28 @@ function cleanTopic(value: string) {
   );
 }
 
-function stripExistingVoiceFrame(value: string) {
+export function stripBroadcastDisclaimer(value: string) {
   return value
+    .replace(
+      /\b(?:ConferenceHype|[A-Z]{4} Hype)\s+is interactive AI commentary only\.\s*It is not reporting, journalism, medical education, clinical guidance, scientific validation, legal advice, or financial advice\.\s*/g,
+      ""
+    )
+    .replace(
+      /\b(?:ConferenceHype|[A-Z]{4} Hype)\s+is not associated with [^.]+\.\s*/g,
+      ""
+    )
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function stripExistingVoiceFrame(value: string) {
+  return stripBroadcastDisclaimer(value)
     .replace(
       /^\s*Good (?:morning|evening),?\s+wherever you are\.?\s+This is .{1,80}? from ConferenceHype\.?\s+Our segment will focus on .{1,160}?\.\s*/i,
       ""
     )
     .replace(
-      /^\s*(?:this is\s+)?[A-Za-z][A-Za-z\s.'-]{1,40}\s+(?:here|from)\s+(?:from\s+)?(?:ASCO|the [A-Za-z\s-]+ desk)\b[:,.\s-]*/i,
+      /^\s*(?:this is\s+)?[A-Za-z][A-Za-z\s.'-]{1,40}\s+(?:here|from)\s+(?:from\s+)?(?:ConferenceHype|the [A-Za-z\s-]+ desk)\b[:,.\s-]*/i,
       ""
     )
     .replace(

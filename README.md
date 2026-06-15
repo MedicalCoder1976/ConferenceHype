@@ -90,7 +90,7 @@ Seeded feeds currently include:
 - View YouTube delivery status, video links, workflow links, and errors.
 
 The seeded catalog includes broad medical meetings plus oncology/hematology
-coverage such as AACR, ASCO, EHA, ESMO, ASH, ASTRO, EBMT, SITC, SIOG, and
+coverage such as AACR, EHA, ESMO, ASH, ASTRO, EBMT, SITC, SIOG, and
 SABCS. Exact dates should be added only from official conference sources.
 
 ### Writeouts

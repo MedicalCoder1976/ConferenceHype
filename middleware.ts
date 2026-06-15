@@ -12,7 +12,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const cookieSecret = request.cookies.get("asco_admin_secret")?.value;
+  const cookieSecret = request.cookies.get("conferencehype_admin_secret")?.value;
   if (cookieSecret === secret) {
     return NextResponse.next();
   }

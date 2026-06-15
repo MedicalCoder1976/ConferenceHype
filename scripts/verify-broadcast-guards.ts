@@ -18,7 +18,8 @@ const source: IngestedItem = {
 const framed = formatVoiceSegment({
   voiceName: "Echo Sage",
   topic: "late-breaking sessions",
-  narrative: "The official program has published a schedule update.",
+  narrative:
+    "The official program has published a schedule update. ConferenceHype is interactive AI commentary only. It is not reporting, journalism, medical education, clinical guidance, scientific validation, legal advice, or financial advice.",
   at: new Date("2026-06-11T13:00:00Z")
 });
 assert.match(
@@ -26,6 +27,7 @@ assert.match(
   /^Good (morning|evening), wherever you are\. This is Echo Sage from ConferenceHype\./
 );
 assert.ok(framed.endsWith(SEGMENT_CLOSE));
+assert.doesNotMatch(framed, /interactive AI commentary only/i);
 
 const copiedErrors = getUnsafeGeneratedSourceErrors({
   segment: {

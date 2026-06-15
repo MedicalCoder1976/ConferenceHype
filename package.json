@@ -14,7 +14,6 @@
     "job:generate": "tsx scripts/worker.ts generate",
     "job:briefing": "tsx scripts/worker.ts briefing",
     "job:upcoming": "tsx scripts/worker.ts upcoming",
-    "job:narrative": "tsx scripts/generate-asco-narrative.ts",
     "job:eha2026": "tsx scripts/prepare-eha-2026-broadcast.ts",
     "preview:noon": "tsx scripts/preview-broadcast-rundown.ts today-21",
     "preview:planning": "tsx scripts/preview-broadcast-rundown.ts today-21",

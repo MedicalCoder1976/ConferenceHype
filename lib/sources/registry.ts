@@ -24,28 +24,7 @@ export const monitoredXVoices: XVoice[] = [
     handle: "@EHA_Hematology",
     note: "official EHA2026 Congress, program, abstract, and on-site signal"
   },
-  // Official ASCO channels
-  {
-    label: "ASCO",
-    handle: "@ASCO",
-    note: "official meeting and society signal"
-  },
-  {
-    label: "ASCO University",
-    handle: "@ASCOuniversity",
-    note: "ASCO education and abstract signal"
-  },
-  {
-    label: "JCO — Journal of Clinical Oncology",
-    handle: "@JCO_ASCO",
-    note: "ASCO flagship journal signal"
-  },
   // Oncology media
-  {
-    label: "The ASCO Post",
-    handle: "@ASCOPost",
-    note: "oncology meeting media signal"
-  },
   {
     label: "OncLive",
     handle: "@OncLive",
@@ -74,28 +53,28 @@ export const monitoredXVoices: XVoice[] = [
   {
     label: "NEJM",
     handle: "@NEJM",
-    note: "New England Journal signal for major trial readouts at ASCO"
+    note: "New England Journal signal for major trial readouts"
   },
   // Major cancer centres
   {
     label: "MD Anderson",
     handle: "@MDAndersonNews",
-    note: "MD Anderson Cancer Center ASCO signal"
+    note: "MD Anderson Cancer Center research signal"
   },
   {
     label: "Memorial Sloan Kettering",
     handle: "@MSKCancerCenter",
-    note: "MSK ASCO signal"
+    note: "MSK cancer-research signal"
   },
   {
     label: "Dana-Farber",
     handle: "@DanaFarber",
-    note: "Dana-Farber Cancer Institute ASCO signal"
+    note: "Dana-Farber Cancer Institute research signal"
   },
   {
     label: "NCI",
     handle: "@NCINews",
-    note: "National Cancer Institute ASCO and research signal"
+    note: "National Cancer Institute research signal"
   },
   // ConferenceHype own channel
   {
@@ -128,7 +107,7 @@ export const instagramPushPrompts = [
   {
     label: "Verified source watch",
     prompt:
-      "Ask viewers to tag #ConferenceHype, #ASCO26, #ASCO2026, and @ConferenceHype on Instagram only with source-attributed articles, official schedule items, media links, or monitored X voice callouts."
+      "Ask viewers to tag #ConferenceHype and @ConferenceHype on Instagram only with source-attributed articles, official schedule items, media links, or monitored X voice callouts."
   },
   {
     label: "Steps and workout watch",
@@ -138,7 +117,7 @@ export const instagramPushPrompts = [
   {
     label: "W-poster watch",
     prompt:
-      "Invite Instagram posts or reels from the W poster area and Hall A Posters and Exhibits. Ask viewers to check rooms and locations in the ASCO app and on-site signage."
+      "Invite Instagram posts or reels from official poster areas. Ask viewers to check rooms and locations in the official conference app and on-site signage."
   },
   {
     label: "Media desk callout",
@@ -186,34 +165,6 @@ export const sourceRegistry: SourceConfig[] = [
     url: "https://ehaweb.org/connect-network/eha2026-congress/eha2026-media-registration",
     type: "media",
     rank: 1,
-    enabled: true
-  },
-  {
-    id: "asco-calendar",
-    name: "ASCO meeting calendar",
-    url: "https://meetings.asco.org/",
-    type: "official",
-    rank: 1,
-    enabled: true
-  },
-  {
-    // ASCO Daily News — official conference daily publication.
-    // The ingest job will use fetchPageSummary on the base URL.
-    // If a feed URL is discovered (e.g. /feed/), update this URL so
-    // fetchRssSource picks it up automatically (the job routes on "rss"/"feed" in the URL).
-    id: "asco-daily-news",
-    name: "ASCO Daily News",
-    url: "https://dailynews.ascopubs.org/",
-    type: "media",
-    rank: 1,
-    enabled: true
-  },
-  {
-    id: "asco-post",
-    name: "The ASCO Post",
-    url: "https://ascopost.com/rss/",
-    type: "media",
-    rank: 2,
     enabled: true
   },
   {

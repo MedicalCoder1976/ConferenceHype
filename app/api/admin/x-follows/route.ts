@@ -15,7 +15,7 @@ const bodySchema = z.object({
     )
     .transform((value) => value.split(/[/?#]/)[0])
     .refine((value) => /^@?[A-Za-z0-9_]{1,15}$/.test(value), {
-      message: "Use a valid X handle like @ASCO or x.com/ASCO."
+      message: "Use a valid X handle like @EHA_Hematology or x.com/EHA_Hematology."
     }),
   label: z.string().trim().max(80).optional().or(z.literal("")),
   note: z.string().trim().max(160).optional().or(z.literal(""))

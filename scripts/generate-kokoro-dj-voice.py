@@ -44,9 +44,9 @@ VOICE_MIX = {
 
 
 PERFORMANCE_LINES = [
-    {"speed": 1.04, "pause": 0.16, "text": "TumorCrusher on the Ask-oh Hype desk."},
-    {"speed": 1.08, "pause": 0.20, "text": "Ask-oh 2026 is officially in launch mode."},
-    {"speed": 1.06, "pause": 0.34, "text": "Ask-oh 2026 is live, and Day 1 is not a warm-up."},
+    {"speed": 1.04, "pause": 0.16, "text": "TumorCrusher on the ConferenceHype desk."},
+    {"speed": 1.08, "pause": 0.20, "text": "ConferenceHype is officially in launch mode."},
+    {"speed": 1.06, "pause": 0.34, "text": "ConferenceHype is live, and this is not a warm-up."},
     {
         "speed": 1.01,
         "pause": 0.22,
@@ -94,7 +94,7 @@ PERFORMANCE_LINES = [
     {"speed": 1.12, "pause": 0.09, "text": "Poster crowd."},
     {"speed": 1.13, "pause": 0.09, "text": "Media moment."},
     {"speed": 1.14, "pause": 0.22, "text": "Hallway buzz."},
-    {"speed": 1.08, "pause": 0.24, "text": "Tag hashtag Ask-oh Hype."},
+    {"speed": 1.08, "pause": 0.24, "text": "Tag ConferenceHype."},
     {"speed": 0.98, "pause": 0.22, "text": "If it clears review, it can hit the stream."},
     {
         "speed": 0.96,
@@ -102,13 +102,13 @@ PERFORMANCE_LINES = [
         "text": "Interactive AI commentary only. Not official reporting or medical advice.",
     },
     {"speed": 1.06, "pause": 0.14, "text": "Keep your badge close and your room list tighter."},
-    {"speed": 1.10, "pause": 0.0, "text": "TumorCrusher here. Ask-oh 2026 Day 1 is on."},
+    {"speed": 1.10, "pause": 0.0, "text": "TumorCrusher here. ConferenceHype is on."},
 ]
 
 VOICE_PERFORMANCES = {
     "am_fenrir": [
         {"speed": 1.01, "pause": 0.18, "text": "Fenrir on the TumorCrusher schedule desk."},
-        {"speed": 1.05, "pause": 0.20, "text": "Ask-oh 2026 Day 1 is live, and this is the room map."},
+        {"speed": 1.05, "pause": 0.20, "text": "ConferenceHype is live, and this is the room map."},
         {"speed": 1.06, "pause": 0.18, "text": "Quick schedule hit."},
         {"speed": 1.03, "pause": 0.18, "text": "Twenty-four agenda sessions are on the board."},
         {"speed": 1.03, "pause": 0.18, "text": "Sixty-seven timed oral abstract presentations are ready to move."},
@@ -117,7 +117,7 @@ VOICE_PERFORMANCES = {
         {"speed": 0.98, "pause": 0.18, "text": "Lymphoma and CLL in E450a."},
         {"speed": 0.98, "pause": 0.18, "text": "Metastatic non-small cell lung cancer in Hall D2."},
         {"speed": 0.98, "pause": 0.20, "text": "Then two forty-five for Medical Education in E450b."},
-        {"speed": 0.93, "pause": 0.28, "text": "Check every room in the Ask-oh app and on-site signage before walking."},
+        {"speed": 0.93, "pause": 0.28, "text": "Check every room in the official conference app and on-site signage before walking."},
         {"speed": 1.05, "pause": 0.14, "text": "Set the map."},
         {"speed": 1.06, "pause": 0.14, "text": "Mark the rooms."},
         {"speed": 1.08, "pause": 0.22, "text": "Move when the day moves."},
@@ -126,7 +126,7 @@ VOICE_PERFORMANCES = {
     ],
     "af_heart": [
         {"speed": 1.06, "pause": 0.12, "text": "Thanks, Fenrir. Marisol Vega on the TumorCrusher Latina DJ desk."},
-        {"speed": 1.12, "pause": 0.12, "text": "Ask-oh 2026, we are live, bright, and moving with serious heat."},
+        {"speed": 1.12, "pause": 0.12, "text": "ConferenceHype is live, bright, and moving with serious heat."},
         {"speed": 1.10, "pause": 0.10, "text": "Breast, lung, G U, G Y N, skin, colorectal, upper G I, CNS, endocrine, sarcoma."},
         {"speed": 1.13, "pause": 0.10, "text": "Every track gets a reporter. Every source gets a label."},
         {"speed": 1.15, "pause": 0.08, "text": "No lazy hype."},
@@ -134,11 +134,11 @@ VOICE_PERFORMANCES = {
         {"speed": 1.10, "pause": 0.12, "text": "Just clean conference energy, fast handoffs, and the room pulse."},
         {"speed": 1.12, "pause": 0.10, "text": "When the poster wall jumps, I want the why."},
         {"speed": 1.11, "pause": 0.12, "text": "When the hallway starts buzzing, I want the source."},
-        {"speed": 1.14, "pause": 0.0, "text": "Marisol is in the mix. Ask-oh Hype, sube el volumen."},
+        {"speed": 1.14, "pause": 0.0, "text": "Marisol is in the mix. ConferenceHype, sube el volumen."},
     ],
     "af_bella": [
         {"speed": 1.06, "pause": 0.16, "text": "Thanks, Marisol. Rebecca on the TumorCrusher reporter desk, and yes, the energy is already up."},
-        {"speed": 1.12, "pause": 0.16, "text": "Ask-oh 2026 Day 1 is not easing in. It is hitting the floor with motion."},
+        {"speed": 1.12, "pause": 0.16, "text": "ConferenceHype is not easing in. It is hitting the floor with motion."},
         {"speed": 1.10, "pause": 0.14, "text": "Fenrir gave you the map. I am giving you the pulse."},
         {"speed": 1.13, "pause": 0.14, "text": "Watch the posters."},
         {"speed": 1.15, "pause": 0.14, "text": "Watch the media desk."},
@@ -154,7 +154,7 @@ VOICE_PERFORMANCES = {
     ],
     "am_michael": [
         {"speed": 1.03, "pause": 0.12, "text": "Thanks, Rebecca. Jax Rivers on the TumorCrusher U.S. prime-time desk."},
-        {"speed": 1.08, "pause": 0.12, "text": "Ask-oh 2026 is running hot, and the hourly voice cycle is now loaded."},
+        {"speed": 1.08, "pause": 0.12, "text": "ConferenceHype is running hot, and the hourly voice cycle is now loaded."},
         {"speed": 1.06, "pause": 0.10, "text": "Top of the hour, we rotate the booth."},
         {"speed": 1.10, "pause": 0.10, "text": "Schedule check. Disease desk. Social hit. Source check."},
         {"speed": 1.06, "pause": 0.12, "text": "If lung is moving, we bring the thoracic reporter."},
@@ -164,7 +164,7 @@ VOICE_PERFORMANCES = {
     ],
     "bm_lewis": [
         {"speed": 1.04, "pause": 0.16, "text": "Thanks, Jax. Aussie Onc on the TumorCrusher global hype desk."},
-        {"speed": 1.10, "pause": 0.16, "text": "Ask-oh 2026 is absolutely lighting up, and we are not whispering about it."},
+        {"speed": 1.10, "pause": 0.16, "text": "ConferenceHype is lighting up, and we are not whispering about it."},
         {"speed": 1.08, "pause": 0.16, "text": "From the schedule desk to the poster floor, this thing has movement."},
         {"speed": 1.13, "pause": 0.12, "text": "Big room energy."},
         {"speed": 1.14, "pause": 0.12, "text": "Sharp agenda signal."},
@@ -178,7 +178,7 @@ VOICE_PERFORMANCES = {
     ],
     "af_sarah": [
         {"speed": 1.01, "pause": 0.12, "text": "Thanks, Aussie Onc. Maya Steele on the TumorCrusher science-to-signal desk."},
-        {"speed": 1.06, "pause": 0.12, "text": "Ask-oh 2026 has the volume, but we still read the room carefully."},
+        {"speed": 1.06, "pause": 0.12, "text": "ConferenceHype has the volume, but we still read the room carefully."},
         {"speed": 1.04, "pause": 0.12, "text": "Big claims need sources. Abstract buzz needs context. Social needs a label."},
         {"speed": 1.06, "pause": 0.10, "text": "Breast and G Y N get the patient-centered lens."},
         {"speed": 1.05, "pause": 0.10, "text": "CNS and endocrine get the nuance check."},
@@ -187,7 +187,7 @@ VOICE_PERFORMANCES = {
     ],
     "am_echo": [
         {"speed": 1.03, "pause": 0.12, "text": "Thanks, Maya. Cole Maddox on the TumorCrusher late-hour U.S. desk."},
-        {"speed": 1.10, "pause": 0.10, "text": "Ask-oh 2026 does not sleep, so neither does the coverage clock."},
+        {"speed": 1.10, "pause": 0.10, "text": "ConferenceHype does not sleep, so neither does the coverage clock."},
         {"speed": 1.08, "pause": 0.10, "text": "Every hour gets a fresh voice, a fresh track, and a clean handoff."},
         {"speed": 1.06, "pause": 0.10, "text": "Breast to lung. G U to G Y N. Skin to colorectal."},
         {"speed": 1.05, "pause": 0.10, "text": "Upper G I and hepatobiliary. CNS. Endocrine. Soft tissue."},
@@ -196,12 +196,12 @@ VOICE_PERFORMANCES = {
     ],
     "am_adam": [
         {"speed": 0.98, "pause": 0.18, "text": "Thanks, Cole. Adam on social, which means the internet has entered the booth."},
-        {"speed": 1.06, "pause": 0.18, "text": "Ask-oh 2026 Day 1 is moving, and the feed is already doing feed things."},
+        {"speed": 1.06, "pause": 0.18, "text": "ConferenceHype is moving, and the feed is already doing feed things."},
         {"speed": 1.10, "pause": 0.14, "text": "Source line."},
         {"speed": 1.13, "pause": 0.12, "text": "Source win."},
         {"speed": 1.10, "pause": 0.12, "text": "Poster crowd."},
         {"speed": 1.15, "pause": 0.16, "text": "Somebody is definitely posting a hallway selfie like it is breaking news."},
-        {"speed": 1.04, "pause": 0.20, "text": "Tag hashtag Ask-oh Hype, or tag Conference Hype, when something actually deserves the desk."},
+        {"speed": 1.04, "pause": 0.20, "text": "Tag ConferenceHype when something actually deserves the desk."},
         {"speed": 1.05, "pause": 0.18, "text": "Steps, walks, runs, gym sessions, and workout wins go to the end-of-day shoutout queue after review."},
         {"speed": 0.98, "pause": 0.20, "text": "If it is just a blurry badge photo, congratulations, you have invented evidence-free cardio."},
         {"speed": 1.12, "pause": 0.14, "text": "Media moment."},
@@ -209,7 +209,7 @@ VOICE_PERFORMANCES = {
         {"speed": 1.06, "pause": 0.18, "text": "Source links are welcome. Official schedule items are welcome. Vague chatter stays outside the rundown."},
         {"speed": 0.94, "pause": 0.22, "text": "Source-backed items, official schedule, monitored voices, operator statements. That is what gets into the rundown."},
         {"speed": 1.06, "pause": 0.18, "text": "TumorCrusher keeps it moving: Fenrir owns the schedule, Marisol brings the Latina DJ fire, Rebecca reports the heat, Aussie Onc brings the global hype, and Adam handles the feed."},
-        {"speed": 1.13, "pause": 0.0, "text": "Ask-oh Hype is live. Post better. We are listening."},
+        {"speed": 1.13, "pause": 0.0, "text": "ConferenceHype is live. Post better. We are listening."},
     ],
 }
 
@@ -321,7 +321,7 @@ def synthesize_stinger(output: Path, voice: str, text: str | None = None) -> Non
     pipeline = KPipeline(lang_code="a", repo_id="hexgrad/Kokoro-82M")
     lines = [
         {"speed": 1.12, "pause": 0.10, "text": line.strip()}  # Rule 9: higher energy pace
-        for line in (text or "ConferenceHype!\nAsk-oh energy all day.").splitlines()
+        for line in (text or "ConferenceHype!\nConference energy all day.").splitlines()
         if line.strip()
     ]
     audio = apply_voice_mix(synthesize_lines(pipeline, voice, lines), voice)

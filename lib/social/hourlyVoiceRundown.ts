@@ -23,13 +23,13 @@ export function buildHourlySocialVoiceRundownSegments({
     const scheduledAt = addMinutes(baseTime, hourIndex * 60 + 2);
     const lines = risingLeaders.length
       ? risingLeaders.map(voiceLine).join("\n")
-      : "No rising ASCO X voices have cleared the source monitor for this hour yet.";
+      : "No rising conference X voices have cleared the source monitor for this hour yet.";
     return {
       id: `virtual-hourly-social-voices-${scheduledAt.toISOString()}`,
       title: "Hourly rising social voices",
       summary:
         "Two-minute source-attributed rundown of rising X voices and who they are.",
-      script: `Two-minute social voice check. After the schedule, here are the rising ASCO X voices being watched right now.\n\n${lines}`,
+      script: `Two-minute social voice check. After the schedule, here are the rising conference X voices being watched right now.\n\n${lines}`,
       contentType: "social_signal",
       personaId: "vesper-quill",
       personaName: "Vesper Quill",

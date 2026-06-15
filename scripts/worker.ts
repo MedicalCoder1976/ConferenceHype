@@ -20,8 +20,8 @@ async function main() {
   }
   if (command === "briefing") {
     const { runBriefingJob } = await import("@/lib/jobs/briefing");
-    const briefingNow = process.env.ASCO_BRIEFING_NOW
-      ? new Date(process.env.ASCO_BRIEFING_NOW)
+    const briefingNow = process.env.CONFERENCE_BRIEFING_NOW
+      ? new Date(process.env.CONFERENCE_BRIEFING_NOW)
       : new Date();
     const segments = await runBriefingJob(briefingNow);
     logInfo("worker briefing finished", { count: segments.length });
@@ -30,8 +30,8 @@ async function main() {
   }
   if (command === "upcoming") {
     const { runUpcomingEventsJob } = await import("@/lib/jobs/upcomingEvents");
-    const upcomingNow = process.env.ASCO_UPCOMING_NOW
-      ? new Date(process.env.ASCO_UPCOMING_NOW)
+    const upcomingNow = process.env.CONFERENCE_UPCOMING_NOW
+      ? new Date(process.env.CONFERENCE_UPCOMING_NOW)
       : new Date();
     const segments = await runUpcomingEventsJob(upcomingNow);
     logInfo("worker upcoming events finished", { count: segments.length });

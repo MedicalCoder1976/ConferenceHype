@@ -143,7 +143,7 @@ export function FocusSocialPost() {
       <input
         value={postUrl}
         onChange={(event) => setPostUrl(event.target.value)}
-        placeholder="x.com/asco/status/..., or https://example.com/story"
+        placeholder="x.com/medicalconference/status/..., or https://example.com/story"
         className="mt-2 w-full border border-ink/20 px-3 py-3 text-sm outline-none focus:border-broadcast"
       />
       <label className="mt-4 block text-xs font-black uppercase text-ink/60">

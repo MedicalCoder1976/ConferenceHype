@@ -1,4 +1,4 @@
-name: Generate ASCO upcoming-events spine
+name: Generate conference upcoming-events spine
 
 on:
   workflow_dispatch:

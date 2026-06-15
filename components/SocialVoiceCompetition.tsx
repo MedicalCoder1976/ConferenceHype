@@ -70,7 +70,7 @@ export function SocialVoiceCompetition({
         <h2 className="text-xl font-black text-ink">Social voice competition</h2>
       </div>
       <p className="mt-2 text-sm leading-6 text-ink/65">
-        The top ASCO voices are ranked from recent X search results, watched
+        The top conference voices are ranked from recent X search results, watched
         handles, mention counts, and engagement signals. High-traction voices
         are automatically added to Source intake as X follows so the next
         social ingest can monitor them.
@@ -86,7 +86,7 @@ export function SocialVoiceCompetition({
       {visibleLeaders.length === 0 ? (
         <div className="mt-4 border border-ink/10 bg-paper p-4 text-sm font-bold text-ink/60">
           No voices on the board yet — the social ingest is warming up. Scores will appear once the
-          15-minute X search cycle picks up #ASCO26 activity. Check back shortly.
+          The 15-minute X search cycle is gathering conference activity. Check back shortly.
         </div>
       ) : (
         <div className="mt-4 grid gap-3">

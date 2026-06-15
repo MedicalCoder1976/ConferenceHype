@@ -1,4 +1,4 @@
-name: Generate ASCO 75-minute recap briefing
+name: Generate conference recap briefing
 
 on:
   workflow_dispatch:

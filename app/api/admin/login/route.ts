@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
   }
 
   const response = NextResponse.redirect(new URL(next, request.url), 303);
-  response.cookies.set("asco_admin_secret", supplied, {
+  response.cookies.set("conferencehype_admin_secret", supplied, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",

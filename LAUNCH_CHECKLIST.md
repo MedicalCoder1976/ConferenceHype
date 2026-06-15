@@ -72,9 +72,9 @@ Add:
 Use these in the public site and X profile:
 
 - `#ConferenceHype`
-- `#ASCO26`
+- `#ConferenceHype`
 - `@ConferenceHype`
-- watched X voices: `@ASCO`, `@ASCOPost`, `@OncLive`, `@statnews`
+- watched X voices: `@EHA_Hematology`, `@OncLive`, `@statnews`
 
 Create or rename the X account to match the bot handle before launch.
 
@@ -99,8 +99,8 @@ Run:
 ```powershell
 npm run typecheck
 npm run build
-$env:ASCO_UPCOMING_NOW="2026-05-29T12:55:00-05:00"; npm run job:upcoming
-$env:ASCO_BRIEFING_NOW="2026-05-29T14:30:00-05:00"; npm run job:briefing
+$env:CONFERENCE_UPCOMING_NOW="2026-06-15T12:55:00-04:00"; npm run job:upcoming
+$env:CONFERENCE_BRIEFING_NOW="2026-06-15T14:30:00-04:00"; npm run job:briefing
 npm run job:ingest
 npm run job:generate
 ```
@@ -110,7 +110,7 @@ Then verify:
 - Public site loads.
 - Terms page loads.
 - `/admin` requires login after `ADMIN_SHARED_SECRET` is set.
-- ASCO 20-minute upcoming-events spine creates an approved no-token segment from `data/asco2026/core-index.json`.
+- The 20-minute upcoming-events spine creates an approved no-token segment from configured official conference sources.
 - Ingest job pulls RSS and hashtag posts.
 - Generate job creates review segments.
 - Approval updates the public queue.
