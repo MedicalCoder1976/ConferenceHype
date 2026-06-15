@@ -4,6 +4,7 @@ import type { ConferenceCoverageSlot } from "@/lib/types";
 
 loadEnvConfig(process.cwd());
 
+async function main() {
 const slotId = process.env.COVERAGE_SLOT_ID;
 const youtubeStatus = process.env.YOUTUBE_DELIVERY_STATUS as
   | ConferenceCoverageSlot["youtubeStatus"]
@@ -31,3 +32,9 @@ console.log(
     ? `Updated coverage slot ${slotId} and public stream to ${youtubeStatus}.`
     : `Updated public stream to ${youtubeStatus}.`
 );
+}
+
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
