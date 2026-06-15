@@ -1,0 +1,25 @@
+name: Enable YouTube embedding
+
+on:
+  workflow_dispatch:
+    inputs:
+      video_id:
+        description: "YouTube live broadcast video ID"
+        required: true
+
+jobs:
+  enable:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx tsx scripts/enable-youtube-embed.ts
+        env:
+          YOUTUBE_VIDEO_ID: ${{ inputs.video_id }}
+          YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
+          YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
+          YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
