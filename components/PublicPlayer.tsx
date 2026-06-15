@@ -9,6 +9,8 @@ type Props = {
 
 export function PublicPlayer({ streamState, currentSegment }: Props) {
   const audioStreamUrl = process.env.NEXT_PUBLIC_AUDIO_STREAM_URL;
+  const youtubeEmbedEnabled =
+    process.env.YOUTUBE_EMBED_ENABLED === "true";
   const youtubeId =
     streamState.youtubeVideoId ?? process.env.NEXT_PUBLIC_YOUTUBE_VIDEO_ID;
   const youtubeChannelId =
@@ -70,12 +72,32 @@ export function PublicPlayer({ streamState, currentSegment }: Props) {
               src={audioStreamUrl}
             />
           </div>
-        ) : youtubeId || youtubeChannelId ? (
+        ) : (youtubeId || youtubeChannelId) && youtubeEmbedEnabled ? (
           <YoutubeFrame
             videoId={youtubeId ?? undefined}
             channelId={youtubeId ? undefined : youtubeChannelId ?? undefined}
             className="h-full w-full"
           />
+        ) : youtubeWatchUrl ? (
+          <div className="flex h-full flex-col items-center justify-center gap-4 p-5 text-center text-white md:p-8">
+            <Tv className="h-10 w-10 text-cyanline md:h-12 md:w-12" />
+            <h2 className="text-xl font-black md:text-2xl">
+              Live now on YouTube
+            </h2>
+            <p className="max-w-md text-sm leading-6 text-white/75">
+              YouTube has disabled playback inside other websites for this
+              broadcast. Open the live player directly to watch and listen.
+            </p>
+            <a
+              className="inline-flex min-h-11 items-center justify-center gap-2 bg-white px-4 py-2 text-xs font-black uppercase tracking-wide text-ink"
+              href={youtubeWatchUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <ExternalLink className="h-4 w-4" />
+              Open live on YouTube
+            </a>
+          </div>
         ) : hlsUrl ? (
           <video
             className="h-full w-full"
