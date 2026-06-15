@@ -8,8 +8,7 @@ set emergency_message = replace(emergency_message, 'ASCO Hype', 'ConferenceHype'
 where emergency_message like '%ASCO Hype%';
 
 update public.sources
-set enabled = false,
-    updated_at = now()
+set enabled = false
 where type = 'general_social'
   and (
     url like '%#ASCOHype%'

@@ -30,13 +30,6 @@ export default function TermsPage() {
             generated, summarized, transformed, translated, or voiced by AI.
           </TermBlock>
 
-          <TermBlock title="No ASCO affiliation">
-            ConferenceHype is not associated with, endorsed by, sponsored by, or
-            affiliated with the American Society of Clinical Oncology in any
-            way. ASCO and related meeting names belong to their respective
-            owners.
-          </TermBlock>
-
           <TermBlock title="No medical or clinical reliance">
             Do not use ConferenceHype to make medical, treatment, diagnostic,
             research, patient-care, or clinical decisions. Always consult

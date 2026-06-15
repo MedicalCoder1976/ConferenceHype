@@ -111,7 +111,6 @@ Then verify:
 - Terms page loads.
 - `/admin` requires login after `ADMIN_SHARED_SECRET` is set.
 - ASCO 20-minute upcoming-events spine creates an approved no-token segment from `data/asco2026/core-index.json`.
-- ASCO 75-minute briefing creates one pending review segment from `data/asco2026/core-index.json`.
 - Ingest job pulls RSS and hashtag posts.
 - Generate job creates review segments.
 - Approval updates the public queue.

@@ -52,6 +52,30 @@ export const oncologyJournalSeeds: JournalSeed[] = [
     officialUrl: "https://www.nature.com/nm/"
   },
   {
+    name: "Nature Cancer",
+    abbreviation: "Nature Cancer",
+    rssUrl: "https://www.nature.com/natcancer.rss",
+    officialUrl: "https://www.nature.com/natcancer/"
+  },
+  {
+    name: "British Journal of Cancer",
+    abbreviation: "BJC",
+    rssUrl: "https://www.nature.com/bjc.rss",
+    officialUrl: "https://www.nature.com/bjc/"
+  },
+  {
+    name: "Leukemia",
+    abbreviation: "Leukemia",
+    rssUrl: "https://www.nature.com/leu.rss",
+    officialUrl: "https://www.nature.com/leu/"
+  },
+  {
+    name: "Blood Cancer Journal",
+    abbreviation: "BCJ",
+    rssUrl: "https://www.nature.com/bcj.rss",
+    officialUrl: "https://www.nature.com/bcj/"
+  },
+  {
     name: "Annals of Oncology",
     abbreviation: "Annals Oncology",
     rssUrl: "https://www.annalsofoncology.org/current.rss",
@@ -62,11 +86,5 @@ export const oncologyJournalSeeds: JournalSeed[] = [
     abbreviation: "Lancet",
     rssUrl: "https://www.thelancet.com/rssfeed/lancet_current.xml",
     officialUrl: "https://www.thelancet.com/"
-  },
-  {
-    name: "The BMJ",
-    abbreviation: "BMJ",
-    rssUrl: "https://feeds.bmj.com/bmj/recent",
-    officialUrl: "https://www.bmj.com/"
   }
 ];

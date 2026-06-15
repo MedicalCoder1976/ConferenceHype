@@ -10,6 +10,7 @@ import {
   getBlacklistedXHandlesFromDb,
   getBroadcastWriteoutsFromDb,
   getConferenceCoverageSlotsFromDb,
+  getCurrentYoutubeDeliveryFromDb,
   getDailyCoveragePlanFromDb,
   getEditorialPackagesFromDb,
   getMedicalConferencesFromDb,
@@ -31,7 +32,7 @@ import { getUnsafeReviewSourceErrors } from "@/lib/generation/sourceSafety";
 import type { AnalyticsSnapshot, Citation, StreamState } from "@/lib/types";
 
 const fullSpokenDisclaimer =
-  "ConferenceHype is interactive AI commentary only. It is not reporting, journalism, medical education, clinical guidance, scientific validation, legal advice, or financial advice. ConferenceHype is not associated with the American Society of Clinical Oncology in any way.";
+  "ConferenceHype is interactive AI commentary only. It is not reporting, journalism, medical education, clinical guidance, scientific validation, legal advice, or financial advice.";
 
 function isUnsafeForBroadcastRundown(scriptish: string) {
   return (
@@ -85,11 +86,11 @@ export async function getPublicSegments() {
 }
 
 export async function getStreamState(): Promise<StreamState> {
-  const dbStreamState = await getStreamStateFromDb();
-  if (dbStreamState) {
-    return dbStreamState;
-  }
-  return {
+  const [dbStreamState, youtubeDelivery] = await Promise.all([
+    getStreamStateFromDb(),
+    getCurrentYoutubeDeliveryFromDb()
+  ]);
+  const fallbackState: StreamState = {
     mode: process.env.NEXT_PUBLIC_YOUTUBE_VIDEO_ID
       ? "youtube_primary"
       : process.env.NEXT_PUBLIC_HLS_URL
@@ -99,6 +100,16 @@ export async function getStreamState(): Promise<StreamState> {
     emergencyMessage:
       "ConferenceHype automation is paused while the operator desk reviews the queue.",
     currentSegmentId: undefined
+  };
+  return {
+    ...(dbStreamState ?? fallbackState),
+    mode: youtubeDelivery?.youtubeVideoId
+      ? "youtube_primary"
+      : (dbStreamState ?? fallbackState).mode,
+    youtubeVideoId:
+      youtubeDelivery?.youtubeVideoId ?? process.env.NEXT_PUBLIC_YOUTUBE_VIDEO_ID,
+    youtubeUrl: youtubeDelivery?.youtubeUrl,
+    youtubeStatus: youtubeDelivery?.youtubeStatus
   };
 }
 

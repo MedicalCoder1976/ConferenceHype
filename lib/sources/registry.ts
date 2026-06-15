@@ -11,11 +11,11 @@ export const monitoredSocialTags = {
   secondaryHashtag: "#EHA2026",
   conferenceHashtag: "#EHA26",
   conferenceYearHashtag: "#EHA2026",
-  botHandle: "@ConferenceHype",
-  conferenceHypeHandle: "@ConferenceHype",
+  botHandle: "@conferencehype",
+  conferenceHypeHandle: "@conferencehype",
   instagramPrimaryHashtag: "#ConferenceHype",
   instagramConferenceHashtag: "#EHA2026",
-  instagramConferenceHypeHandle: "@ConferenceHype"
+  instagramConferenceHypeHandle: "@conferencehype"
 };
 
 export const monitoredXVoices: XVoice[] = [
@@ -260,14 +260,6 @@ export const sourceRegistry: SourceConfig[] = [
     id: "annals-oncology",
     name: "Annals of Oncology",
     url: "https://www.annalsofoncology.org/current.rss",
-    type: "media",
-    rank: 1,
-    enabled: true
-  },
-  {
-    id: "bmj",
-    name: "The BMJ",
-    url: "https://feeds.bmj.com/bmj/recent",
     type: "media",
     rank: 1,
     enabled: true

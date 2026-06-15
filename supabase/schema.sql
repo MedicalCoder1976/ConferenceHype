@@ -89,6 +89,10 @@ create table public.stream_state (
   emergency_active boolean not null default false,
   emergency_message text not null default 'ConferenceHype automation is paused while the operator desk reviews the queue.',
   current_segment_id uuid references public.segments(id),
+  youtube_status text not null default 'not_scheduled',
+  youtube_video_id text,
+  youtube_url text,
+  continuous_enabled boolean not null default false,
   updated_at timestamptz not null default now()
 );
 

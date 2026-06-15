@@ -9,14 +9,15 @@ type Props = {
 
 export function PublicPlayer({ streamState, currentSegment }: Props) {
   const audioStreamUrl = process.env.NEXT_PUBLIC_AUDIO_STREAM_URL;
-  const youtubeId = process.env.NEXT_PUBLIC_YOUTUBE_VIDEO_ID;
+  const youtubeId =
+    streamState.youtubeVideoId ?? process.env.NEXT_PUBLIC_YOUTUBE_VIDEO_ID;
   const youtubeChannelId =
     process.env.NEXT_PUBLIC_YOUTUBE_CHANNEL_ID ?? "UCp9ihETXF_55sQIB-vDLvcA";
   const hlsUrl = process.env.NEXT_PUBLIC_HLS_URL;
-  const youtubeWatchUrl = youtubeChannelId
-    ? `https://www.youtube.com/channel/${youtubeChannelId}/live`
-    : youtubeId
-      ? `https://www.youtube.com/watch?v=${youtubeId}`
+  const youtubeWatchUrl = youtubeId
+    ? streamState.youtubeUrl ?? `https://www.youtube.com/watch?v=${youtubeId}`
+    : youtubeChannelId
+      ? `https://www.youtube.com/channel/${youtubeChannelId}/live`
       : undefined;
   const streamLabel = audioStreamUrl
     ? "audio saver"
@@ -69,10 +70,10 @@ export function PublicPlayer({ streamState, currentSegment }: Props) {
               src={audioStreamUrl}
             />
           </div>
-        ) : youtubeChannelId || youtubeId ? (
+        ) : youtubeId || youtubeChannelId ? (
           <YoutubeFrame
-            channelId={youtubeChannelId ?? undefined}
             videoId={youtubeId ?? undefined}
+            channelId={youtubeId ? undefined : youtubeChannelId ?? undefined}
             className="h-full w-full"
           />
         ) : hlsUrl ? (

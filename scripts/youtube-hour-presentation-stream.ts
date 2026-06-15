@@ -19,7 +19,6 @@ async function updateDelivery(
   youtubeStatus: "live" | "completed" | "failed",
   deliveryError?: string
 ) {
-  if (!coverageSlotId) return;
   try {
     await updateConferenceCoverageDeliveryInDb(coverageSlotId, {
       youtubeStatus,

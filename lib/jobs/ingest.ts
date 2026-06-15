@@ -4,7 +4,7 @@ import {
   sourceToXVoice,
   type XVoice
 } from "@/lib/sources/registry";
-import { fetchRssSource } from "@/lib/sources/rss";
+import { fetchRssSource, isRssSource } from "@/lib/sources/rss";
 import { fetchPageSummary } from "@/lib/sources/scraper";
 import { fetchEhaSource } from "@/lib/sources/eha";
 import { fetchTaggedSocialPosts } from "@/lib/sources/x";
@@ -116,7 +116,7 @@ export async function runIngestionJob(): Promise<IngestedItem[]> {
       ) {
         return fetchEhaSource(source);
       }
-      if (source.url.includes("rss") || source.url.includes("feed")) {
+      if (isRssSource(source)) {
         return fetchRssSource(source);
       }
       return fetchPageSummary(source);

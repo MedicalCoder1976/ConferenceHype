@@ -3,6 +3,8 @@ import { PublicPlayer } from "@/components/PublicPlayer";
 import { getPublicSegments, getStreamState } from "@/lib/data";
 import { monitoredSocialTags } from "@/lib/sources/registry";
 
+export const dynamic = "force-dynamic";
+
 export default async function Home() {
   const [segments, streamState] = await Promise.all([
     getPublicSegments(),
@@ -17,37 +19,21 @@ export default async function Home() {
           <div className="order-2 lg:order-1">
             <div className="mb-4 flex flex-wrap items-center gap-2">
               <span className="rounded-full bg-broadcast px-3 py-1 text-xs font-bold uppercase tracking-wide text-white">
-                ASCO 2026 follow-along channel
+                Live medical conference coverage
               </span>
               <span className="rounded-full border border-ink/15 bg-white/70 px-3 py-1 text-xs font-bold uppercase tracking-wide text-ink">
-                Opens from X and plays
+                Source-attributed programming
               </span>
             </div>
             <h1 className="max-w-4xl text-4xl font-black leading-[0.95] text-ink sm:text-5xl lg:text-6xl xl:text-7xl">
               ConferenceHype
             </h1>
             <p className="mt-4 max-w-2xl text-base font-semibold leading-7 text-ink/78 lg:text-lg lg:leading-8">
-              Interactive Conference Commentary if you cannot attend. Better if
-              you do attend and follow along. Suggest topics to go live with{" "}
-              <strong>{monitoredSocialTags.primaryHashtag}</strong>, follow{" "}
-              <strong>{monitoredSocialTags.conferenceHashtag}</strong>, or tag{" "}
+              Interactive conference commentary when you cannot attend, and a
+              live companion when you can. Suggest coverage with{" "}
+              <strong>{monitoredSocialTags.primaryHashtag}</strong> or tag{" "}
               <strong>{monitoredSocialTags.botHandle}</strong>.
             </p>
-            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:max-w-2xl">
-              <div className="border-l-4 border-broadcast bg-white/85 p-4 shadow-panel">
-                <div className="text-xl font-black md:text-2xl">Live now</div>
-                <div className="text-sm font-semibold text-ink/65">
-                  Broadcasting daily 7 AM–10 PM ET. Listen and contribute to
-                  the ASCO experience.
-                </div>
-              </div>
-              <div className="border-l-4 border-cyanline bg-white/85 p-4 shadow-panel">
-                <div className="text-xl font-black md:text-2xl">May 29–Jun 2</div>
-                <div className="text-sm font-semibold text-ink/65">
-                  ASCO 2026 annual meeting
-                </div>
-              </div>
-            </div>
             <div className="mt-5 flex flex-col gap-3 sm:flex-row lg:max-w-xl">
               <a
                 href="#player"
@@ -76,11 +62,9 @@ export default async function Home() {
           <h2 className="text-xl font-black">Important disclaimer</h2>
           <div className="mt-3 grid gap-3 text-sm leading-6 text-white/78">
             <p>
-              ConferenceHype is interactive AI commentary only. It is not reporting,
-              journalism, medical education, clinical guidance, scientific
-              validation, legal advice, or financial advice. ConferenceHype is not
-              associated with the American Society of Clinical Oncology in any
-              way.
+              ConferenceHype is interactive AI commentary only. It is not
+              reporting, journalism, medical education, clinical guidance,
+              scientific validation, legal advice, or financial advice.
             </p>
             <p>
               Posts using {monitoredSocialTags.primaryHashtag},{" "}

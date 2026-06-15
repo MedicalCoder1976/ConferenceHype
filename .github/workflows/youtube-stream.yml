@@ -25,7 +25,7 @@ on:
   schedule:
     # Poll the approved admin programming plan. Rendering starts far enough
     # ahead of each one-hour slot to finish before its scheduled airtime.
-    - cron: "*/15 * * * *"
+    - cron: "15 * * * *"
 
 jobs:
   stream:
@@ -67,6 +67,20 @@ jobs:
             DURATION_HOURS=$(jq -r '.duration_hours // 1' <<< "${RECORD}")
             CONFERENCE_NAME=$(jq -r '.medical_conferences.acronym // .medical_conferences.name // "ConferenceHype"' <<< "${RECORD}")
             DURATION_SECONDS=$((DURATION_HOURS * 3600))
+            if [ -z "${BLOCK_START}" ]; then
+              CONTINUOUS=$(curl --fail --silent --show-error \
+                --get "${NEXT_PUBLIC_SUPABASE_URL}/rest/v1/stream_state" \
+                -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+                -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+                --data-urlencode "select=continuous_enabled" \
+                --data-urlencode "id=eq.1" \
+                --data-urlencode "limit=1" | jq -r '.[0].continuous_enabled // false')
+              if [ "${CONTINUOUS}" = "true" ]; then
+                BLOCK_START=$(date -u -d "+45 minutes" +"%Y-%m-%dT%H:00:00Z")
+                CONFERENCE_NAME="ConferenceHype"
+                DURATION_SECONDS=3600
+              fi
+            fi
           else
             SLOT_ID="${{ inputs.coverage_slot_id }}"
             BLOCK_START="${{ inputs.stream_start_time }}"
@@ -133,7 +147,7 @@ jobs:
           BROADCAST_TITLE: ${{ steps.block.outputs.broadcast_title }}
 
       - name: Save YouTube video link
-        if: ${{ steps.block.outputs.slot_id != '' }}
+        if: ${{ steps.block.outputs.block_start != '' }}
         run: npx tsx scripts/update-youtube-delivery.ts
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}

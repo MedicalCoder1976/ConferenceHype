@@ -8,6 +8,13 @@ const parser = new XMLParser({
   processEntities: false
 });
 
+export function isRssSource(source: SourceConfig) {
+  return (
+    source.id.startsWith("daily-journal-") ||
+    /(?:rss|feed|atom|showFeed|\.xml(?:$|\?))/i.test(source.url)
+  );
+}
+
 function scalar(value: unknown) {
   if (value && typeof value === "object" && "#text" in value) {
     return String((value as { "#text": unknown })["#text"]);
@@ -38,6 +45,9 @@ export async function fetchRssSource(source: SourceConfig): Promise<IngestedItem
     parsed["rdf:RDF"]?.item ??
     [];
   const items = Array.isArray(rawItems) ? rawItems : [rawItems];
+  if (items.length === 0) {
+    throw new Error(`RSS feed returned no entries for ${source.name}.`);
+  }
 
   // Attribute items to the matching monitored X voice handle so they
   // count in the social voice leaderboard even when the X API is unavailable.

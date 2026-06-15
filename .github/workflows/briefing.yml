@@ -2,11 +2,6 @@ name: Generate ASCO 75-minute recap briefing
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 0,5,10,15,20 * * *"
-    - cron: "15 1,6,11,16,21 * * *"
-    - cron: "30 2,7,12,17,22 * * *"
-    - cron: "45 3,8,13,18,23 * * *"
 
 jobs:
   briefing:

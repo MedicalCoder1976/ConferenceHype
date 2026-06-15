@@ -463,8 +463,31 @@ export async function getStreamStateFromDb() {
     mode: data.mode as StreamState["mode"],
     emergencyActive: data.emergency_active as boolean,
     emergencyMessage: data.emergency_message as string,
-    currentSegmentId: data.current_segment_id ?? undefined
+    currentSegmentId: data.current_segment_id ?? undefined,
+    youtubeVideoId: data.youtube_video_id ?? undefined,
+    youtubeUrl: data.youtube_url ?? undefined,
+    youtubeStatus: data.youtube_status ?? undefined,
+    continuousEnabled: data.continuous_enabled ?? false
   } satisfies StreamState;
+}
+
+export async function updateContinuousBroadcastInDb(enabled: boolean) {
+  if (!hasSupabase()) {
+    return null;
+  }
+  const { data, error } = await createAdminClient()
+    .from("stream_state")
+    .update({
+      continuous_enabled: enabled,
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", 1)
+    .select("*")
+    .single();
+  if (error) {
+    throw error;
+  }
+  return data;
 }
 
 export async function getSourcesFromDb() {
@@ -652,6 +675,24 @@ export async function getConferenceCoverageSlotsFromDb(): Promise<ConferenceCove
     throw error;
   }
   return (data as ConferenceCoverageSlotRow[]).map(toConferenceCoverageSlot);
+}
+
+export async function getCurrentYoutubeDeliveryFromDb(): Promise<ConferenceCoverageSlot | null> {
+  if (!hasSupabase()) {
+    return null;
+  }
+  const { data, error } = await createAdminClient()
+    .from("conference_coverage_slots")
+    .select("*")
+    .in("youtube_status", ["queued", "rendering", "live"])
+    .not("youtube_video_id", "is", null)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    throw error;
+  }
+  return data ? toConferenceCoverageSlot(data as ConferenceCoverageSlotRow) : null;
 }
 
 export async function getBroadcastWriteoutsFromDb(
@@ -963,7 +1004,7 @@ export async function updateConferenceCoverageApprovalInDb({
 }
 
 export async function updateConferenceCoverageDeliveryInDb(
-  slotId: string,
+  slotId: string | undefined,
   patch: {
     youtubeStatus: ConferenceCoverageSlot["youtubeStatus"];
     youtubeVideoId?: string;
@@ -980,6 +1021,22 @@ export async function updateConferenceCoverageDeliveryInDb(
   }
   const supabase = createAdminClient();
   const now = new Date().toISOString();
+  const { error: streamStateError } = await supabase
+    .from("stream_state")
+    .update({
+      mode: patch.youtubeStatus === "failed" ? "preview" : "youtube_primary",
+      youtube_status: patch.youtubeStatus,
+      youtube_video_id: patch.youtubeVideoId,
+      youtube_url: patch.youtubeUrl,
+      updated_at: now
+    })
+    .eq("id", 1);
+  if (streamStateError) {
+    throw streamStateError;
+  }
+  if (!slotId) {
+    return null;
+  }
   const { data, error } = await supabase
     .from("conference_coverage_slots")
     .update({
