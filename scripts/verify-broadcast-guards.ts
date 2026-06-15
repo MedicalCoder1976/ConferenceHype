@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { formatVoiceSegment, SEGMENT_CLOSE } from "@/lib/broadcast/voiceSegment";
 import { getUnsafeGeneratedSourceErrors } from "@/lib/generation/sourceSafety";
 import { validateSegmentForApproval } from "@/lib/generation/validator";
@@ -68,6 +70,17 @@ assert.equal(
     script: "This is a sponsored message from Example Health."
   }).length,
   0
+);
+
+const youtubeFrameSource = readFileSync(
+  path.join(process.cwd(), "components", "YoutubeFrame.tsx"),
+  "utf8"
+);
+assert.match(youtubeFrameSource, /origin:\s*siteOrigin/);
+assert.match(youtubeFrameSource, /widget_referrer:\s*siteOrigin/);
+assert.match(
+  youtubeFrameSource,
+  /referrerPolicy="strict-origin-when-cross-origin"/
 );
 
 console.log("Broadcast guard verification passed.");
