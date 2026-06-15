@@ -3,6 +3,7 @@ import { loadEnvConfig } from "@next/env";
 
 loadEnvConfig(process.cwd());
 
+async function main() {
 const startAt = process.env.BROADCAST_START_AT;
 const durationSeconds = Number(process.env.BROADCAST_DURATION_SECONDS ?? "3600");
 if (!startAt || Number.isNaN(new Date(startAt).getTime())) {
@@ -155,3 +156,9 @@ await appendFile(
   ].join("\n") + "\n"
 );
 console.log(`Created YouTube broadcast https://www.youtube.com/watch?v=${broadcast.id}`);
+}
+
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
