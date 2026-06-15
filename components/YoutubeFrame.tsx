@@ -11,10 +11,20 @@ type Props = {
 export function YoutubeFrame({ channelId, videoId, className }: Props) {
   const [key, setKey] = useState(0);
   const playingRef = useRef(false);
+  const siteOrigin = "https://conferencehype.com";
+  const playerParams = new URLSearchParams({
+    autoplay: "1",
+    mute: "1",
+    playsinline: "1",
+    rel: "0",
+    enablejsapi: "1",
+    origin: siteOrigin,
+    widget_referrer: siteOrigin
+  });
 
   const embedUrl = videoId
-    ? `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&playsinline=1&rel=0&enablejsapi=1`
-    : `https://www.youtube.com/embed/live_stream?channel=${channelId}&autoplay=1&mute=1&playsinline=1&rel=0&enablejsapi=1`;
+    ? `https://www.youtube.com/embed/${videoId}?${playerParams.toString()}`
+    : `https://www.youtube.com/embed/live_stream?channel=${channelId}&${playerParams.toString()}`;
 
   useEffect(() => {
     const handleMessage = (ev: MessageEvent) => {
@@ -50,6 +60,7 @@ export function YoutubeFrame({ channelId, videoId, className }: Props) {
       src={embedUrl}
       title="ConferenceHype live stream"
       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+      referrerPolicy="strict-origin-when-cross-origin"
       allowFullScreen
     />
   );
