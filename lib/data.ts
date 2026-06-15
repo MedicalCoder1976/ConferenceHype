@@ -103,13 +103,15 @@ export async function getStreamState(): Promise<StreamState> {
   };
   return {
     ...(dbStreamState ?? fallbackState),
-    mode: youtubeDelivery?.youtubeVideoId
+    mode: dbStreamState?.youtubeVideoId || youtubeDelivery?.youtubeVideoId
       ? "youtube_primary"
       : (dbStreamState ?? fallbackState).mode,
     youtubeVideoId:
-      youtubeDelivery?.youtubeVideoId ?? process.env.NEXT_PUBLIC_YOUTUBE_VIDEO_ID,
-    youtubeUrl: youtubeDelivery?.youtubeUrl,
-    youtubeStatus: youtubeDelivery?.youtubeStatus
+      dbStreamState?.youtubeVideoId ??
+      youtubeDelivery?.youtubeVideoId ??
+      process.env.NEXT_PUBLIC_YOUTUBE_VIDEO_ID,
+    youtubeUrl: dbStreamState?.youtubeUrl ?? youtubeDelivery?.youtubeUrl,
+    youtubeStatus: dbStreamState?.youtubeStatus ?? youtubeDelivery?.youtubeStatus
   };
 }
 
