@@ -22,6 +22,12 @@ export const oncologyJournalSeeds: JournalSeed[] = [
     officialUrl: "https://www.nejm.org/"
   },
   {
+    name: "Journal of Clinical Oncology",
+    abbreviation: "JCO",
+    rssUrl: "https://ascopubs.org/action/showFeed?type=etoc&feed=rss&jc=jco",
+    officialUrl: "https://ascopubs.org/journal/jco"
+  },
+  {
     name: "JAMA",
     abbreviation: "JAMA",
     rssUrl: "https://jamanetwork.com/rss/site_3/67.xml",

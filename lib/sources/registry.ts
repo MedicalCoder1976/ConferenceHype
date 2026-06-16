@@ -192,6 +192,14 @@ export const sourceRegistry: SourceConfig[] = [
     enabled: true
   },
   {
+    id: "jco",
+    name: "Journal of Clinical Oncology",
+    url: "https://ascopubs.org/action/showFeed?type=etoc&feed=rss&jc=jco",
+    type: "media",
+    rank: 1,
+    enabled: true
+  },
+  {
     id: "jama",
     name: "JAMA",
     url: "https://jamanetwork.com/rss/site_3/67.xml",

@@ -1,6 +1,6 @@
 "use client";
 
-import { AtSign, Plus, Trash2 } from "lucide-react";
+import { AtSign, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
 import { medicalSpecialties } from "@/lib/catalog/medicalSpecialties";
 import type { SpecialtyXVoice } from "@/lib/types";
@@ -21,7 +21,10 @@ export function SpecialtyVoiceDirectory({ initialVoices }: { initialVoices: Spec
         voices: voices
           .filter((voice) => voice.enabled && voice.specialty === name)
           .sort((a, b) => b.score - a.score || a.rank - b.rank)
-          .slice(0, 20)
+          .slice(0, 20),
+        rejected: voices
+          .filter((voice) => !voice.enabled && voice.specialty === name)
+          .sort((a, b) => a.rank - b.rank || a.label.localeCompare(b.label))
       })),
     [voices]
   );
@@ -64,10 +67,40 @@ export function SpecialtyVoiceDirectory({ initialVoices }: { initialVoices: Spec
         if (!response.ok || !payload.ok) {
           throw new Error(payload.error ?? "Could not remove specialty voice.");
         }
-        setVoices((current) => current.filter((item) => item.id !== voice.id));
-        setMessage(`${voice.handle} removed from active monitoring.`);
+        setVoices((current) =>
+          current.map((item) => item.id === voice.id ? payload.voice : item)
+        );
+        setMessage(`${voice.handle} rejected from active monitoring.`);
       } catch (error) {
         setMessage(error instanceof Error ? error.message : "Could not remove specialty voice.");
+      }
+    });
+  };
+
+  const restoreVoice = (voice: SpecialtyXVoice) => {
+    startTransition(async () => {
+      try {
+        const response = await fetch("/api/admin/specialty-voices", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            specialty: voice.specialty,
+            label: voice.label,
+            handle: voice.handle,
+            note: voice.note,
+            rank: voice.rank
+          })
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) {
+          throw new Error(payload.error ?? "Could not restore specialty voice.");
+        }
+        setVoices((current) =>
+          current.map((item) => item.id === voice.id ? payload.voice : item)
+        );
+        setMessage(`${voice.handle} restored to active monitoring.`);
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : "Could not restore specialty voice.");
       }
     });
   };
@@ -120,6 +153,26 @@ export function SpecialtyVoiceDirectory({ initialVoices }: { initialVoices: Spec
                   </button>
                 </div>
               ))}
+              {group.rejected.length ? (
+                <details className="border border-ink/10 bg-paper/60">
+                  <summary className="cursor-pointer list-none p-3 text-xs font-black uppercase text-ink/50">
+                    Rejected voices ({group.rejected.length})
+                  </summary>
+                  <div className="grid gap-2 border-t border-ink/10 p-3">
+                    {group.rejected.map((voice) => (
+                      <div key={voice.id} className="grid grid-cols-[1fr_auto] items-center gap-3 border border-ink/10 bg-white p-3">
+                        <div>
+                          <div className="text-sm font-black">{voice.label} <span className="text-broadcast">{voice.handle}</span></div>
+                          <div className="mt-1 text-xs font-semibold text-ink/55">{voice.note}</div>
+                        </div>
+                        <button type="button" disabled={pending} onClick={() => restoreVoice(voice)} aria-label={`Restore ${voice.handle}`} className="border border-ink/20 p-2 text-ink">
+                          <RotateCcw className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              ) : null}
             </div>
           </article>
         ))}

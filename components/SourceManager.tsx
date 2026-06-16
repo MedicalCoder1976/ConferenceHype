@@ -66,7 +66,7 @@ export function SourceManager({ sources }: { sources: SourceConfig[] }) {
   };
 
   return (
-    <section className="border border-ink/10 bg-white p-5 shadow-panel">
+    <section className="min-w-0 border border-ink/10 bg-white p-5 shadow-panel">
       <div className="flex items-center gap-2">
         <Rss className="h-5 w-5 text-mint" />
         <h2 className="text-xl font-black text-ink">Source intake</h2>
@@ -183,7 +183,7 @@ export function SourceManager({ sources }: { sources: SourceConfig[] }) {
         {visibleSources.map((source) => (
           <div
             key={source.id}
-            className="flex items-center justify-between gap-4 border border-ink/10 p-3"
+            className="flex min-w-0 items-center justify-between gap-4 border border-ink/10 p-3"
           >
             <div className="min-w-0">
               <div className="truncate text-sm font-black text-ink">{source.name}</div>
@@ -194,7 +194,7 @@ export function SourceManager({ sources }: { sources: SourceConfig[] }) {
                 {source.url}
               </div>
             </div>
-            <span className="rounded-full bg-paper px-3 py-1 text-xs font-bold uppercase text-ink">
+            <span className="shrink-0 rounded-full bg-paper px-3 py-1 text-xs font-bold uppercase text-ink">
               {source.enabled ? "on" : "off"}
             </span>
           </div>

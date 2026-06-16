@@ -17,6 +17,7 @@ import {
   getOncologyJournalsFromDb,
   getNextBroadcastSegmentsFromDb,
   getPendingSegmentsFromDb,
+  getPreviousDayBatchItemsFromDb,
   getRecentSocialItemsFromDb,
   getSourcesFromDb,
   getStreamStateFromDb,
@@ -151,6 +152,7 @@ export async function getAdminSnapshot(baseTime = new Date(), planningHours = 1)
     day: "2-digit"
   }).format(baseTime);
   const savedDailyCoveragePlan = await getDailyCoveragePlanFromDb(coverageDate);
+  const batchIntakeItems = (await getPreviousDayBatchItemsFromDb(coverageDate, 160)) ?? [];
   const dailyCoveragePlan = savedDailyCoveragePlan ?? {
     coverageDate,
     conferenceIds: medicalConferences
@@ -192,6 +194,7 @@ export async function getAdminSnapshot(baseTime = new Date(), planningHours = 1)
     oncologyJournals,
     editorialPackages,
     dailyCoveragePlan,
+    batchIntakeItems,
     nextSocialVoiceCompetition:
       "Leaderboard refreshes from recent X/social ingest; top traction voices are added to Source intake every 15-minute generation cycle. The scoreboard card is available in every approved one-hour block.",
     socialVoiceCompetitionDueNow: shouldRunSocialVoiceCompetition(),

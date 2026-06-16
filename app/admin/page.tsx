@@ -30,7 +30,7 @@ import { buildHourlySocialVoiceRundownSegments } from "@/lib/social/hourlyVoiceR
 export const dynamic = "force-dynamic";
 
 type AdminPageProps = {
-  searchParams?: Promise<{ start?: string }>;
+  searchParams?: Promise<{ section?: string; start?: string }>;
 };
 
 const PLANNING_WINDOW_HOURS = 1;
@@ -72,11 +72,6 @@ function addHours(date: Date, hours: number) {
 
 function planningSlotLabel(start: Date) {
   const end = addHours(start, PLANNING_WINDOW_HOURS);
-  const startDate = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    month: "2-digit",
-    day: "2-digit"
-  }).format(start);
   const startTime = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/New_York",
     hour: "2-digit",
@@ -87,7 +82,25 @@ function planningSlotLabel(start: Date) {
     hour: "2-digit",
     hour12: false
   }).format(end);
-  return `${startDate}, ${startTime}-${endTime}`;
+  return `${startTime}-${endTime}`;
+}
+
+function planningDayKey(start: Date) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(start);
+}
+
+function planningDayLabel(start: Date) {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    weekday: "short",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(start);
 }
 
 function resolvePreviewStart(start?: string) {
@@ -111,6 +124,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const baseTime = baseDate.toISOString();
   const hourlySocialVoiceSegments = buildHourlySocialVoiceRundownSegments({
     leaders: snapshot.socialVoiceLeaderboard,
+    specialtyVoices: snapshot.specialtyXVoices,
     baseTime: baseDate,
     hours: PLANNING_WINDOW_HOURS
   });
@@ -126,10 +140,35 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       const planningStart = addHours(liveBlock, index - PLANNING_HISTORY_HOURS);
       return {
         href: `/admin?start=${encodeURIComponent(planningStart.toISOString())}`,
+        startsAt: planningStart,
         label: planningSlotLabel(planningStart)
       };
     }
   );
+  const planningDays = planningSlots.reduce<Array<{
+    key: string;
+    label: string;
+    slots: Array<{
+      href: string;
+      label: string;
+      selected: boolean;
+    }>;
+  }>>((days, slot) => {
+    const key = planningDayKey(slot.startsAt);
+    const current = days.find((day) => day.key === key);
+    const item = {
+      href: slot.href,
+      label: slot.label,
+      selected: slot.startsAt.getTime() === baseDate.getTime()
+    };
+    if (current) {
+      current.slots.push(item);
+      return days;
+    }
+    days.push({ key, label: planningDayLabel(slot.startsAt), slots: [item] });
+    return days;
+  }, []);
+  const activePlanningKey = planningDayKey(baseDate);
   const planningPreviewHref = "/admin?start=today-21";
   const liveHref = "/admin";
   const previewLabel = new Intl.DateTimeFormat("en-US", {
@@ -168,24 +207,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         <StartStreamButton
           initialEnabled={snapshot.streamState.continuousEnabled ?? false}
         />
-        <div className="basis-full">
-          <div className="mb-2 text-xs font-black uppercase text-ink/50">
-            One-hour planning slots - 24 h back through next week
-          </div>
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {planningSlots.map((item) => (
-              <Link
-                key={item.href}
-                className="shrink-0 border border-ink/10 bg-paper px-3 py-2 text-xs font-black uppercase text-ink/70 hover:border-broadcast"
-                href={item.href}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </div>
-        </div>
       </div>
       <AdminTabs
+        initialActive={params?.section}
         broadcast={
           <div className="grid gap-6">
             <DailyCoveragePlanner
@@ -193,6 +217,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               conferences={snapshot.medicalConferences}
               journals={snapshot.oncologyJournals}
               sources={snapshot.sources}
+              planningDays={planningDays}
+              activePlanningKey={activePlanningKey}
+              initialBatchItems={snapshot.batchIntakeItems}
             />
             <BroadcastRundown
               key={baseTime}
@@ -203,7 +230,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               baseTime={baseTime}
               hours={PLANNING_WINDOW_HOURS}
             />
-            <div className="grid gap-6 xl:grid-cols-2">
+            <div className="grid min-w-0 gap-6 xl:grid-cols-2">
               <FocusSocialPost />
               <InstagramPushPanel />
               <EmergencyOverride streamState={snapshot.streamState} />
@@ -212,6 +239,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                 leaders={snapshot.socialVoiceLeaderboard}
                 cadence={snapshot.nextSocialVoiceCompetition}
                 dueNow={snapshot.socialVoiceCompetitionDueNow}
+                specialtyVoices={snapshot.specialtyXVoices}
               />
               <AnalyticsPanel analytics={snapshot.analytics} />
             </div>

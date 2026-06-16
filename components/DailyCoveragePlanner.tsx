@@ -1,13 +1,26 @@
 "use client";
 
-import { CalendarCheck, ExternalLink, Plus, Save, X } from "lucide-react";
+import { CalendarCheck, ExternalLink, Plus, Save, Send, X } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import type {
   DailyCoveragePlan,
+  IngestedItem,
   MedicalConference,
   OncologyJournal,
   SourceConfig
 } from "@/lib/types";
+
+type PlanningDay = {
+  key: string;
+  label: string;
+  slots: Array<{
+    href: string;
+    label: string;
+    selected: boolean;
+  }>;
+};
 
 function listFromText(value: string) {
   return value
@@ -50,15 +63,24 @@ export function DailyCoveragePlanner({
   initialPlan,
   conferences,
   journals,
-  sources
+  sources,
+  planningDays,
+  activePlanningKey,
+  initialBatchItems
 }: {
   initialPlan: DailyCoveragePlan;
   conferences: MedicalConference[];
   journals: OncologyJournal[];
   sources: SourceConfig[];
+  planningDays: PlanningDay[];
+  activePlanningKey: string;
+  initialBatchItems: IngestedItem[];
 }) {
+  const router = useRouter();
   const [plan, setPlan] = useState(initialPlan);
+  const [batchItems, setBatchItems] = useState(initialBatchItems);
   const [message, setMessage] = useState("");
+  const [pendingItemId, setPendingItemId] = useState("");
   const [pending, startTransition] = useTransition();
   const [customLabel, setCustomLabel] = useState("");
   const [customUrl, setCustomUrl] = useState("");
@@ -82,12 +104,17 @@ export function DailyCoveragePlanner({
     setMessage("");
     startTransition(async () => {
       try {
-        const response = await fetch(
-          `/api/admin/daily-coverage?date=${encodeURIComponent(coverageDate)}`
-        );
-        const payload = await response.json();
-        if (!response.ok || !payload.ok) {
+        const [coverageResponse, intakeResponse] = await Promise.all([
+          fetch(`/api/admin/daily-coverage?date=${encodeURIComponent(coverageDate)}`),
+          fetch(`/api/admin/intake-cards?date=${encodeURIComponent(coverageDate)}`)
+        ]);
+        const payload = await coverageResponse.json();
+        const intakePayload = await intakeResponse.json();
+        if (!coverageResponse.ok || !payload.ok) {
           throw new Error(payload.error ?? "Could not load coverage plan.");
+        }
+        if (!intakeResponse.ok || !intakePayload.ok) {
+          throw new Error(intakePayload.error ?? "Could not load batch intake cards.");
         }
         const nextPlan = payload.plan ?? {
             coverageDate,
@@ -103,10 +130,63 @@ export function DailyCoveragePlanner({
             notes: ""
           };
         setPlan(nextPlan);
+        setBatchItems(intakePayload.items ?? []);
         setPriorityText(nextPlan.priorityTopics.join("\n"));
         setExclusionsText(nextPlan.exclusions.join("\n"));
       } catch (error) {
         setMessage(error instanceof Error ? error.message : "Could not load coverage plan.");
+      }
+    });
+  };
+
+  const selectedConferences = conferences.filter((conference) =>
+    plan.conferenceIds.includes(conference.id)
+  );
+  const selectedJournals = journals.filter((journal) =>
+    plan.journalIds.includes(journal.id)
+  );
+  const hasAnySelection =
+    selectedConferences.length > 0 || plan.journalIds.length > 0 || plan.sourceIds.length > 0;
+  const matchingBatchItems = batchItems.filter((item) => {
+    if (!hasAnySelection) {
+      return true;
+    }
+    const text = `${item.title} ${item.excerpt} ${item.sourceName}`.toLowerCase();
+    const conferenceMatch = selectedConferences.some((conference) =>
+      [conference.name, conference.acronym]
+        .filter(Boolean)
+        .some((value) => text.includes(String(value).toLowerCase()))
+    );
+    const journalMatch = selectedJournals.some((journal) =>
+      text.includes(journal.name.toLowerCase()) ||
+      text.includes(journal.abbreviation.toLowerCase()) ||
+      item.sourceId === journal.id ||
+      item.sourceId === `daily-journal-${journal.id}`
+    );
+    const sourceMatch = Boolean(item.sourceId && plan.sourceIds.includes(item.sourceId));
+    return conferenceMatch || journalMatch || sourceMatch;
+  }).slice(0, 24);
+
+  const addBatchCard = (item: IngestedItem) => {
+    setPendingItemId(item.id);
+    setMessage("");
+    startTransition(async () => {
+      try {
+        const response = await fetch("/api/admin/intake-cards", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ itemId: item.id })
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) {
+          throw new Error(payload.error ?? "Could not create ready card.");
+        }
+        setMessage(`${payload.segment.title} added to Brand New Ready Cards for review.`);
+        router.refresh();
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : "Could not create ready card.");
+      } finally {
+        setPendingItemId("");
       }
     });
   };
@@ -179,6 +259,39 @@ export function DailyCoveragePlanner({
             />
           </label>
         </div>
+        <div className="mt-4">
+          <div className="mb-2 text-xs font-black uppercase text-ink/50">
+            One-hour planning slots - 24 h back through next week
+          </div>
+          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+            {planningDays.map((day) => (
+              <details
+                key={day.key}
+                open={day.key === activePlanningKey}
+                className="border border-ink/10 bg-paper/60"
+              >
+                <summary className="cursor-pointer list-none px-3 py-2 text-xs font-black uppercase text-ink/70">
+                  {day.label} <span className="text-broadcast">({day.slots.length})</span>
+                </summary>
+                <div className="grid grid-cols-2 gap-2 border-t border-ink/10 p-2 sm:grid-cols-3">
+                  {day.slots.map((item) => (
+                    <Link
+                      key={item.href}
+                      className={`min-h-9 border px-2 py-2 text-center text-xs font-black uppercase ${
+                        item.selected
+                          ? "border-ink bg-ink text-white"
+                          : "border-ink/10 bg-white text-ink/70 hover:border-broadcast"
+                      }`}
+                      href={item.href}
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+              </details>
+            ))}
+          </div>
+        </div>
         {message ? (
           <div className="mt-3 border border-cyanline/30 bg-cyanline/10 p-3 text-sm font-bold">
             {message}
@@ -246,6 +359,60 @@ export function DailyCoveragePlanner({
               </label>
             ))}
         </SelectionGroup>
+
+        <section className="border border-ink/10 bg-paper/50 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="text-lg font-black text-ink">Previous-day batch intake cards</h3>
+              <p className="mt-1 text-sm font-semibold leading-6 text-ink/60">
+                To keep costs low, the admin desk uses yesterday&apos;s batch-ingested conference, journal, and clinical-news items here. Selecting a card creates a detailed summary segment in Brand New Ready Cards for review and placement.
+              </p>
+            </div>
+            <span className="border border-ink/10 bg-white px-3 py-2 text-xs font-black uppercase text-ink/60">
+              {matchingBatchItems.length} visible
+            </span>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {matchingBatchItems.length === 0 ? (
+              <div className="border border-dashed border-ink/20 bg-white p-4 text-sm font-bold text-ink/55 md:col-span-2 xl:col-span-3">
+                No previous-day batch cards match the selected conference, journal, or clinical-news sources yet. Run the ingest/generation batch for the prior day, then return here.
+              </div>
+            ) : null}
+            {matchingBatchItems.map((item) => {
+              const detail = item.excerpt.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+              return (
+                <article key={item.id} className="grid gap-3 border border-ink/10 bg-white p-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="bg-ink px-2 py-1 text-[11px] font-black uppercase text-white">
+                      {item.sourceType.replace(/_/g, " ")}
+                    </span>
+                    <span className="text-[11px] font-bold uppercase text-ink/45">
+                      {item.sourceName}
+                    </span>
+                  </div>
+                  <h4 className="text-sm font-black leading-5 text-ink">{item.title}</h4>
+                  <p className="text-xs font-semibold leading-5 text-ink/65">
+                    {detail ? (detail.length > 360 ? `${detail.slice(0, 357)}...` : detail) : "No excerpt was available in the batch item. Open the source before selecting."}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <a href={item.url} target="_blank" rel="noreferrer" className="inline-flex min-h-9 items-center gap-1 border border-ink/20 px-3 text-xs font-black uppercase text-ink">
+                      Open source <ExternalLink className="h-3 w-3" />
+                    </a>
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => addBatchCard(item)}
+                      className="inline-flex min-h-9 flex-1 items-center justify-center gap-2 bg-broadcast px-3 text-xs font-black uppercase text-white disabled:opacity-50"
+                    >
+                      <Send className="h-3.5 w-3.5" />
+                      {pendingItemId === item.id ? "Adding" : "Add to ready cards"}
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
 
         <div className="grid gap-4 xl:grid-cols-2">
           <label className="text-xs font-black uppercase text-ink/60">

@@ -1,7 +1,7 @@
 "use client";
 
 import { BookOpen, CalendarDays, FileText, Library, Mic2, Radio, ScrollText } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 type TabId = "broadcast" | "journal-watch" | "meeting-watch" | "writeouts" | "memory" | "voices" | "history";
 
@@ -16,6 +16,7 @@ const tabs: Array<{ id: TabId; label: string; icon: typeof Radio }> = [
 ];
 
 export function AdminTabs({
+  initialActive,
   broadcast,
   journalWatch,
   meetingWatch,
@@ -24,6 +25,7 @@ export function AdminTabs({
   history,
   voices
 }: {
+  initialActive?: string;
   broadcast: ReactNode;
   journalWatch: ReactNode;
   meetingWatch: ReactNode;
@@ -32,7 +34,53 @@ export function AdminTabs({
   history: ReactNode;
   voices: ReactNode;
 }) {
-  const [active, setActive] = useState<TabId>("broadcast");
+  const initialTab = tabs.some((tab) => tab.id === initialActive)
+    ? (initialActive as TabId)
+    : "broadcast";
+  const [active, setActive] = useState<TabId>(initialTab);
+
+  useEffect(() => {
+    const syncFromUrl = () => {
+      const params = new URLSearchParams(window.location.search);
+      const section = params.get("section");
+      setActive(tabs.some((tab) => tab.id === section) ? (section as TabId) : "broadcast");
+    };
+    window.addEventListener("popstate", syncFromUrl);
+    return () => window.removeEventListener("popstate", syncFromUrl);
+  }, []);
+
+  const selectTab = (tabId: TabId) => {
+    setActive(tabId);
+    const params = new URLSearchParams(window.location.search);
+    if (tabId === "broadcast") {
+      params.delete("section");
+    } else {
+      params.set("section", tabId);
+    }
+    const query = params.toString();
+    window.history.replaceState(null, "", query ? `/admin?${query}` : "/admin");
+  };
+
+  const activePanel = (() => {
+    switch (active) {
+      case "broadcast":
+        return broadcast;
+      case "journal-watch":
+        return journalWatch;
+      case "meeting-watch":
+        return meetingWatch;
+      case "writeouts":
+        return writeouts;
+      case "memory":
+        return memory;
+      case "voices":
+        return voices;
+      case "history":
+        return history;
+      default:
+        return broadcast;
+    }
+  })();
 
   return (
     <div className="grid gap-5">
@@ -49,7 +97,7 @@ export function AdminTabs({
                   ? "border-ink bg-ink text-white"
                   : "border-ink/10 bg-white text-ink hover:border-ink/30"
               }`}
-              onClick={() => setActive(tab.id)}
+              onClick={() => selectTab(tab.id)}
             >
               <Icon className="h-4 w-4" />
               {tab.label}
@@ -57,13 +105,7 @@ export function AdminTabs({
           );
         })}
       </div>
-      {active === "broadcast" ? broadcast : null}
-      {active === "journal-watch" ? journalWatch : null}
-      {active === "meeting-watch" ? meetingWatch : null}
-      {active === "writeouts" ? writeouts : null}
-      {active === "memory" ? memory : null}
-      {active === "history" ? history : null}
-      {active === "voices" ? voices : null}
+      {activePanel}
     </div>
   );
 }

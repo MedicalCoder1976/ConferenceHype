@@ -17,10 +17,11 @@ export default function AdminLoginPage() {
           Enter the admin shared secret configured in Vercel or `.env.local`.
         </p>
         <input type="hidden" name="next" value="/admin" />
-        <label className="mt-5 block text-sm font-black uppercase text-ink">
+        <label htmlFor="admin-secret" className="mt-5 block text-sm font-black uppercase text-ink">
           Admin secret
         </label>
         <input
+          id="admin-secret"
           name="secret"
           type="password"
           required

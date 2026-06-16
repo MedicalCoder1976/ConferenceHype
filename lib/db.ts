@@ -1114,6 +1114,44 @@ export async function getRecentIngestedItemsFromDb(
   return (data as IngestedItemRow[]).map(toIngestedItem);
 }
 
+export async function getPreviousDayBatchItemsFromDb(
+  coverageDate: string,
+  limit = 160
+): Promise<IngestedItem[] | null> {
+  if (!hasSupabase()) {
+    return null;
+  }
+  const coverageStart = new Date(`${coverageDate}T00:00:00-05:00`);
+  const start = new Date(coverageStart.getTime() - 24 * 60 * 60 * 1000).toISOString();
+  const end = coverageStart.toISOString();
+  const { data, error } = await createAdminClient()
+    .from("ingested_items")
+    .select("*, sources(name)")
+    .gte("created_at", start)
+    .lt("created_at", end)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) {
+    throw error;
+  }
+  return (data as IngestedItemRow[]).map(toIngestedItem);
+}
+
+export async function getIngestedItemByIdFromDb(id: string): Promise<IngestedItem | null> {
+  if (!hasSupabase()) {
+    return null;
+  }
+  const { data, error } = await createAdminClient()
+    .from("ingested_items")
+    .select("*, sources(name)")
+    .eq("id", id)
+    .single();
+  if (error) {
+    throw new Error(error.message);
+  }
+  return toIngestedItem(data as IngestedItemRow);
+}
+
 export async function getRecentSocialItemsFromDb(hours = 1): Promise<IngestedItem[] | null> {
   if (!hasSupabase()) {
     return null;
