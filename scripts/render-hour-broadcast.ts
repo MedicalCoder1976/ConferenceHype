@@ -283,13 +283,13 @@ async function buildCards(): Promise<Card[]> {
       title: slot.segment?.title ?? slot.label,
       sourceLabel: !isMusic ? slot.segment?.citations[0]?.label : undefined,
       sourceUrl: !isMusic ? slot.segment?.citations[0]?.url : undefined,
-      script: !isMusic ? (slot.segment?.script || slot.segment?.summary || null) : null,
+      script: !isMusic ? (slot.segment?.summary || slot.segment?.script || null) : null,
       text: isMusic
         ? formatTransitionCard()
         : formatCard({
             eyebrow: `${slot.segment?.personaName ?? "ConferenceHype"} / ${slot.segment?.contentType.replace(/_/g, " ") ?? "content"}`,
             title: slot.segment?.title ?? slot.label,
-            body: slot.segment?.script || slot.segment?.summary || slot.label,
+            body: slot.segment?.summary || slot.segment?.script || slot.label,
             source: slot.segment?.citations[0]?.url
           })
     };

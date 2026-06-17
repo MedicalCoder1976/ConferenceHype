@@ -11,8 +11,9 @@ to YouTube, and exposes the same broadcast on `conferencehype.com`.
    exclusions, custom coverage, and approved presentation slots.
 2. Scheduled ingestion and generation create source-attributed review cards.
 3. The operator edits, orders, approves, rejects, or atomically replaces cards.
-4. **Start continuous feed** dispatches the YouTube workflow. Approved future
-   hours can continue automatically until the feed is stopped.
+4. **Start selected hour** dispatches the YouTube workflow from the admin
+   rundown preview start time. Approved future hours can continue automatically
+   until the continuous feed is stopped.
 5. With OAuth configured, each run creates and binds a fresh YouTube broadcast.
 6. Before public handoff, the workflow enables embedding and tests the exact
    ConferenceHype embed request.
@@ -36,6 +37,9 @@ the OAuth-created fresh broadcast.
   overlapped by, or visually crowded under the video/player box. Keep the
   homepage hero stacked until the text and player have enough horizontal room,
   and reserve a protected text column in two-column layouts.
+- Broadcast audio reads the visible card text/summary shown above **FULL
+  PREPARED TEXT**. Do not use the expanded full prepared script as the spoken
+  source unless the operator explicitly asks for that behavior.
 - Preparing, completed rehearsal, failed, and idle states without stale claims
 - Current YouTube handoff read from Supabase on each request
 - `#ConferenceHype` and `@conferencehype` audience routing
