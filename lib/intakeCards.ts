@@ -44,6 +44,31 @@ function truncateWords(value: string, maxWords: number) {
   return words.length > maxWords ? `${words.slice(0, maxWords).join(" ")}.` : value;
 }
 
+function isJournalItem(item: IngestedItem) {
+  return (
+    item.sourceId?.startsWith("daily-journal-") ||
+    /\b(journal|jama|lancet|nejm|nature|annals|leukemia|bmj|blood cancer)\b/i.test(
+      item.sourceName
+    )
+  );
+}
+
+function monthEdition(item: IngestedItem) {
+  const source = item.publishedAt ? new Date(item.publishedAt) : undefined;
+  if (source && !Number.isNaN(source.getTime())) {
+    return new Intl.DateTimeFormat("en-US", {
+      month: "long",
+      year: "numeric",
+      timeZone: "UTC"
+    }).format(source);
+  }
+  const text = `${item.title} ${item.excerpt}`;
+  return (
+    text.match(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}\b/i)?.[0] ??
+    "current"
+  );
+}
+
 function topicFromItem(item: IngestedItem) {
   const title = cleanIntakeText(item.title, "source-attributed update");
   return title.replace(/[.:;!?]+$/g, "");
@@ -65,23 +90,36 @@ export function buildBatchSegment(
     "The batch item did not include enough summary detail, so the card should be reviewed against the linked source before placement.";
   const sourceDetail = details.length ? details.join(" ") : fallbackDetail;
   const spokenDetail = truncateWords(sourceDetail, 64);
-  const createdAt = new Date().toISOString();
-  const batchPrefix = options.batchLabel ? `${options.batchLabel}: ` : "Batch pick: ";
   const itemPosition =
     typeof options.index === "number" ? ` Card ${options.index + 1}.` : "";
+  const journalItem = isJournalItem(item);
+  const edition = monthEdition(item);
+  const summary = journalItem
+    ? `From the ${edition} edition of ${item.sourceName}. Condensed abstract review: ${truncateWords(sourceDetail, 34)}`
+    : `${item.sourceName} intake. ${truncateWords(sourceDetail, 34)}`;
+  const script = journalItem
+    ? [
+        `From the ${edition} edition of ${item.sourceName}, this journal review looks at ${topic}.`,
+        "Here is the condensed abstract, methods, results, and discussion in broadcast form.",
+        spokenDetail,
+        "Coverage stays with the cited journal record and does not give medical advice."
+      ]
+    : [
+        itemPosition,
+        `${persona.name} is covering ${item.sourceName}.`,
+        `The topic is ${topic}.`,
+        spokenDetail,
+        "Coverage stays with the cited source record and does not give medical advice."
+      ];
+  const createdAt = new Date().toISOString();
+  const batchPrefix = options.batchLabel ? `${options.batchLabel}: ` : "Batch pick: ";
 
   return {
     id: `batch-intake-${randomUUID()}`,
     title: `${batchPrefix}${topic}`,
-    summary: `${item.sourceName} source-backed intake. ${truncateWords(sourceDetail, 34)}`,
-    script: [
-      itemPosition,
-      `${persona.name} is covering a source-backed item from ${item.sourceName}.`,
-      `The topic is ${topic}.`,
-      spokenDetail,
-      "Coverage stays with the cited source record and does not give medical advice."
-    ].join(" ").replace(/\s+/g, " ").trim(),
-    contentType: contentTypeForItem(item),
+    summary,
+    script: script.join(" ").replace(/\s+/g, " ").trim(),
+    contentType: journalItem ? "abstract_buzz" : contentTypeForItem(item),
     personaId: persona.id,
     personaName: persona.name,
     hypeLevel: "standard",

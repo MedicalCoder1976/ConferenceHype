@@ -86,13 +86,16 @@ export function formatVoiceSegment({
   maxWords?: number;
 }) {
   const greeting = broadcastHour(at) < 12 ? "Good morning" : "Good evening";
-  const opening =
-    `${greeting}, wherever you are. This is ${voiceName} from ConferenceHype. ` +
-    `Our segment will focus on ${cleanTopic(topic)}.`;
+  const cleanNarrative = stripExistingVoiceFrame(narrative);
+  const journalReview = /^From the (?:current|[A-Za-z]+ \d{4}) edition of\b/i.test(cleanNarrative);
+  const opening = journalReview
+    ? `${greeting}, wherever you are. This is ${voiceName} from ConferenceHype.`
+    : `${greeting}, wherever you are. This is ${voiceName} from ConferenceHype. ` +
+      `Our segment will focus on ${cleanTopic(topic)}.`;
   const narrativeBudget = Math.max(1, maxWords - wordCount(opening) - wordCount(SEGMENT_CLOSE));
-  const body = trimToWords(stripExistingVoiceFrame(narrative), narrativeBudget);
+  const trimmedBody = trimToWords(cleanNarrative, narrativeBudget);
 
-  return `${opening} ${body} ${SEGMENT_CLOSE}`.replace(/\s+/g, " ").trim();
+  return `${opening} ${trimmedBody} ${SEGMENT_CLOSE}`.replace(/\s+/g, " ").trim();
 }
 
 export { SEGMENT_CLOSE };

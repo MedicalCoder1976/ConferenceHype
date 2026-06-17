@@ -111,7 +111,7 @@ function fallback(
   const persona = getPersona(personaId);
   return Array.from({ length: count }, (_, i) => ({
     title: `${label} update ${i + 1}`,
-    script: `${persona.name} here from the ${label} desk. No new source-backed item is ready for this slot, so stay with us for the next update.`,
+    script: `${persona.name} here from the ${label} desk. No new attributed update is ready for this slot, so stay with us for the next update.`,
     personaId: persona.id,
     personaName: persona.name,
     contentType

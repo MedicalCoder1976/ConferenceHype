@@ -52,6 +52,19 @@ embedder.
 - Viewer-facing transition cards are clean ConferenceHype cards. Internal
   labels such as "music card", "gap clip", or workflow instructions are not
   shown.
+- Do not use the phrase "source-backed item" in prepared copy. Attribute the
+  journal, meeting, media, or social source naturally instead.
+- Journal-review cards begin their substantive content with: "From the
+  [Month] edition of [Journal Name]". They should condense the abstract,
+  methods, results, and discussion into broadcast language rather than merely
+  reading the article headline.
+- Conference and meeting cards must not read URLs or page code. If an official
+  meeting page exposes script text instead of readable content, discard the
+  code-like text and fall back to the official page title/description or a
+  neutral official-schedule summary.
+- Hourly rising social voice cards must contain actual monitored voices,
+  leaderboard entries, or operator-curated watchlist voices. Do not ship a
+  placeholder that says there is no content.
 - The full disclaimer is placed on a dedicated notice approximately every
   15 minutes instead of being repeated in every segment.
 - Transition audio rotates through six 20-second tracks:

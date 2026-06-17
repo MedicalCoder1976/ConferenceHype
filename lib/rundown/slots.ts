@@ -64,7 +64,9 @@ function cleanForbiddenBroadcastPhrases(value: string) {
     // Existing internal meta-language replacements
     .replace(/\bwe verify\b/gi, "we attribute")
     .replace(/\bverify\b/gi, "check")
-    .replace(/\bverified\b/gi, "source-backed")
+    .replace(/\bverified\b/gi, "attributed")
+    .replace(/\bsource[- ]backed\s+item\b/gi, "covered item")
+    .replace(/\bsource[- ]backed\b/gi, "source-attributed")
     .replace(/\bairtime\b/gi, "the rundown")
     .replace(/\baired\b/gi, "covered")
     .replace(/\bairing\b/gi, "playing")

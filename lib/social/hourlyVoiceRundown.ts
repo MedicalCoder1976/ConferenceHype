@@ -1,4 +1,5 @@
 import { addMinutes } from "@/lib/rundown/slots";
+import { monitoredXVoices } from "@/lib/sources/registry";
 import type { Segment, SocialVoiceLeader, SpecialtyXVoice } from "@/lib/types";
 
 function voiceLine(leader: SocialVoiceLeader, index: number) {
@@ -24,31 +25,31 @@ export function buildHourlySocialVoiceRundownSegments({
     .filter((voice) => voice.enabled && ["Oncology", "Hematology"].includes(voice.specialty))
     .sort((a, b) => a.rank - b.rank || a.label.localeCompare(b.label))
     .slice(0, 5);
+  const registryVoices = monitoredXVoices.slice(0, 5);
 
   return Array.from({ length: hours }, (_, hourIndex) => {
     const scheduledAt = addMinutes(baseTime, hourIndex * 60 + 2);
+    const fallbackVoices = watchedVoices.length ? watchedVoices : registryVoices;
     const lines = risingLeaders.length
       ? risingLeaders.map(voiceLine).join("\n")
-      : watchedVoices.length
-        ? watchedVoices
-            .map(
-              (voice, index) =>
-                `${index + 1}. ${voice.label} ${voice.handle}. Specialty: ${voice.specialty}. Watchlist note: ${voice.note || "operator-curated specialty voice"}.`
-            )
-            .join("\n")
-        : "No rising conference X voices have cleared the source monitor for this hour yet.";
+      : fallbackVoices
+          .map((voice, index) => {
+            const specialty = "specialty" in voice ? `${voice.specialty} ` : "";
+            return `${index + 1}. ${voice.label} ${voice.handle}. ${specialty}${voice.note || "operator-curated medical-conference voice"}.`;
+          })
+          .join("\n");
     const intro = risingLeaders.length
       ? "Two-minute social voice check. After the schedule, here are the rising conference X voices being watched right now."
       : watchedVoices.length
         ? "Two-minute social voice check. Recent X mentions have not cleared the leaderboard yet, so here are specialty-specific oncology voices on the operator watchlist."
-        : "Two-minute social voice check. After the schedule, here are the rising conference X voices being watched right now.";
+        : "Two-minute social voice check. The hourly leaderboard is warming up, so this block tracks core medical-conference voices the desk is monitoring.";
     const citationVoices = risingLeaders.length
       ? risingLeaders.map((leader) => ({
           label: `${leader.label} ${leader.handle}`,
           url: `https://x.com/${leader.handle.replace(/^@/, "")}`,
           sourceType: "verified_social" as const
         }))
-      : watchedVoices.map((voice) => ({
+      : fallbackVoices.map((voice) => ({
           label: `${voice.label} ${voice.handle}`,
           url: `https://x.com/${voice.handle.replace(/^@/, "")}`,
           sourceType: "verified_social" as const
@@ -57,7 +58,7 @@ export function buildHourlySocialVoiceRundownSegments({
       id: `virtual-hourly-social-voices-${scheduledAt.toISOString()}`,
       title: "Hourly rising social voices",
       summary:
-        "Two-minute source-attributed rundown of rising X voices and who they are.",
+        "Two-minute rundown of monitored medical-conference social voices and why they matter.",
       script: `${intro}\n\n${lines}`,
       contentType: "social_signal",
       personaId: "vesper-quill",
@@ -72,7 +73,7 @@ export function buildHourlySocialVoiceRundownSegments({
         sourceType: "verified_social" as const
       })),
       riskFlags: ["virtual_hourly_social_voice_rundown", "two_minute_social_voice_check"],
-      confidenceScore: risingLeaders.length ? 82 : watchedVoices.length ? 76 : 60,
+      confidenceScore: risingLeaders.length ? 82 : watchedVoices.length ? 76 : 70,
       createdAt: scheduledAt.toISOString(),
       approvedAt: scheduledAt.toISOString(),
       updatedAt: scheduledAt.toISOString()
