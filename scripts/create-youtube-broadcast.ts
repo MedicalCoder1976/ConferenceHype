@@ -88,7 +88,6 @@ const broadcastResponse = await fetch(
         enableAutoStart: true,
         enableAutoStop: true,
         enableDvr: true,
-        enableEmbed: true,
         recordFromStart: true,
         latencyPreference: "normal",
         monitorStream: { enableMonitorStream: false }

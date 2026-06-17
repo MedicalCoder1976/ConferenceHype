@@ -17,8 +17,11 @@ export function PublicPlayer({ streamState, currentCard }: Props) {
   const isYoutubeQueued =
     youtubeStatus === "queued" || youtubeStatus === "rendering";
   const isYoutubeComplete = youtubeStatus === "completed";
+  const isYoutubeFailed = youtubeStatus === "failed";
   const youtubeId =
-    streamState.youtubeVideoId ?? process.env.NEXT_PUBLIC_YOUTUBE_VIDEO_ID;
+    isYoutubeFailed || isYoutubeQueued
+      ? streamState.youtubeVideoId
+      : streamState.youtubeVideoId ?? process.env.NEXT_PUBLIC_YOUTUBE_VIDEO_ID;
   const youtubeChannelId =
     process.env.NEXT_PUBLIC_YOUTUBE_CHANNEL_ID ?? "UCp9ihETXF_55sQIB-vDLvcA";
   const hlsUrl = process.env.NEXT_PUBLIC_HLS_URL;
@@ -46,14 +49,18 @@ export function PublicPlayer({ streamState, currentCard }: Props) {
       ? "Rehearsal recording"
       : isYoutubeQueued
         ? "Rehearsal preparing"
+        : isYoutubeFailed
+          ? "Broadcast start failed"
         : "Watch on YouTube";
   const playerDescription = isYoutubeLive
     ? "This broadcast is live on YouTube. Open the player directly to watch and listen."
     : isYoutubeComplete
       ? "This rehearsal has ended. Open the recording on YouTube to review the completed program."
-      : isYoutubeQueued
-        ? "The next rehearsal is being prepared. Its YouTube page is available while rendering finishes."
-        : "Open the ConferenceHype YouTube player to watch the latest program.";
+    : isYoutubeQueued
+      ? "The next rehearsal is being prepared. Its YouTube page is available while rendering finishes."
+      : isYoutubeFailed
+        ? "The latest broadcast start failed before YouTube went live. The operator desk needs to review the workflow run."
+      : "Open the ConferenceHype YouTube player to watch the latest program.";
   const youtubeActionLabel = isYoutubeLive
     ? "Open live on YouTube"
     : isYoutubeComplete
@@ -188,11 +195,15 @@ export function PublicPlayer({ streamState, currentCard }: Props) {
                 ? "Rehearsal completed"
                 : isYoutubeQueued
                   ? "Preparing the next rehearsal"
+                  : isYoutubeFailed
+                    ? "Broadcast start failed"
                   : "No live broadcast right now"}
             </h3>
             <p className="mt-2 text-sm leading-6 text-ink/70">
               {isYoutubeComplete
                 ? "The completed rehearsal is available from the YouTube link above."
+                : isYoutubeFailed
+                  ? "The latest YouTube start did not complete. Check the workflow run before trying again."
                 : "Live topic details will appear here when the next broadcast begins."}
             </p>
           </>

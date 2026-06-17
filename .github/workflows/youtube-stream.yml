@@ -294,7 +294,7 @@ jobs:
           STREAM_DURATION_SECONDS: ""
 
       - name: Record failed YouTube delivery
-        if: ${{ always() && steps.block.outputs.slot_id != '' && job.status == 'failure' }}
+        if: ${{ always() && steps.block.outputs.block_start != '' && job.status == 'failure' }}
         run: npx tsx scripts/update-youtube-delivery.ts
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}

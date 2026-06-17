@@ -320,9 +320,12 @@ practice stream. Before declaring the stream visible on both sides, verify:
   workflow video ID and confirm the Supabase service credentials are present.
 - **The iframe says playback is disabled:** run the targeted embed repair,
   verify `YOUTUBE_EMBED_ENABLED=true`, and confirm the iframe origin and
-  referrer guard test passes. The workflow requests `enableEmbed` when creating
-  the broadcast; if YouTube rejects a later metadata toggle with
+  referrer guard test passes. If YouTube rejects an embed metadata toggle with
   `invalidEmbedSetting`, the iframe preflight remains the source of truth.
+- **The site shows an old replay after a failed start:** `/api/stream/status`
+  should report `failed` and no stale YouTube ID for the attempted broadcast.
+  The workflow records failures for continuous/manual runs even when no coverage
+  slot ID exists.
 - **The site shows a direct YouTube button instead of an iframe:** embedding is
   disabled in Vercel or the deployment has not picked up the environment
   change.

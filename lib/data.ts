@@ -238,17 +238,21 @@ export async function getStreamState(): Promise<StreamState> {
       "ConferenceHype automation is paused while the operator desk reviews the queue.",
     currentSegmentId: undefined
   };
+  const suppressYoutubeFallback =
+    dbStreamState?.youtubeStatus === "failed" || dbStreamState?.youtubeStatus === "rendering";
   return {
     ...(dbStreamState ?? fallbackState),
-    mode: dbStreamState?.youtubeVideoId || youtubeDelivery?.youtubeVideoId
+    mode: dbStreamState?.youtubeVideoId || (!suppressYoutubeFallback && youtubeDelivery?.youtubeVideoId)
       ? "youtube_primary"
       : (dbStreamState ?? fallbackState).mode,
     youtubeVideoId:
       dbStreamState?.youtubeVideoId ??
-      youtubeDelivery?.youtubeVideoId ??
-      process.env.NEXT_PUBLIC_YOUTUBE_VIDEO_ID,
-    youtubeUrl: dbStreamState?.youtubeUrl ?? youtubeDelivery?.youtubeUrl,
-    youtubeStatus: dbStreamState?.youtubeStatus ?? youtubeDelivery?.youtubeStatus
+      (suppressYoutubeFallback
+        ? undefined
+        : (youtubeDelivery?.youtubeVideoId ?? process.env.NEXT_PUBLIC_YOUTUBE_VIDEO_ID)),
+    youtubeUrl: dbStreamState?.youtubeUrl ?? (suppressYoutubeFallback ? undefined : youtubeDelivery?.youtubeUrl),
+    youtubeStatus:
+      dbStreamState?.youtubeStatus ?? (suppressYoutubeFallback ? undefined : youtubeDelivery?.youtubeStatus)
   };
 }
 

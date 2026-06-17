@@ -1022,15 +1022,22 @@ export async function updateConferenceCoverageDeliveryInDb(
   }
   const supabase = createAdminClient();
   const now = new Date().toISOString();
+  const shouldClearStaleVideo =
+    patch.youtubeStatus === "failed" || patch.youtubeStatus === "rendering";
+  const streamStatePatch: Record<string, unknown> = {
+    mode: patch.youtubeStatus === "failed" ? "preview" : "youtube_primary",
+    youtube_status: patch.youtubeStatus,
+    updated_at: now
+  };
+  if (patch.youtubeVideoId !== undefined || shouldClearStaleVideo) {
+    streamStatePatch.youtube_video_id = patch.youtubeVideoId ?? null;
+  }
+  if (patch.youtubeUrl !== undefined || shouldClearStaleVideo) {
+    streamStatePatch.youtube_url = patch.youtubeUrl ?? null;
+  }
   const { error: streamStateError } = await supabase
     .from("stream_state")
-    .update({
-      mode: patch.youtubeStatus === "failed" ? "preview" : "youtube_primary",
-      youtube_status: patch.youtubeStatus,
-      youtube_video_id: patch.youtubeVideoId,
-      youtube_url: patch.youtubeUrl,
-      updated_at: now
-    })
+    .update(streamStatePatch)
     .eq("id", 1);
   if (streamStateError) {
     throw streamStateError;
