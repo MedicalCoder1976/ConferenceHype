@@ -1,4 +1,5 @@
 import type { Segment } from "@/lib/types";
+import { buildRequiredSectionSummary } from "@/lib/segments/sectionSummary";
 
 const journalPattern =
   /\b(Journal of Clinical Oncology|JCO Oncology Practice|JCO Precision Oncology|Annals of Oncology|Blood Cancer Journal|British Journal of Cancer|JAMA|Leukemia|Nature Cancer|Nature Medicine|The BMJ|The Lancet(?: Oncology| Haematology)?|The New England Journal of Medicine|New England Journal of Medicine)\b/i;
@@ -78,15 +79,18 @@ export function normalizeLegacySegment(segment: Segment): Segment {
   const monthEdition = edition(segment);
   const topic = removeBatchPrefix(segment.title);
   const details = issueDetails(segment);
-  const detailSentence = details
-    ? `The issue listing identifies ${details}.`
-    : "The linked journal record should be reviewed for the abstract, methods, results, and discussion before placement.";
+  const sectionSummary = buildRequiredSectionSummary({
+    title: topic,
+    sourceName: journal,
+    text: `${segment.summary} ${segment.script}`,
+    issueDetails: details || undefined
+  });
 
   return {
     ...normalized,
-    summary: `From the ${monthEdition} edition of ${journal}. Condensed journal review queued for abstract, methods, results, and discussion.`,
+    summary: `From the ${monthEdition} edition of ${journal}. ${sectionSummary}`,
     script: clean(
-      `From the ${monthEdition} edition of ${journal}, this journal review looks at ${topic}. ${detailSentence} Use the linked journal record to keep the abstract, methods, results, and discussion condensed in broadcast form. Coverage stays with the cited journal record and does not give medical advice.`
+      `From the ${monthEdition} edition of ${journal}, this journal review looks at ${topic}. ${sectionSummary}`
     ),
     contentType: "abstract_buzz",
     riskFlags: Array.from(

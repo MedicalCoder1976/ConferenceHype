@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { getPersona, personas } from "@/lib/generation/personas";
+import { buildRequiredSectionSummary } from "@/lib/segments/sectionSummary";
 import type {
   ContentType,
   IngestedItem,
@@ -94,22 +95,24 @@ export function buildBatchSegment(
     typeof options.index === "number" ? ` Card ${options.index + 1}.` : "";
   const journalItem = isJournalItem(item);
   const edition = monthEdition(item);
+  const sectionSummary = buildRequiredSectionSummary({
+    title: topic,
+    sourceName: item.sourceName,
+    text: item.excerpt
+  });
   const summary = journalItem
-    ? `From the ${edition} edition of ${item.sourceName}. Condensed abstract review: ${truncateWords(sourceDetail, 34)}`
-    : `${item.sourceName} intake. ${truncateWords(sourceDetail, 34)}`;
+    ? `From the ${edition} edition of ${item.sourceName}. ${truncateWords(sectionSummary, 42)}`
+    : `${item.sourceName} intake. ${truncateWords(sectionSummary, 42)}`;
   const script = journalItem
     ? [
         `From the ${edition} edition of ${item.sourceName}, this journal review looks at ${topic}.`,
-        "Here is the condensed abstract, methods, results, and discussion in broadcast form.",
-        spokenDetail,
-        "Coverage stays with the cited journal record and does not give medical advice."
+        sectionSummary
       ]
     : [
         itemPosition,
         `${persona.name} is covering ${item.sourceName}.`,
         `The topic is ${topic}.`,
-        spokenDetail,
-        "Coverage stays with the cited source record and does not give medical advice."
+        truncateWords(sectionSummary || spokenDetail, 82)
       ];
   const createdAt = new Date().toISOString();
   const batchPrefix = options.batchLabel ? `${options.batchLabel}: ` : "Batch pick: ";
