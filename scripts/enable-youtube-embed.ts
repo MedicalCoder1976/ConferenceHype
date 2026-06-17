@@ -75,39 +75,41 @@ async function main() {
     })
   );
 
-  const updateResponse = await fetch(
-  "https://www.googleapis.com/youtube/v3/liveBroadcasts?part=contentDetails",
-  {
-    method: "PUT",
-    headers: {
-      Authorization: authorization,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      id: broadcastId,
-      contentDetails: {
-        ...current.contentDetails,
-        enableEmbed: true
+  if (current.contentDetails?.enableEmbed !== true) {
+    const updateResponse = await fetch(
+      "https://www.googleapis.com/youtube/v3/liveBroadcasts?part=contentDetails",
+      {
+        method: "PUT",
+        headers: {
+          Authorization: authorization,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          id: broadcastId,
+          contentDetails: {
+            ...current.contentDetails,
+            enableEmbed: true
+          }
+        })
       }
-    })
-  }
-  );
-
-  if (!updateResponse.ok) {
-    throw new Error(
-      `YouTube embed update failed: ${updateResponse.status} ${await updateResponse.text()}`
     );
-  }
 
-  const updated = (await updateResponse.json()) as {
-    contentDetails?: { enableEmbed?: boolean };
-  };
-  console.log(
-    JSON.stringify({
-      broadcastId,
-      after: { enableEmbed: updated.contentDetails?.enableEmbed }
-    })
-  );
+    if (!updateResponse.ok) {
+      console.warn(
+        `::warning::YouTube liveBroadcasts embed update was rejected; continuing to iframe preflight: ${updateResponse.status} ${await updateResponse.text()}`
+      );
+    } else {
+      const updated = (await updateResponse.json()) as {
+        contentDetails?: { enableEmbed?: boolean };
+      };
+      console.log(
+        JSON.stringify({
+          broadcastId,
+          after: { enableEmbed: updated.contentDetails?.enableEmbed }
+        })
+      );
+    }
+  }
 
   const videoResponse = await fetch(
     `https://www.googleapis.com/youtube/v3/videos?part=status&id=${encodeURIComponent(broadcastId)}`,
@@ -156,19 +158,20 @@ async function main() {
       }
     );
     if (!videoUpdateResponse.ok) {
-      throw new Error(
-        `YouTube video embed update failed: ${videoUpdateResponse.status} ${await videoUpdateResponse.text()}`
+      console.warn(
+        `::warning::YouTube videos embed update was rejected; continuing to iframe preflight: ${videoUpdateResponse.status} ${await videoUpdateResponse.text()}`
+      );
+    } else {
+      const videoUpdated = (await videoUpdateResponse.json()) as {
+        status?: { embeddable?: boolean };
+      };
+      console.log(
+        JSON.stringify({
+          broadcastId,
+          videoAfter: { embeddable: videoUpdated.status?.embeddable }
+        })
       );
     }
-    const videoUpdated = (await videoUpdateResponse.json()) as {
-      status?: { embeddable?: boolean };
-    };
-    console.log(
-      JSON.stringify({
-        broadcastId,
-        videoAfter: { embeddable: videoUpdated.status?.embeddable }
-      })
-    );
   }
 }
 
