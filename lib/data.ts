@@ -163,6 +163,9 @@ function findMatchingWriteout({
       (writeout) => writeout.youtubeVideoId === streamState.youtubeVideoId
     );
   }
+  if (streamState.youtubeStatus === "failed" || streamState.youtubeStatus === "rendering") {
+    return undefined;
+  }
   return writeouts.find((writeout) =>
     ["queued", "rendering", "live", "completed"].includes(writeout.status)
   );

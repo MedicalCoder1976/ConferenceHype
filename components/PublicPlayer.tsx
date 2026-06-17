@@ -23,7 +23,9 @@ export function PublicPlayer({ streamState, currentCard }: Props) {
       ? streamState.youtubeVideoId
       : streamState.youtubeVideoId ?? process.env.NEXT_PUBLIC_YOUTUBE_VIDEO_ID;
   const youtubeChannelId =
-    process.env.NEXT_PUBLIC_YOUTUBE_CHANNEL_ID ?? "UCp9ihETXF_55sQIB-vDLvcA";
+    isYoutubeFailed || isYoutubeQueued
+      ? undefined
+      : (process.env.NEXT_PUBLIC_YOUTUBE_CHANNEL_ID ?? "UCp9ihETXF_55sQIB-vDLvcA");
   const hlsUrl = process.env.NEXT_PUBLIC_HLS_URL;
   const youtubeWatchUrl = youtubeId
     ? streamState.youtubeUrl ?? `https://www.youtube.com/watch?v=${youtubeId}`
@@ -56,11 +58,11 @@ export function PublicPlayer({ streamState, currentCard }: Props) {
     ? "This broadcast is live on YouTube. Open the player directly to watch and listen."
     : isYoutubeComplete
       ? "This rehearsal has ended. Open the recording on YouTube to review the completed program."
-    : isYoutubeQueued
-      ? "The next rehearsal is being prepared. Its YouTube page is available while rendering finishes."
+      : isYoutubeQueued
+        ? "The next rehearsal is being prepared. Its YouTube page is available while rendering finishes."
       : isYoutubeFailed
         ? "The latest broadcast start failed before YouTube went live. The operator desk needs to review the workflow run."
-      : "Open the ConferenceHype YouTube player to watch the latest program.";
+        : "Open the ConferenceHype YouTube player to watch the latest program.";
   const youtubeActionLabel = isYoutubeLive
     ? "Open live on YouTube"
     : isYoutubeComplete
