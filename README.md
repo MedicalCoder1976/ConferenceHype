@@ -58,6 +58,10 @@ embedder.
   [Month] edition of [Journal Name]". They should condense the abstract,
   methods, results, and discussion into broadcast language rather than merely
   reading the article headline.
+- Article, abstract, journal, and clinical-news cards must be PubMed-first when
+  a PubMed record can be found. Use the complete PubMed abstract to write
+  specific Background, Methods, Results, and Discussion content. Do not build
+  article cards from RSS issue metadata alone.
 - Conference and meeting cards must not read URLs or page code. If an official
   meeting page exposes script text instead of readable content, discard the
   code-like text and fall back to the official page title/description or a

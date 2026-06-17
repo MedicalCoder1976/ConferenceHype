@@ -2,6 +2,7 @@ import { loadEnvConfig } from "@next/env";
 import { createClient } from "@supabase/supabase-js";
 import { buildRequiredSectionSummary } from "@/lib/segments/sectionSummary";
 import { normalizeLegacySegment } from "@/lib/segments/normalizeLegacy";
+import { fetchPubMedAbstract } from "@/lib/sources/pubmed";
 import { fetchJournalArticleAbstract } from "@/lib/sources/rss";
 import type { Citation, Segment } from "@/lib/types";
 
@@ -57,6 +58,7 @@ function isArticleCard(segment: Segment) {
     .map((citation) => citation.label)
     .join(" ")}`;
   return (
+    segment.riskFlags.includes("rejected_until_pubmed_abstract_available") ||
     segment.contentType === "abstract_buzz" ||
     segment.contentType === "media_roundup" ||
     articleishPattern.test(text)
@@ -99,12 +101,35 @@ function sourceName(segment: Segment) {
   );
 }
 
+function hasGenericSectionFallback(value: string) {
+  return /\b(The available .* record identifies|stored intake text does not expose|title indicates|title signals|discussion should remain limited|discussion context available)\b/i.test(
+    value
+  );
+}
+
 async function fetchBestSourceText(segment: Segment) {
-  const url = segment.citations.find((citation) => /^https?:\/\//i.test(citation.url))?.url;
-  if (!url) {
-    return "";
+  const citationUrl =
+    segment.citations.find((citation) => /pubmed\.ncbi\.nlm\.nih\.gov/i.test(citation.url))?.url ??
+    segment.citations.find((citation) => /\b10\.\d{4,9}\//i.test(citation.url))?.url ??
+    segment.citations.find((citation) => /^https?:\/\//i.test(citation.url))?.url;
+  const pubmed = await fetchPubMedAbstract({
+    title: removeBatchPrefix(segment.title),
+    url: citationUrl
+  });
+  if (pubmed?.abstract) {
+    return {
+      text: pubmed.abstract,
+      pubmedUrl: pubmed.url
+    };
   }
-  return fetchJournalArticleAbstract(url);
+  const url = citationUrl;
+  if (!url) {
+    return { text: "", pubmedUrl: "" };
+  }
+  return {
+    text: await fetchJournalArticleAbstract(url),
+    pubmedUrl: ""
+  };
 }
 
 async function main() {
@@ -122,7 +147,7 @@ async function main() {
   const { data, error } = await supabase
     .from("segments")
     .select("*")
-    .in("status", ["pending_review", "approved"])
+    .in("status", ["pending_review", "approved", "rejected"])
     .order("created_at", { ascending: false })
     .limit(500);
 
@@ -142,15 +167,77 @@ async function main() {
     }
     considered += 1;
     const legacyNormalized = normalizeLegacySegment(original);
-    const fetchedText = await fetchBestSourceText(legacyNormalized);
+    const fetched = await fetchBestSourceText(legacyNormalized);
     const topic = removeBatchPrefix(legacyNormalized.title);
     const source = sourceName(legacyNormalized);
+    if (!fetched.pubmedUrl) {
+      const nextRiskFlags = Array.from(
+        new Set([
+          ...legacyNormalized.riskFlags,
+          "structured_background_methods_results_discussion",
+          "pubmed_abstract_unavailable",
+          "rejected_until_pubmed_abstract_available"
+        ])
+      );
+      const { error: updateError } = await supabase
+        .from("segments")
+        .update({
+          status: "rejected",
+          summary: `PubMed abstract unavailable for ${source}: ${topic}.`,
+          script: `PubMed abstract unavailable for ${source}: ${topic}. This card is rejected until PubMed supplies a complete abstract for Background, Methods, Results, and Discussion.`,
+          risk_flags: nextRiskFlags,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", row.id);
+
+      if (updateError) {
+        throw updateError;
+      }
+      updated += 1;
+      if (examples.length < 8) {
+        examples.push({ id: row.id, title: `${topic} (rejected: PubMed abstract unavailable)` });
+      }
+      continue;
+    }
     const sectionSummary = buildRequiredSectionSummary({
       title: topic,
       sourceName: source,
-      text: fetchedText || `${legacyNormalized.summary} ${legacyNormalized.script}`,
-      issueDetails: legacyNormalized.summary
+      text: fetched.text,
+      issueDetails: undefined
     });
+    if (hasGenericSectionFallback(sectionSummary)) {
+      const nextRiskFlags = Array.from(
+        new Set([
+          ...legacyNormalized.riskFlags.filter(
+            (flag) =>
+              flag !== "pubmed_abstract_sourced" &&
+              flag !== "pubmed_abstract_unavailable"
+          ),
+          "structured_background_methods_results_discussion",
+          "pubmed_abstract_incomplete",
+          "rejected_until_pubmed_abstract_available"
+        ])
+      );
+      const { error: updateError } = await supabase
+        .from("segments")
+        .update({
+          status: "rejected",
+          summary: `PubMed abstract incomplete for ${source}: ${topic}.`,
+          script: `PubMed abstract incomplete for ${source}: ${topic}. This card is rejected until PubMed supplies enough abstract detail for Background, Methods, Results, and Discussion.`,
+          risk_flags: nextRiskFlags,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", row.id);
+
+      if (updateError) {
+        throw updateError;
+      }
+      updated += 1;
+      if (examples.length < 8) {
+        examples.push({ id: row.id, title: `${topic} (rejected: PubMed abstract incomplete)` });
+      }
+      continue;
+    }
     const journal = isJournalCard(legacyNormalized);
     const summary = journal
       ? `From the ${monthEdition(legacyNormalized)} edition of ${source}. ${sectionSummary}`
@@ -160,10 +247,25 @@ async function main() {
       : `${source} review: ${topic}. ${sectionSummary}`;
     const nextRiskFlags = Array.from(
       new Set([
-        ...legacyNormalized.riskFlags,
-        "structured_background_methods_results_discussion"
+        ...legacyNormalized.riskFlags.filter(
+          (flag) =>
+            flag !== "pubmed_abstract_unavailable" &&
+            flag !== "rejected_until_pubmed_abstract_available"
+        ),
+        "structured_background_methods_results_discussion",
+        fetched.pubmedUrl ? "pubmed_abstract_sourced" : "pubmed_abstract_unavailable"
       ])
     );
+    const nextCitations = fetched.pubmedUrl
+      ? [
+          ...legacyNormalized.citations,
+          {
+            label: `PubMed abstract: ${topic}`,
+            url: fetched.pubmedUrl,
+            sourceType: "official" as const
+          }
+        ]
+      : legacyNormalized.citations;
 
     if (
       summary === row.summary &&
@@ -176,9 +278,11 @@ async function main() {
     const { error: updateError } = await supabase
       .from("segments")
       .update({
+        status: row.status === "rejected" ? "pending_review" : row.status,
         summary,
         script,
         content_type: journal ? "abstract_buzz" : legacyNormalized.contentType,
+        citations: nextCitations,
         risk_flags: nextRiskFlags,
         updated_at: new Date().toISOString()
       })

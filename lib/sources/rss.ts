@@ -1,5 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 import { monitoredXVoices } from "@/lib/sources/registry";
+import { fetchPubMedAbstract } from "@/lib/sources/pubmed";
 import type { IngestedItem, SourceConfig } from "@/lib/types";
 
 const parser = new XMLParser({
@@ -151,7 +152,8 @@ export async function fetchRssSource(source: SourceConfig): Promise<IngestedItem
         ""
       );
       const articleAbstract = isJournalSource(source)
-        ? await fetchJournalArticleAbstract(url)
+        ? (await fetchPubMedAbstract({ title: scalar(item.title || ""), url }))?.abstract ??
+          await fetchJournalArticleAbstract(url)
         : "";
       return {
         id: `${source.id}-${index}-${item.guid?.["#text"] ?? item.link ?? item.title}`,
