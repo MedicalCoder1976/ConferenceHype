@@ -216,6 +216,14 @@ jobs:
           VOICE_TALIA_STONE: ${{ secrets.VOICE_TALIA_STONE }}
           VOICE_VESPER_QUILL: ${{ secrets.VOICE_VESPER_QUILL }}
 
+      - name: Verify public stream and writeout alignment
+        if: ${{ steps.block.outputs.block_start != '' }}
+        run: npx tsx scripts/verify-public-broadcast-alignment.ts
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          YOUTUBE_VIDEO_ID: ${{ steps.youtube.outputs.youtube_video_id }}
+
       - name: Wait for requested start time
         if: ${{ steps.block.outputs.block_start != '' }}
         run: |

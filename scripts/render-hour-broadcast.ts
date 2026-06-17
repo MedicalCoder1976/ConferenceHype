@@ -638,15 +638,23 @@ async function main() {
   const { applySpokenPronunciations } = await import("@/lib/media/tts");
   const { getPersona } = await import("@/lib/generation/personas");
 
-  type VoiceEntry = { path: string; startMs: number };
+  type VoiceEntry = { path: string; startMs: number; durationMs: number };
+  type GapEntry = { path: string; startMs: number };
   const voiceEntries: VoiceEntry[] = [];
-  const gapEntries: VoiceEntry[] = [];    // gap-clip stingers, one per music card
+  const gapEntries: GapEntry[] = [];    // gap-clip stingers, one per music card
   let offsetMs = 0;
 
   // Resolve every card to its cache path and collect the ones that need synthesis
-  type SynthTask = { voice: string; text: string; wavPath: string; cachePath: string; startMs: number };
+  type SynthTask = {
+    voice: string;
+    text: string;
+    wavPath: string;
+    cachePath: string;
+    startMs: number;
+    durationMs: number;
+  };
   const tasks: SynthTask[] = [];
-  const alreadyCached: Array<{ cachePath: string; startMs: number }> = [];
+  const alreadyCached: Array<{ cachePath: string; startMs: number; durationMs: number }> = [];
 
   for (const card of cards) {
     // Rule 7: collect gap-clip start times for music cards
@@ -667,10 +675,17 @@ async function main() {
           .digest("hex");
         const cachePath = path.join(voiceCacheDir, `${cacheKey}.mp3`);
         if (existsSync(cachePath)) {
-          alreadyCached.push({ cachePath, startMs: offsetMs });
+          alreadyCached.push({ cachePath, startMs: offsetMs, durationMs: card.duration * 1000 });
         } else {
           const wavPath = path.join(voiceWavDir, `${cacheKey}.wav`);
-          tasks.push({ voice: voiceName, text: processedScript, wavPath, cachePath, startMs: offsetMs });
+          tasks.push({
+            voice: voiceName,
+            text: processedScript,
+            wavPath,
+            cachePath,
+            startMs: offsetMs,
+            durationMs: card.duration * 1000
+          });
         }
       }
     }
@@ -679,7 +694,11 @@ async function main() {
 
   // Add already-cached entries first (preserving time order below)
   for (const entry of alreadyCached) {
-    voiceEntries.push({ path: entry.cachePath, startMs: entry.startMs });
+    voiceEntries.push({
+      path: entry.cachePath,
+      startMs: entry.startMs,
+      durationMs: entry.durationMs
+    });
   }
 
   // Synthesize all uncached cards in one Python call — loads KPipeline once
@@ -709,7 +728,11 @@ async function main() {
         if (existsSync(task.wavPath)) {
           try {
             await run(ffmpeg, ["-y", "-i", task.wavPath, "-c:a", "libmp3lame", "-b:a", "128k", task.cachePath]);
-            voiceEntries.push({ path: task.cachePath, startMs: task.startMs });
+            voiceEntries.push({
+              path: task.cachePath,
+              startMs: task.startMs,
+              durationMs: task.durationMs
+            });
           } catch (convErr) {
             console.warn(`MP3 conversion failed for ${path.basename(task.wavPath)}: ${convErr}`);
           } finally {
@@ -738,8 +761,11 @@ async function main() {
     const gapInputArgs = gapEntries.flatMap((e) => ["-i", e.path]);
     const filterParts: string[] = [`[1:a]volume=0.25[bed]`];
     voiceEntries.forEach((e, i) => {
+      const durationSeconds = Math.max(0.1, e.durationMs / 1000);
       filterParts.push(
-        `[${i + 2}:a]volume=0.85,adelay=${e.startMs}|${e.startMs}[v${i}]`
+        `[${i + 2}:a]volume=0.85,atrim=0:${durationSeconds.toFixed(
+          3
+        )},asetpts=PTS-STARTPTS,adelay=${e.startMs}|${e.startMs}[v${i}]`
       );
     });
     const gapOffset = voiceEntries.length + 2;

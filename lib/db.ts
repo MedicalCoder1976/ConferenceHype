@@ -1036,6 +1036,22 @@ export async function updateConferenceCoverageDeliveryInDb(
     throw streamStateError;
   }
   if (!slotId) {
+    if (patch.youtubeVideoId) {
+      const { error: writeoutByVideoError } = await supabase
+        .from("broadcast_writeouts")
+        .update({
+          status: patch.youtubeStatus,
+          youtube_url: patch.youtubeUrl,
+          workflow_run_id: patch.workflowRunId,
+          workflow_url: patch.workflowUrl,
+          delivery_error: patch.deliveryError,
+          updated_at: now
+        })
+        .eq("youtube_video_id", patch.youtubeVideoId);
+      if (writeoutByVideoError) {
+        throw writeoutByVideoError;
+      }
+    }
     return null;
   }
   const { data, error } = await supabase
