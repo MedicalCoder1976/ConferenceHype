@@ -70,6 +70,7 @@ export function DailyCoveragePlanner({
   sources,
   planningDays,
   activePlanningKey,
+  selectedStartsAt,
   initialBatchItems
 }: {
   initialPlan: DailyCoveragePlan;
@@ -78,6 +79,7 @@ export function DailyCoveragePlanner({
   sources: SourceConfig[];
   planningDays: PlanningDay[];
   activePlanningKey: string;
+  selectedStartsAt: string;
   initialBatchItems: IngestedItem[];
 }) {
   const router = useRouter();
@@ -85,6 +87,7 @@ export function DailyCoveragePlanner({
   const [batchItems, setBatchItems] = useState(initialBatchItems);
   const [message, setMessage] = useState("");
   const [pendingItemId, setPendingItemId] = useState("");
+  const [pendingBatch, setPendingBatch] = useState(false);
   const [pending, startTransition] = useTransition();
   const [customLabel, setCustomLabel] = useState("");
   const [customUrl, setCustomUrl] = useState("");
@@ -192,6 +195,59 @@ export function DailyCoveragePlanner({
     });
   };
 
+  const createHourBatch = () => {
+    setMessage("");
+    setPendingBatch(true);
+    startTransition(async () => {
+      try {
+        const priorityTopics = listFromText(priorityText);
+        const exclusions = listFromText(exclusionsText);
+        const planToSave = {
+          ...plan,
+          priorityTopics,
+          exclusions
+        };
+        const saveResponse = await fetch("/api/admin/daily-coverage", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(planToSave)
+        });
+        const savePayload = await saveResponse.json();
+        if (!saveResponse.ok || !savePayload.ok) {
+          throw new Error(savePayload.error ?? "Could not save coverage plan.");
+        }
+        setPlan(savePayload.plan);
+
+        const batchResponse = await fetch("/api/admin/intake-cards/hour", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            coverageDate: plan.coverageDate,
+            startsAt: selectedStartsAt,
+            conferenceIds: plan.conferenceIds,
+            journalIds: plan.journalIds,
+            sourceIds: plan.sourceIds,
+            priorityTopics,
+            exclusions,
+            maxCards: 24
+          })
+        });
+        const batchPayload = await batchResponse.json();
+        if (!batchResponse.ok || !batchPayload.ok) {
+          throw new Error(batchPayload.error ?? "Could not create one-hour ready cards.");
+        }
+        setMessage(
+          `${batchPayload.count} one-hour batch cards added to Brand New Ready Cards. Edit them there, then drag or replace into the selected time slots.`
+        );
+        router.refresh();
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : "Could not create one-hour ready cards.");
+      } finally {
+        setPendingBatch(false);
+      }
+    });
+  };
+
   const save = () => {
     setMessage("");
     startTransition(async () => {
@@ -259,6 +315,32 @@ export function DailyCoveragePlanner({
               className="ml-3 border border-ink/20 px-3 py-2 text-sm font-semibold normal-case"
             />
           </label>
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-3 border border-ink/10 bg-paper/60 p-3">
+          <div className="min-w-0 flex-1">
+            <div className="text-xs font-black uppercase text-ink/50">
+              Selected one-hour slot
+            </div>
+            <div className="text-sm font-black text-ink">
+              {new Intl.DateTimeFormat("en-US", {
+                month: "2-digit",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: false,
+                timeZoneName: "short"
+              }).format(new Date(selectedStartsAt))}
+            </div>
+          </div>
+          <button
+            type="button"
+            disabled={pending || pendingBatch}
+            onClick={createHourBatch}
+            className="inline-flex min-h-11 items-center justify-center gap-2 bg-ink px-4 text-xs font-black uppercase text-white disabled:opacity-50"
+          >
+            <Send className="h-4 w-4" />
+            {pendingBatch ? "Creating batch" : "Create one-hour batch cards"}
+          </button>
         </div>
         <div className="mt-4">
           <div className="mb-2 text-xs font-black uppercase text-ink/50">

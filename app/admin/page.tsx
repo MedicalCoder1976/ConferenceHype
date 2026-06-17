@@ -219,6 +219,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               sources={snapshot.sources}
               planningDays={planningDays}
               activePlanningKey={activePlanningKey}
+              selectedStartsAt={baseTime}
               initialBatchItems={snapshot.batchIntakeItems}
             />
             <BroadcastRundown

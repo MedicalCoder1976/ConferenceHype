@@ -256,7 +256,14 @@ export function BroadcastRundown({
     setPendingId(segmentId);
     startTransition(async () => {
       try {
-        const updated = await scheduleSegment(segmentId, at.toISOString());
+        const sourceSegment =
+          visibleReviewSegments.find((segment) => segment.id === segmentId) ??
+          visibleSegments.find((segment) => segment.id === segmentId);
+        const updated = await scheduleSegment(
+          segmentId,
+          at.toISOString(),
+          sourceSegment ? drafts[segmentId] ?? sourceSegment.script : undefined
+        );
         setVisibleSegments((current) =>
           current.some((segment) => segment.id === segmentId)
             ? current.map((segment) => (segment.id === segmentId ? updated : segment))
@@ -434,9 +441,16 @@ export function BroadcastRundown({
                       <summary className="cursor-pointer text-[11px] font-black uppercase text-broadcast">
                         Prepared text and sources
                       </summary>
-                      <p className="mt-2 whitespace-pre-wrap border border-ink/10 bg-paper/70 p-2 text-xs leading-5 text-ink/75">
-                        {segment.script}
-                      </p>
+                      <textarea
+                        value={drafts[segment.id] ?? segment.script}
+                        onChange={(event) =>
+                          setDrafts((current) => ({
+                            ...current,
+                            [segment.id]: event.target.value
+                          }))
+                        }
+                        className="mt-2 min-h-40 w-full border border-ink/10 bg-paper/70 p-2 text-xs font-semibold leading-5 text-ink/75"
+                      />
                       {segment.citations.length ? (
                         <ul className="mt-2 grid gap-1 text-[11px] font-semibold leading-4 text-ink/60">
                           {segment.citations.map((citation) => (
