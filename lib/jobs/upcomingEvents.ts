@@ -17,15 +17,15 @@ export function buildScheduleFallbackSegment(now = new Date()): Segment {
 
   return {
     id: `schedule-spine-${randomUUID()}`,
-    title: "Conference schedule and location check",
+    title: "Official meeting schedule check",
     summary:
-      "Source-grounded schedule bridge using the configured official conference sources.",
+      "Source-only schedule and logistics check using the configured official meeting sources.",
     script: [
       `Two-minute schedule check. It is ${timeLabel} Eastern time.`,
       sourceNames
         ? `The official source desk is monitoring ${sourceNames}.`
         : "No official schedule update is ready for this window.",
-      "Check the official conference program and on-site signage for room, hall, and timing changes.",
+      "Use the official meeting program and on-site signage for room, hall, and timing changes.",
       "ConferenceHype will continue with the next source-attributed update."
     ].join("\n\n"),
     contentType: "agenda_preview",
@@ -54,7 +54,7 @@ export function buildScheduleRundownSegments(now = new Date(), hours = 1) {
     return {
       ...segment,
       id: `virtual-${segment.id}`,
-      title: `Schedule/location rundown: ${new Intl.DateTimeFormat("en-US", {
+      title: `Official schedule check: ${new Intl.DateTimeFormat("en-US", {
         hour: "2-digit",
         minute: "2-digit",
         hour12: false,

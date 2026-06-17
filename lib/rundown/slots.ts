@@ -133,10 +133,10 @@ function makeFallbackSegment(baseTime: Date, slotIndex: number): Segment {
   const createdAt = addSeconds(baseTime, slotIndex * CONTENT_SECONDS).toISOString();
   return {
     id: `virtual-source-backed-hold-${createdAt}-${slotIndex}`,
-    title: "Source-backed conference schedule bridge",
+    title: "Official schedule placeholder",
     summary:
-      "No newer ready card is available for this position, so this slot holds a short official-schedule bridge.",
-    script: `${persona.name} here from ConferenceHype. Short break while the next confirmed card loads. Coverage continues right after this.`,
+      "No source-backed content card is pinned here yet, so this slot stays as a neutral official-schedule placeholder.",
+    script: `${persona.name} here from ConferenceHype. This is a short official-schedule placeholder while the next source-backed card loads. Use the meeting's official program and on-site signage for current room, hall, and timing details.`,
     contentType: "agenda_preview",
     personaId: persona.id,
     personaName: persona.name,
@@ -145,8 +145,8 @@ function makeFallbackSegment(baseTime: Date, slotIndex: number): Segment {
     status: "approved",
     citations: [
       {
-        label: "EHA official program",
-        url: "https://ehaweb.org/connect-network/eha2026-congress/eha2026-program",
+        label: "ConferenceHype source review",
+        url: "https://conferencehype.com/terms",
         sourceType: "official"
       }
     ],

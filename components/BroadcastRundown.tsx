@@ -103,6 +103,9 @@ function contentLabel(segment?: Segment) {
   if (!segment) {
     return "";
   }
+  if (segment.contentType === "agenda_preview") {
+    return "official schedule";
+  }
   if (segment.contentType === "industry_floor") {
     return "exhibitor chatter";
   }
@@ -162,6 +165,30 @@ export function BroadcastRundown({
       ),
     [visibleSegments, visibleReviewSegments, scheduleSegments, socialVoiceSegments, baseDate, hours]
   );
+  const slotTone = (kind: string) => {
+    if (kind === "music") {
+      return "border border-dashed border-ink/20 bg-white";
+    }
+    if (kind === "schedule") {
+      return "border border-cyanline/35 bg-cyanline/10";
+    }
+    if (kind === "backup") {
+      return "border border-gold/50 bg-gold/10";
+    }
+    return "bg-paper";
+  };
+  const slotBadgeTone = (kind: string) => {
+    if (kind === "music") {
+      return "bg-ink/60 text-white";
+    }
+    if (kind === "schedule") {
+      return "bg-cyanline text-ink";
+    }
+    if (kind === "backup") {
+      return "bg-gold text-ink";
+    }
+    return "bg-broadcast text-white";
+  };
 
   useEffect(() => {
     setVisibleSegments(segments);
@@ -481,21 +508,15 @@ export function BroadcastRundown({
                       setSelectedSlotAt(slot.at.toISOString());
                     }
                   }}
-                  className={`p-3 ${
-                    slot.kind === "music"
-                      ? "border border-dashed border-ink/20 bg-white"
-                      : slot.kind === "backup"
-                        ? "border border-gold/50 bg-gold/10"
-                        : "bg-paper"
-                  } ${
+                  className={`p-3 ${slotTone(slot.kind)} ${
                     selectedSlotAt === slot.at.toISOString()
                       ? "outline outline-2 outline-broadcast"
                       : ""
                   }`}
                 >
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className={`px-2 py-1 text-[11px] font-black uppercase text-white ${slot.kind === "music" ? "bg-ink/60" : slot.kind === "backup" ? "bg-gold text-ink" : "bg-broadcast"}`}>
-                      {slot.kind}
+                    <span className={`px-2 py-1 text-[11px] font-black uppercase ${slotBadgeTone(slot.kind)}`}>
+                      {slot.kind === "schedule" ? "official" : slot.kind}
                     </span>
                     <span className="text-xs font-bold text-ink/50">
                       {timeLabel(slot.at.toISOString())}
