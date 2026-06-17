@@ -17,6 +17,7 @@ async function main() {
     }
   });
   const expectedVideoId = process.env.YOUTUBE_VIDEO_ID;
+  const expectedStatus = process.env.EXPECTED_YOUTUBE_STATUS;
   const { data: streamState, error: streamError } = await supabase
     .from("stream_state")
     .select("youtube_video_id,youtube_status,youtube_url,updated_at")
@@ -29,6 +30,15 @@ async function main() {
   const publicVideoId = expectedVideoId || streamState?.youtube_video_id;
   if (!publicVideoId) {
     throw new Error("No YouTube video ID is available for public alignment verification.");
+  }
+  if (
+    expectedStatus &&
+    streamState?.youtube_status &&
+    streamState.youtube_status !== expectedStatus
+  ) {
+    throw new Error(
+      `Public stream video ${publicVideoId} has status ${streamState.youtube_status}; expected ${expectedStatus}.`
+    );
   }
 
   const { data: writeout, error: writeoutError } = await supabase

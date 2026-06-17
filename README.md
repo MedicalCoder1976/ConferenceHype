@@ -11,16 +11,22 @@ to YouTube, and exposes the same broadcast on `conferencehype.com`.
    exclusions, custom coverage, and approved presentation slots.
 2. Scheduled ingestion and generation create source-attributed review cards.
 3. The operator edits, orders, approves, rejects, or atomically replaces cards.
-4. **Start selected hour** dispatches the YouTube workflow from the admin
-   rundown preview start time. Approved future hours can continue automatically
-   until the continuous feed is stopped.
-5. With OAuth configured, each run creates and binds a fresh YouTube broadcast.
-6. Before public handoff, the workflow enables embedding and tests the exact
+4. In Daily coverage decisions, **Create one-hour batch cards** drafts cards
+   for the selected hour. The **Cards scheduled** status confirms those cards
+   were copied into the selected hour as approved scheduled cards.
+5. **Start selected hour** dispatches the YouTube workflow from the admin
+   rundown preview start time. The plan/preview buttons do not start or confirm
+   a broadcast.
+6. With OAuth configured, each run creates and binds a fresh YouTube broadcast.
+7. Before public handoff, the workflow enables embedding and tests the exact
    ConferenceHype embed request.
-7. The program is rendered and validated for both video and audio.
-8. Supabase `stream_state` receives the current YouTube ID, URL, and delivery
+8. The program is rendered and validated for both video and audio.
+9. Supabase `stream_state` receives the current YouTube ID, URL, and delivery
    status. The public site reads this state dynamically.
-9. FFmpeg publishes the rendered MP4 to the bound YouTube RTMP endpoint.
+10. FFmpeg publishes the rendered MP4 to the bound YouTube RTMP endpoint.
+11. After FFmpeg finishes, the workflow verifies that the public stream state
+    and saved writeout still match the same YouTube video ID and that the final
+    public status is `completed`.
 
 The fixed RTMP URL and key are a legacy fallback. The normal production path is
 the OAuth-created fresh broadcast.
@@ -293,6 +299,9 @@ practice stream. Before declaring the stream visible on both sides, verify:
 5. `/api/stream/status` reports `live` and the same YouTube video ID.
 6. `conferencehype.com` loads that ID in its iframe.
 7. The YouTube watch page shows the same live program at the same time.
+8. After the hour finishes, the workflow's **Verify completed YouTube handoff**
+   step passes and `/api/stream/status` reports `completed` for that same
+   YouTube video ID.
 
 ## Deployment
 
@@ -303,7 +312,7 @@ practice stream. Before declaring the stream visible on both sides, verify:
 5. Confirm `conferencehype.com`, `/admin/login`, and `/api/stream/status`.
 6. Approve the desired programming in admin.
 7. Start an unlisted rehearsal.
-8. Complete all seven live verification checks above.
+8. Complete all live and completed verification checks above.
 
 ## Failure Recovery
 
@@ -315,8 +324,9 @@ practice stream. Before declaring the stream visible on both sides, verify:
 - **The site shows a direct YouTube button instead of an iframe:** embedding is
   disabled in Vercel or the deployment has not picked up the environment
   change.
-- **Start continuous feed fails:** verify `GITHUB_DISPATCH_TOKEN` can dispatch
-  Actions and `GITHUB_DISPATCH_REPO` names the correct repository.
+- **Start selected hour fails:** verify `GITHUB_DISPATCH_TOKEN` can dispatch
+  Actions, `GITHUB_DISPATCH_REPO` names the correct repository, and the selected
+  hour is not more than one hour in the past.
 - **OAuth returns access denied:** add the signing-in Google account as an OAuth
   test user or publish/verify the consent screen as appropriate.
 - **A scheduled hour does not publish:** confirm the slot is enabled, approved,

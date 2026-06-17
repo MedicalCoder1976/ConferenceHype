@@ -275,6 +275,15 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
+      - name: Verify completed YouTube handoff
+        if: ${{ steps.block.outputs.block_start != '' }}
+        run: npx tsx scripts/verify-public-broadcast-alignment.ts
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          YOUTUBE_VIDEO_ID: ${{ steps.youtube.outputs.youtube_video_id }}
+          EXPECTED_YOUTUBE_STATUS: completed
+
       - name: Start fallback YouTube RTMP loop
         if: ${{ github.event_name == 'workflow_dispatch' && steps.block.outputs.block_start == '' }}
         run: npm run job:stream
