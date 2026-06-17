@@ -28,6 +28,23 @@ export async function POST(request: NextRequest) {
         { status: 503 }
       );
     }
+    const startAt = new Date(body.startAt);
+    if (Number.isNaN(startAt.getTime())) {
+      return NextResponse.json(
+        { ok: false, error: "Selected broadcast start time is invalid." },
+        { status: 422 }
+      );
+    }
+    if (startAt.getTime() < Date.now() - 60 * 60 * 1000) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "Selected broadcast start time is more than one hour in the past. Choose the current or a future hour before starting."
+        },
+        { status: 422 }
+      );
+    }
     await updateContinuousBroadcastInDb(true);
 
     const response = await fetch(

@@ -206,6 +206,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         </Link>
         <StartStreamButton
           initialEnabled={snapshot.streamState.continuousEnabled ?? false}
+          startAt={baseTime}
+          label={previewLabel}
         />
       </div>
       <AdminTabs

@@ -4,16 +4,19 @@ import { Radio } from "lucide-react";
 import { useState, useTransition } from "react";
 
 export function StartStreamButton({
-  initialEnabled
+  initialEnabled,
+  startAt,
+  label
 }: {
   initialEnabled: boolean;
+  startAt: string;
+  label: string;
 }) {
   const [enabled, setEnabled] = useState(initialEnabled);
   const [message, setMessage] = useState("");
   const [pending, startTransition] = useTransition();
 
   const updateStream = () => {
-    const startAt = new Date().toISOString();
     setMessage("");
     startTransition(async () => {
       try {
@@ -34,7 +37,7 @@ export function StartStreamButton({
         setMessage(
           enabled
             ? "Continuous broadcasting will stop after the current hour."
-            : `Continuous broadcasting started at ${new Date(startAt).toLocaleString()}.`
+            : `Broadcast workflow started for ${label}.`
         );
       } catch (error) {
         setMessage(error instanceof Error ? error.message : "Could not start stream.");
@@ -57,8 +60,13 @@ export function StartStreamButton({
             : "Starting"
           : enabled
             ? "Stop continuous feed"
-            : "Start continuous feed"}
+            : "Start selected hour"}
       </button>
+      {!enabled ? (
+        <div className="max-w-sm text-[11px] font-bold uppercase leading-4 text-ink/50">
+          Starts the workflow at {label}
+        </div>
+      ) : null}
       {message ? (
         <div className="max-w-sm border border-ink/10 bg-paper px-3 py-2 text-xs font-bold leading-5 text-ink/70">
           {message}
