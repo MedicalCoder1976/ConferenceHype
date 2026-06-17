@@ -5,6 +5,7 @@ import { sourceRegistry, sourceToXVoice, type XVoice } from "@/lib/sources/regis
 import { conferenceSeeds } from "@/lib/catalog/conferenceSeeds";
 import { specialtyVoiceSeeds } from "@/lib/catalog/specialtyVoiceSeeds";
 import { oncologyJournalSeeds } from "@/lib/catalog/oncologyJournalSeeds";
+import { normalizeLegacySegment } from "@/lib/segments/normalizeLegacy";
 import type {
   AnalyticsSnapshot,
   BroadcastWriteout,
@@ -176,7 +177,7 @@ type EditorialPackageRow = {
 };
 
 function toSegment(row: SegmentRow): Segment {
-  return {
+  return normalizeLegacySegment({
     id: row.id,
     title: row.title,
     summary: row.summary,
@@ -194,7 +195,7 @@ function toSegment(row: SegmentRow): Segment {
     createdAt: row.created_at,
     approvedAt: row.approved_at ?? undefined,
     updatedAt: row.updated_at ?? undefined
-  };
+  });
 }
 
 function toSource(row: SourceRow): SourceConfig {

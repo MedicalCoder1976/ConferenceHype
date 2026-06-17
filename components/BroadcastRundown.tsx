@@ -4,6 +4,7 @@ import { AlertCircle, CalendarDays, Clock3, GripVertical, Mic2, Music2, RefreshC
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { buildBroadcastHourBuckets, buildBroadcastSlots } from "@/lib/rundown/slots";
+import { normalizeLegacySegment } from "@/lib/segments/normalizeLegacy";
 import type { Segment } from "@/lib/types";
 
 async function rejectSegment(segment: Segment) {
@@ -131,10 +132,16 @@ export function BroadcastRundown({
   hours?: number;
 }) {
   const router = useRouter();
-  const [visibleSegments, setVisibleSegments] = useState(segments);
-  const [visibleReviewSegments, setVisibleReviewSegments] = useState(reviewSegments);
+  const [visibleSegments, setVisibleSegments] = useState(segments.map(normalizeLegacySegment));
+  const [visibleReviewSegments, setVisibleReviewSegments] = useState(
+    reviewSegments.map(normalizeLegacySegment)
+  );
   const [drafts, setDrafts] = useState(
-    Object.fromEntries(reviewSegments.map((segment) => [segment.id, segment.script]))
+    Object.fromEntries(
+      reviewSegments
+        .map(normalizeLegacySegment)
+        .map((segment) => [segment.id, segment.script])
+    )
   );
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
@@ -191,13 +198,14 @@ export function BroadcastRundown({
   };
 
   useEffect(() => {
-    setVisibleSegments(segments);
+    setVisibleSegments(segments.map(normalizeLegacySegment));
   }, [segments]);
 
   useEffect(() => {
-    setVisibleReviewSegments(reviewSegments);
+    const normalizedReviewSegments = reviewSegments.map(normalizeLegacySegment);
+    setVisibleReviewSegments(normalizedReviewSegments);
     setDrafts((current) => ({
-      ...Object.fromEntries(reviewSegments.map((segment) => [segment.id, segment.script])),
+      ...Object.fromEntries(normalizedReviewSegments.map((segment) => [segment.id, segment.script])),
       ...current
     }));
   }, [reviewSegments]);
