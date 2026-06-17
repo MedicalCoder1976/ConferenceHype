@@ -26,6 +26,13 @@ type PlanningDay = {
   }>;
 };
 
+type BatchStatus = {
+  state: "idle" | "saving" | "creating" | "done" | "error";
+  text: string;
+  count?: number;
+  titles?: string[];
+};
+
 function listFromText(value: string) {
   return value
     .split(/\n|,/)
@@ -86,6 +93,10 @@ export function DailyCoveragePlanner({
   const [plan, setPlan] = useState(initialPlan);
   const [batchItems, setBatchItems] = useState(initialBatchItems);
   const [message, setMessage] = useState("");
+  const [batchStatus, setBatchStatus] = useState<BatchStatus>({
+    state: "idle",
+    text: ""
+  });
   const [pendingItemId, setPendingItemId] = useState("");
   const [pendingBatch, setPendingBatch] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -197,6 +208,10 @@ export function DailyCoveragePlanner({
 
   const createHourBatch = () => {
     setMessage("");
+    setBatchStatus({
+      state: "saving",
+      text: "Saving the selected conference, journal, and source choices before card creation."
+    });
     setPendingBatch(true);
     startTransition(async () => {
       try {
@@ -217,6 +232,10 @@ export function DailyCoveragePlanner({
           throw new Error(savePayload.error ?? "Could not save coverage plan.");
         }
         setPlan(savePayload.plan);
+        setBatchStatus({
+          state: "creating",
+          text: "Creating source-grounded ready cards for the selected one-hour slot."
+        });
 
         const batchResponse = await fetch("/api/admin/intake-cards/hour", {
           method: "POST",
@@ -236,12 +255,31 @@ export function DailyCoveragePlanner({
         if (!batchResponse.ok || !batchPayload.ok) {
           throw new Error(batchPayload.error ?? "Could not create one-hour ready cards.");
         }
+        const createdTitles = Array.isArray(batchPayload.segments)
+          ? batchPayload.segments
+              .map((segment: { title?: string }) => segment.title)
+              .filter(Boolean)
+              .slice(0, 4)
+          : [];
+        setBatchStatus({
+          state: "done",
+          text:
+            "Batch complete. These cards are now in Brand New Ready Cards and can be edited, dragged, or used as replacements.",
+          count: batchPayload.count,
+          titles: createdTitles
+        });
         setMessage(
           `${batchPayload.count} one-hour batch cards added to Brand New Ready Cards. Edit them there, then drag or replace into the selected time slots.`
         );
         router.refresh();
       } catch (error) {
-        setMessage(error instanceof Error ? error.message : "Could not create one-hour ready cards.");
+        const text =
+          error instanceof Error ? error.message : "Could not create one-hour ready cards.";
+        setBatchStatus({
+          state: "error",
+          text
+        });
+        setMessage(text);
       } finally {
         setPendingBatch(false);
       }
@@ -342,6 +380,37 @@ export function DailyCoveragePlanner({
             {pendingBatch ? "Creating batch" : "Create one-hour batch cards"}
           </button>
         </div>
+        {batchStatus.state !== "idle" ? (
+          <div
+            className={`mt-3 border p-3 text-sm font-bold ${
+              batchStatus.state === "error"
+                ? "border-red-400/50 bg-red-50 text-red-800"
+                : batchStatus.state === "done"
+                  ? "border-cyanline/40 bg-cyanline/10 text-ink"
+                  : "border-gold/50 bg-gold/10 text-ink"
+            }`}
+            aria-live="polite"
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="bg-ink px-2 py-1 text-[11px] font-black uppercase text-white">
+                Batch status
+              </span>
+              <span className="text-xs font-black uppercase">
+                {batchStatus.state === "done"
+                  ? `${batchStatus.count ?? 0} cards created`
+                  : batchStatus.state}
+              </span>
+            </div>
+            <p className="mt-2 leading-6">{batchStatus.text}</p>
+            {batchStatus.titles?.length ? (
+              <ul className="mt-2 grid gap-1 text-xs font-semibold leading-5 text-ink/65">
+                {batchStatus.titles.map((title) => (
+                  <li key={title}>Created: {title}</li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        ) : null}
         <div className="mt-4">
           <div className="mb-2 text-xs font-black uppercase text-ink/50">
             One-hour planning slots - 24 h back through next week
