@@ -14,7 +14,10 @@ export type BroadcastSlot = {
 
 const CONTENT_SECONDS = 40;   // 40-second content window — ~90 words at 135 wpm, no more silence gaps
 const MUSIC_SECONDS = 20;     // matches 20-second gap-clip library
-const CONTENT_SLOTS_PER_HOUR = 60; // 60 × (40 + 20) s = 3 600 s = 1 h exactly
+const CONTENT_SLOTS_PER_MUSIC_BLOCK = 7;
+const MUSIC_BLOCKS_PER_HOUR = 12;
+const CONTENT_CARDS_PER_HOUR =
+  CONTENT_SLOTS_PER_MUSIC_BLOCK * MUSIC_BLOCKS_PER_HOUR;
 
 export function addMinutes(date: Date, minutes: number) {
   return new Date(date.getTime() + minutes * 60 * 1000);
@@ -127,7 +130,7 @@ function withAssignedVoice(segment: Segment, slotIndex: number, at: Date): Segme
 
 function makeFallbackSegment(baseTime: Date, slotIndex: number): Segment {
   const persona = personas[slotIndex % personas.length];
-  const createdAt = addSeconds(baseTime, slotIndex * (CONTENT_SECONDS + MUSIC_SECONDS)).toISOString();
+  const createdAt = addSeconds(baseTime, slotIndex * CONTENT_SECONDS).toISOString();
   return {
     id: `virtual-source-backed-hold-${createdAt}-${slotIndex}`,
     title: "Source-backed conference schedule bridge",
@@ -230,26 +233,34 @@ export function buildBroadcastSlots({
 
   for (let hourIndex = 0; hourIndex < hours; hourIndex += 1) {
     const hourStart = addMinutes(baseTime, hourIndex * 60);
-    for (let pairIndex = 0; pairIndex < CONTENT_SLOTS_PER_HOUR; pairIndex += 1) {
-      const slotIndex = hourIndex * CONTENT_SLOTS_PER_HOUR + pairIndex;
-      const contentAt = addSeconds(hourStart, pairIndex * (CONTENT_SECONDS + MUSIC_SECONDS));
-      const musicAt = addSeconds(contentAt, CONTENT_SECONDS);
-      const scheduledSegment = scheduled.bySlot.get(slotKey(contentAt));
-      const sourceSegment =
-        scheduledSegment ??
-        (allContent.length > 0
-          ? allContent[pairIndex % allContent.length]
-          : makeFallbackSegment(baseTime, slotIndex));
-      const segment = withAssignedVoice(sourceSegment, slotIndex, contentAt);
-      slots.push({
-        at: contentAt,
-        kind: segmentKind(segment),
-        durationMinutes: CONTENT_SECONDS / 60,
-        durationSeconds: CONTENT_SECONDS,
-        label: `${segment.personaName} content card`,
-        segment,
-        replaceable: true
-      });
+    for (let blockIndex = 0; blockIndex < MUSIC_BLOCKS_PER_HOUR; blockIndex += 1) {
+      const blockStart = addMinutes(hourStart, blockIndex * 5);
+      for (let cardIndex = 0; cardIndex < CONTENT_SLOTS_PER_MUSIC_BLOCK; cardIndex += 1) {
+        const contentIndex =
+          blockIndex * CONTENT_SLOTS_PER_MUSIC_BLOCK + cardIndex;
+        const slotIndex = hourIndex * CONTENT_CARDS_PER_HOUR + contentIndex;
+        const contentAt = addSeconds(blockStart, cardIndex * CONTENT_SECONDS);
+        const scheduledSegment = scheduled.bySlot.get(slotKey(contentAt));
+        const sourceSegment =
+          scheduledSegment ??
+          (allContent.length > 0
+            ? allContent[contentIndex % allContent.length]
+            : makeFallbackSegment(baseTime, slotIndex));
+        const segment = withAssignedVoice(sourceSegment, slotIndex, contentAt);
+        slots.push({
+          at: contentAt,
+          kind: segmentKind(segment),
+          durationMinutes: CONTENT_SECONDS / 60,
+          durationSeconds: CONTENT_SECONDS,
+          label: `${segment.personaName} content card`,
+          segment,
+          replaceable: true
+        });
+      }
+      const musicAt = addSeconds(
+        blockStart,
+        CONTENT_SLOTS_PER_MUSIC_BLOCK * CONTENT_SECONDS
+      );
       slots.push({
         at: musicAt,
         kind: "music",

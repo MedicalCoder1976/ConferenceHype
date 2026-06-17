@@ -310,10 +310,11 @@ export function BroadcastRundown({
           <h2 className="text-2xl font-black text-ink">Presentation sequence</h2>
         </div>
         <p className="mt-2 text-sm font-semibold leading-6 text-ink/60">
-          Every hour runs 60 content cards at 40 seconds each, each followed by
-          a 20-second broadcast transition (60 pairs × 60 s = 1 h). Voices are
-          assigned across cards; every script starts with the voice name here
-          from ConferenceHype, then moves directly into the narrative.
+          Every hour runs twelve 5-minute blocks. Each block holds seven
+          40-second source-grounded cards, followed by one 20-second licensed
+          transition. Voices are assigned across cards; every script starts with
+          the voice name here from ConferenceHype, then moves directly into the
+          narrative.
         </p>
         <div className="mt-3 inline-flex items-center gap-2 border border-ink/10 bg-paper px-3 py-2 text-xs font-black uppercase text-ink/70">
           <CalendarDays className="h-4 w-4 text-broadcast" />
@@ -469,7 +470,7 @@ export function BroadcastRundown({
                   }}
                   onDrop={(event) => {
                     if (slot.kind === "music") {
-                      setMessage("Drop cards on a content slot, not the 20-second music gap card.");
+                      setMessage("Drop cards on a content slot, not the 20-second transition card.");
                       return;
                     }
                     event.preventDefault();

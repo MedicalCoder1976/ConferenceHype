@@ -3,8 +3,12 @@ import { z } from "zod";
 import { assertAdminRequest } from "@/lib/auth";
 import {
   getDailyCoveragePlanFromDb,
+  getOncologyJournalsFromDb,
+  getSourcesFromDb,
   upsertDailyCoveragePlanInDb
 } from "@/lib/db";
+import { normalizeLegacyDailyCoverageDefaults } from "@/lib/dailyCoverage";
+import { sourceRegistry } from "@/lib/sources/registry";
 
 const customItemSchema = z.object({
   id: z.string().trim().min(1).max(100),
@@ -29,9 +33,20 @@ export async function GET(request: NextRequest) {
   try {
     assertAdminRequest(request);
     const coverageDate = z.string().date().parse(request.nextUrl.searchParams.get("date"));
+    const [plan, journals, sources] = await Promise.all([
+      getDailyCoveragePlanFromDb(coverageDate),
+      getOncologyJournalsFromDb(),
+      getSourcesFromDb()
+    ]);
     return NextResponse.json({
       ok: true,
-      plan: await getDailyCoveragePlanFromDb(coverageDate)
+      plan: plan
+        ? normalizeLegacyDailyCoverageDefaults({
+            plan,
+            journals: journals ?? [],
+            sources: sources ?? sourceRegistry
+          })
+        : null
     });
   } catch (error) {
     return NextResponse.json({ ok: false, error: String(error) }, { status: 400 });

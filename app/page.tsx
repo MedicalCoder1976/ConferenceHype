@@ -15,8 +15,8 @@ export default async function Home() {
   return (
     <main className="min-h-screen">
       <section className="hype-grid border-b border-ink/10 px-4 py-4 sm:px-5 md:px-8 md:py-8 xl:py-10">
-        <div className="mx-auto grid max-w-7xl gap-5 md:gap-7 lg:grid-cols-[minmax(0,0.9fr)_minmax(460px,1.1fr)] lg:items-center xl:grid-cols-[minmax(0,0.85fr)_minmax(560px,1.15fr)]">
-          <div className="order-2 lg:order-1">
+        <div className="mx-auto grid max-w-7xl gap-5 md:gap-7 lg:grid-cols-[minmax(0,0.78fr)_minmax(420px,1fr)] lg:items-center xl:grid-cols-[minmax(0,0.85fr)_minmax(520px,1.15fr)]">
+          <div className="order-2 min-w-0 lg:order-1">
             <div className="mb-4 flex flex-wrap items-center gap-2">
               <span className="rounded-full bg-broadcast px-3 py-1 text-xs font-bold uppercase tracking-wide text-white">
                 Live medical conference coverage
@@ -25,12 +25,12 @@ export default async function Home() {
                 Source-attributed programming
               </span>
             </div>
-            <h1 className="max-w-4xl text-4xl font-black leading-[0.95] text-ink sm:text-5xl lg:text-6xl xl:text-7xl">
+            <h1 className="max-w-full overflow-hidden text-4xl font-black leading-[0.95] text-ink sm:text-5xl lg:text-5xl xl:text-6xl">
               ConferenceHype
             </h1>
             <p className="mt-4 max-w-2xl text-base font-semibold leading-7 text-ink/78 lg:text-lg lg:leading-8">
-              Interactive conference commentary when you cannot attend, and a
-              live companion when you can. Suggest coverage with{" "}
+              Interactive conference/journal commentary when you cannot attend
+              or read, and a live companion when you can. Suggest coverage with{" "}
               <strong>{monitoredSocialTags.primaryHashtag}</strong> or tag{" "}
               <strong>{monitoredSocialTags.botHandle}</strong>.
             </p>

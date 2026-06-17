@@ -18,6 +18,10 @@ import {
   saveIngestedItemsToDb,
   upsertSourcesToDb
 } from "@/lib/db";
+import {
+  createDefaultDailyCoveragePlan,
+  normalizeLegacyDailyCoverageDefaults
+} from "@/lib/dailyCoverage";
 import type { IngestedItem } from "@/lib/types";
 
 export async function runIngestionJob(): Promise<IngestedItem[]> {
@@ -29,16 +33,26 @@ export async function runIngestionJob(): Promise<IngestedItem[]> {
     month: "2-digit",
     day: "2-digit"
   }).format(new Date());
-  const dailyPlan = await getDailyCoveragePlanFromDb(coverageDate);
-  const [journals, conferences] = await Promise.all([
+  const [savedDailyPlan, journals, conferences] = await Promise.all([
+    getDailyCoveragePlanFromDb(coverageDate),
     getOncologyJournalsFromDb(),
     getMedicalConferencesFromDb()
   ]);
+  const dailyPlan = normalizeLegacyDailyCoverageDefaults({
+    plan:
+      savedDailyPlan ??
+      createDefaultDailyCoveragePlan({
+        coverageDate,
+        conferences: conferences ?? []
+      }),
+    journals: journals ?? [],
+    sources: configuredSources
+  });
   const specialtyVoices = (await getSpecialtyXVoicesFromDb()) ?? [];
   const selectedConfiguredSources = configuredSources.filter(
     (source) =>
       source.enabled &&
-      (!dailyPlan || dailyPlan.sourceIds.includes(source.id)) &&
+      dailyPlan.sourceIds.includes(source.id) &&
       (dailyPlan?.breakingNewsEnabled !== false || source.type !== "general_social")
   );
   const additionalSources = dailyPlan

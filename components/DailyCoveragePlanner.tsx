@@ -4,6 +4,10 @@ import { CalendarCheck, ExternalLink, Plus, Save, Send, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import {
+  createDefaultDailyCoveragePlan,
+  normalizeLegacyDailyCoverageDefaults
+} from "@/lib/dailyCoverage";
 import type {
   DailyCoveragePlan,
   IngestedItem,
@@ -116,19 +120,16 @@ export function DailyCoveragePlanner({
         if (!intakeResponse.ok || !intakePayload.ok) {
           throw new Error(intakePayload.error ?? "Could not load batch intake cards.");
         }
-        const nextPlan = payload.plan ?? {
-            coverageDate,
-            conferenceIds: conferences
-              .filter((conference) => isOngoing(conference, coverageDate))
-              .map((conference) => conference.id),
-            journalIds: journals.filter((journal) => journal.enabled).map((journal) => journal.id),
-            sourceIds: sources.filter((source) => source.enabled).map((source) => source.id),
-            customItems: [],
-            priorityTopics: [],
-            exclusions: [],
-            breakingNewsEnabled: true,
-            notes: ""
-          };
+        const nextPlan = normalizeLegacyDailyCoverageDefaults({
+          plan:
+            payload.plan ??
+            createDefaultDailyCoveragePlan({
+              coverageDate,
+              conferences
+            }),
+          journals,
+          sources
+        });
         setPlan(nextPlan);
         setBatchItems(intakePayload.items ?? []);
         setPriorityText(nextPlan.priorityTopics.join("\n"));

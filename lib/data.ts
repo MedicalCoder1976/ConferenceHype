@@ -29,6 +29,10 @@ import {
   buildSocialVoiceLeaderboard,
   shouldRunSocialVoiceCompetition
 } from "@/lib/social/leaderboard";
+import {
+  createDefaultDailyCoveragePlan,
+  normalizeLegacyDailyCoverageDefaults
+} from "@/lib/dailyCoverage";
 import { getUnsafeReviewSourceErrors } from "@/lib/generation/sourceSafety";
 import type { AnalyticsSnapshot, Citation, StreamState } from "@/lib/types";
 
@@ -153,25 +157,16 @@ export async function getAdminSnapshot(baseTime = new Date(), planningHours = 1)
   }).format(baseTime);
   const savedDailyCoveragePlan = await getDailyCoveragePlanFromDb(coverageDate);
   const batchIntakeItems = (await getPreviousDayBatchItemsFromDb(coverageDate, 160)) ?? [];
-  const dailyCoveragePlan = savedDailyCoveragePlan ?? {
-    coverageDate,
-    conferenceIds: medicalConferences
-      .filter(
-        (conference) =>
-          conference.startDate &&
-          conference.endDate &&
-          coverageDate >= conference.startDate &&
-          coverageDate <= conference.endDate
-      )
-      .map((conference) => conference.id),
-    journalIds: oncologyJournals.filter((journal) => journal.enabled).map((journal) => journal.id),
-    sourceIds: sources.filter((source) => source.enabled).map((source) => source.id),
-    customItems: [],
-    priorityTopics: [],
-    exclusions: [],
-    breakingNewsEnabled: true,
-    notes: ""
-  };
+  const dailyCoveragePlan = normalizeLegacyDailyCoverageDefaults({
+    plan:
+      savedDailyCoveragePlan ??
+      createDefaultDailyCoveragePlan({
+        coverageDate,
+        conferences: medicalConferences
+      }),
+    journals: oncologyJournals,
+    sources
+  });
   const analytics: AnalyticsSnapshot = (await getAnalyticsFromDb()) ?? {
     views: 128,
     clipsCreated: 4,

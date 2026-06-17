@@ -40,10 +40,10 @@ const sectionNames = {
     "Editorials, Correspondence, and What to Watch"
   ],
   meeting_watch: [
-    "Abstract Watch",
-    "Exhibition Booths and Industry Floor",
-    "Conference and Social Chatter",
-    "Media Watch"
+    "Official Schedule and Logistics",
+    "Abstract and Science Watch",
+    "Official Media and Organizer Updates",
+    "Source-Backed Context and What to Watch"
   ]
 } as const;
 
@@ -86,7 +86,7 @@ async function generateSection({
       content: `Create section ${sectionIndex + 1} of a ConferenceHype ${category === "journal_watch" ? "Journal Watch" : "Meeting Watch"} program about ${subjectName}.
 
 Section: ${sectionTitle}
-Return exactly ${CARDS_PER_SECTION} distinct cards. Each card is fresh, source-attributed spoken copy of about 70-85 words. Use only supplied facts. Do not invent people, results, quotes, booth activity, reactions, clinical significance, acceptance status, embargoes, future presentation plans, audience size, or schedule placement. If a source says only that an abstract is publicly listed, say only that the listing identifies the topic, presenter, identifier, and date; do not say it was accepted, is scheduled, will be presented, is in a poster session, or that results are being withheld. Do not give medical advice. Do not recite article titles and do not copy long phrases from titles or excerpts; describe the source in new sentence structure. For conference chatter, clearly distinguish official information, media reporting, and attributed social posts. For exhibition content, discuss a booth or company only when present in a supplied source.
+Return exactly ${CARDS_PER_SECTION} distinct cards. Each card is fresh, source-attributed spoken copy of about 70-85 words. Use only supplied facts. Do not invent people, results, quotes, booth activity, attendee reactions, social chatter, clinical significance, acceptance status, embargoes, future presentation plans, audience size, or schedule placement. If a source says only that an abstract is publicly listed, say only that the listing identifies the topic, presenter, identifier, and date; do not say it was accepted, is scheduled, will be presented, is in a poster session, or that results are being withheld. Do not give medical advice. Do not recite article titles and do not copy long phrases from titles or excerpts; describe the source in new sentence structure. For meeting-watch cards, keep the section anchored to official schedule/logistics, abstract-library facts, organizer media pages, or attributed media records.
 
 Return JSON: {"cards":[{"title":"...","script":"...","sourceIndex":1,"contentType":"media_roundup"}]}
 Allowed contentType values: abstract_buzz, media_roundup, social_signal, industry_floor.
@@ -168,10 +168,10 @@ function generateSourceOnlySection({
   sources
 }: Parameters<typeof generateSection>[0]): EditorialPackageSection {
   const contentTypeBySection: Record<string, Segment["contentType"]> = {
-    "Abstract Watch": "abstract_buzz",
-    "Exhibition Booths and Industry Floor": "industry_floor",
-    "Conference and Social Chatter": "social_signal",
-    "Media Watch": "media_roundup"
+    "Official Schedule and Logistics": "agenda_preview",
+    "Abstract and Science Watch": "abstract_buzz",
+    "Official Media and Organizer Updates": "media_roundup",
+    "Source-Backed Context and What to Watch": "media_roundup"
   };
   const cards = Array.from({ length: CARDS_PER_SECTION }, (_, index) => {
     const source = sources[index % sources.length];
@@ -229,19 +229,27 @@ export async function developMeetingWatchPackage(
 ) {
   if (!items.length) throw new Error(`No source material was found for ${conference.name}.`);
   const date = editionDate;
+  const officialItems = items.filter((item) =>
+    item.sourceType === "official" ||
+    /\b(official|program|schedule|location|venue|registration|media|press|organizer|onsite|on-site|essentials)\b/i.test(`${item.sourceName} ${item.title} ${item.excerpt}`)
+  );
+  const abstractItems = items.filter((item) =>
+    /\b(abstract|poster|oral session|trial|study|scientific program|library)\b/i.test(`${item.title} ${item.excerpt} ${item.sourceName}`)
+  );
+  const mediaItems = items.filter((item) =>
+    item.sourceType === "media" ||
+    item.sourceType === "official" ||
+    /\b(media|press|news|announcement|organizer|official)\b/i.test(`${item.sourceName} ${item.title} ${item.excerpt}`)
+  );
+  const contextItems = items.filter((item) =>
+    ["official", "media", "company"].includes(item.sourceType) ||
+    /\b(guidance|essentials|program|abstract|schedule|registration|sponsor|exhibitor|industry)\b/i.test(`${item.sourceName} ${item.title} ${item.excerpt}`)
+  );
   const sourceGroups = [
-    items.filter((item) => /\b(abstract|poster|oral session|trial|study|scientific program)\b/i.test(`${item.title} ${item.excerpt}`)),
-    items.filter((item) => item.sourceType === "company" || /\b(exhibit|exhibition|exhibitor|booth|industry floor|company showcase|sponsor)\b/i.test(`${item.title} ${item.excerpt}`)),
-    items.filter((item) =>
-      item.sourceType.includes("social") ||
-      item.sourceName.toLowerCase().includes("on-site essentials") ||
-      /\b(chatter|reaction|discussion|posted|social media|community conversation|hashtag)\b/i.test(`${item.title} ${item.excerpt}`)
-    ),
-    items.filter((item) =>
-      item.sourceType === "media" ||
-      item.sourceName.toLowerCase().includes("official program") ||
-      item.sourceName.toLowerCase().includes("on-site essentials")
-    )
+    officialItems.length ? officialItems : items,
+    abstractItems.length ? abstractItems : items,
+    mediaItems.length ? mediaItems : items,
+    contextItems.length ? contextItems : items
   ];
   const missing = sectionNames.meeting_watch.filter((_, index) => sourceGroups[index].length === 0);
   if (missing.length) {
