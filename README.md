@@ -62,6 +62,9 @@ embedder.
   a PubMed record can be found. Use the complete PubMed abstract to write
   specific Background, Methods, Results, and Discussion content. Do not build
   article cards from RSS issue metadata alone.
+- For abstract and journal cards, the voiced narration itself must explicitly
+  say Background, Methods, Results, and Discussion. Voice framing and word
+  trimming must not remove any of the four section labels.
 - Conference and meeting cards must not read URLs or page code. If an official
   meeting page exposes script text instead of readable content, discard the
   code-like text and fall back to the official page title/description or a

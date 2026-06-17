@@ -23,6 +23,44 @@ function trimToWords(value: string, maxWords: number) {
   return `${limited.replace(/[.,;:!?]+$/, "")}.`;
 }
 
+function compactWords(value: string, maxWords: number) {
+  const words = value.trim().split(/\s+/).filter(Boolean);
+  if (words.length <= maxWords) {
+    return value.trim();
+  }
+  return `${words.slice(0, maxWords).join(" ").replace(/[.,;:!?]+$/, "")}.`;
+}
+
+function sectionText(value: string, label: "Background" | "Methods" | "Results" | "Discussion") {
+  const match = value.match(
+    new RegExp(
+      `\\b${label}\\b\\s*[:,-]?\\s*([\\s\\S]*?)(?=\\b(?:Background|Methods|Results|Discussion)\\b\\s*[:,-]?|$)`,
+      "i"
+    )
+  )?.[1];
+  return (match ?? "").replace(/\s+/g, " ").trim();
+}
+
+function hasFourSectionNarrative(value: string) {
+  return (
+    /\bBackground\b/i.test(value) &&
+    /\bMethods\b/i.test(value) &&
+    /\bResults\b/i.test(value) &&
+    /\bDiscussion\b/i.test(value)
+  );
+}
+
+function compactFourSectionNarrative(value: string) {
+  return [
+    ["Background", sectionText(value, "Background")],
+    ["Methods", sectionText(value, "Methods")],
+    ["Results", sectionText(value, "Results")],
+    ["Discussion", sectionText(value, "Discussion")]
+  ]
+    .map(([label, text]) => `${label}: ${compactWords(text || "not specified in the available abstract", 13)}`)
+    .join(" ");
+}
+
 function broadcastHour(at: Date) {
   const hour = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/New_York",
@@ -88,12 +126,15 @@ export function formatVoiceSegment({
   const greeting = broadcastHour(at) < 12 ? "Good morning" : "Good evening";
   const cleanNarrative = stripExistingVoiceFrame(narrative);
   const journalReview = /^From the (?:current|[A-Za-z]+ \d{4}) edition of\b/i.test(cleanNarrative);
+  const structuredReview = hasFourSectionNarrative(cleanNarrative);
   const opening = journalReview
     ? `${greeting}, wherever you are. This is ${voiceName} from ConferenceHype.`
     : `${greeting}, wherever you are. This is ${voiceName} from ConferenceHype. ` +
       `Our segment will focus on ${cleanTopic(topic)}.`;
   const narrativeBudget = Math.max(1, maxWords - wordCount(opening) - wordCount(SEGMENT_CLOSE));
-  const trimmedBody = trimToWords(cleanNarrative, narrativeBudget);
+  const trimmedBody = structuredReview
+    ? compactFourSectionNarrative(cleanNarrative)
+    : trimToWords(cleanNarrative, narrativeBudget);
 
   return `${opening} ${trimmedBody} ${SEGMENT_CLOSE}`.replace(/\s+/g, " ").trim();
 }
