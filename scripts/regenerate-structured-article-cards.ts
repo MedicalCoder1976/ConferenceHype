@@ -84,11 +84,18 @@ function removeBatchPrefix(value: string) {
 }
 
 function monthEdition(segment: Segment) {
-  return (
-    `${segment.summary} ${segment.script}`.match(
-      /\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}\b/i
-    )?.[0] ?? "current"
-  );
+  const explicitMonth = `${segment.summary} ${segment.script}`.match(
+    /\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}\b/i
+  )?.[0];
+  if (explicitMonth) {
+    return explicitMonth;
+  }
+  const createdAt = new Date(segment.createdAt);
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC"
+  }).format(Number.isNaN(createdAt.getTime()) ? new Date() : createdAt);
 }
 
 function sourceName(segment: Segment) {

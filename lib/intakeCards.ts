@@ -102,7 +102,11 @@ function monthEdition(item: IngestedItem) {
   const text = `${item.title} ${item.excerpt}`;
   return (
     text.match(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}\b/i)?.[0] ??
-    "current"
+    new Intl.DateTimeFormat("en-US", {
+      month: "long",
+      year: "numeric",
+      timeZone: "UTC"
+    }).format(new Date())
   );
 }
 
