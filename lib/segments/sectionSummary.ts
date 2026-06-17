@@ -79,3 +79,13 @@ export function buildRequiredSectionSummary({
     `Background: ${background} Methods: ${methods} Results: ${results} Discussion: ${discussion}`
   );
 }
+
+export function hasGenericSectionFallback(value: string) {
+  return (
+    /\bstored intake text does not expose\b/i.test(value) ||
+    /\btitle indicates\b/i.test(value) ||
+    /\btitle signals\b/i.test(value) ||
+    /\bdiscussion context available in the stored intake is limited\b/i.test(value) ||
+    /\bfull article text is available\b/i.test(value)
+  );
+}

@@ -6,7 +6,7 @@ import {
   getPreviousDayBatchItemsFromDb,
   saveGeneratedSegmentsToDb
 } from "@/lib/db";
-import { buildBatchSegment } from "@/lib/intakeCards";
+import { buildBatchSegment, buildPubMedBackedJournalItem } from "@/lib/intakeCards";
 
 const getSchema = z.object({
   date: z.string().date()
@@ -40,7 +40,18 @@ export async function POST(request: NextRequest) {
     if (!item) {
       return NextResponse.json({ ok: false, error: "Batch item not found." }, { status: 404 });
     }
-    const segment = buildBatchSegment(item, body.personaId);
+    const enrichedItem = await buildPubMedBackedJournalItem(item);
+    if (!enrichedItem) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "This journal item does not have a usable PubMed abstract with Background, Methods, Results, and Discussion yet, so a broadcast card was not created."
+        },
+        { status: 422 }
+      );
+    }
+    const segment = buildBatchSegment(enrichedItem, body.personaId);
     const [saved] = (await saveGeneratedSegmentsToDb([segment])) ?? [segment];
     return NextResponse.json({ ok: true, segment: saved ?? segment });
   } catch (error) {

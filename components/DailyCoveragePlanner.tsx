@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarCheck, ExternalLink, Plus, Save, Send, X } from "lucide-react";
+import { CalendarCheck, CheckCircle2, ExternalLink, Plus, Save, Send, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -31,6 +31,8 @@ type BatchStatus = {
   text: string;
   count?: number;
   titles?: string[];
+  segmentIds?: string[];
+  scheduledCount?: number;
 };
 
 function listFromText(value: string) {
@@ -99,6 +101,7 @@ export function DailyCoveragePlanner({
   });
   const [pendingItemId, setPendingItemId] = useState("");
   const [pendingBatch, setPendingBatch] = useState(false);
+  const [pendingScheduleBatch, setPendingScheduleBatch] = useState(false);
   const [pending, startTransition] = useTransition();
   const [customLabel, setCustomLabel] = useState("");
   const [customUrl, setCustomUrl] = useState("");
@@ -262,17 +265,23 @@ export function DailyCoveragePlanner({
               .filter(Boolean)
               .slice(0, 4)
           : [];
+        const createdSegmentIds = Array.isArray(batchPayload.segments)
+          ? batchPayload.segments
+              .map((segment: { id?: string }) => segment.id)
+              .filter(Boolean)
+          : [];
         setBatchStatus({
           state: "done",
           text:
             batchPayload.sourceMode === "on_demand_ingest"
-              ? "Batch complete after an on-demand source fetch. These cards are now in Brand New Ready Cards and can be edited, dragged, or used as replacements."
-              : "Batch complete from stored prior-day intake. These cards are now in Brand New Ready Cards and can be edited, dragged, or used as replacements.",
+              ? "Batch complete after an on-demand source fetch. Review the cards in Brand New Ready Cards, or accept them now to schedule this selected hour."
+              : "Batch complete from stored prior-day intake. Review the cards in Brand New Ready Cards, or accept them now to schedule this selected hour.",
           count: batchPayload.count,
-          titles: createdTitles
+          titles: createdTitles,
+          segmentIds: createdSegmentIds
         });
         setMessage(
-          `${batchPayload.count} one-hour batch cards added to Brand New Ready Cards. Edit them there, then drag or replace into the selected time slots.`
+          `${batchPayload.count} one-hour batch cards added to Brand New Ready Cards. Use Accept and schedule this hour to place them into the selected slot, or edit/drag/replace them manually.`
         );
         router.refresh();
       } catch (error) {
@@ -285,6 +294,48 @@ export function DailyCoveragePlanner({
         setMessage(text);
       } finally {
         setPendingBatch(false);
+      }
+    });
+  };
+
+  const scheduleCreatedBatch = () => {
+    if (!batchStatus.segmentIds?.length) return;
+    setPendingScheduleBatch(true);
+    setMessage("");
+    startTransition(async () => {
+      try {
+        const response = await fetch("/api/admin/intake-cards/hour/schedule", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            startsAt: selectedStartsAt,
+            segmentIds: batchStatus.segmentIds
+          })
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) {
+          const detail = Array.isArray(payload.errors) ? payload.errors.join(" ") : payload.error;
+          throw new Error(detail ?? "Could not schedule the created batch cards.");
+        }
+        setBatchStatus((current) => ({
+          ...current,
+          text:
+            "Accepted. These cards were copied into the selected hour as approved scheduled cards. The originals remain in Brand New Ready Cards for reuse.",
+          scheduledCount: payload.count
+        }));
+        setMessage(`${payload.count} cards scheduled into the selected one-hour broadcast slot.`);
+        router.refresh();
+      } catch (error) {
+        const text =
+          error instanceof Error ? error.message : "Could not schedule the created batch cards.";
+        setBatchStatus((current) => ({
+          ...current,
+          state: "error",
+          text
+        }));
+        setMessage(text);
+      } finally {
+        setPendingScheduleBatch(false);
       }
     });
   };
@@ -411,6 +462,27 @@ export function DailyCoveragePlanner({
                   <li key={title}>Created: {title}</li>
                 ))}
               </ul>
+            ) : null}
+            {batchStatus.state === "done" && batchStatus.segmentIds?.length ? (
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  disabled={pending || pendingScheduleBatch || Boolean(batchStatus.scheduledCount)}
+                  onClick={scheduleCreatedBatch}
+                  className="inline-flex min-h-10 items-center justify-center gap-2 bg-broadcast px-4 text-xs font-black uppercase text-white disabled:opacity-50"
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  {batchStatus.scheduledCount
+                    ? `${batchStatus.scheduledCount} cards scheduled`
+                    : pendingScheduleBatch
+                      ? "Scheduling"
+                      : "Accept and schedule this hour"}
+                </button>
+                <span className="text-xs font-semibold leading-5 text-ink/55">
+                  Manual option: edit Brand New Ready Cards, then drag them into slots or use
+                  Replace / Replace with this.
+                </span>
+              </div>
             ) : null}
           </div>
         ) : null}

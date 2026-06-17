@@ -9,6 +9,7 @@ import {
 } from "@/lib/db";
 import {
   buildBatchSegment,
+  buildPubMedBackedJournalItem,
   itemMatchesSelections,
   personaIdForBatchIndex
 } from "@/lib/intakeCards";
@@ -134,13 +135,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const enriched = (
+      await Promise.all(filtered.map((item) => buildPubMedBackedJournalItem(item)))
+    ).filter((item): item is IngestedItem => Boolean(item));
+
+    if (enriched.length === 0) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "No selected items could be turned into PubMed-backed journal cards with Background, Methods, Results, and Discussion. Select a different source mix or wait for PubMed-indexed abstracts."
+        },
+        { status: 422 }
+      );
+    }
+
     const startLabel = new Intl.DateTimeFormat("en-US", {
       hour: "2-digit",
       minute: "2-digit",
       hour12: false,
       timeZoneName: "short"
     }).format(new Date(body.startsAt));
-    const segments = filtered.map((item, index) =>
+    const segments = enriched.map((item, index) =>
       buildBatchSegment(item, personaIdForBatchIndex(index), {
         startsAt: body.startsAt,
         index,

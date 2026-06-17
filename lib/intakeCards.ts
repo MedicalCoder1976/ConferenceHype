@@ -1,6 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { getPersona, personas } from "@/lib/generation/personas";
-import { buildRequiredSectionSummary } from "@/lib/segments/sectionSummary";
+import { fetchPubMedAbstract } from "@/lib/sources/pubmed";
+import {
+  buildRequiredSectionSummary,
+  hasGenericSectionFallback
+} from "@/lib/segments/sectionSummary";
 import type {
   ContentType,
   IngestedItem,
@@ -45,13 +49,45 @@ function truncateWords(value: string, maxWords: number) {
   return words.length > maxWords ? `${words.slice(0, maxWords).join(" ")}.` : value;
 }
 
-function isJournalItem(item: IngestedItem) {
+export function isJournalItem(item: IngestedItem) {
   return (
     item.sourceId?.startsWith("daily-journal-") ||
     /\b(journal|jama|lancet|nejm|nature|annals|leukemia|bmj|blood cancer)\b/i.test(
       item.sourceName
     )
   );
+}
+
+export async function buildPubMedBackedJournalItem(item: IngestedItem) {
+  if (!isJournalItem(item)) {
+    return item;
+  }
+
+  const pubmed = await fetchPubMedAbstract({
+    title: item.title,
+    url: item.url
+  });
+
+  if (!pubmed?.abstract) {
+    return null;
+  }
+
+  const summary = buildRequiredSectionSummary({
+    title: pubmed.title || item.title,
+    sourceName: item.sourceName,
+    text: pubmed.abstract
+  });
+
+  if (hasGenericSectionFallback(summary)) {
+    return null;
+  }
+
+  return {
+    ...item,
+    title: pubmed.title || item.title,
+    url: pubmed.url || item.url,
+    excerpt: pubmed.abstract
+  };
 }
 
 function monthEdition(item: IngestedItem) {
