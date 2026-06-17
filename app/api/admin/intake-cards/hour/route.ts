@@ -12,6 +12,10 @@ import {
   itemMatchesSelections,
   personaIdForBatchIndex
 } from "@/lib/intakeCards";
+import { runIngestionJob } from "@/lib/jobs/ingest";
+import type { IngestedItem, MedicalConference, OncologyJournal } from "@/lib/types";
+
+export const maxDuration = 60;
 
 const bodySchema = z.object({
   coverageDate: z.string().date(),
@@ -34,6 +38,51 @@ function priorityScore(text: string, terms: string[]) {
   return terms.filter((term) => normalized.includes(term.toLowerCase())).length;
 }
 
+function selectBatchItems({
+  items,
+  conferences,
+  journals,
+  sourceIds,
+  priorityTopics,
+  exclusions,
+  maxCards
+}: {
+  items: IngestedItem[];
+  conferences: MedicalConference[];
+  journals: OncologyJournal[];
+  sourceIds: string[];
+  priorityTopics: string[];
+  exclusions: string[];
+  maxCards: number;
+}) {
+  return items
+    .filter((item) =>
+      itemMatchesSelections({
+        item,
+        conferences,
+        journals,
+        sourceIds
+      })
+    )
+    .filter((item) => {
+      if (!exclusions.length) {
+        return true;
+      }
+      return !includesAnyTerm(`${item.title} ${item.excerpt} ${item.sourceName}`, exclusions);
+    })
+    .sort((a, b) => {
+      const aText = `${a.title} ${a.excerpt}`;
+      const bText = `${b.title} ${b.excerpt}`;
+      const priorityDifference =
+        priorityScore(bText, priorityTopics) - priorityScore(aText, priorityTopics);
+      if (priorityDifference !== 0) {
+        return priorityDifference;
+      }
+      return a.rank - b.rank;
+    })
+    .slice(0, maxCards);
+}
+
 export async function POST(request: NextRequest) {
   try {
     assertAdminRequest(request);
@@ -49,43 +98,37 @@ export async function POST(request: NextRequest) {
     const selectedJournals = (journals ?? []).filter((journal) =>
       body.journalIds.includes(journal.id)
     );
-    const filtered = (items ?? [])
-      .filter((item) =>
-        itemMatchesSelections({
-          item,
-          conferences: selectedConferences,
-          journals: selectedJournals,
-          sourceIds: body.sourceIds
-        })
-      )
-      .filter((item) => {
-        if (!body.exclusions.length) {
-          return true;
-        }
-        return !includesAnyTerm(
-          `${item.title} ${item.excerpt} ${item.sourceName}`,
-          body.exclusions
-        );
-      })
-      .sort((a, b) => {
-        const aText = `${a.title} ${a.excerpt}`;
-        const bText = `${b.title} ${b.excerpt}`;
-        const priorityDifference =
-          priorityScore(bText, body.priorityTopics) -
-          priorityScore(aText, body.priorityTopics);
-        if (priorityDifference !== 0) {
-          return priorityDifference;
-        }
-        return a.rank - b.rank;
-      })
-      .slice(0, body.maxCards);
+    let sourceMode: "stored_previous_day" | "on_demand_ingest" = "stored_previous_day";
+    let filtered = selectBatchItems({
+      items: items ?? [],
+      conferences: selectedConferences,
+      journals: selectedJournals,
+      sourceIds: body.sourceIds,
+      priorityTopics: body.priorityTopics,
+      exclusions: body.exclusions,
+      maxCards: body.maxCards
+    });
+
+    if (filtered.length === 0) {
+      const freshItems = await runIngestionJob(body.coverageDate);
+      sourceMode = "on_demand_ingest";
+      filtered = selectBatchItems({
+        items: freshItems,
+        conferences: selectedConferences,
+        journals: selectedJournals,
+        sourceIds: body.sourceIds,
+        priorityTopics: body.priorityTopics,
+        exclusions: body.exclusions,
+        maxCards: body.maxCards
+      });
+    }
 
     if (filtered.length === 0) {
       return NextResponse.json(
         {
           ok: false,
           error:
-            "No previous-day batch items match this slot's selected conferences, journals, or sources."
+            "No stored or newly fetched batch items match this slot's selected conferences, journals, or sources."
         },
         { status: 404 }
       );
@@ -108,6 +151,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       count: saved.length,
+      sourceMode,
       segments: saved
     });
   } catch (error) {

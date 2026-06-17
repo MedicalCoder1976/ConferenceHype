@@ -234,7 +234,8 @@ export function DailyCoveragePlanner({
         setPlan(savePayload.plan);
         setBatchStatus({
           state: "creating",
-          text: "Creating source-grounded ready cards for the selected one-hour slot."
+          text:
+            "Creating source-grounded ready cards for the selected one-hour slot. If stored prior-day matches are empty, the server will fetch the selected sources now."
         });
 
         const batchResponse = await fetch("/api/admin/intake-cards/hour", {
@@ -264,7 +265,9 @@ export function DailyCoveragePlanner({
         setBatchStatus({
           state: "done",
           text:
-            "Batch complete. These cards are now in Brand New Ready Cards and can be edited, dragged, or used as replacements.",
+            batchPayload.sourceMode === "on_demand_ingest"
+              ? "Batch complete after an on-demand source fetch. These cards are now in Brand New Ready Cards and can be edited, dragged, or used as replacements."
+              : "Batch complete from stored prior-day intake. These cards are now in Brand New Ready Cards and can be edited, dragged, or used as replacements.",
           count: batchPayload.count,
           titles: createdTitles
         });

@@ -24,15 +24,17 @@ import {
 } from "@/lib/dailyCoverage";
 import type { IngestedItem } from "@/lib/types";
 
-export async function runIngestionJob(): Promise<IngestedItem[]> {
+export async function runIngestionJob(coverageDateOverride?: string): Promise<IngestedItem[]> {
   await upsertSourcesToDb();
   const configuredSources = (await getSourcesFromDb()) ?? sourceRegistry;
-  const coverageDate = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/New_York",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  }).format(new Date());
+  const coverageDate =
+    coverageDateOverride ??
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/New_York",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    }).format(new Date());
   const [savedDailyPlan, journals, conferences] = await Promise.all([
     getDailyCoveragePlanFromDb(coverageDate),
     getOncologyJournalsFromDb(),
