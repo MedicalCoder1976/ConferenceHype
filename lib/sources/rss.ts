@@ -74,7 +74,7 @@ function extractSection(text: string, labels: string[]) {
   return "";
 }
 
-async function fetchJournalArticleAbstract(url: string) {
+export async function fetchJournalArticleAbstract(url: string) {
   if (!/^https?:\/\//i.test(url)) {
     return "";
   }
