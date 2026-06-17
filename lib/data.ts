@@ -34,7 +34,14 @@ import {
   normalizeLegacyDailyCoverageDefaults
 } from "@/lib/dailyCoverage";
 import { getUnsafeReviewSourceErrors } from "@/lib/generation/sourceSafety";
-import type { AnalyticsSnapshot, Citation, StreamState } from "@/lib/types";
+import type {
+  AnalyticsSnapshot,
+  BroadcastWriteout,
+  BroadcastWriteoutCard,
+  Citation,
+  Segment,
+  StreamState
+} from "@/lib/types";
 
 const fullSpokenDisclaimer =
   "ConferenceHype is interactive AI commentary only. It is not reporting, journalism, medical education, clinical guidance, scientific validation, legal advice, or financial advice.";
@@ -88,6 +95,131 @@ export function filterBroadcastReadySegments<T extends {
 export async function getPublicSegments() {
   const dbSegments = await getApprovedSegmentsFromDb();
   return dbSegments?.length ? dbSegments : [buildScheduleFallbackSegment()];
+}
+
+export type PublicBroadcastCard = {
+  id: string;
+  position: number;
+  startsAt?: string;
+  durationSeconds?: number;
+  title: string;
+  summary: string;
+  personaName?: string;
+  sourceLabel?: string;
+  sourceUrl?: string;
+};
+
+export type PublicBroadcastContext = {
+  streamState: StreamState;
+  cards: PublicBroadcastCard[];
+  currentCard?: PublicBroadcastCard;
+  source: "writeout" | "approved_segments" | "stream_without_writeout";
+};
+
+function cardSummary(card: BroadcastWriteoutCard) {
+  const script = card.script?.replace(/\s+/g, " ").trim();
+  if (!script) {
+    return "Broadcast transition.";
+  }
+  return script.length > 260 ? `${script.slice(0, 257).trim()}...` : script;
+}
+
+function publicCardFromWriteout(card: BroadcastWriteoutCard): PublicBroadcastCard {
+  return {
+    id: `writeout-${card.position}-${card.startsAt}`,
+    position: card.position,
+    startsAt: card.startsAt,
+    durationSeconds: card.durationSeconds,
+    title: card.title,
+    summary: cardSummary(card),
+    personaName: card.personaName,
+    sourceLabel: card.sourceLabel,
+    sourceUrl: card.sourceUrl
+  };
+}
+
+function publicCardFromSegment(segment: Segment, index: number): PublicBroadcastCard {
+  return {
+    id: segment.id,
+    position: index + 1,
+    startsAt: segment.approvedAt,
+    title: segment.title,
+    summary: segment.summary,
+    personaName: segment.personaName,
+    sourceLabel: segment.citations[0]?.label,
+    sourceUrl: segment.citations[0]?.url
+  };
+}
+
+function findMatchingWriteout({
+  writeouts,
+  streamState
+}: {
+  writeouts: BroadcastWriteout[];
+  streamState: StreamState;
+}) {
+  if (streamState.youtubeVideoId) {
+    return writeouts.find(
+      (writeout) => writeout.youtubeVideoId === streamState.youtubeVideoId
+    );
+  }
+  return writeouts.find((writeout) =>
+    ["queued", "rendering", "live", "completed"].includes(writeout.status)
+  );
+}
+
+function currentWriteoutCard(cards: PublicBroadcastCard[], now = new Date()) {
+  const timedCards = cards.filter((card) => card.startsAt && card.durationSeconds);
+  return (
+    timedCards.find((card) => {
+      const start = new Date(card.startsAt!).getTime();
+      const end = start + (card.durationSeconds ?? 0) * 1000;
+      return now.getTime() >= start && now.getTime() < end;
+    }) ??
+    cards[0]
+  );
+}
+
+export async function getPublicBroadcastContext(): Promise<PublicBroadcastContext> {
+  const [streamState, writeouts, approvedSegments] = await Promise.all([
+    getStreamState(),
+    getBroadcastWriteoutsFromDb(20),
+    getPublicSegments()
+  ]);
+  const matchingWriteout = findMatchingWriteout({
+    writeouts: writeouts ?? [],
+    streamState
+  });
+  const writeoutCards =
+    matchingWriteout?.cards
+      .filter((card) => card.kind === "content")
+      .map(publicCardFromWriteout) ?? [];
+
+  if (writeoutCards.length) {
+    return {
+      streamState,
+      cards: writeoutCards,
+      currentCard: currentWriteoutCard(writeoutCards),
+      source: "writeout"
+    };
+  }
+
+  if (streamState.youtubeVideoId) {
+    return {
+      streamState,
+      cards: [],
+      currentCard: undefined,
+      source: "stream_without_writeout"
+    };
+  }
+
+  const cards = approvedSegments.map(publicCardFromSegment);
+  return {
+    streamState,
+    cards,
+    currentCard: cards[0],
+    source: "approved_segments"
+  };
 }
 
 export async function getStreamState(): Promise<StreamState> {

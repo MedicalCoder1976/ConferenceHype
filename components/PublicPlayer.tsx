@@ -1,13 +1,14 @@
 import { ExternalLink, Radio, ShieldAlert, Tv } from "lucide-react";
-import type { Segment, StreamState } from "@/lib/types";
+import type { PublicBroadcastCard } from "@/lib/data";
+import type { StreamState } from "@/lib/types";
 import { YoutubeFrame } from "@/components/YoutubeFrame";
 
 type Props = {
   streamState: StreamState;
-  currentSegment?: Segment;
+  currentCard?: PublicBroadcastCard;
 };
 
-export function PublicPlayer({ streamState, currentSegment }: Props) {
+export function PublicPlayer({ streamState, currentCard }: Props) {
   const audioStreamUrl = process.env.NEXT_PUBLIC_AUDIO_STREAM_URL;
   const youtubeEmbedEnabled =
     process.env.YOUTUBE_EMBED_ENABLED === "true";
@@ -170,10 +171,10 @@ export function PublicPlayer({ streamState, currentSegment }: Props) {
               Current topic
             </div>
             <h3 className="mt-1 text-lg font-black leading-tight text-ink md:text-xl xl:text-2xl">
-              {currentSegment?.title ?? "Awaiting first live topic"}
+              {currentCard?.title ?? "Awaiting first live topic"}
             </h3>
             <p className="mt-2 text-sm leading-6 text-ink/70">
-              {currentSegment?.summary ??
+              {currentCard?.summary ??
                 "Commentary topics will appear here as the stream comes online."}
             </p>
           </>

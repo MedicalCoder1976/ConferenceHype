@@ -28,6 +28,14 @@ the OAuth-created fresh broadcast.
 
 - Status-aware YouTube player with direct YouTube, audio, and HLS fallbacks
 - Live topic text only while the delivery state is actually `live`
+- The public player, current topic, and visible rundown cards must always align.
+  When a YouTube handoff has a saved `broadcast_writeouts` record, the public
+  site uses that exact writeout as the source of truth for all visible cards.
+  Do not show next approved/admin queue cards beside a different rendered video.
+- The `ConferenceHype` first-viewport wordmark must never be hidden by,
+  overlapped by, or visually crowded under the video/player box. Keep the
+  homepage hero stacked until the text and player have enough horizontal room,
+  and reserve a protected text column in two-column layouts.
 - Preparing, completed rehearsal, failed, and idle states without stale claims
 - Current YouTube handoff read from Supabase on each request
 - `#ConferenceHype` and `@conferencehype` audience routing
