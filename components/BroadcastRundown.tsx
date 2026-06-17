@@ -269,9 +269,11 @@ export function BroadcastRundown({
             ? current.map((segment) => (segment.id === segmentId ? updated : segment))
             : [...current, updated]
         );
-        setVisibleReviewSegments((current) =>
-          current.filter((segment) => segment.id !== segmentId)
-        );
+        if (updated.id === segmentId) {
+          setVisibleReviewSegments((current) =>
+            current.filter((segment) => segment.id !== segmentId)
+          );
+        }
         showSuccess(`${updated.title} moved to ${timeLabel(at)}.`);
         router.refresh();
       } catch (error) {
@@ -308,7 +310,10 @@ export function BroadcastRundown({
           updated
         ]);
         setVisibleReviewSegments((current) => {
-          const withoutReplacement = current.filter((item) => item.id !== segment.id);
+          const withoutReplacement =
+            updated.id === segment.id
+              ? current.filter((item) => item.id !== segment.id)
+              : current;
           if (
             replacedSegment &&
             replacedSegment.id !== segment.id &&

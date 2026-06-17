@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { assertAdminRequest } from "@/lib/auth";
-import { getSegmentByIdFromDb, replaceBroadcastSegmentInDb } from "@/lib/db";
+import {
+  getSegmentByIdFromDb,
+  replaceBroadcastSegmentInDb,
+  saveGeneratedSegmentsToDb
+} from "@/lib/db";
 import { validateSegmentForApproval } from "@/lib/generation/validator";
+import { makeScheduledCopy } from "@/lib/reusableSegments";
 
 const bodySchema = z.object({
   targetSegmentId: z.string().uuid().optional(),
@@ -26,9 +31,27 @@ export async function POST(request: NextRequest) {
     if (errors.length > 0) {
       return NextResponse.json({ ok: false, errors }, { status: 422 });
     }
+    let replacementSegmentId = body.replacementSegmentId;
+    if (replacement.status === "pending_review") {
+      const [copy] =
+        (await saveGeneratedSegmentsToDb([
+          makeScheduledCopy({
+            source: replacement,
+            approvedAt: body.approvedAt,
+            script: body.script
+          })
+        ])) ?? [];
+      if (!copy) {
+        return NextResponse.json(
+          { ok: false, error: "Could not create a scheduled copy of the ready card." },
+          { status: 503 }
+        );
+      }
+      replacementSegmentId = copy.id;
+    }
     const segment = await replaceBroadcastSegmentInDb({
       targetSegmentId: body.targetSegmentId,
-      replacementSegmentId: body.replacementSegmentId,
+      replacementSegmentId,
       approvedAt: body.approvedAt,
       script: body.script
     });
