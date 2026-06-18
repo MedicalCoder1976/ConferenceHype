@@ -16,6 +16,12 @@ verifyYoutubeDeliveryLoop({
   youtubeUrl: process.env.YOUTUBE_VIDEO_URL,
   mediaPath: process.env.STREAM_VIDEO_PATH || process.env.HOUR_BROADCAST_OUTPUT,
   siteUrl: process.env.PUBLIC_SITE_URL,
+  expectedPrivacyStatus:
+    process.env.YOUTUBE_EXPECT_PRIVACY_STATUS === "public" ||
+    process.env.YOUTUBE_EXPECT_PRIVACY_STATUS === "unlisted" ||
+    process.env.YOUTUBE_EXPECT_PRIVACY_STATUS === "private"
+      ? process.env.YOUTUBE_EXPECT_PRIVACY_STATUS
+      : undefined,
   timeoutSeconds: process.env.YOUTUBE_VERIFY_TIMEOUT_SECONDS
     ? Number(process.env.YOUTUBE_VERIFY_TIMEOUT_SECONDS)
     : undefined,

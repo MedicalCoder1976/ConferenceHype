@@ -278,6 +278,10 @@ and provide the affected YouTube video ID.
   video, Supabase stream state, saved writeout, and `conferencehype.com` all
   match the same video ID, the broadcast process is still broken and must keep
   failing/retrying until fixed.
+- `youtube-delivery-daily-verify.yml`: daily safety verification for the
+  current public YouTube handoff. It requires public visibility, retries after
+  automatically repairing YouTube privacy to `public`, and opens a GitHub issue
+  with the failing verifier output if the delivery path is still broken.
 - `youtube-enable-embed.yml`: manual repair for a specific video
 - `briefing.yml`: manual
 - `render-media.yml`: manual or configured media render

@@ -1,0 +1,166 @@
+name: Daily YouTube delivery verification
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 8 * * *"
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Resolve public stream handoff
+        id: stream
+        run: |
+          STATUS_JSON=$(curl --fail --silent --show-error --location https://conferencehype.com/api/stream/status)
+          echo "${STATUS_JSON}" > stream-status.json
+          VIDEO_ID=$(node -e "const fs=require('fs'); const s=JSON.parse(fs.readFileSync('stream-status.json','utf8')).streamState||{}; process.stdout.write(s.youtubeVideoId||'')")
+          VIDEO_URL=$(node -e "const fs=require('fs'); const s=JSON.parse(fs.readFileSync('stream-status.json','utf8')).streamState||{}; process.stdout.write(s.youtubeUrl||'')")
+          YOUTUBE_STATUS=$(node -e "const fs=require('fs'); const s=JSON.parse(fs.readFileSync('stream-status.json','utf8')).streamState||{}; process.stdout.write(s.youtubeStatus||'not_scheduled')")
+          if [ -z "${VIDEO_ID}" ]; then
+            echo "::warning::conferencehype.com/api/stream/status does not report a YouTube video ID."
+            cat stream-status.json
+            echo "unsupported_state=true" >> "$GITHUB_OUTPUT"
+            echo "unsupported_reason=conferencehype.com/api/stream/status does not report a YouTube video ID." >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "${YOUTUBE_STATUS}" = "completed" ]; then
+            VERIFY_PHASE="completed"
+          elif [ "${YOUTUBE_STATUS}" = "live" ]; then
+            VERIFY_PHASE="live"
+          else
+            echo "::warning::Current YouTube status is ${YOUTUBE_STATUS}; expected live or completed for daily verification."
+            cat stream-status.json
+            echo "video_id=${VIDEO_ID}" >> "$GITHUB_OUTPUT"
+            echo "video_url=${VIDEO_URL}" >> "$GITHUB_OUTPUT"
+            echo "youtube_status=${YOUTUBE_STATUS}" >> "$GITHUB_OUTPUT"
+            echo "unsupported_state=true" >> "$GITHUB_OUTPUT"
+            echo "unsupported_reason=Current YouTube status is ${YOUTUBE_STATUS}; expected live or completed for daily verification." >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "video_id=${VIDEO_ID}" >> "$GITHUB_OUTPUT"
+          echo "video_url=${VIDEO_URL}" >> "$GITHUB_OUTPUT"
+          echo "verify_phase=${VERIFY_PHASE}" >> "$GITHUB_OUTPUT"
+          echo "youtube_status=${YOUTUBE_STATUS}" >> "$GITHUB_OUTPUT"
+          echo "unsupported_state=false" >> "$GITHUB_OUTPUT"
+
+      - name: Verify delivery
+        if: ${{ steps.stream.outputs.unsupported_state != 'true' }}
+        id: verify_initial
+        continue-on-error: true
+        run: npx tsx scripts/verify-youtube-delivery-loop.ts 2>&1 | tee verify-initial.log
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          YOUTUBE_VIDEO_ID: ${{ steps.stream.outputs.video_id }}
+          YOUTUBE_VIDEO_URL: ${{ steps.stream.outputs.video_url }}
+          YOUTUBE_VERIFY_PHASE: ${{ steps.stream.outputs.verify_phase }}
+          YOUTUBE_EXPECT_PRIVACY_STATUS: public
+          YOUTUBE_VERIFY_TIMEOUT_SECONDS: 120
+          YOUTUBE_VERIFY_INTERVAL_SECONDS: 20
+          YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
+          YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
+          YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
+
+      - name: Repair YouTube visibility
+        if: ${{ steps.stream.outputs.unsupported_state != 'true' && steps.verify_initial.outcome == 'failure' }}
+        id: repair_visibility
+        continue-on-error: true
+        run: npx tsx scripts/update-youtube-video-privacy.ts 2>&1 | tee repair-visibility.log
+        env:
+          YOUTUBE_VIDEO_ID: ${{ steps.stream.outputs.video_id }}
+          YOUTUBE_PRIVACY_STATUS: public
+          YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
+          YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
+          YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
+
+      - name: Verify delivery after repair
+        if: ${{ steps.stream.outputs.unsupported_state != 'true' && steps.verify_initial.outcome == 'failure' }}
+        id: verify_after_repair
+        continue-on-error: true
+        run: npx tsx scripts/verify-youtube-delivery-loop.ts 2>&1 | tee verify-after-repair.log
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          YOUTUBE_VIDEO_ID: ${{ steps.stream.outputs.video_id }}
+          YOUTUBE_VIDEO_URL: ${{ steps.stream.outputs.video_url }}
+          YOUTUBE_VERIFY_PHASE: ${{ steps.stream.outputs.verify_phase }}
+          YOUTUBE_EXPECT_PRIVACY_STATUS: public
+          YOUTUBE_VERIFY_TIMEOUT_SECONDS: 180
+          YOUTUBE_VERIFY_INTERVAL_SECONDS: 20
+          YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
+          YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
+          YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
+
+      - name: Report unresolved delivery failure
+        if: ${{ steps.verify_initial.outcome == 'failure' && steps.verify_after_repair.outcome == 'failure' }}
+        run: |
+          {
+            echo "Daily YouTube delivery verification failed after automatic repair."
+            echo ""
+            echo "Video: ${{ steps.stream.outputs.video_url }}"
+            echo "Video ID: ${{ steps.stream.outputs.video_id }}"
+            echo "Stream status: ${{ steps.stream.outputs.youtube_status }}"
+            echo "Verifier phase: ${{ steps.stream.outputs.verify_phase }}"
+            echo "Workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo ""
+            echo "Initial verifier output:"
+            echo '```text'
+            cat verify-initial.log
+            echo '```'
+            echo ""
+            echo "Repair output:"
+            echo '```text'
+            if [ -f repair-visibility.log ]; then cat repair-visibility.log; else echo "Repair step did not run."; fi
+            echo '```'
+            echo ""
+            echo "Verifier output after repair:"
+            echo '```text'
+            cat verify-after-repair.log
+            echo '```'
+          } > issue-body.md
+          gh issue create \
+            --repo "${{ github.repository }}" \
+            --title "Daily YouTube delivery verification failed for ${{ steps.stream.outputs.video_id }}" \
+            --body-file issue-body.md
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Report unsupported stream state
+        if: ${{ steps.stream.outputs.unsupported_state == 'true' }}
+        run: |
+          {
+            echo "Daily YouTube delivery verification could not run because the current public stream handoff is not ready for live/completed verification."
+            echo ""
+            echo "Reason: ${{ steps.stream.outputs.unsupported_reason }}"
+            echo "Video: ${{ steps.stream.outputs.video_url }}"
+            echo "Video ID: ${{ steps.stream.outputs.video_id }}"
+            echo "Stream status: ${{ steps.stream.outputs.youtube_status }}"
+            echo "Workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo ""
+            echo "Public stream status payload:"
+            echo '```json'
+            cat stream-status.json
+            echo '```'
+          } > issue-body.md
+          gh issue create \
+            --repo "${{ github.repository }}" \
+            --title "Daily YouTube delivery verification blocked by stream state" \
+            --body-file issue-body.md
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Fail unresolved delivery verification
+        if: ${{ steps.stream.outputs.unsupported_state == 'true' || (steps.verify_initial.outcome == 'failure' && steps.verify_after_repair.outcome == 'failure') }}
+        run: exit 1

@@ -272,6 +272,7 @@ jobs:
           COVERAGE_SLOT_ID: ${{ steps.block.outputs.slot_id }}
           YOUTUBE_VIDEO_ID: ${{ steps.youtube.outputs.youtube_video_id }}
           YOUTUBE_VIDEO_URL: ${{ steps.youtube.outputs.youtube_url }}
+          YOUTUBE_EXPECT_PRIVACY_STATUS: public
           YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
           YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
           YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
@@ -288,6 +289,7 @@ jobs:
           YOUTUBE_VIDEO_ID: ${{ steps.youtube.outputs.youtube_video_id }}
           YOUTUBE_VIDEO_URL: ${{ steps.youtube.outputs.youtube_url }}
           YOUTUBE_VERIFY_PHASE: completed
+          YOUTUBE_EXPECT_PRIVACY_STATUS: public
           YOUTUBE_VERIFY_TIMEOUT_SECONDS: 900
           YOUTUBE_VERIFY_INTERVAL_SECONDS: 20
           STREAM_VIDEO_PATH: public/rendered/conferencehype-hour-broadcast.mp4

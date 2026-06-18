@@ -10,6 +10,7 @@ type VerifyOptions = {
   youtubeUrl?: string;
   mediaPath?: string;
   siteUrl?: string;
+  expectedPrivacyStatus?: "public" | "unlisted" | "private";
   timeoutSeconds?: number;
   intervalSeconds?: number;
 };
@@ -273,6 +274,17 @@ function assertYoutubePhase(phase: Phase, status: YoutubeBroadcastStatus) {
   }
 }
 
+function assertYoutubePrivacy(expectedPrivacyStatus: VerifyOptions["expectedPrivacyStatus"], status: YoutubeBroadcastStatus) {
+  if (!expectedPrivacyStatus || !status.privacyStatus) {
+    return;
+  }
+  if (status.privacyStatus !== expectedPrivacyStatus) {
+    throw new Error(
+      `YouTube video privacyStatus is ${status.privacyStatus}; expected ${expectedPrivacyStatus}.`
+    );
+  }
+}
+
 export async function verifyYoutubeDeliveryLoop(options: VerifyOptions) {
   const startedAt = Date.now();
   const timeoutSeconds = options.timeoutSeconds ?? (options.phase === "completed" ? 900 : 180);
@@ -286,6 +298,7 @@ export async function verifyYoutubeDeliveryLoop(options: VerifyOptions) {
       await assertPublicPage(options);
       const youtubeStatus = await getYoutubeStatus(options.youtubeVideoId);
       assertYoutubePhase(options.phase, youtubeStatus);
+      assertYoutubePrivacy(options.expectedPrivacyStatus, youtubeStatus);
       console.log(
         JSON.stringify(
           {
