@@ -3,6 +3,7 @@
 import { AlertCircle, CalendarDays, CheckCircle2, Clock3, GripVertical, Mic2, Music2, RefreshCcw, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { cardTypeLabel } from "@/lib/broadcast/cardTypes";
 import { buildBroadcastHourBuckets, buildBroadcastSlots } from "@/lib/rundown/slots";
 import { normalizeLegacySegment } from "@/lib/segments/normalizeLegacy";
 import type { Segment } from "@/lib/types";
@@ -101,19 +102,7 @@ function fullDateLabel(value: Date) {
 }
 
 function contentLabel(segment?: Segment) {
-  if (!segment) {
-    return "";
-  }
-  if (segment.contentType === "agenda_preview") {
-    return "official schedule";
-  }
-  if (segment.contentType === "industry_floor") {
-    return "exhibitor chatter";
-  }
-  if (segment.contentType === "abstract_buzz") {
-    return "abstract chatter";
-  }
-  return segment.contentType.replace(/_/g, " ");
+  return segment ? cardTypeLabel(segment) : "";
 }
 
 export function BroadcastRundown({

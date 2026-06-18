@@ -7,6 +7,7 @@ import {
   buildBroadcastSlots,
   type BroadcastSlot
 } from "@/lib/rundown/slots";
+import { cardTypeLabel } from "@/lib/broadcast/cardTypes";
 import type { Segment } from "@/lib/types";
 
 loadEnvConfig(process.cwd());
@@ -55,16 +56,7 @@ function timeLabel(date: Date) {
 }
 
 function contentLabel(segment?: Segment) {
-  if (!segment) {
-    return "";
-  }
-  if (segment.contentType === "industry_floor") {
-    return "exhibitor chatter";
-  }
-  if (segment.contentType === "abstract_buzz") {
-    return "abstract chatter";
-  }
-  return segment.contentType.replace(/_/g, " ");
+  return segment ? cardTypeLabel(segment) : "";
 }
 
 function renderPreview(slots: BroadcastSlot[], start: Date) {

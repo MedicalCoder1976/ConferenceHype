@@ -3,6 +3,7 @@
 import { Check, Clapperboard, Edit3, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
+import { cardTypeLabel } from "@/lib/broadcast/cardTypes";
 import type { Segment } from "@/lib/types";
 
 type Action = "approve" | "reject" | "clip";
@@ -92,7 +93,7 @@ export function ReviewQueue({ segments }: { segments: Segment[] }) {
           <article key={segment.id} className="border border-ink/10 p-4">
             <div className="flex flex-wrap items-center gap-2">
               <span className="bg-broadcast px-3 py-1 text-xs font-black uppercase text-white">
-                {segment.contentType.replace("_", " ")}
+                {cardTypeLabel(segment)}
               </span>
               <span className="bg-ink px-3 py-1 text-xs font-black uppercase text-white">
                 {segment.personaName}

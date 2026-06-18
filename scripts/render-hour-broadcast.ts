@@ -5,6 +5,8 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { loadEnvConfig } from "@next/env";
 import ffmpegPath from "ffmpeg-static";
+import { cardTypeEyebrow, cardTypeLabel } from "@/lib/broadcast/cardTypes";
+import { hasMissingIntakeFailureLanguage, sanitizeBroadcastCopy } from "@/lib/broadcast/sanitizeCopy";
 import {
   formatVoiceSegment,
   stripBroadcastDisclaimer
@@ -35,11 +37,21 @@ type Card = {
   sourceUrl?: string;
   script?: string | null;
   text: string;
+  voiceAudioPath?: string;
+  voiceDurationMs?: number;
 };
 
 const DISCLAIMER_INTERVAL_SECONDS = 15 * 60;
 const BROADCAST_DISCLAIMER =
   `${defaultDisclaimer} ConferenceHype is independent and is not affiliated with conference organizers, presenters, sponsors, or exhibitors.`;
+const GAP_CLIP_PATHS = [
+  "public/music/gap-clips/conferencehype-gap-elevate-to-fenrir-20s.mp3",
+  "public/music/gap-clips/conferencehype-gap-nightclub-to-rebecca-20s.mp3",
+  "public/music/gap-clips/conferencehype-gap-subterranean-to-adam-20s.mp3",
+  "public/music/gap-clips/conferencehype-gap-skyline-to-aussieonc-20s.mp3",
+  "public/music/conferencehype-gap-music-20sec-preview-v1.mp3",
+  "public/music/conferencehype-gap-music-20sec-preview-v2.mp3"
+];
 
 function run(command: string, args: string[]) {
   return new Promise<void>((resolve, reject) => {
@@ -55,7 +67,7 @@ function run(command: string, args: string[]) {
 }
 
 function cleanText(value: string) {
-  return value
+  return sanitizeBroadcastCopy(value)
     .replace(/<[^>]+>/g, " ")
     .replace(/&amp;/g, "&")
     .replace(/&gt;/g, ">")
@@ -134,6 +146,53 @@ function formatTransitionCard(nextLabel?: string) {
     title: nextLabel ? `${nextLabel} continues shortly` : "Coverage continues shortly",
     body: "Stay with ConferenceHype for the next source-attributed update."
   });
+}
+
+function cardHasMissingIntakeFailure(card: Card) {
+  return hasMissingIntakeFailureLanguage(
+    [card.title, card.sourceLabel, card.sourceUrl, card.script, card.text]
+      .filter(Boolean)
+      .join(" ")
+  );
+}
+
+function replaceMissingIntakeCardsWithMusic(cards: Card[]) {
+  let musicIndex = 0;
+  return cards.map((card) => {
+    if (card.isMusic || !cardHasMissingIntakeFailure(card)) {
+      if (card.isMusic) {
+        musicIndex += 1;
+      }
+      return card;
+    }
+    return {
+      duration: Math.max(20, card.duration),
+      isMusic: true,
+      gapClipPath: GAP_CLIP_PATHS[musicIndex++ % GAP_CLIP_PATHS.length],
+      title: "Music transition",
+      script: null,
+      text: formatTransitionCard()
+    };
+  });
+}
+
+function wordCount(value: string) {
+  return value.trim().split(/\s+/).filter(Boolean).length;
+}
+
+function expandContentDurations(cards: Card[]) {
+  for (const card of cards) {
+    if (card.isMusic || !card.script) {
+      continue;
+    }
+    const spokenSeconds = Math.ceil(wordCount(card.script) / 2) + 5;
+    card.duration = Math.max(card.duration, spokenSeconds);
+  }
+  return cards;
+}
+
+function totalCardSeconds(cards: Card[]) {
+  return Math.max(1, cards.reduce((total, card) => total + card.duration, 0));
 }
 
 function applyPresentationPolicy(cards: Card[]) {
@@ -287,7 +346,7 @@ async function buildCards(): Promise<Card[]> {
       text: isMusic
         ? formatTransitionCard()
         : formatCard({
-            eyebrow: `${slot.segment?.personaName ?? "ConferenceHype"} / ${slot.segment?.contentType.replace(/_/g, " ") ?? "content"}`,
+            eyebrow: `${slot.segment?.personaName ?? "ConferenceHype"} / ${slot.segment ? cardTypeEyebrow(slot.segment) : "CONTENT"}`,
             title: slot.segment?.title ?? slot.label,
             body: slot.segment?.summary || slot.segment?.script || slot.label,
             source: slot.segment?.citations[0]?.url
@@ -413,6 +472,9 @@ async function buildBlockCards(): Promise<Card[]> {
           duration: CONTENT_SECONDS,
           isMusic: false,
           personaId: seg.personaId,
+          personaName: seg.personaName,
+          contentType: "agenda_preview",
+          title: seg.title,
           script,
           text: formatCard({
             eyebrow: `Schedule — ${seg.personaName}`,
@@ -435,9 +497,14 @@ async function buildBlockCards(): Promise<Card[]> {
           duration: CONTENT_SECONDS,
           isMusic: false,
           personaId: undefined,
+          contentType: blockIndex === 2 ? "industry_floor" : "media_roundup",
+          title: blockLabel,
           script: null, // No TTS — music bed + gap clip play under silent slide
           text: formatCard({
-            eyebrow: "CONFERENCEHYPE",
+            eyebrow: cardTypeEyebrow({
+              contentType: blockIndex === 2 ? "industry_floor" : "media_roundup",
+              title: blockLabel
+            }),
             title: blockLabel,
             body: "Live conference commentary continues shortly."
           })
@@ -468,6 +535,9 @@ async function buildBlockCards(): Promise<Card[]> {
             duration: CONTENT_SECONDS,
             isMusic: false,
             personaId: seg.personaId,
+            personaName: seg.personaName,
+            contentType: "agenda_preview",
+            title: seg.title,
             script,
             text: formatCard({
               eyebrow: `${blockLabel} — bridge`,
@@ -487,6 +557,9 @@ async function buildBlockCards(): Promise<Card[]> {
             duration: CONTENT_SECONDS,
             isMusic: false,
             personaId: chunk.personaId,
+            personaName: chunk.personaName,
+            contentType: blockIndex === 2 ? "industry_floor" : "media_roundup",
+            title: chunk.title,
             script,
             text: formatCard({
               eyebrow: `${blockLabel} — ${chunk.personaName}`,
@@ -506,13 +579,7 @@ async function buildBlockCards(): Promise<Card[]> {
     }
   }
 
-  // Trim to durationSeconds just in case of rounding
-  let accumulated = 0;
-  return cards.filter((card) => {
-    if (accumulated >= durationSeconds) return false;
-    accumulated += card.duration;
-    return true;
-  });
+  return cards;
 }
 
 function cardTitle(card: Card) {
@@ -549,8 +616,8 @@ function buildWriteoutMarkdown(title: string, cards: BroadcastWriteoutCard[]) {
     lines.push(`## ${card.position}. ${card.title}`);
     lines.push(`Start: ${card.startsAt}`);
     if (card.personaName) lines.push(`Voice: ${card.personaName}`);
-    if (card.contentType) lines.push(`Type: ${card.contentType.replace(/_/g, " ")}`);
-    lines.push("", card.script?.trim() || "No spoken script.", "");
+    if (card.contentType) lines.push(`Type: ${cardTypeLabel(card)}`);
+    lines.push("", sanitizeBroadcastCopy(card.script?.trim() || "No spoken script."), "");
     if (card.sourceUrl) {
       lines.push(`Source: ${card.sourceLabel ?? card.sourceUrl} (${card.sourceUrl})`, "");
     }
@@ -570,7 +637,7 @@ async function saveBroadcastWriteout(cards: Card[]) {
   await upsertBroadcastWriteoutInDb({
     coverageSlotId: process.env.COVERAGE_SLOT_ID || undefined,
     startsAt: startsAt.toISOString(),
-    durationMinutes: 60,
+    durationMinutes: Math.ceil(totalCardSeconds(cards) / 60),
     title,
     status: "rendering",
     youtubeVideoId: process.env.YOUTUBE_VIDEO_ID || undefined,
@@ -588,8 +655,10 @@ async function saveBroadcastWriteout(cards: Card[]) {
 async function main() {
   const ffmpeg = process.env.FFMPEG_PATH ?? ffmpegPath ?? "ffmpeg";
   const useBlockMode = process.env.HOUR_BROADCAST_MODE === "blocks";
-  const cards = applyPresentationPolicy(
-    useBlockMode ? await buildBlockCards() : await buildCards()
+  const cards = expandContentDurations(
+    replaceMissingIntakeCardsWithMusic(
+      applyPresentationPolicy(useBlockMode ? await buildBlockCards() : await buildCards())
+    )
   );
   await saveBroadcastWriteout(cards);
   await mkdir(renderDir, { recursive: true });
@@ -751,6 +820,7 @@ async function main() {
   voiceEntries.sort((a, b) => a.startMs - b.startMs);
 
   const hasVoice = Boolean(voicePath) || voiceEntries.length > 0;
+  const renderedDurationSeconds = totalCardSeconds(cards);
 
   let audioArgs: string[];
   if (voiceEntries.length > 0 || gapEntries.length > 0) {
@@ -820,7 +890,7 @@ async function main() {
     "-r",
     "30",
     "-t",
-    String(durationSeconds),
+    String(renderedDurationSeconds),
     "-c:v",
     "libx264",
     "-preset",
@@ -841,7 +911,8 @@ async function main() {
         contentCards: cards.filter((card) => !card.isMusic).length,
         musicCards: cards.filter((card) => card.isMusic).length,
         voiceCardsCached: voiceEntries.length,
-        durationSeconds,
+        plannedDurationSeconds: durationSeconds,
+        renderedDurationSeconds,
         outputPath,
         musicPath,
         voicePath: voicePath ?? null

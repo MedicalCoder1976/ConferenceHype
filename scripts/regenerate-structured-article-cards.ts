@@ -109,9 +109,11 @@ function sourceName(segment: Segment) {
 }
 
 function hasGenericSectionFallback(value: string) {
-  return /\b(The available .* record identifies|stored intake text does not expose|title indicates|title signals|discussion should remain limited|discussion context available)\b/i.test(
-    value
+  const genericPattern = new RegExp(
+    String.raw`\b(The available .* record identifies|stored\s+intake\s+text\s+does\s+not\s+expose|title\s+indicates|title\s+signals|discussion\s+should\s+remain\s+limited|discussion\s+context\s+available)\b`,
+    "i"
   );
+  return genericPattern.test(value);
 }
 
 async function fetchBestSourceText(segment: Segment) {

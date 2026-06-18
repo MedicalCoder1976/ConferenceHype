@@ -79,8 +79,14 @@ embedder.
 - Viewer-facing transition cards are clean ConferenceHype cards. Internal
   labels such as "music card", "gap clip", or workflow instructions are not
   shown.
-- Do not use the phrase "source-backed item" in prepared copy. Attribute the
+- Do not use internal generic source labels in prepared copy. Attribute the
   journal, meeting, media, or social source naturally instead.
+- Cards placed into slots must visibly belong to one of six operator-facing
+  types: Journal coverage, Abstracts, Conference Coverage, Media watch, Pharma
+  watch, or Diagnostic Company watch.
+- If any card contains missing-intake failure language instead of source detail,
+  replace the entire card with the stored music transition. Do not voice or
+  display that card as content.
 - Journal-review cards begin their substantive content with: "From the
   [Month] edition of [Journal Name]". They should condense the abstract,
   methods, results, and discussion into broadcast language rather than merely

@@ -1,4 +1,5 @@
 import { ExternalLink } from "lucide-react";
+import { cardTypeLabel } from "@/lib/broadcast/cardTypes";
 import type { Segment } from "@/lib/types";
 
 export function SegmentCard({ segment }: { segment: Segment }) {
@@ -6,7 +7,7 @@ export function SegmentCard({ segment }: { segment: Segment }) {
     <article className="border border-ink/10 bg-white p-5 shadow-panel">
       <div className="flex flex-wrap items-center gap-2">
         <span className="rounded-full bg-cyanline px-3 py-1 text-xs font-black uppercase text-white">
-          {segment.contentType.replace("_", " ")}
+          {cardTypeLabel(segment)}
         </span>
         <span className="rounded-full bg-paper px-3 py-1 text-xs font-bold uppercase text-ink">
           {segment.personaName}

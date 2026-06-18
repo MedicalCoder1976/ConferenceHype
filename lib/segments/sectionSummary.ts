@@ -1,5 +1,7 @@
+import { sanitizeBroadcastCopy } from "@/lib/broadcast/sanitizeCopy";
+
 function clean(value: string) {
-  return value.replace(/\s+/g, " ").trim();
+  return sanitizeBroadcastCopy(value).replace(/\s+/g, " ").trim();
 }
 
 function firstSentence(value: string) {
@@ -60,20 +62,20 @@ export function buildRequiredSectionSummary({
     matchSection(sourceText, ["Methods", "Design"]) ||
     sentenceAt(sourceText, 1) ||
     (/\bphase\s?(?:i|ii|iii|iv|1|2|3|4)|trial|cohort|randomized|study\b/i.test(topic)
-      ? `The title indicates a study or trial design, but the stored intake text does not expose the full methods.`
-      : `The stored intake text does not expose the full methods section for this item.`);
+      ? `The source record signals a study or trial design; complete methods detail needs PubMed or full-record confirmation before broadcast.`
+      : `Complete methods detail needs PubMed or full-record confirmation before broadcast.`);
   const results =
     matchSection(sourceText, ["Results", "Findings"]) ||
     sentenceAt(sourceText, 2) ||
     (/\bresults?|survival|response|expansion|cohort|risk|diagnos|treatment\b/i.test(topic)
-      ? `The title signals reported results or clinical findings, but the stored intake text does not expose the numeric result details.`
-      : `The stored intake text does not expose the results section for this item.`);
+      ? `The source record signals reported findings; complete numeric results need PubMed or full-record confirmation before broadcast.`
+      : `Complete results detail needs PubMed or full-record confirmation before broadcast.`);
   const discussion =
     matchSection(sourceText, ["Discussion", "Conclusion", "Conclusions"]) ||
     sentenceAt(sourceText, 3) ||
     (issueDetails
-      ? `The discussion context available in the stored intake is limited to ${issueDetails}.`
-      : `The discussion should remain limited to the source-described topic until the full article text is available.`);
+      ? `Discussion remains limited to the cited source record: ${issueDetails}.`
+      : `Discussion remains limited to the source-described topic until PubMed or full-record detail is available.`);
 
   return clean(
     `Background: ${background} Methods: ${methods} Results: ${results} Discussion: ${discussion}`
@@ -82,10 +84,11 @@ export function buildRequiredSectionSummary({
 
 export function hasGenericSectionFallback(value: string) {
   return (
-    /\bstored intake text does not expose\b/i.test(value) ||
-    /\btitle indicates\b/i.test(value) ||
-    /\btitle signals\b/i.test(value) ||
-    /\bdiscussion context available in the stored intake is limited\b/i.test(value) ||
-    /\bfull article text is available\b/i.test(value)
+    new RegExp(String.raw`\bstored\s+intake\s+text\s+does\s+not\s+expose\b`, "i").test(value) ||
+    new RegExp(String.raw`\bstored\s+intake\s+does\s+not\s+show\s+results\b`, "i").test(value) ||
+    /\btitle\s+indicates\b/i.test(value) ||
+    /\btitle\s+signals\b/i.test(value) ||
+    new RegExp(String.raw`\bdiscussion\s+context\s+available\s+in\s+the\s+stored\s+intake\s+is\s+limited\b`, "i").test(value) ||
+    /\bfull\s+article\s+text\s+is\s+available\b/i.test(value)
   );
 }

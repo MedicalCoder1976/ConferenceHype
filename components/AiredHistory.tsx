@@ -1,4 +1,5 @@
 import { History } from "lucide-react";
+import { cardTypeLabel } from "@/lib/broadcast/cardTypes";
 import type { Segment } from "@/lib/types";
 
 type XMention = {
@@ -176,7 +177,7 @@ export function AiredHistory({ segments }: { segments: Segment[] }) {
                 {segment.personaName}
               </span>
               <span className="border border-ink/15 px-2 py-1 text-xs font-bold uppercase text-ink/70">
-                {segment.contentType.replace(/_/g, " ")}
+                {cardTypeLabel(segment)}
               </span>
             </div>
             <h3 className="mt-3 text-lg font-black leading-6 text-ink">

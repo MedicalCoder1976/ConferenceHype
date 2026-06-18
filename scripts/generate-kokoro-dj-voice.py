@@ -207,7 +207,7 @@ VOICE_PERFORMANCES = {
         {"speed": 1.12, "pause": 0.14, "text": "Media moment."},
         {"speed": 1.12, "pause": 0.14, "text": "Hallway buzz."},
         {"speed": 1.06, "pause": 0.18, "text": "Source links are welcome. Official schedule items are welcome. Vague chatter stays outside the rundown."},
-        {"speed": 0.94, "pause": 0.22, "text": "Source-backed items, official schedule, monitored voices, operator statements. That is what gets into the rundown."},
+        {"speed": 0.94, "pause": 0.22, "text": "Source-attributed cards, official schedule, monitored voices, operator statements. That is what gets into the rundown."},
         {"speed": 1.06, "pause": 0.18, "text": "TumorCrusher keeps it moving: Fenrir owns the schedule, Marisol brings the Latina DJ fire, Rebecca reports the heat, Aussie Onc brings the global hype, and Adam handles the feed."},
         {"speed": 1.13, "pause": 0.0, "text": "ConferenceHype is live. Post better. We are listening."},
     ],
