@@ -222,8 +222,9 @@ YOUTUBE_STREAM_KEY
 NEXT_PUBLIC_YOUTUBE_VIDEO_ID
 ```
 
-Set the GitHub Actions variable `YOUTUBE_PRIVACY_STATUS` to `unlisted` for
-rehearsals. The workflow defaults to `unlisted` when the variable is absent.
+Set the GitHub Actions variable `YOUTUBE_PRIVACY_STATUS` to `public` for
+production scheduled broadcasts so saved streams appear on the ConferenceHype
+YouTube channel. Use `unlisted` only for rehearsals or private tests.
 
 The OAuth consent screen must allow the Google account used to create the
 refresh token while the app is in testing. The OAuth client must include
