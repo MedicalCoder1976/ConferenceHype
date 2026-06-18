@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import ffmpegPath from "ffmpeg-static";
 import { loadEnvConfig } from "@next/env";
 import { updateConferenceCoverageDeliveryInDb } from "@/lib/db";
+import { verifyYoutubeDeliveryLoop } from "@/lib/media/youtubeDeliveryVerifier";
 
 loadEnvConfig(process.cwd());
 
@@ -131,8 +132,29 @@ async function main() {
   let stable = false;
   const stabilityTimer = setTimeout(() => {
     stable = true;
-    console.log("YOUTUBE_RTMP_STABLE: FFmpeg remained connected for 30 seconds.");
-    void updateDelivery("live");
+    void (async () => {
+      console.log("YOUTUBE_RTMP_STABLE: FFmpeg remained connected for 30 seconds.");
+      await updateDelivery("live");
+      if (process.env.YOUTUBE_SKIP_LIVE_VERIFY === "1" || !process.env.YOUTUBE_VIDEO_ID) {
+        return;
+      }
+      try {
+        await verifyYoutubeDeliveryLoop({
+          phase: "live",
+          youtubeVideoId: process.env.YOUTUBE_VIDEO_ID,
+          youtubeUrl: process.env.YOUTUBE_VIDEO_URL,
+          mediaPath: videoPath,
+          timeoutSeconds: Number(process.env.YOUTUBE_LIVE_VERIFY_TIMEOUT_SECONDS ?? "180"),
+          intervalSeconds: Number(process.env.YOUTUBE_LIVE_VERIFY_INTERVAL_SECONDS ?? "15")
+        });
+        console.log("YOUTUBE_LIVE_DELIVERY_VERIFIED: rendered video, YouTube, public state, and conferencehype.com match.");
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`YOUTUBE_LIVE_DELIVERY_VERIFY_FAILED: ${message}`);
+        await updateDelivery("failed", message);
+        child.kill("SIGTERM");
+      }
+    })();
   }, 30_000);
   child.stderr?.on("data", (chunk: Buffer) => {
     const text = chunk.toString("utf8");

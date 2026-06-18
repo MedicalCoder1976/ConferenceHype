@@ -24,9 +24,13 @@ to YouTube, and exposes the same broadcast on `conferencehype.com`.
 9. Supabase `stream_state` receives the current YouTube ID, URL, and delivery
    status. The public site reads this state dynamically.
 10. FFmpeg publishes the rendered MP4 to the bound YouTube RTMP endpoint.
-11. After FFmpeg finishes, the workflow verifies that the public stream state
-    and saved writeout still match the same YouTube video ID and that the final
-    public status is `completed`.
+11. While FFmpeg is still running, the workflow loops until it verifies the
+    rendered video, YouTube live state, Supabase public stream state, and
+    `conferencehype.com` all point to the same video ID.
+12. After FFmpeg finishes, the workflow loops again until the saved YouTube
+    video/archive remains available, the public stream state and saved writeout
+    still match the same YouTube video ID, and the final public status is
+    `completed`.
 
 The fixed RTMP URL and key are a legacy fallback. The normal production path is
 the OAuth-created fresh broadcast.
@@ -284,6 +288,14 @@ npm run test:rss
 npm run build
 ```
 
+Delivery check loop:
+
+```powershell
+$env:YOUTUBE_VIDEO_ID="<video id>"
+$env:YOUTUBE_VERIFY_PHASE="live" # or completed
+npm run verify:youtube-delivery
+```
+
 Audio-mapping dry run:
 
 ```powershell
@@ -301,12 +313,13 @@ practice stream. Before declaring the stream visible on both sides, verify:
    broken-pipe, or competing-publisher errors.
 4. The workflow reports
    `YOUTUBE_RTMP_STABLE: FFmpeg remained connected for 30 seconds.`
-5. `/api/stream/status` reports `live` and the same YouTube video ID.
-6. `conferencehype.com` loads that ID in its iframe.
-7. The YouTube watch page shows the same live program at the same time.
-8. After the hour finishes, the workflow's **Verify completed YouTube handoff**
-   step passes and `/api/stream/status` reports `completed` for that same
-   YouTube video ID.
+5. `YOUTUBE_LIVE_DELIVERY_VERIFIED` appears, proving the generated MP4,
+   YouTube live record, `/api/stream/status`, saved writeout, and
+   `conferencehype.com` all match the same YouTube video ID.
+6. The YouTube watch page shows the same live program at the same time.
+7. After the hour finishes, the workflow's **Verify completed YouTube handoff**
+   loop passes and `/api/stream/status` reports `completed` for that same
+   YouTube video ID, with the saved YouTube video still reachable.
 
 ## Deployment
 

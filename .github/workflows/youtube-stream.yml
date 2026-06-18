@@ -272,18 +272,28 @@ jobs:
           COVERAGE_SLOT_ID: ${{ steps.block.outputs.slot_id }}
           YOUTUBE_VIDEO_ID: ${{ steps.youtube.outputs.youtube_video_id }}
           YOUTUBE_VIDEO_URL: ${{ steps.youtube.outputs.youtube_url }}
+          YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
+          YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
+          YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
       - name: Verify completed YouTube handoff
         if: ${{ steps.block.outputs.block_start != '' }}
-        run: npx tsx scripts/verify-public-broadcast-alignment.ts
+        run: npx tsx scripts/verify-youtube-delivery-loop.ts
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           YOUTUBE_VIDEO_ID: ${{ steps.youtube.outputs.youtube_video_id }}
-          EXPECTED_YOUTUBE_STATUS: completed
+          YOUTUBE_VIDEO_URL: ${{ steps.youtube.outputs.youtube_url }}
+          YOUTUBE_VERIFY_PHASE: completed
+          YOUTUBE_VERIFY_TIMEOUT_SECONDS: 900
+          YOUTUBE_VERIFY_INTERVAL_SECONDS: 20
+          STREAM_VIDEO_PATH: public/rendered/conferencehype-hour-broadcast.mp4
+          YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
+          YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
+          YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
 
       - name: Start fallback YouTube RTMP loop
         if: ${{ github.event_name == 'workflow_dispatch' && steps.block.outputs.block_start == '' }}
