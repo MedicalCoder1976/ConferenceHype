@@ -271,7 +271,12 @@ and provide the affected YouTube video ID.
 - `generate.yml`: hourly, including fresh ingestion
 - `ingest.yml`: daily safety pull
 - `upcoming-events.yml`: every six hours
-- `youtube-stream.yml`: hourly continuation check and manual dispatch
+- `youtube-stream.yml`: hourly continuation check and manual dispatch. Every
+  scheduled broadcast must run the verifier loop after streaming; if the loop
+  cannot prove the rendered MP4, YouTube live/completed state, saved YouTube
+  video, Supabase stream state, saved writeout, and `conferencehype.com` all
+  match the same video ID, the broadcast process is still broken and must keep
+  failing/retrying until fixed.
 - `youtube-enable-embed.yml`: manual repair for a specific video
 - `briefing.yml`: manual
 - `render-media.yml`: manual or configured media render
