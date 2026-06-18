@@ -2,14 +2,13 @@ import { spawn } from "node:child_process";
 import ffmpegPath from "ffmpeg-static";
 import { loadEnvConfig } from "@next/env";
 import { updateConferenceCoverageDeliveryInDb } from "@/lib/db";
+import { HYPE_LINE_VIDEO_FILTER, HYPE_LINE_VIDEO_INPUT } from "@/lib/media/hypeLine";
 import { verifyYoutubeDeliveryLoop } from "@/lib/media/youtubeDeliveryVerifier";
 
 loadEnvConfig(process.cwd());
 
 const ffmpeg = process.env.FFMPEG_PATH ?? ffmpegPath ?? "ffmpeg";
 const videoPath = process.env.STREAM_VIDEO_PATH;
-const slideConcatPath =
-  process.env.STREAM_SLIDE_CONCAT ?? "public/rendered/hour-broadcast/slides.ffconcat";
 const musicPath =
   process.env.STREAM_MUSIC_PATH ?? "public/music/conferencehype-gap-music-6min-v3.mp3";
 const voicePath = process.env.STREAM_VOICE_PATH;
@@ -47,11 +46,9 @@ async function main() {
   const { getYoutubeRtmpTarget } = await import("@/lib/media/stream");
   const target = getYoutubeRtmpTarget();
 
-  const videoInputArgs = videoPath
-    ? ["-re", "-stream_loop", "-1", "-i", videoPath]
-    : ["-re", "-f", "concat", "-safe", "0", "-i", slideConcatPath];
+  const videoInputArgs = ["-re", "-f", "lavfi", "-i", HYPE_LINE_VIDEO_INPUT];
   const liveAudioArgs = videoPath
-    ? ["-map", "0:a:0"]
+    ? ["-stream_loop", "-1", "-i", videoPath, "-map", "1:a:0"]
     : voicePath
       ? [
         "-stream_loop",
@@ -85,6 +82,8 @@ async function main() {
     ...liveAudioArgs,
     "-t",
     durationSeconds,
+    "-vf",
+    HYPE_LINE_VIDEO_FILTER,
     "-r",
     "30",
     "-c:v",

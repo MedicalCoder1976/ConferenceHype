@@ -7,6 +7,7 @@ import { loadEnvConfig } from "@next/env";
 import ffmpegPath from "ffmpeg-static";
 import { cardTypeEyebrow, cardTypeLabel } from "@/lib/broadcast/cardTypes";
 import { hasMissingIntakeFailureLanguage, sanitizeBroadcastCopy } from "@/lib/broadcast/sanitizeCopy";
+import { HYPE_LINE_VIDEO_FILTER } from "@/lib/media/hypeLine";
 import {
   formatVoiceSegment,
   stripBroadcastDisclaimer
@@ -671,20 +672,12 @@ async function main() {
     const imagePath = path.join(renderDir, `slide-${String(index + 1).padStart(2, "0")}.png`);
     await writeFile(slidePath, cards[index].text, "utf8");
     const color = index % 2 === 0 ? "0x11151f" : "0x151a27";
-    const textPath = slidePath.replace(/\\/g, "/");
-    const imageFilter =
-      `drawbox=x=0:y=0:w=1280:h=18:color=0xf4483a@1:t=fill,` +
-        `drawbox=x=0:y=702:w=1280:h=18:color=0x33d6c5@1:t=fill,` +
-        `drawtext=font='Arial':textfile='${textPath}':x=70:y=72:fontsize=31:` +
-        `fontcolor=white:line_spacing=13`;
     await run(ffmpeg, [
       "-y",
       "-f",
       "lavfi",
       "-i",
       `color=c=${color}:s=1280x720`,
-      "-vf",
-      imageFilter,
       "-frames:v",
       "1",
       imagePath
@@ -887,6 +880,8 @@ async function main() {
     "0:v",
     "-map",
     "[a]",
+    "-vf",
+    HYPE_LINE_VIDEO_FILTER,
     "-r",
     "30",
     "-t",
