@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, CalendarDays, Clock3, GripVertical, Mic2, Music2, RefreshCcw, Trash2 } from "lucide-react";
+import { AlertCircle, CalendarDays, CheckCircle2, Clock3, GripVertical, Mic2, Music2, RefreshCcw, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { buildBroadcastHourBuckets, buildBroadcastSlots } from "@/lib/rundown/slots";
@@ -437,6 +437,9 @@ export function BroadcastRundown({
                       <span className="bg-broadcast px-2 py-1 text-[11px] font-black uppercase text-white">
                         New
                       </span>
+                      <span className="border border-gold/60 bg-gold/10 px-2 py-1 text-[11px] font-black uppercase text-ink/70">
+                        Not in selected hour
+                      </span>
                       <span className="border border-ink/15 px-2 py-1 text-[11px] font-bold uppercase text-ink/70">
                         {contentLabel(segment)}
                       </span>
@@ -475,6 +478,9 @@ export function BroadcastRundown({
                         </ul>
                       ) : null}
                     </details>
+                    <p className="mt-2 text-[11px] font-bold uppercase leading-4 text-ink/45">
+                      Use Replace, drag into a slot, or Accept and schedule this hour before this card joins the presentation sequence.
+                    </p>
                     <div className="mt-3 flex gap-2">
                       <button
                         type="button"
@@ -551,6 +557,12 @@ export function BroadcastRundown({
                     <span className="border border-ink/10 bg-white px-2 py-1 text-[11px] font-black uppercase text-ink/50">
                       {slot.durationSeconds === 40 ? "0:40" : slot.durationSeconds === 20 ? "0:20" : slot.durationSeconds === 10 ? "0:10" : `${String(Math.floor(slot.durationSeconds / 60)).padStart(1, "0")}:${String(slot.durationSeconds % 60).padStart(2, "0")}`}
                     </span>
+                    {slot.kind !== "music" ? (
+                      <span className="inline-flex items-center gap-1 border border-mint/50 bg-mint/10 px-2 py-1 text-[11px] font-black uppercase text-ink/70">
+                        <CheckCircle2 className="h-3 w-3 text-mint" />
+                        Approved in presentation sequence
+                      </span>
+                    ) : null}
                     {slot.kind !== "music" ? (
                       <button
                         type="button"

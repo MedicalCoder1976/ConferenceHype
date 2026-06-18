@@ -67,6 +67,11 @@ embedder.
 
 ## Broadcast Presentation
 
+- Created/ready cards are not automatically in the selected hour. A card only
+  belongs to the broadcast presentation sequence after it is accepted and
+  scheduled for that hour, dragged into a content slot, or used as a replacement.
+  Admin card lists must show this distinction: ready cards are candidates, while
+  scheduled slot cards are marked as approved in the presentation sequence.
 - Viewer-facing transition cards are clean ConferenceHype cards. Internal
   labels such as "music card", "gap clip", or workflow instructions are not
   shown.

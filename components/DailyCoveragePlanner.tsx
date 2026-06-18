@@ -479,8 +479,8 @@ export function DailyCoveragePlanner({
                       : "Accept and schedule this hour"}
                 </button>
                 <span className="text-xs font-semibold leading-5 text-ink/55">
-                  Manual option: edit Brand New Ready Cards, then drag them into slots or use
-                  Replace / Replace with this.
+                  Created cards are only ready-card candidates until they are scheduled.
+                  Scheduled cards show as approved in the presentation sequence below.
                 </span>
               </div>
             ) : null}
