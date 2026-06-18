@@ -314,8 +314,10 @@ practice stream. Before declaring the stream visible on both sides, verify:
 4. The workflow reports
    `YOUTUBE_RTMP_STABLE: FFmpeg remained connected for 30 seconds.`
 5. `YOUTUBE_LIVE_DELIVERY_VERIFIED` appears, proving the generated MP4,
-   YouTube live record, `/api/stream/status`, saved writeout, and
-   `conferencehype.com` all match the same YouTube video ID.
+   YouTube live record, YouTube saved/reachable video record,
+   `/api/stream/status`, saved writeout, and `conferencehype.com` all match the
+   same YouTube video ID. If YouTube cannot find the saved video by ID, the
+   process is not working and the workflow must fail.
 6. The YouTube watch page shows the same live program at the same time.
 7. After the hour finishes, the workflow's **Verify completed YouTube handoff**
    loop passes and `/api/stream/status` reports `completed` for that same

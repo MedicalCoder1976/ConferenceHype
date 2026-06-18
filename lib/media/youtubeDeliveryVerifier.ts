@@ -15,6 +15,8 @@ type VerifyOptions = {
 };
 
 type YoutubeBroadcastStatus = {
+  foundOnYoutube: boolean;
+  watchPageReachable: boolean;
   lifeCycleStatus?: string;
   privacyStatus?: string;
   recordingStatus?: string;
@@ -113,17 +115,8 @@ async function getYoutubeAccessToken() {
 async function getYoutubeStatus(videoId: string): Promise<YoutubeBroadcastStatus> {
   const accessToken = await getYoutubeAccessToken();
   if (!accessToken) {
-    const page = await fetch(`https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`, {
-      redirect: "follow"
-    });
-    if (!page.ok) {
-      throw new Error(`YouTube watch page returned ${page.status}.`);
-    }
-    const html = await page.text();
-    if (!html.includes(videoId) || /"status"\s*:\s*"ERROR"/i.test(html)) {
-      throw new Error(`YouTube watch page did not expose playable video ${videoId}.`);
-    }
-    return {};
+    await assertYoutubeWatchPage(videoId);
+    return { foundOnYoutube: true, watchPageReachable: true };
   }
 
   const [broadcastResponse, videoResponse] = await Promise.all([
@@ -163,7 +156,10 @@ async function getYoutubeStatus(videoId: string): Promise<YoutubeBroadcastStatus
   if (!video) {
     throw new Error(`YouTube video ${videoId} was not found.`);
   }
+  await assertYoutubeWatchPage(videoId);
   return {
+    foundOnYoutube: true,
+    watchPageReachable: true,
     lifeCycleStatus: broadcast?.status?.lifeCycleStatus,
     privacyStatus: broadcast?.status?.privacyStatus,
     recordingStatus: broadcast?.status?.recordingStatus,
@@ -172,6 +168,19 @@ async function getYoutubeStatus(videoId: string): Promise<YoutubeBroadcastStatus
     actualEndTime: video.liveStreamingDetails?.actualEndTime,
     embeddable: video.status?.embeddable ?? broadcast?.contentDetails?.enableEmbed
   };
+}
+
+async function assertYoutubeWatchPage(videoId: string) {
+  const page = await fetch(`https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`, {
+    redirect: "follow"
+  });
+  if (!page.ok) {
+    throw new Error(`YouTube watch page returned ${page.status}.`);
+  }
+  const html = await page.text();
+  if (!html.includes(videoId) || /"status"\s*:\s*"ERROR"/i.test(html)) {
+    throw new Error(`YouTube watch page did not expose saved/playable video ${videoId}.`);
+  }
 }
 
 async function assertPublicState(options: VerifyOptions) {
@@ -234,6 +243,10 @@ async function assertPublicPage(options: VerifyOptions) {
 }
 
 function assertYoutubePhase(phase: Phase, status: YoutubeBroadcastStatus) {
+  if (!status.foundOnYoutube || !status.watchPageReachable) {
+    throw new Error("YouTube did not return a saved/reachable video record for this ID.");
+  }
+
   if (phase === "live") {
     if (status.lifeCycleStatus && !["live", "testing"].includes(status.lifeCycleStatus)) {
       throw new Error(`YouTube broadcast is ${status.lifeCycleStatus}; expected live/testing.`);
@@ -247,8 +260,16 @@ function assertYoutubePhase(phase: Phase, status: YoutubeBroadcastStatus) {
   if (status.lifeCycleStatus && status.lifeCycleStatus !== "complete") {
     throw new Error(`YouTube broadcast is ${status.lifeCycleStatus}; expected complete.`);
   }
-  if (status.uploadStatus && !["processed", "uploaded"].includes(status.uploadStatus)) {
-    throw new Error(`YouTube video uploadStatus is ${status.uploadStatus}; expected processed/uploaded.`);
+  if (
+    status.uploadStatus &&
+    !["processed", "uploaded"].includes(status.uploadStatus)
+  ) {
+    throw new Error(
+      `YouTube saved video uploadStatus is ${status.uploadStatus}; expected processed/uploaded.`
+    );
+  }
+  if (status.uploadStatus && ["deleted", "failed", "rejected"].includes(status.uploadStatus)) {
+    throw new Error(`YouTube did not save the video successfully; uploadStatus is ${status.uploadStatus}.`);
   }
 }
 
