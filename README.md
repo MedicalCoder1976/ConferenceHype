@@ -76,6 +76,15 @@ embedder.
   scheduled for that hour, dragged into a content slot, or used as a replacement.
   Admin card lists must show this distinction: ready cards are candidates, while
   scheduled slot cards are marked as approved in the presentation sequence.
+- Daily card creation is selection-only. The admin selects the date and time,
+  then checks the desired journals, meetings, abstracts, or media sources. The
+  batch algorithm must create cards only from those checked selections, using
+  source IDs rather than loose title/source-name matching. Brand New Ready Cards
+  remain candidates until the admin accepts, rejects, or replaces them into the
+  presentation sequence.
+- Daily guard verification must fail if an unselected journal/meeting/media
+  item can generate a card or if a legacy untagged batch card can enter the
+  presentation sequence.
 - Viewer-facing transition cards are clean ConferenceHype cards. Internal
   labels such as "music card", "gap clip", or workflow instructions are not
   shown.

@@ -9,6 +9,7 @@ import {
   normalizeLegacyDailyCoverageDefaults
 } from "@/lib/dailyCoverage";
 import { errorMessage } from "@/lib/errors";
+import { isGenericConferenceLandingItem } from "@/lib/intakeSelection";
 import type {
   DailyCoveragePlan,
   IngestedItem,
@@ -167,18 +168,16 @@ export function DailyCoveragePlanner({
   const hasAnySelection =
     selectedConferences.length > 0 || plan.journalIds.length > 0 || plan.sourceIds.length > 0;
   const matchingBatchItems = batchItems.filter((item) => {
-    if (!hasAnySelection) {
-      return true;
+    if (isGenericConferenceLandingItem(item)) {
+      return false;
     }
-    const text = `${item.title} ${item.excerpt} ${item.sourceName}`.toLowerCase();
+    if (!hasAnySelection) {
+      return false;
+    }
     const conferenceMatch = selectedConferences.some((conference) =>
-      [conference.name, conference.acronym]
-        .filter(Boolean)
-        .some((value) => text.includes(String(value).toLowerCase()))
+      item.sourceId === `daily-conference-${conference.id}`
     );
     const journalMatch = selectedJournals.some((journal) =>
-      text.includes(journal.name.toLowerCase()) ||
-      text.includes(journal.abbreviation.toLowerCase()) ||
       item.sourceId === journal.id ||
       item.sourceId === `daily-journal-${journal.id}`
     );

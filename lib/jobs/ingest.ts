@@ -156,9 +156,6 @@ export async function runIngestionJob(coverageDateOverride?: string): Promise<In
 
   const rankedItems = batches
     .flatMap((result) => (result.status === "fulfilled" ? result.value : []))
-    .map((item) =>
-      item.sourceId?.startsWith("daily-") ? { ...item, sourceId: undefined } : item
-    )
     .filter(isRelevantItem)
     .filter((item) => {
       if (!dailyPlan?.exclusions.length) return true;

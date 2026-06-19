@@ -34,6 +34,7 @@ import {
   normalizeLegacyDailyCoverageDefaults
 } from "@/lib/dailyCoverage";
 import { getUnsafeReviewSourceErrors } from "@/lib/generation/sourceSafety";
+import { hasMissingIntakeFailureLanguage } from "@/lib/broadcast/sanitizeCopy";
 import type {
   AnalyticsSnapshot,
   BroadcastWriteout,
@@ -65,6 +66,7 @@ function hasVerifiedBroadcastSource(segment: { script: string; summary: string; 
 }
 
 export function filterBroadcastReadySegments<T extends {
+  title?: string;
   script: string;
   summary: string;
   citations: Citation[];
@@ -78,14 +80,19 @@ export function filterBroadcastReadySegments<T extends {
     const isLegacyCopiedSourceCard =
       segment.riskFlags?.includes("rss_latest_source_card") &&
       !segment.riskFlags.includes("genuine_source_rewrite");
+    const isLegacyUntaggedBatchCard =
+      segment.riskFlags?.includes("previous_day_batch_intake") &&
+      !segment.riskFlags.some((flag) => flag.startsWith("source_id:"));
     const isAutoScheduleSpine =
       segment.riskFlags?.includes("no_llm_schedule_spine") ||
       segment.riskFlags?.includes("official_schedule_only") ||
       /^Official (?:meeting )?schedule/i.test(text) ||
-      /^Official (?:meeting )?schedule/i.test("title" in segment ? String(segment.title) : "");
+      /^Official (?:meeting )?schedule/i.test(String(segment.title ?? ""));
     return (
       !isLegacyCopiedSourceCard &&
+      !isLegacyUntaggedBatchCard &&
       !isAutoScheduleSpine &&
+      !hasMissingIntakeFailureLanguage(`${segment.title ?? ""}\n${text}`) &&
       !isUnsafeForBroadcastRundown(text) &&
       hasVerifiedBroadcastSource(segment) &&
       getUnsafeReviewSourceErrors({

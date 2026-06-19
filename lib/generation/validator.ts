@@ -1,5 +1,6 @@
 import type { Segment } from "@/lib/types";
 import { getUnsafeReviewSourceErrors } from "@/lib/generation/sourceSafety";
+import { hasMissingIntakeFailureLanguage } from "@/lib/broadcast/sanitizeCopy";
 
 const bannedAdvicePatterns = [
   /\bpatients should\b/i,
@@ -23,6 +24,9 @@ export function validateSegmentForApproval(segment: Pick<Segment, "title" | "sum
     errors.push("At least one citation is required before approval.");
   }
   errors.push(...getUnsafeReviewSourceErrors(segment));
+  if (hasMissingIntakeFailureLanguage(`${segment.title}\n${segment.summary}\n${segment.script}`)) {
+    errors.push("Card contains missing-intake failure language and must be replaced with music or regenerated from selected sources.");
+  }
   for (const pattern of bannedAdvicePatterns) {
     if (pattern.test(segment.script)) {
       errors.push(`Script contains disallowed advice language: ${pattern}`);

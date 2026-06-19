@@ -4,6 +4,9 @@ import path from "node:path";
 import { formatVoiceSegment, SEGMENT_CLOSE } from "@/lib/broadcast/voiceSegment";
 import { getUnsafeGeneratedSourceErrors } from "@/lib/generation/sourceSafety";
 import { validateSegmentForApproval } from "@/lib/generation/validator";
+import { itemMatchesSelections } from "@/lib/intakeCards";
+import { isGenericConferenceLandingItem } from "@/lib/intakeSelection";
+import { filterBroadcastReadySegments } from "@/lib/data";
 import type { IngestedItem, Segment } from "@/lib/types";
 
 const source: IngestedItem = {
@@ -81,6 +84,102 @@ assert.match(youtubeFrameSource, /widget_referrer:\s*siteOrigin/);
 assert.match(
   youtubeFrameSource,
   /referrerPolicy="strict-origin-when-cross-origin"/
+);
+
+const selectedJournal = {
+  id: "11111111-1111-4111-8111-111111111111",
+  name: "The Lancet Oncology",
+  abbreviation: "Lancet Oncol",
+  rssUrl: "https://example.com/lancet-oncology.rss",
+  officialUrl: "https://example.com/lancet-oncology",
+  enabled: true
+};
+const unselectedJcoItem: IngestedItem = {
+  id: "jco-leak",
+  sourceId: "daily-journal-22222222-2222-4222-8222-222222222222",
+  title: "Journal of Clinical Oncology article",
+  url: "https://example.com/jco",
+  excerpt: "Journal of Clinical Oncology abstract text.",
+  sourceName: "Journal of Clinical Oncology",
+  sourceType: "official",
+  rank: 1
+};
+assert.equal(
+  itemMatchesSelections({
+    item: unselectedJcoItem,
+    conferences: [],
+    journals: [selectedJournal],
+    sourceIds: []
+  }),
+  false
+);
+assert.equal(
+  itemMatchesSelections({
+    item: { ...unselectedJcoItem, sourceId: `daily-journal-${selectedJournal.id}` },
+    conferences: [],
+    journals: [selectedJournal],
+    sourceIds: []
+  }),
+  true
+);
+assert.equal(
+  isGenericConferenceLandingItem({
+    id: "asco-homepage",
+    sourceId: "daily-conference-33333333-3333-4333-8333-333333333333",
+    title: "ASCO Meetings",
+    url: "https://meetings.asco.org",
+    excerpt: "ASCO Meetings Program Guide",
+    sourceName: "American Society of Clinical Oncology Annual Meeting",
+    sourceType: "official",
+    rank: 1
+  }),
+  true
+);
+
+assert.ok(
+  validateSegmentForApproval({
+    ...sponsorBase,
+    title: "Bad stored intake card",
+    summary:
+      [
+        "The",
+        "stored intake text",
+        "does not expose the full methods section for this item. Results, The",
+        "stored intake text",
+        "does not expose the results section for this item."
+      ].join(" "),
+    script:
+      ["Discussion, The discussion", "should remain limited", "to the source-described topic until the full article text is available."].join(" "),
+    riskFlags: []
+  }).some((error) => error.includes("missing-intake failure language"))
+);
+
+assert.equal(
+  filterBroadcastReadySegments([
+    {
+      ...sponsorBase,
+      title: "Legacy leaked JCO card",
+      summary: "From the June edition of Journal of Clinical Oncology.",
+      script: "Background: selected-source marker is missing.",
+      contentType: "abstract_buzz",
+      citations: [{ label: "Journal of Clinical Oncology", url: "https://example.com/jco", sourceType: "official" }],
+      riskFlags: ["previous_day_batch_intake", "genuine_source_rewrite"]
+    },
+    {
+      ...sponsorBase,
+      title: "Selected JCO card",
+      summary: "From the June edition of Journal of Clinical Oncology.",
+      script: "Background: source ID marker is present.",
+      contentType: "abstract_buzz",
+      citations: [{ label: "Journal of Clinical Oncology", url: "https://example.com/jco", sourceType: "official" }],
+      riskFlags: [
+        "previous_day_batch_intake",
+        "genuine_source_rewrite",
+        `source_id:daily-journal-${selectedJournal.id}`
+      ]
+    }
+  ]).length,
+  1
 );
 
 console.log("Broadcast guard verification passed.");

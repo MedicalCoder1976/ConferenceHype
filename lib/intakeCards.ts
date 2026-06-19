@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { getPersona, personas } from "@/lib/generation/personas";
+import { isGenericConferenceLandingItem } from "@/lib/intakeSelection";
 import { fetchPubMedAbstract } from "@/lib/sources/pubmed";
 import {
   buildRequiredSectionSummary,
@@ -180,7 +181,7 @@ export function buildBatchSegment(
       "previous_day_batch_intake",
       "operator_selected_batch_card",
       "genuine_source_rewrite"
-    ],
+    ].concat(item.sourceId ? [`source_id:${item.sourceId}`] : []),
     confidenceScore: item.excerpt ? 84 : 65,
     createdAt,
     updatedAt: createdAt
@@ -204,19 +205,17 @@ export function itemMatchesSelections({
 }) {
   const hasSelection = conferences.length > 0 || journals.length > 0 || sourceIds.length > 0;
   if (!hasSelection) {
-    return true;
+    return false;
+  }
+  if (isGenericConferenceLandingItem(item)) {
+    return false;
   }
 
-  const text = `${item.title} ${item.excerpt} ${item.sourceName}`.toLowerCase();
   const conferenceMatch = conferences.some((conference) =>
-    [conference.name, conference.acronym]
-      .filter(Boolean)
-      .some((value) => text.includes(String(value).toLowerCase()))
+    item.sourceId === `daily-conference-${conference.id}`
   );
   const journalMatch = journals.some(
     (journal) =>
-      text.includes(journal.name.toLowerCase()) ||
-      text.includes(journal.abbreviation.toLowerCase()) ||
       item.sourceId === journal.id ||
       item.sourceId === `daily-journal-${journal.id}`
   );
