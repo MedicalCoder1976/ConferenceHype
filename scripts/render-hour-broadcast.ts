@@ -638,7 +638,7 @@ async function saveBroadcastWriteout(cards: Card[]) {
   await upsertBroadcastWriteoutInDb({
     coverageSlotId: process.env.COVERAGE_SLOT_ID || undefined,
     startsAt: startsAt.toISOString(),
-    durationMinutes: Math.ceil(totalCardSeconds(cards) / 60),
+    durationMinutes: Math.max(60, Math.ceil(totalCardSeconds(cards) / 60)),
     title,
     status: "rendering",
     youtubeVideoId: process.env.YOUTUBE_VIDEO_ID || undefined,
