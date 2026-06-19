@@ -234,7 +234,8 @@ export function DailyCoveragePlanner({
         if (!saveResponse.ok || !savePayload.ok) {
           throw new Error(savePayload.error ?? "Could not save coverage plan.");
         }
-        setPlan(savePayload.plan);
+        const savedPlan = savePayload.plan as DailyCoveragePlan;
+        setPlan(savedPlan);
         setBatchStatus({
           state: "creating",
           text:
@@ -245,11 +246,11 @@ export function DailyCoveragePlanner({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            coverageDate: plan.coverageDate,
+            coverageDate: savedPlan.coverageDate,
             startsAt: selectedStartsAt,
-            conferenceIds: plan.conferenceIds,
-            journalIds: plan.journalIds,
-            sourceIds: plan.sourceIds,
+            conferenceIds: savedPlan.conferenceIds,
+            journalIds: savedPlan.journalIds,
+            sourceIds: savedPlan.sourceIds,
             priorityTopics,
             exclusions,
             maxCards: 24

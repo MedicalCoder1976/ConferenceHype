@@ -293,6 +293,16 @@ and provide the affected YouTube video ID.
   video, Supabase stream state, saved writeout, and `conferencehype.com` all
   match the same video ID, the broadcast process is still broken and must keep
   failing/retrying until fixed.
+- `platform-smoke-loop.yml`: daily randomized end-to-end platform test, scheduled
+  before the ordinary YouTube delivery verifier. It selects one random enabled
+  conference/meeting, one random enabled journal RSS feed, and one random
+  clinical news/media source; saves that selection as the daily coverage plan;
+  generates ready cards only from those selected sources; schedules approved
+  copies into the selected hour; dispatches the YouTube stream workflow; and
+  retries until the workflow proves cards, music transitions, the public
+  `conferencehype.com` player, the Supabase handoff, and the saved YouTube video
+  all align. If the loop cannot verify the platform, it opens a GitHub issue
+  with the selected sources, slot, workflow run, and logs.
 - `youtube-delivery-daily-verify.yml`: daily safety verification for the
   current public YouTube handoff. It requires public visibility, retries after
   automatically repairing YouTube privacy to `public`, and opens a GitHub issue
@@ -320,6 +330,17 @@ $env:YOUTUBE_VIDEO_ID="<video id>"
 $env:YOUTUBE_VERIFY_PHASE="live" # or completed
 npm run verify:youtube-delivery
 ```
+
+Full randomized platform smoke loop:
+
+```powershell
+npm run verify:platform-smoke
+```
+
+In GitHub Actions the smoke loop dispatches `youtube-stream.yml`, waits for the
+stream workflow to finish, and then verifies the completed saved video. A
+successful run must include content cards and music cards in the saved
+`broadcast_writeouts` record.
 
 Audio-mapping dry run:
 

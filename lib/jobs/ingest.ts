@@ -48,6 +48,7 @@ export async function runIngestionJob(coverageDateOverride?: string): Promise<In
         conferences: conferences ?? []
       }),
     journals: journals ?? [],
+    conferences: conferences ?? [],
     sources: configuredSources
   });
   const specialtyVoices = (await getSpecialtyXVoicesFromDb()) ?? [];

@@ -20,6 +20,7 @@
     "job:render": "tsx scripts/ffmpeg-render.ts",
     "job:stream": "tsx scripts/youtube-rtmp-loop.ts",
     "verify:youtube-delivery": "tsx scripts/verify-youtube-delivery-loop.ts",
+    "verify:platform-smoke": "tsx scripts/platform-smoke-loop.ts",
     "music:gap": "powershell.exe -ExecutionPolicy Bypass -File scripts\\generate-gap-music.ps1",
     "music:licensed-gaps": "powershell.exe -ExecutionPolicy Bypass -File scripts\\generate-licensed-gap-clips.ps1"
   },

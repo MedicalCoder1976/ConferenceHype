@@ -37,20 +37,26 @@ export function createDefaultDailyCoveragePlan({
 }
 
 function includesAll(selectedIds: string[], defaultIds: string[]) {
-  if (defaultIds.length === 0) {
+  if (defaultIds.length <= 1) {
     return false;
   }
   const selected = new Set(selectedIds);
   return defaultIds.every((id) => selected.has(id));
 }
 
+function uniqueIds(ids: string[]) {
+  return Array.from(new Set(ids.filter(Boolean)));
+}
+
 export function normalizeLegacyDailyCoverageDefaults({
   plan,
   journals,
+  conferences = [],
   sources
 }: {
   plan: DailyCoveragePlan;
   journals: OncologyJournal[];
+  conferences?: MedicalConference[];
   sources: SourceConfig[];
 }): DailyCoveragePlan {
   const oldDefaultJournalIds = journals
@@ -64,14 +70,37 @@ export function normalizeLegacyDailyCoverageDefaults({
         source.type !== "manual"
     )
     .map((source) => source.id);
+  const knownJournalIds = new Set(journals.map((journal) => journal.id));
+  const knownConferenceIds = new Set(conferences.map((conference) => conference.id));
+  const knownSourceIds = new Set(sources.map((source) => source.id));
+  const journalIdsFromSyntheticSources = plan.sourceIds
+    .map((id) => id.match(/^daily-journal-(.+)$/)?.[1])
+    .filter((id): id is string => Boolean(id && knownJournalIds.has(id)));
+  const conferenceIdsFromSyntheticSources = plan.sourceIds
+    .map((id) => id.match(/^daily-conference-(.+)$/)?.[1])
+    .filter((id): id is string => Boolean(id && knownConferenceIds.has(id)));
+  const sourceIdsWithoutSynthetic = plan.sourceIds.filter(
+    (id) =>
+      !id.startsWith("daily-journal-") &&
+      !id.startsWith("daily-conference-") &&
+      !id.startsWith("daily-custom-") &&
+      knownSourceIds.has(id)
+  );
+  const normalizedJournalIds = uniqueIds([...plan.journalIds, ...journalIdsFromSyntheticSources]);
+  const normalizedConferenceIds = uniqueIds([
+    ...plan.conferenceIds,
+    ...conferenceIdsFromSyntheticSources
+  ]);
+  const normalizedSourceIds = uniqueIds(sourceIdsWithoutSynthetic);
 
   return {
     ...plan,
-    journalIds: includesAll(plan.journalIds, oldDefaultJournalIds)
+    conferenceIds: normalizedConferenceIds,
+    journalIds: includesAll(normalizedJournalIds, oldDefaultJournalIds)
       ? []
-      : plan.journalIds,
-    sourceIds: includesAll(plan.sourceIds, oldDefaultSourceIds)
+      : normalizedJournalIds,
+    sourceIds: includesAll(normalizedSourceIds, oldDefaultSourceIds)
       ? []
-      : plan.sourceIds
+      : normalizedSourceIds
   };
 }

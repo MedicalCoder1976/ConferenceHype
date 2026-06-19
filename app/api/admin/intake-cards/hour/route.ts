@@ -24,7 +24,7 @@ const bodySchema = z.object({
   startsAt: z.string().datetime(),
   conferenceIds: z.array(z.string().uuid()).max(100).default([]),
   journalIds: z.array(z.string().uuid()).max(100).default([]),
-  sourceIds: z.array(z.string().uuid()).max(200).default([]),
+  sourceIds: z.array(z.string().trim().min(1).max(120)).max(200).default([]),
   priorityTopics: z.array(z.string().trim().min(2).max(180)).max(100).default([]),
   exclusions: z.array(z.string().trim().min(2).max(180)).max(100).default([]),
   maxCards: z.number().int().min(1).max(84).default(24)
@@ -38,6 +38,15 @@ function includesAnyTerm(text: string, terms: string[]) {
 function priorityScore(text: string, terms: string[]) {
   const normalized = text.toLowerCase();
   return terms.filter((term) => normalized.includes(term.toLowerCase())).length;
+}
+
+function realSourceIds(sourceIds: string[]) {
+  return sourceIds.filter(
+    (id) =>
+      !id.startsWith("daily-journal-") &&
+      !id.startsWith("daily-conference-") &&
+      !id.startsWith("daily-custom-")
+  );
 }
 
 function selectBatchItems({
@@ -89,6 +98,7 @@ export async function POST(request: NextRequest) {
   try {
     assertAdminRequest(request);
     const body = bodySchema.parse(await request.json());
+    const sourceIds = realSourceIds(body.sourceIds);
     const [items, conferences, journals] = await Promise.all([
       getPreviousDayBatchItemsFromDb(body.coverageDate, 240),
       getMedicalConferencesFromDb(),
@@ -105,7 +115,7 @@ export async function POST(request: NextRequest) {
       items: items ?? [],
       conferences: selectedConferences,
       journals: selectedJournals,
-      sourceIds: body.sourceIds,
+      sourceIds,
       priorityTopics: body.priorityTopics,
       exclusions: body.exclusions,
       maxCards: body.maxCards
@@ -118,7 +128,7 @@ export async function POST(request: NextRequest) {
         items: freshItems,
         conferences: selectedConferences,
         journals: selectedJournals,
-        sourceIds: body.sourceIds,
+        sourceIds,
         priorityTopics: body.priorityTopics,
         exclusions: body.exclusions,
         maxCards: body.maxCards

@@ -9,6 +9,7 @@ on:
         default: "60"
         type: choice
         options:
+          - "10"
           - "60"
       stream_input_path:
         description: "Video file to loop into YouTube"

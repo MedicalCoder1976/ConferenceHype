@@ -7,6 +7,7 @@ import { validateSegmentForApproval } from "@/lib/generation/validator";
 import { itemMatchesSelections } from "@/lib/intakeCards";
 import { isGenericConferenceLandingItem } from "@/lib/intakeSelection";
 import { filterBroadcastReadySegments } from "@/lib/data";
+import { normalizeLegacyDailyCoverageDefaults } from "@/lib/dailyCoverage";
 import type { IngestedItem, Segment } from "@/lib/types";
 
 const source: IngestedItem = {
@@ -122,6 +123,23 @@ assert.equal(
   }),
   true
 );
+const normalizedSyntheticPlan = normalizeLegacyDailyCoverageDefaults({
+  plan: {
+    coverageDate: "2026-06-19",
+    conferenceIds: [],
+    journalIds: [],
+    sourceIds: [`daily-journal-${selectedJournal.id}`],
+    customItems: [],
+    priorityTopics: [],
+    exclusions: [],
+    breakingNewsEnabled: true,
+    notes: ""
+  },
+  journals: [selectedJournal],
+  sources: []
+});
+assert.deepEqual(normalizedSyntheticPlan.journalIds, [selectedJournal.id]);
+assert.deepEqual(normalizedSyntheticPlan.sourceIds, []);
 assert.equal(
   isGenericConferenceLandingItem({
     id: "asco-homepage",

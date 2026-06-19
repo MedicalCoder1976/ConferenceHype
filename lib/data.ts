@@ -317,6 +317,7 @@ export async function getAdminSnapshot(baseTime = new Date(), planningHours = 1)
         conferences: medicalConferences
       }),
     journals: oncologyJournals,
+    conferences: medicalConferences,
     sources
   });
   const analytics: AnalyticsSnapshot = (await getAnalyticsFromDb()) ?? {
