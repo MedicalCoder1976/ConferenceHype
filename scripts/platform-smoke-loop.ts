@@ -80,7 +80,7 @@ function coverageDateFor(startsAt: Date) {
 
 function attemptStart(minutesFromNow: number, attempt: number) {
   const now = Date.now();
-  const base = now + (minutesFromNow + attempt * 20) * 60_000;
+  const base = now + (minutesFromNow + Math.max(0, attempt - 1) * 20) * 60_000;
   const rounded = Math.ceil(base / 60_000) * 60_000;
   return new Date(rounded);
 }
