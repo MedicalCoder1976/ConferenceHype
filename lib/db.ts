@@ -359,6 +359,14 @@ function dbUuid(value?: string) {
     : null;
 }
 
+function dbTimestamp(value?: string) {
+  if (!value) {
+    return null;
+  }
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
 export function isDatabaseConfigured() {
   return hasSupabase();
 }
@@ -1483,6 +1491,15 @@ export async function saveIngestedItemsToDb(items: IngestedItem[]) {
     new Map(items.map((item) => [dedupeHash(item), item])).values()
   );
   const supabase = createAdminClient();
+  const { data: sourceRows, error: sourceError } = await supabase
+    .from("sources")
+    .select("id");
+  if (sourceError) {
+    throw sourceError;
+  }
+  const persistedSourceIds = new Set(
+    ((sourceRows as Array<{ id: string }> | null) ?? []).map((source) => source.id)
+  );
   const { error } = await supabase.from("ingested_items").upsert(
     uniqueItems.map((item) => ({
       title: item.title,
@@ -1491,10 +1508,13 @@ export async function saveIngestedItemsToDb(items: IngestedItem[]) {
         ? `${item.excerpt}\n\nEngagement score: ${item.engagementScore}`
         : item.excerpt,
       author: item.author,
-      source_id: dbUuid(item.sourceId),
+      source_id:
+        item.sourceId && persistedSourceIds.has(item.sourceId)
+          ? dbUuid(item.sourceId)
+          : null,
       source_type: item.sourceType,
       source_rank: item.rank,
-      published_at: item.publishedAt,
+      published_at: dbTimestamp(item.publishedAt),
       dedupe_hash: dedupeHash(item)
     })),
     { onConflict: "dedupe_hash" }
