@@ -292,11 +292,17 @@ async function prepareAttempt(attempt: number): Promise<PreparedAttempt> {
     })
   ) : smokeFallbackSegments({ conference, journal, source });
   const savedReady = (await saveGeneratedSegmentsToDb(readySegments)) ?? readySegments;
+  const slotId = await upsertSmokeCoverageSlot({
+    conferenceId: conference.id,
+    startsAt
+  });
+  const slotRiskFlags = ["platform_smoke_scheduled_card", `coverage_slot:${slotId}`];
   let scheduledSegments = savedReady.map((segment, index) =>
     makeScheduledCopy({
       source: segment,
       approvedAt: scheduleAt(startsAt, index),
-      script: segment.script
+      script: segment.script,
+      extraRiskFlags: slotRiskFlags
     })
   );
   const validationErrors = scheduledSegments.flatMap((segment, index) =>
@@ -309,7 +315,8 @@ async function prepareAttempt(attempt: number): Promise<PreparedAttempt> {
       makeScheduledCopy({
         source: segment,
         approvedAt: scheduleAt(startsAt, index),
-        script: segment.script
+        script: segment.script,
+        extraRiskFlags: slotRiskFlags
       })
     );
     const fallbackErrors = scheduledSegments.flatMap((segment, index) =>
@@ -323,11 +330,6 @@ async function prepareAttempt(attempt: number): Promise<PreparedAttempt> {
   if (savedScheduled.length === 0) {
     throw new Error("Smoke cards were generated but could not be scheduled.");
   }
-  const slotId = await upsertSmokeCoverageSlot({
-    conferenceId: conference.id,
-    startsAt
-  });
-
   githubOutput("slot_id", slotId);
   githubOutput("start_at", startsAt);
   githubOutput("card_count", savedScheduled.length);

@@ -309,8 +309,17 @@ async function buildCards(): Promise<Card[]> {
         approvedAt: baseTime.toISOString()
       }]
     : [];
+  const coverageSlotId = process.env.COVERAGE_SLOT_ID;
+  const approvedSegments = approved ?? [];
+  const slotTaggedSegments = coverageSlotId
+    ? approvedSegments.filter((segment) =>
+        segment.riskFlags.includes(`coverage_slot:${coverageSlotId}`)
+      )
+    : [];
+  const renderSegments = slotTaggedSegments.length ? slotTaggedSegments : approvedSegments;
+
   const slots = buildBroadcastSlots({
-    segments: filterBroadcastReadySegments([...conferenceOpening, ...(approved ?? [])]),
+    segments: filterBroadcastReadySegments([...conferenceOpening, ...renderSegments]),
     reviewSegments: filterBroadcastReadySegments(pending ?? []),
     scheduleSegments: buildScheduleRundownSegments(baseTime),
     socialVoiceSegments: buildHourlySocialVoiceRundownSegments({

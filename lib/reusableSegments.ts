@@ -3,11 +3,13 @@ import type { Segment } from "@/lib/types";
 export function makeScheduledCopy({
   source,
   approvedAt,
-  script
+  script,
+  extraRiskFlags = []
 }: {
   source: Segment;
   approvedAt: string;
   script: string;
+  extraRiskFlags?: string[];
 }): Segment {
   const now = new Date().toISOString();
   return {
@@ -20,7 +22,8 @@ export function makeScheduledCopy({
       new Set([
         ...source.riskFlags,
         "reusable_ready_card_copy",
-        `source_segment:${source.id}`
+        `source_segment:${source.id}`,
+        ...extraRiskFlags
       ])
     ),
     createdAt: now,
