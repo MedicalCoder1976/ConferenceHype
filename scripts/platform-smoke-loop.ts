@@ -93,7 +93,9 @@ function enabledMediaSources(sources: SourceConfig[]) {
   return sources.filter(
     (source) =>
       source.enabled &&
-      (source.type === "media" || /\b(news|newspaper|media|oncology|healthcare)\b/i.test(source.name))
+      source.type === "media" &&
+      /\b(rss|feed|feeds)\b/i.test(source.url) &&
+      !/\b(journal|jama|lancet|nejm|nature|annals|leukemia|bmj)\b/i.test(source.name)
   );
 }
 

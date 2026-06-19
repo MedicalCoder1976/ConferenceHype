@@ -6,7 +6,7 @@ on:
       attempts:
         description: "Maximum randomized attempts before failing"
         required: true
-        default: "3"
+        default: "10"
       stream_minutes:
         description: "Smoke stream duration in minutes"
         required: true
@@ -47,7 +47,7 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
           PLATFORM_SMOKE_REF: ${{ github.ref_name }}
-          PLATFORM_SMOKE_ATTEMPTS: ${{ inputs.attempts || '3' }}
+          PLATFORM_SMOKE_ATTEMPTS: ${{ inputs.attempts || '10' }}
           PLATFORM_SMOKE_STREAM_MINUTES: ${{ inputs.stream_minutes || '10' }}
           PLATFORM_SMOKE_START_DELAY_MINUTES: "12"
           PLATFORM_SMOKE_WORKFLOW_TIMEOUT_MINUTES: "150"
