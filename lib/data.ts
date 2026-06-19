@@ -78,8 +78,14 @@ export function filterBroadcastReadySegments<T extends {
     const isLegacyCopiedSourceCard =
       segment.riskFlags?.includes("rss_latest_source_card") &&
       !segment.riskFlags.includes("genuine_source_rewrite");
+    const isAutoScheduleSpine =
+      segment.riskFlags?.includes("no_llm_schedule_spine") ||
+      segment.riskFlags?.includes("official_schedule_only") ||
+      /^Official (?:meeting )?schedule/i.test(text) ||
+      /^Official (?:meeting )?schedule/i.test("title" in segment ? String(segment.title) : "");
     return (
       !isLegacyCopiedSourceCard &&
+      !isAutoScheduleSpine &&
       !isUnsafeForBroadcastRundown(text) &&
       hasVerifiedBroadcastSource(segment) &&
       getUnsafeReviewSourceErrors({

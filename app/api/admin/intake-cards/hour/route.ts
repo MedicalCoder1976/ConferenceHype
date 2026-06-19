@@ -13,6 +13,7 @@ import {
   itemMatchesSelections,
   personaIdForBatchIndex
 } from "@/lib/intakeCards";
+import { errorMessage } from "@/lib/errors";
 import { runIngestionJob } from "@/lib/jobs/ingest";
 import type { IngestedItem, MedicalConference, OncologyJournal } from "@/lib/types";
 
@@ -171,6 +172,9 @@ export async function POST(request: NextRequest) {
       segments: saved
     });
   } catch (error) {
-    return NextResponse.json({ ok: false, error: String(error) }, { status: 400 });
+    return NextResponse.json(
+      { ok: false, error: errorMessage(error, "Could not create one-hour ready cards.") },
+      { status: 400 }
+    );
   }
 }

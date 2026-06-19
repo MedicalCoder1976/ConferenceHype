@@ -67,7 +67,7 @@ function renderPreview(slots: BroadcastSlot[], start: Date) {
     `Start: ${timeLabel(start)}`,
     `End: ${timeLabel(end)}`,
     "",
-    "This preview includes two-minute schedule/location narration every 10 minutes, a two-minute hourly rising-social-voice rundown after the hourly schedule, review/ready voice cards filling the remaining slots, and music wherever no card is available.",
+    "This preview includes scheduled/ready voice cards, social-voice rundowns when available, and music wherever no card is available.",
     ""
   ];
 

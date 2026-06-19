@@ -8,6 +8,7 @@ import {
   createDefaultDailyCoveragePlan,
   normalizeLegacyDailyCoverageDefaults
 } from "@/lib/dailyCoverage";
+import { errorMessage } from "@/lib/errors";
 import type {
   DailyCoveragePlan,
   IngestedItem,
@@ -257,7 +258,7 @@ export function DailyCoveragePlanner({
         });
         const batchPayload = await batchResponse.json();
         if (!batchResponse.ok || !batchPayload.ok) {
-          throw new Error(batchPayload.error ?? "Could not create one-hour ready cards.");
+          throw new Error(errorMessage(batchPayload.error, "Could not create one-hour ready cards."));
         }
         const createdTitles = Array.isArray(batchPayload.segments)
           ? batchPayload.segments
@@ -286,7 +287,7 @@ export function DailyCoveragePlanner({
         router.refresh();
       } catch (error) {
         const text =
-          error instanceof Error ? error.message : "Could not create one-hour ready cards.";
+          errorMessage(error, "Could not create one-hour ready cards.");
         setBatchStatus({
           state: "error",
           text

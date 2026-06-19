@@ -130,36 +130,6 @@ function withAssignedVoice(segment: Segment, slotIndex: number, at: Date): Segme
   };
 }
 
-function makeFallbackSegment(baseTime: Date, slotIndex: number): Segment {
-  const persona = personas[slotIndex % personas.length];
-  const createdAt = addSeconds(baseTime, slotIndex * CONTENT_SECONDS).toISOString();
-  return {
-    id: `virtual-source-backed-hold-${createdAt}-${slotIndex}`,
-    title: "Official schedule placeholder",
-    summary:
-      "No source-backed content card is pinned here yet, so this slot stays as a neutral official-schedule placeholder.",
-    script: `${persona.name} here from ConferenceHype. This is a short official-schedule placeholder while the next source-backed card loads. Use the meeting's official program and on-site signage for current room, hall, and timing details.`,
-    contentType: "agenda_preview",
-    personaId: persona.id,
-    personaName: persona.name,
-    hypeLevel: "standard",
-    language: "English",
-    status: "approved",
-    citations: [
-      {
-        label: "ConferenceHype source review",
-        url: "https://conferencehype.com/terms",
-        sourceType: "official"
-      }
-    ],
-    socialBuzzItems: [],
-    riskFlags: ["virtual_schedule_bridge", "no_empty_slot"],
-    confidenceScore: 90,
-    createdAt,
-    approvedAt: createdAt
-  };
-}
-
 function segmentKind(segment: Segment): BroadcastSlot["kind"] {
   if (segment.contentType === "agenda_preview") {
     return "schedule";
@@ -243,11 +213,19 @@ export function buildBroadcastSlots({
         const slotIndex = hourIndex * CONTENT_CARDS_PER_HOUR + contentIndex;
         const contentAt = addSeconds(blockStart, cardIndex * CONTENT_SECONDS);
         const scheduledSegment = scheduled.bySlot.get(slotKey(contentAt));
+        if (!scheduledSegment && allContent.length === 0) {
+          slots.push({
+            at: contentAt,
+            kind: "music",
+            durationMinutes: CONTENT_SECONDS / 60,
+            durationSeconds: CONTENT_SECONDS,
+            label: "music transition",
+            replaceable: false
+          });
+          continue;
+        }
         const sourceSegment =
-          scheduledSegment ??
-          (allContent.length > 0
-            ? allContent[contentIndex % allContent.length]
-            : makeFallbackSegment(baseTime, slotIndex));
+          scheduledSegment ?? allContent[contentIndex % allContent.length];
         const segment = withAssignedVoice(sourceSegment, slotIndex, contentAt);
         slots.push({
           at: contentAt,
