@@ -49,7 +49,7 @@ jobs:
           PLATFORM_SMOKE_REF: ${{ github.ref_name }}
           PLATFORM_SMOKE_ATTEMPTS: ${{ inputs.attempts || '10' }}
           PLATFORM_SMOKE_STREAM_MINUTES: ${{ inputs.stream_minutes || '10' }}
-          PLATFORM_SMOKE_START_DELAY_MINUTES: "12"
+          PLATFORM_SMOKE_START_DELAY_MINUTES: "2"
           PLATFORM_SMOKE_WORKFLOW_TIMEOUT_MINUTES: "150"
           PLATFORM_SMOKE_FINAL_VERIFY_TIMEOUT_SECONDS: "300"
           PLATFORM_SMOKE_MAX_CARDS: "12"
