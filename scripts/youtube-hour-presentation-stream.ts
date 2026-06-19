@@ -47,10 +47,14 @@ async function main() {
   const target = getYoutubeRtmpTarget();
 
   const videoInputArgs = ["-re", "-f", "lavfi", "-i", HYPE_LINE_VIDEO_INPUT];
-  const liveAudioArgs = videoPath
-    ? ["-stream_loop", "-1", "-i", videoPath, "-map", "1:a:0"]
+  const liveAudio = videoPath
+    ? {
+        inputArgs: ["-stream_loop", "-1", "-i", videoPath],
+        mapArgs: ["-map", "1:a:0"]
+      }
     : voicePath
-      ? [
+      ? {
+        inputArgs: [
         "-stream_loop",
         "-1",
         "-i",
@@ -61,25 +65,33 @@ async function main() {
         voicePath,
         "-filter_complex",
         "[1:a]volume=0.18[music];[2:a]volume=0.85[voice];[music][voice]amix=inputs=2:duration=longest:dropout_transition=0[a]",
+        ],
+        mapArgs: [
         "-map",
         "[a]"
-      ]
-      : [
+        ]
+      }
+      : {
+        inputArgs: [
         "-stream_loop",
         "-1",
         "-i",
         musicPath,
         "-filter_complex",
         "[1:a]volume=0.18[a]",
+        ],
+        mapArgs: [
         "-map",
         "[a]"
-      ];
+        ]
+      };
 
   const args = [
     ...videoInputArgs,
+    ...liveAudio.inputArgs,
     "-map",
     "0:v:0",
-    ...liveAudioArgs,
+    ...liveAudio.mapArgs,
     "-t",
     durationSeconds,
     "-vf",
