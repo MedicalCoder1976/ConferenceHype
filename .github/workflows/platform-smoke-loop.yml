@@ -39,7 +39,9 @@ jobs:
       - name: Run randomized platform smoke loop
         id: smoke
         continue-on-error: true
-        run: npm run verify:platform-smoke 2>&1 | tee platform-smoke-loop.log
+        run: |
+          set -o pipefail
+          npm run verify:platform-smoke 2>&1 | tee platform-smoke-loop.log
         env:
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}

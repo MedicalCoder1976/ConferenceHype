@@ -63,7 +63,7 @@ export async function runIngestionJob(coverageDateOverride?: string): Promise<In
         ...(journals ?? [])
           .filter((journal) => dailyPlan.journalIds.includes(journal.id))
           .map((journal) => ({
-            id: `daily-journal-${journal.id}`,
+            id: journal.id,
             name: journal.name,
             url: journal.rssUrl,
             type: "official" as const,
@@ -73,7 +73,7 @@ export async function runIngestionJob(coverageDateOverride?: string): Promise<In
         ...(conferences ?? [])
           .filter((conference) => dailyPlan.conferenceIds.includes(conference.id))
           .map((conference) => ({
-            id: `daily-conference-${conference.id}`,
+            id: conference.id,
             name: conference.name,
             url: conference.officialUrl,
             type: "official" as const,

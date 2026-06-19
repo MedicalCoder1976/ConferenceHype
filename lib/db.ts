@@ -350,6 +350,15 @@ function dedupeHash(item: IngestedItem) {
   return createHash("sha256").update(`${item.url}|${item.title}`).digest("hex");
 }
 
+function dbUuid(value?: string) {
+  return value &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      value
+    )
+    ? value
+    : null;
+}
+
 export function isDatabaseConfigured() {
   return hasSupabase();
 }
@@ -1482,7 +1491,7 @@ export async function saveIngestedItemsToDb(items: IngestedItem[]) {
         ? `${item.excerpt}\n\nEngagement score: ${item.engagementScore}`
         : item.excerpt,
       author: item.author,
-      source_id: item.sourceId,
+      source_id: dbUuid(item.sourceId),
       source_type: item.sourceType,
       source_rank: item.rank,
       published_at: item.publishedAt,

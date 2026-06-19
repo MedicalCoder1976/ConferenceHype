@@ -433,7 +433,7 @@ async function runLoop() {
   githubOutput("verified", false);
   throw lastError instanceof Error
     ? lastError
-    : new Error("Platform smoke loop failed without a structured error.");
+    : new Error(`Platform smoke loop failed: ${JSON.stringify(lastError)}`);
 }
 
 const mode = process.argv[2] ?? "loop";

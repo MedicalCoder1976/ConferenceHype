@@ -95,6 +95,20 @@ const selectedJournal = {
   officialUrl: "https://example.com/lancet-oncology",
   enabled: true
 };
+const selectedConference = {
+  id: "33333333-3333-4333-8333-333333333333",
+  name: "Selected Oncology Meeting",
+  acronym: "SOM",
+  specialties: ["Oncology"],
+  startDate: "2026-06-19",
+  endDate: "2026-06-20",
+  month: 6,
+  year: 2026,
+  timezone: "America/New_York",
+  officialUrl: "https://example.com/meeting",
+  enabled: true,
+  operatorAdded: false
+};
 const unselectedJcoItem: IngestedItem = {
   id: "jco-leak",
   sourceId: "daily-journal-22222222-2222-4222-8222-222222222222",
@@ -150,6 +164,24 @@ assert.equal(
     sourceName: "American Society of Clinical Oncology Annual Meeting",
     sourceType: "official",
     rank: 1
+  }),
+  true
+);
+assert.equal(
+  itemMatchesSelections({
+    item: {
+      id: "selected-meeting-abstract",
+      sourceId: selectedConference.id,
+      title: "Phase 2 study reports response data in oncology",
+      url: "https://example.com/meeting/abstract",
+      excerpt: "Background, Methods, Results, and Discussion are available for this selected meeting abstract.",
+      sourceName: selectedConference.name,
+      sourceType: "official",
+      rank: 1
+    },
+    conferences: [selectedConference],
+    journals: [],
+    sourceIds: []
   }),
   true
 );

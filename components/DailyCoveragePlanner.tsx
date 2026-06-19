@@ -174,8 +174,10 @@ export function DailyCoveragePlanner({
     if (!hasAnySelection) {
       return false;
     }
-    const conferenceMatch = selectedConferences.some((conference) =>
-      item.sourceId === `daily-conference-${conference.id}`
+    const conferenceMatch = selectedConferences.some(
+      (conference) =>
+        item.sourceId === conference.id ||
+        item.sourceId === `daily-conference-${conference.id}`
     );
     const journalMatch = selectedJournals.some((journal) =>
       item.sourceId === journal.id ||

@@ -211,8 +211,10 @@ export function itemMatchesSelections({
     return false;
   }
 
-  const conferenceMatch = conferences.some((conference) =>
-    item.sourceId === `daily-conference-${conference.id}`
+  const conferenceMatch = conferences.some(
+    (conference) =>
+      item.sourceId === conference.id ||
+      item.sourceId === `daily-conference-${conference.id}`
   );
   const journalMatch = journals.some(
     (journal) =>
