@@ -1,7 +1,11 @@
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { XMLParser } from "fast-xml-parser";
 import { monitoredXVoices } from "@/lib/sources/registry";
 import { fetchPubMedAbstract } from "@/lib/sources/pubmed";
 import type { IngestedItem, SourceConfig } from "@/lib/types";
+
+const execFileAsync = promisify(execFile);
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -111,18 +115,93 @@ export async function fetchJournalArticleAbstract(url: string) {
   }
 }
 
-export async function fetchRssSource(source: SourceConfig): Promise<IngestedItem[]> {
-  const response = await fetch(source.url, {
-    headers: {
-      "User-Agent": "ConferenceHypeBot/0.1 source-attributed summaries"
-    },
-    next: { revalidate: 900 }
-  });
-  if (!response.ok) {
-    throw new Error(`RSS fetch failed for ${source.name}: ${response.status}`);
+function appendCookie(existing: string, setCookie: string) {
+  const cookiePair = setCookie.split(";")[0]?.trim();
+  if (!cookiePair) {
+    return existing;
   }
+  return existing ? `${existing}; ${cookiePair}` : cookiePair;
+}
 
-  const xml = await response.text();
+function responseSetCookies(headers: Headers) {
+  const withGetSetCookie = headers as Headers & { getSetCookie?: () => string[] };
+  const cookies = withGetSetCookie.getSetCookie?.();
+  if (cookies?.length) {
+    return cookies;
+  }
+  const singleCookie = headers.get("set-cookie");
+  return singleCookie ? [singleCookie] : [];
+}
+
+async function fetchWithCurl(url: string) {
+  const command = process.platform === "win32" ? "curl.exe" : "curl";
+  const { stdout } = await execFileAsync(command, [
+    "--location",
+    "--fail",
+    "--silent",
+    "--show-error",
+    "--max-time",
+    "30",
+    url
+  ], { maxBuffer: 5 * 1024 * 1024 });
+  return stdout;
+}
+
+function looksLikeXmlFeed(value: string) {
+  return /<(?:rss|feed|rdf:RDF)\b/i.test(value.slice(0, 500));
+}
+
+function isNatureFeedUrl(url: string) {
+  return /(?:^https?:\/\/feeds\.nature\.com\/|^https?:\/\/www\.nature\.com\/[^\s]+\.rss)/i.test(url);
+}
+
+async function fetchRssText(url: string, sourceName: string) {
+  let currentUrl = url;
+  let cookie = "";
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const response = await fetch(currentUrl, {
+      headers: {
+        "User-Agent": "ConferenceHypeBot/0.1 source-attributed summaries",
+        Accept: "application/rss+xml, application/xml, text/xml, */*",
+        ...(cookie ? { Cookie: cookie } : {})
+      },
+      redirect: "manual",
+      next: { revalidate: 900 }
+    });
+
+    for (const setCookie of responseSetCookies(response.headers)) {
+      cookie = appendCookie(cookie, setCookie);
+    }
+
+    if ([301, 302, 303, 307, 308].includes(response.status)) {
+      const location = response.headers.get("location");
+      if (!location) {
+        throw new Error(`RSS fetch failed for ${sourceName}: redirect without location.`);
+      }
+      currentUrl = new URL(location, currentUrl).toString();
+      continue;
+    }
+
+    if (!response.ok) {
+      throw new Error(`RSS fetch failed for ${sourceName}: ${response.status}`);
+    }
+    const text = await response.text();
+    if (looksLikeXmlFeed(text)) {
+      return text;
+    }
+    if (isNatureFeedUrl(url)) {
+      const curlText = await fetchWithCurl(url);
+      if (looksLikeXmlFeed(curlText)) {
+        return curlText;
+      }
+    }
+    return text;
+  }
+  throw new Error(`RSS fetch failed for ${sourceName}: too many redirects.`);
+}
+
+export async function fetchRssSource(source: SourceConfig): Promise<IngestedItem[]> {
+  const xml = await fetchRssText(source.url, source.name);
   const parsed = parser.parse(xml);
   const rawItems =
     parsed.rss?.channel?.item ??

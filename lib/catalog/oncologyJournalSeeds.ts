@@ -42,7 +42,7 @@ export const oncologyJournalSeeds: JournalSeed[] = [
   {
     name: "Nature Cancer",
     abbreviation: "Nature Cancer",
-    rssUrl: "https://www.nature.com/natcancer.rss",
+    rssUrl: "https://feeds.nature.com/natcancer/rss/current",
     officialUrl: "https://www.nature.com/natcancer/"
   },
   {

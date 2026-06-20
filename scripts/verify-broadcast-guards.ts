@@ -9,6 +9,7 @@ import { itemMatchesSelections } from "@/lib/intakeCards";
 import { isGenericConferenceLandingItem } from "@/lib/intakeSelection";
 import { filterBroadcastReadySegments } from "@/lib/data";
 import { normalizeLegacyDailyCoverageDefaults } from "@/lib/dailyCoverage";
+import { oncologyJournalSeeds } from "@/lib/catalog/oncologyJournalSeeds";
 import type { IngestedItem, Segment } from "@/lib/types";
 
 const source: IngestedItem = {
@@ -88,6 +89,9 @@ assert.match(
   youtubeFrameSource,
   /referrerPolicy="strict-origin-when-cross-origin"/
 );
+
+const natureCancerSeed = oncologyJournalSeeds.find((journal) => journal.name === "Nature Cancer");
+assert.equal(natureCancerSeed?.rssUrl, "https://feeds.nature.com/natcancer/rss/current");
 
 const selectedJournal = {
   id: "11111111-1111-4111-8111-111111111111",
