@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { formatVoiceSegment, SEGMENT_CLOSE } from "@/lib/broadcast/voiceSegment";
+import { applySpokenPronunciations } from "@/lib/media/tts";
 import { getUnsafeGeneratedSourceErrors } from "@/lib/generation/sourceSafety";
 import { validateSegmentForApproval } from "@/lib/generation/validator";
 import { itemMatchesSelections } from "@/lib/intakeCards";
@@ -34,6 +35,7 @@ assert.match(
 );
 assert.ok(framed.endsWith(SEGMENT_CLOSE));
 assert.doesNotMatch(framed, /interactive AI commentary only/i);
+assert.equal(applySpokenPronunciations("ASCO 2026 and Ib disease"), "Ask-ho 2026 and one B disease");
 
 const copiedErrors = getUnsafeGeneratedSourceErrors({
   segment: {
@@ -95,6 +97,14 @@ const selectedJournal = {
   officialUrl: "https://example.com/lancet-oncology",
   enabled: true
 };
+const selectedClinicalSource = {
+  id: "medpage-today",
+  name: "MedPage Today",
+  url: "https://www.medpagetoday.com/rss",
+  type: "media" as const,
+  rank: 1,
+  enabled: true
+};
 const selectedConference = {
   id: "33333333-3333-4333-8333-333333333333",
   name: "Selected Oncology Meeting",
@@ -152,8 +162,40 @@ const normalizedSyntheticPlan = normalizeLegacyDailyCoverageDefaults({
   journals: [selectedJournal],
   sources: []
 });
-assert.deepEqual(normalizedSyntheticPlan.journalIds, [selectedJournal.id]);
+assert.deepEqual(normalizedSyntheticPlan.journalIds, []);
 assert.deepEqual(normalizedSyntheticPlan.sourceIds, []);
+const normalizedDefaultSourcePlan = normalizeLegacyDailyCoverageDefaults({
+  plan: {
+    ...normalizedSyntheticPlan,
+    journalIds: [],
+    sourceIds: [selectedClinicalSource.id]
+  },
+  journals: [selectedJournal],
+  sources: [selectedClinicalSource]
+});
+assert.deepEqual(normalizedDefaultSourcePlan.sourceIds, []);
+const normalizedDefaultConferencePlan = normalizeLegacyDailyCoverageDefaults({
+  plan: {
+    ...normalizedSyntheticPlan,
+    conferenceIds: [selectedConference.id],
+    journalIds: [],
+    sourceIds: []
+  },
+  journals: [selectedJournal],
+  conferences: [selectedConference],
+  sources: [selectedClinicalSource]
+});
+assert.deepEqual(normalizedDefaultConferencePlan.conferenceIds, []);
+const explicitSavedPlan = normalizeLegacyDailyCoverageDefaults({
+  plan: {
+    ...normalizedSyntheticPlan,
+    journalIds: [selectedJournal.id]
+  },
+  journals: [selectedJournal],
+  sources: [selectedClinicalSource],
+  clearLegacyDefaults: false
+});
+assert.deepEqual(explicitSavedPlan.journalIds, [selectedJournal.id]);
 assert.equal(
   isGenericConferenceLandingItem({
     id: "asco-homepage",
@@ -231,5 +273,14 @@ assert.equal(
   ]).length,
   1
 );
+
+const renderHourSource = readFileSync(
+  path.join(process.cwd(), "scripts", "render-hour-broadcast.ts"),
+  "utf8"
+);
+assert.match(renderHourSource, /function enforceOneHourFrame/);
+assert.match(renderHourSource, /Removed \$\{removedContentCards\} trailing content card/);
+assert.match(renderHourSource, /framedCards\.push\(musicTransitionCard\(remainingSeconds/);
+assert.match(renderHourSource, /durationSeconds = Math\.min\(Number\(process\.env\.HOUR_BROADCAST_SECONDS \?\? 3600\), 3600\)/);
 
 console.log("Broadcast guard verification passed.");

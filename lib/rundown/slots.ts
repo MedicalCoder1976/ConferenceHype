@@ -1,5 +1,6 @@
 import { personas } from "@/lib/generation/personas";
 import { formatVoiceSegment } from "@/lib/broadcast/voiceSegment";
+import { hasMissingIntakeFailureLanguage } from "@/lib/broadcast/sanitizeCopy";
 import type { Segment } from "@/lib/types";
 
 export type BroadcastSlot = {
@@ -14,7 +15,7 @@ export type BroadcastSlot = {
 
 const CONTENT_SECONDS = 40;   // 40-second content window — ~90 words at 135 wpm, no more silence gaps
 const MUSIC_SECONDS = 20;     // matches 20-second gap-clip library
-const CONTENT_SLOTS_PER_MUSIC_BLOCK = 7;
+const CONTENT_SLOTS_PER_MUSIC_BLOCK = 5;
 const MUSIC_BLOCKS_PER_HOUR = 12;
 const CONTENT_CARDS_PER_HOUR =
   CONTENT_SLOTS_PER_MUSIC_BLOCK * MUSIC_BLOCKS_PER_HOUR;
@@ -75,6 +76,10 @@ function cleanForbiddenBroadcastPhrases(value: string) {
     .replace(/https?:\/\/[^\s)\]}>]+/g, "")
     // Rule 3: strip internal process labels
     .replace(/\boperator[- ](?:added|selected)\b[^.!?\n]*/gi, "")
+    .replace(/\bsource[- ]only\s+schedule\b[^.!?\n]*(?:[.!?]|\n|$)/gi, "")
+    .replace(/\bcheck(?:ing)?\s+using\s+official\s+meeting\s+sources\b[^.!?\n]*(?:[.!?]|\n|$)/gi, "")
+    .replace(/\bofficial\s+source\s+desk\s+is\s+monitoring\b[^.!?\n]*(?:[.!?]|\n|$)/gi, "")
+    .replace(/\bConference\s*Hype\s+ASCO\s+energy\s+all\s+day\s+long\b[.!?]?\s*/gi, "")
     .replace(/\bmonitored\s+X\s+(?:voice|narrative|voices)\b/gi, "")
     .replace(/\bsource[- ]backed\s+\w+\s+narrative\b/gi, "")
     .replace(/\bapproved\s+for\s+broadcast\b/gi, "")
@@ -100,6 +105,8 @@ function cleanForbiddenBroadcastPhrases(value: string) {
     .replace(/\([^)]{1,80}\)/g, "")
     // Percent sign → "percent"
     .replace(/(\d)\s*%/g, "$1 percent")
+    .replace(/\bIb\b/g, "one B")
+    .replace(/\b1b\b/gi, "one B")
     // Clean up stray commas and spaces
     .replace(/,\s*,/g, ",")
     .replace(/\s+/g, " ")
@@ -211,7 +218,7 @@ export function buildBroadcastSlots({
         const contentIndex =
           blockIndex * CONTENT_SLOTS_PER_MUSIC_BLOCK + cardIndex;
         const slotIndex = hourIndex * CONTENT_CARDS_PER_HOUR + contentIndex;
-        const contentAt = addSeconds(blockStart, cardIndex * CONTENT_SECONDS);
+        const contentAt = addSeconds(blockStart, cardIndex * (CONTENT_SECONDS + MUSIC_SECONDS));
         const scheduledSegment = scheduled.bySlot.get(slotKey(contentAt));
         if (!scheduledSegment && allContent.length === 0) {
           slots.push({
@@ -226,6 +233,21 @@ export function buildBroadcastSlots({
         }
         const sourceSegment =
           scheduledSegment ?? allContent[contentIndex % allContent.length];
+        if (
+          hasMissingIntakeFailureLanguage(
+            `${sourceSegment.title} ${sourceSegment.summary} ${sourceSegment.script}`
+          )
+        ) {
+          slots.push({
+            at: contentAt,
+            kind: "music",
+            durationMinutes: CONTENT_SECONDS / 60,
+            durationSeconds: CONTENT_SECONDS,
+            label: "music transition",
+            replaceable: false
+          });
+          continue;
+        }
         const segment = withAssignedVoice(sourceSegment, slotIndex, contentAt);
         slots.push({
           at: contentAt,
@@ -236,19 +258,15 @@ export function buildBroadcastSlots({
           segment,
           replaceable: true
         });
+        slots.push({
+          at: addSeconds(contentAt, CONTENT_SECONDS),
+          kind: "music",
+          durationMinutes: MUSIC_SECONDS / 60,
+          durationSeconds: MUSIC_SECONDS,
+          label: "20-second transition",
+          replaceable: false
+        });
       }
-      const musicAt = addSeconds(
-        blockStart,
-        CONTENT_SLOTS_PER_MUSIC_BLOCK * CONTENT_SECONDS
-      );
-      slots.push({
-        at: musicAt,
-        kind: "music",
-        durationMinutes: MUSIC_SECONDS / 60,
-        durationSeconds: MUSIC_SECONDS,
-        label: "20-second transition",
-        replaceable: false
-      });
     }
   }
 

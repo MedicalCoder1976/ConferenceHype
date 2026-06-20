@@ -11,9 +11,6 @@ on:
         description: "Smoke stream duration in minutes"
         required: true
         default: "10"
-  schedule:
-    # Runs before Daily YouTube delivery verification at 08:30 UTC.
-    - cron: "0 8 * * *"
 
 permissions:
   actions: write

@@ -19,13 +19,13 @@ export function buildScheduleFallbackSegment(now = new Date()): Segment {
     id: `schedule-spine-${randomUUID()}`,
     title: "ConferenceHype transition",
     summary:
-      "Music transition while the next source-attributed card is prepared.",
+      "Music transition while the next approved card is prepared.",
     script: [
       `ConferenceHype transition. It is ${timeLabel} Eastern time.`,
       sourceNames
-        ? `The official source desk is monitoring ${sourceNames}.`
-        : "No source-attributed content update is ready for this window.",
-      "ConferenceHype will continue with the next source-attributed update."
+        ? `The next approved card is coming up after the music.`
+        : "The next approved card is coming up after the music.",
+      "ConferenceHype will continue shortly."
     ].join("\n\n"),
     contentType: "media_roundup",
     personaId: "echo-sage",

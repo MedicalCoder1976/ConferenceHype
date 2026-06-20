@@ -15,7 +15,7 @@ import {
 import { defaultDisclaimer } from "@/lib/generation/disclaimers";
 import type { BroadcastWriteoutCard, ContentType, Segment } from "@/lib/types";
 
-const durationSeconds = Number(process.env.HOUR_BROADCAST_SECONDS ?? 3600);
+const durationSeconds = Math.min(Number(process.env.HOUR_BROADCAST_SECONDS ?? 3600), 3600);
 const renderDir = process.env.HOUR_BROADCAST_DIR ?? "public/rendered/hour-broadcast";
 const outputPath =
   process.env.HOUR_BROADCAST_OUTPUT ?? "public/rendered/conferencehype-hour-broadcast.mp4";
@@ -177,6 +177,26 @@ function replaceMissingIntakeCardsWithMusic(cards: Card[]) {
   });
 }
 
+function replaceEmptyContentCardsWithMusic(cards: Card[]) {
+  let musicIndex = 0;
+  return cards.map((card) => {
+    if (card.isMusic) {
+      musicIndex += 1;
+      return card;
+    }
+    if (card.script?.trim()) {
+      return card;
+    }
+    return {
+      duration: Math.max(20, card.duration),
+      isMusic: true,
+      gapClipPath: GAP_CLIP_PATHS[musicIndex++ % GAP_CLIP_PATHS.length],
+      title: "Music transition",
+      script: null,
+      text: formatTransitionCard()
+    };
+  });
+}
 function wordCount(value: string) {
   return value.trim().split(/\s+/).filter(Boolean).length;
 }
@@ -193,7 +213,68 @@ function expandContentDurations(cards: Card[]) {
 }
 
 function totalCardSeconds(cards: Card[]) {
-  return Math.max(1, cards.reduce((total, card) => total + card.duration, 0));
+  return cards.reduce((total, card) => total + card.duration, 0);
+}
+
+function nextGapClipPath(index: number) {
+  return GAP_CLIP_PATHS[index % GAP_CLIP_PATHS.length];
+}
+
+function musicTransitionCard(duration: number, musicIndex: number): Card {
+  return {
+    duration,
+    isMusic: true,
+    gapClipPath: nextGapClipPath(musicIndex),
+    title: "Music transition",
+    script: null,
+    text: formatTransitionCard()
+  };
+}
+
+function enforceOneHourFrame(cards: Card[], frameSeconds = 3600) {
+  const framedCards = [...cards];
+  let removedContentCards = 0;
+
+  while (totalCardSeconds(framedCards) > frameSeconds) {
+    const lastContentIndex = framedCards.map((card) => !card.isMusic).lastIndexOf(true);
+    if (lastContentIndex === -1) {
+      break;
+    }
+
+    let deleteCount = 1;
+    for (let index = lastContentIndex + 1; index < framedCards.length; index += 1) {
+      if (!framedCards[index].isMusic) {
+        break;
+      }
+      deleteCount += 1;
+    }
+    framedCards.splice(lastContentIndex, deleteCount);
+    removedContentCards += 1;
+  }
+
+  while (totalCardSeconds(framedCards) > frameSeconds && framedCards.length > 0) {
+    const lastCard = framedCards[framedCards.length - 1];
+    const excessSeconds = totalCardSeconds(framedCards) - frameSeconds;
+    if (lastCard.isMusic && lastCard.duration > excessSeconds) {
+      lastCard.duration -= excessSeconds;
+      break;
+    }
+    framedCards.pop();
+  }
+
+  const remainingSeconds = frameSeconds - totalCardSeconds(framedCards);
+  if (remainingSeconds > 0) {
+    const musicIndex = framedCards.filter((card) => card.isMusic).length;
+    framedCards.push(musicTransitionCard(remainingSeconds, musicIndex));
+  }
+
+  if (removedContentCards > 0) {
+    console.warn(
+      `Removed ${removedContentCards} trailing content card(s) so the broadcast fits the 60-minute frame.`
+    );
+  }
+
+  return framedCards;
 }
 
 function applyPresentationPolicy(cards: Card[]) {
@@ -352,13 +433,13 @@ async function buildCards(): Promise<Card[]> {
       title: slot.segment?.title ?? slot.label,
       sourceLabel: !isMusic ? slot.segment?.citations[0]?.label : undefined,
       sourceUrl: !isMusic ? slot.segment?.citations[0]?.url : undefined,
-      script: !isMusic ? (slot.segment?.summary || slot.segment?.script || null) : null,
+      script: !isMusic ? (slot.segment?.script || slot.segment?.summary || null) : null,
       text: isMusic
         ? formatTransitionCard()
         : formatCard({
             eyebrow: `${slot.segment?.personaName ?? "ConferenceHype"} / ${slot.segment ? cardTypeEyebrow(slot.segment) : "CONTENT"}`,
             title: slot.segment?.title ?? slot.label,
-            body: slot.segment?.summary || slot.segment?.script || slot.label,
+            body: slot.segment?.script || slot.segment?.summary || slot.label,
             source: slot.segment?.citations[0]?.url
           })
     };
@@ -531,29 +612,14 @@ async function buildBlockCards(): Promise<Card[]> {
       // ── Phase 3: 16-minute Content Block ────────────────────────────────
       for (let p = 0; p < BLOCK_CONTENT_PAIRS; p++) {
         const chunk = contentChunks[p];
-        if (!chunk) {
-          // Fallback: short schedule bridge
-          const slotTime = new Date(baseTime.getTime() + slotMs);
-          const seg = buildScheduleFallbackSegment(slotTime);
-          const script = formatVoiceSegment({
-            voiceName: seg.personaName,
-            topic: seg.title,
-            narrative: seg.script || seg.summary,
-            at: slotTime
-          });
+        if (!chunk?.script?.trim()) {
           cards.push({
             duration: CONTENT_SECONDS,
-            isMusic: false,
-            personaId: seg.personaId,
-            personaName: seg.personaName,
-            contentType: "agenda_preview",
-            title: seg.title,
-            script,
-            text: formatCard({
-              eyebrow: `${blockLabel} — bridge`,
-              title: seg.title,
-              body: script
-            })
+            isMusic: true,
+            gapClipPath: gapClipPaths[musicIndex++ % gapClipPaths.length],
+            title: "Music transition",
+            script: null,
+            text: formatTransitionCard()
           });
         } else {
           const slotTime = new Date(baseTime.getTime() + slotMs);
@@ -647,7 +713,7 @@ async function saveBroadcastWriteout(cards: Card[]) {
   await upsertBroadcastWriteoutInDb({
     coverageSlotId: process.env.COVERAGE_SLOT_ID || undefined,
     startsAt: startsAt.toISOString(),
-    durationMinutes: Math.max(60, Math.ceil(totalCardSeconds(cards) / 60)),
+    durationMinutes: 60,
     title,
     status: "rendering",
     youtubeVideoId: process.env.YOUTUBE_VIDEO_ID || undefined,
@@ -665,10 +731,15 @@ async function saveBroadcastWriteout(cards: Card[]) {
 async function main() {
   const ffmpeg = process.env.FFMPEG_PATH ?? ffmpegPath ?? "ffmpeg";
   const useBlockMode = process.env.HOUR_BROADCAST_MODE === "blocks";
-  const cards = expandContentDurations(
-    replaceMissingIntakeCardsWithMusic(
-      applyPresentationPolicy(useBlockMode ? await buildBlockCards() : await buildCards())
-    )
+  const cards = enforceOneHourFrame(
+    expandContentDurations(
+      replaceEmptyContentCardsWithMusic(
+        replaceMissingIntakeCardsWithMusic(
+          applyPresentationPolicy(useBlockMode ? await buildBlockCards() : await buildCards())
+        )
+      )
+    ),
+    3600
   );
   await saveBroadcastWriteout(cards);
   await mkdir(renderDir, { recursive: true });

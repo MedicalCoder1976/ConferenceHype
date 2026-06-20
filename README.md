@@ -47,9 +47,7 @@ the OAuth-created fresh broadcast.
   overlapped by, or visually crowded under the video/player box. Keep the
   homepage hero stacked until the text and player have enough horizontal room,
   and reserve a protected text column in two-column layouts.
-- Broadcast audio reads the visible card text/summary shown above **FULL
-  PREPARED TEXT**. Do not use the expanded full prepared script as the spoken
-  source unless the operator explicitly asks for that behavior.
+- Broadcast audio reads only the material that is actually in the approved cards. Internal workflow procedure, source-checking instructions, missing-source explanations, and operator notes must never be narrated. If copy is not intended for the viewer-facing card, it is not broadcast material.
 - Preparing, completed rehearsal, failed, and idle states without stale claims
 - Current YouTube handoff read from Supabase on each request
 - `#ConferenceHype` and `@conferencehype` audience routing
@@ -77,11 +75,12 @@ embedder.
   Admin card lists must show this distinction: ready cards are candidates, while
   scheduled slot cards are marked as approved in the presentation sequence.
 - Daily card creation is selection-only. The admin selects the date and time,
-  then checks the desired journals, meetings, abstracts, or media sources. The
-  batch algorithm must create cards only from those checked selections, using
-  source IDs rather than loose title/source-name matching. Brand New Ready Cards
-  remain candidates until the admin accepts, rejects, or replaces them into the
-  presentation sequence.
+  then checks the desired journals, meetings, abstracts, or media sources. No
+  journal, meeting, RSS feed, or clinical-news source may be default selected.
+  The batch algorithm must create cards only from those checked selections,
+  using source IDs rather than loose title/source-name matching. Brand New Ready
+  Cards remain candidates until the admin accepts, rejects, or replaces them
+  into the presentation sequence.
 - Daily guard verification must fail if an unselected journal/meeting/media
   item can generate a card or if a legacy untagged batch card can enter the
   presentation sequence.
@@ -95,7 +94,8 @@ embedder.
   watch, or Diagnostic Company watch.
 - If any card contains missing-intake failure language instead of source detail,
   replace the entire card with the stored music transition. Do not voice or
-  display that card as content.
+  display that card as content. If a social-voices card or any other card is
+  empty, play only music for that slot.
 - Journal-review cards begin their substantive content with: "From the
   [Month] edition of [Journal Name]". They should condense the abstract,
   methods, results, and discussion into broadcast language rather than merely
@@ -116,6 +116,14 @@ embedder.
   placeholder that says there is no content.
 - The full disclaimer is placed on a dedicated notice approximately every
   15 minutes instead of being repeated in every segment.
+- Every narrated card is followed by an automatic music transition. The next
+  card may only begin once that music transition point is reached; narration must
+  never skip the transition or overlap another spoken card.
+- The rendered broadcast is a hard 60-minute frame. If prepared cards exceed
+  60 minutes, remove trailing card material as whole cards from the end until
+  the program fits. If the remaining content is shorter than 60 minutes, fill
+  the gap with music so the final render stays within the hour.
+- Narration style: pronounce `ASCO` as `ASKho`/`Ask-ho`, never as the individual letters A-S-C-O. Pronounce `Ib` and `1b` as `one B`.
 - Transition audio rotates through six 20-second tracks:
   four licensed voiced stingers in `public/music/gap-clips` and two generated
   preview tracks in `public/music`.
@@ -293,20 +301,20 @@ and provide the affected YouTube video ID.
   video, Supabase stream state, saved writeout, and `conferencehype.com` all
   match the same video ID, the broadcast process is still broken and must keep
   failing/retrying until fixed.
-- `platform-smoke-loop.yml`: daily randomized end-to-end platform test, scheduled
-  before the ordinary YouTube delivery verifier. It selects one random enabled
-  conference/meeting, one random enabled journal RSS feed, and one random
-  clinical news/media source; saves that selection as the daily coverage plan;
-  generates ready cards only from those selected sources; schedules approved
-  copies into the selected hour; dispatches the YouTube stream workflow; and
-  retries until the workflow proves cards, music transitions, the public
-  `conferencehype.com` player, the Supabase handoff, and the saved YouTube video
-  all align. If the loop cannot verify the platform, it opens a GitHub issue
-  with the selected sources, slot, workflow run, and logs.
-- `youtube-delivery-daily-verify.yml`: daily safety verification for the
-  current public YouTube handoff. It requires public visibility, retries after
-  automatically repairing YouTube privacy to `public`, and opens a GitHub issue
-  with the failing verifier output if the delivery path is still broken.
+- `daily-verification-loop.yml`: the single daily verification loop. It runs
+  typecheck, broadcast guards, RSS feed verification, randomized platform smoke,
+  public stream handoff resolution, YouTube delivery verification, and automatic
+  repair/retry passes before reporting failure. The automatic repair passes are:
+  refresh ingestion and rerun RSS verification after source failure; rerun the
+  randomized platform smoke loop after smoke failure; run a short smoke repair
+  pass and resolve the public handoff again when `conferencehype.com` does not
+  expose a live/completed YouTube ID; set the YouTube video privacy to `public`
+  and rerun delivery verification after delivery failure. Only unresolved
+  failures after those repair passes open a GitHub issue and fail the workflow.
+- `platform-smoke-loop.yml`: manual targeted randomized platform smoke repair.
+  The daily schedule lives in `daily-verification-loop.yml`.
+- `youtube-delivery-daily-verify.yml`: manual targeted YouTube delivery repair.
+  The daily schedule lives in `daily-verification-loop.yml`.
 - `youtube-enable-embed.yml`: manual repair for a specific video
 - `briefing.yml`: manual
 - `render-media.yml`: manual or configured media render

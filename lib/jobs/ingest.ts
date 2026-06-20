@@ -22,9 +22,12 @@ import {
   createDefaultDailyCoveragePlan,
   normalizeLegacyDailyCoverageDefaults
 } from "@/lib/dailyCoverage";
-import type { IngestedItem } from "@/lib/types";
+import type { DailyCoveragePlan, IngestedItem } from "@/lib/types";
 
-export async function runIngestionJob(coverageDateOverride?: string): Promise<IngestedItem[]> {
+export async function runIngestionJob(
+  coverageDateOverride?: string,
+  planOverride?: DailyCoveragePlan
+): Promise<IngestedItem[]> {
   await upsertSourcesToDb();
   const configuredSources = (await getSourcesFromDb()) ?? sourceRegistry;
   const coverageDate =
@@ -42,6 +45,7 @@ export async function runIngestionJob(coverageDateOverride?: string): Promise<In
   ]);
   const dailyPlan = normalizeLegacyDailyCoverageDefaults({
     plan:
+      planOverride ??
       savedDailyPlan ??
       createDefaultDailyCoveragePlan({
         coverageDate,
@@ -49,7 +53,8 @@ export async function runIngestionJob(coverageDateOverride?: string): Promise<In
       }),
     journals: journals ?? [],
     conferences: conferences ?? [],
-    sources: configuredSources
+    sources: configuredSources,
+    clearLegacyDefaults: !planOverride
   });
   const specialtyVoices = (await getSpecialtyXVoicesFromDb()) ?? [];
   const selectedConfiguredSources = configuredSources.filter(

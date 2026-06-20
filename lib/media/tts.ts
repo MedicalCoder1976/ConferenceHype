@@ -40,6 +40,10 @@ export function applySpokenPronunciations(script: string) {
     .replace(/\bwww\.\S+/g, "")
     // Rule 3: strip internal process labels that sneak into scripts
     .replace(/\boperator[- ](?:added|selected)\b[^.!?\n]*/gi, "")
+    .replace(/\bsource[- ]only\s+schedule\b[^.!?\n]*(?:[.!?]|\n|$)/gi, "")
+    .replace(/\bcheck(?:ing)?\s+using\s+official\s+meeting\s+sources\b[^.!?\n]*(?:[.!?]|\n|$)/gi, "")
+    .replace(/\bofficial\s+source\s+desk\s+is\s+monitoring\b[^.!?\n]*(?:[.!?]|\n|$)/gi, "")
+    .replace(/\bConference\s*Hype\s+ASCO\s+energy\s+all\s+day\s+long\b[.!?]?\s*/gi, "")
     .replace(/\bmonitored\s+X\s+(?:voice|narrative|voices)\b/gi, "")
     .replace(/\bsource[- ]backed\s+\w+\s+narrative\b/gi, "")
     .replace(/\bapproved\s+for\s+broadcast\b/gi, "")
@@ -60,6 +64,9 @@ export function applySpokenPronunciations(script: string) {
     .replace(/\([^)]{1,80}\)/g, "")
     // Percent sign → "percent"
     .replace(/(\d)\s*%/g, "$1 percent")
+    .replace(/\bASCO\b/g, "Ask-ho")
+    .replace(/\bIb\b/g, "one B")
+    .replace(/\b1b\b/gi, "one B")
     // Clean up stray commas and double spaces left behind
     .replace(/,\s*,/g, ",")
     .replace(/\s{2,}/g, " ")

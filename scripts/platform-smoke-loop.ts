@@ -8,7 +8,6 @@ import {
   getPreviousDayBatchItemsFromDb,
   getSourcesFromDb,
   saveGeneratedSegmentsToDb,
-  upsertDailyCoveragePlanInDb
 } from "@/lib/db";
 import { sourceRegistry } from "@/lib/sources/registry";
 import { runIngestionJob } from "@/lib/jobs/ingest";
@@ -270,9 +269,8 @@ async function prepareAttempt(attempt: number): Promise<PreparedAttempt> {
     breakingNewsEnabled: true,
     notes: `Automated platform smoke test ${randomUUID()}`
   };
-  await upsertDailyCoveragePlanInDb(plan);
 
-  const freshItems = await runIngestionJob(coverageDate);
+  const freshItems = await runIngestionJob(coverageDate, plan);
   const storedItems = (await getPreviousDayBatchItemsFromDb(coverageDate, 240)) ?? [];
   const candidates = toCardsForSelections({
     items: [...freshItems, ...storedItems],

@@ -70,7 +70,8 @@ export async function POST(request: NextRequest) {
       plan: rawPlan,
       journals: journals ?? [],
       conferences: conferences ?? [],
-      sources: sources ?? sourceRegistry
+      sources: sources ?? sourceRegistry,
+      clearLegacyDefaults: false
     });
     const plan = await upsertDailyCoveragePlanInDb(normalizedPlan);
     return NextResponse.json({ ok: true, plan });

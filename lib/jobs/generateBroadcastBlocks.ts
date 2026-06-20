@@ -45,6 +45,9 @@ function cleanForBroadcast(text: string): string {
       .replace(/#\w+/g, "")
       // Internal process labels that must never reach air
       .replace(/\bmonitored\s+X\s+(?:voice|narrative|voices)\b/gi, "")
+      .replace(/\bsource[- ]only\s+schedule\b[^.!?\n]*(?:[.!?]|\n|$)/gi, "")
+      .replace(/\bcheck(?:ing)?\s+using\s+official\s+meeting\s+sources\b[^.!?\n]*(?:[.!?]|\n|$)/gi, "")
+      .replace(/\bConference\s*Hype\s+ASCO\s+energy\s+all\s+day\s+long\b[.!?]?\s*/gi, "")
       .replace(/\boperator[- ](?:added|selected)\b[^.!?\n]*/gi, "")
       .replace(/\bapproved\s+for\s+broadcast\b/gi, "")
       // Clean up spacing
@@ -111,7 +114,7 @@ function fallback(
   const persona = getPersona(personaId);
   return Array.from({ length: count }, (_, i) => ({
     title: `${label} update ${i + 1}`,
-    script: `${persona.name} here from the ${label} desk. No new attributed update is ready for this slot, so stay with us for the next update.`,
+    script: "",
     personaId: persona.id,
     personaName: persona.name,
     contentType
@@ -129,7 +132,7 @@ function fallbackFromItems(
     const item = items[i % Math.max(items.length, 1)];
     const body = item
       ? trimToSlot(cleanForBroadcast(`${item.title}. ${item.excerpt}`))
-      : "Conference coverage continues. More updates are coming shortly.";
+      : "";
     return {
       title: item?.title ?? `Conference Update ${i + 1}`,
       script: body,
@@ -155,7 +158,7 @@ function fallbackFromAttributedItems(
             `According to ${item.sourceName}, ${item.title}. ${item.excerpt}`
           )
         )
-      : `No new source-backed pharma item is ready for this slot.`;
+      : "";
     return {
       title: item?.title ?? `Pharma News Update ${i + 1}`,
       script: body,
@@ -181,7 +184,7 @@ function normalizeChunks(
     const persona = isB ? personaB : personaA;
     return {
       title: "Conference Update",
-      script: `${persona.name} here. Coverage continues from the conference. More updates coming right up.`,
+      script: "",
       personaId: persona.id,
       personaName: persona.name,
       contentType
@@ -311,7 +314,7 @@ export async function generateSocialBlockChunks(
       const previousPersona = i > 0 ? (i % 2 === 0 ? personaB : personaA) : null;
       const body = item
         ? trimToSlot(cleanForBroadcast(`${item.title}. ${item.excerpt}`))
-        : "Coverage continues from the conference social desk.";
+        : "";
       return {
         title: item?.title ?? `Social Update ${i + 1}`,
         script: withNamedThankYouHandoff(body, persona.name, previousPersona?.name),
@@ -322,19 +325,20 @@ export async function generateSocialBlockChunks(
     });
   }
 
-  const postLines =
-    socialItems.length > 0
-      ? socialItems
-          .slice(0, 30)
-          .map((item, i) => {
-            const author = item.author
-              ? `${item.author.replace(/^@/, "")} posted: `
-              : "";
-            const body = cleanForBroadcast(`${item.title}. ${item.excerpt}`).slice(0, 250);
-            return `${i + 1}. ${author}${body}`;
-          })
-          .join("\n")
-      : "No recent social posts are available. Use a brief source-neutral bridge and do not invent reactions, rankings, or claims.";
+  if (socialItems.length === 0) {
+    return fallbackFromItems(socialItems, CHUNKS_PER_CONTENT_BLOCK, personaA.id, "social_signal");
+  }
+
+  const postLines = socialItems
+    .slice(0, 30)
+    .map((item, i) => {
+      const author = item.author
+        ? `${item.author.replace(/^@/, "")} posted: `
+        : "";
+      const body = cleanForBroadcast(`${item.title}. ${item.excerpt}`).slice(0, 250);
+      return `${i + 1}. ${author}${body}`;
+    })
+    .join("\n");
 
   const prompt = `You are writing a 16-minute live medical-conference social media roundup for a radio-style stream.
 Two reporters are having a live, energetic on-air conversation about the latest source-attributed conference posts.

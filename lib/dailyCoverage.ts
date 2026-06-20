@@ -15,17 +15,14 @@ export function isOngoingConference(conference: MedicalConference, coverageDate:
 }
 
 export function createDefaultDailyCoveragePlan({
-  coverageDate,
-  conferences
+  coverageDate
 }: {
   coverageDate: string;
   conferences: MedicalConference[];
 }): DailyCoveragePlan {
   return {
     coverageDate,
-    conferenceIds: conferences
-      .filter((conference) => isOngoingConference(conference, coverageDate))
-      .map((conference) => conference.id),
+    conferenceIds: [],
     journalIds: [],
     sourceIds: [],
     customItems: [],
@@ -52,16 +49,21 @@ export function normalizeLegacyDailyCoverageDefaults({
   plan,
   journals,
   conferences = [],
-  sources
+  sources,
+  clearLegacyDefaults = true
 }: {
   plan: DailyCoveragePlan;
   journals: OncologyJournal[];
   conferences?: MedicalConference[];
   sources: SourceConfig[];
+  clearLegacyDefaults?: boolean;
 }): DailyCoveragePlan {
   const oldDefaultJournalIds = journals
     .filter((journal) => journal.enabled)
     .map((journal) => journal.id);
+  const oldDefaultConferenceIds = conferences
+    .filter((conference) => conference.enabled)
+    .map((conference) => conference.id);
   const oldDefaultSourceIds = sources
     .filter(
       (source) =>
@@ -92,14 +94,32 @@ export function normalizeLegacyDailyCoverageDefaults({
     ...conferenceIdsFromSyntheticSources
   ]);
   const normalizedSourceIds = uniqueIds(sourceIdsWithoutSynthetic);
+  const staleDefaultOnlyJournalIds = normalizedJournalIds.filter((id) =>
+    oldDefaultJournalIds.includes(id)
+  );
+  const staleDefaultOnlyConferenceIds = normalizedConferenceIds.filter((id) =>
+    oldDefaultConferenceIds.includes(id)
+  );
+  const staleDefaultOnlySourceIds = normalizedSourceIds.filter((id) =>
+    oldDefaultSourceIds.includes(id)
+  );
+  const shouldClearLegacyDefaults = clearLegacyDefaults;
 
   return {
     ...plan,
-    conferenceIds: normalizedConferenceIds,
-    journalIds: includesAll(normalizedJournalIds, oldDefaultJournalIds)
+    conferenceIds: shouldClearLegacyDefaults &&
+      (includesAll(normalizedConferenceIds, oldDefaultConferenceIds) ||
+        staleDefaultOnlyConferenceIds.length === normalizedConferenceIds.length)
+      ? []
+      : normalizedConferenceIds,
+    journalIds: shouldClearLegacyDefaults &&
+      (includesAll(normalizedJournalIds, oldDefaultJournalIds) ||
+        staleDefaultOnlyJournalIds.length === normalizedJournalIds.length)
       ? []
       : normalizedJournalIds,
-    sourceIds: includesAll(normalizedSourceIds, oldDefaultSourceIds)
+    sourceIds: shouldClearLegacyDefaults &&
+      (includesAll(normalizedSourceIds, oldDefaultSourceIds) ||
+        staleDefaultOnlySourceIds.length === normalizedSourceIds.length)
       ? []
       : normalizedSourceIds
   };
