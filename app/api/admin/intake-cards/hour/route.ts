@@ -9,6 +9,7 @@ import {
 } from "@/lib/db";
 import {
   buildBatchSegment,
+  buildConferenceContextItem,
   buildPubMedBackedJournalItem,
   itemMatchesSelections,
   personaIdForBatchIndex
@@ -110,7 +111,10 @@ export async function POST(request: NextRequest) {
     const selectedJournals = (journals ?? []).filter((journal) =>
       body.journalIds.includes(journal.id)
     );
-    let sourceMode: "stored_previous_day" | "on_demand_ingest" = "stored_previous_day";
+    let sourceMode:
+      | "stored_previous_day"
+      | "on_demand_ingest"
+      | "selected_conference_context" = "stored_previous_day";
     let filtered = selectBatchItems({
       items: items ?? [],
       conferences: selectedConferences,
@@ -122,7 +126,17 @@ export async function POST(request: NextRequest) {
     });
 
     if (filtered.length === 0) {
-      const freshItems = await runIngestionJob(body.coverageDate);
+      const freshItems = await runIngestionJob(body.coverageDate, {
+        coverageDate: body.coverageDate,
+        conferenceIds: body.conferenceIds,
+        journalIds: body.journalIds,
+        sourceIds: body.sourceIds,
+        customItems: [],
+        priorityTopics: body.priorityTopics,
+        exclusions: body.exclusions,
+        breakingNewsEnabled: true,
+        notes: ""
+      });
       sourceMode = "on_demand_ingest";
       filtered = selectBatchItems({
         items: freshItems,
@@ -135,6 +149,18 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    if (filtered.length === 0 && selectedConferences.length > 0) {
+      sourceMode = "selected_conference_context";
+      filtered = selectBatchItems({
+        items: selectedConferences.map(buildConferenceContextItem),
+        conferences: selectedConferences,
+        journals: selectedJournals,
+        sourceIds,
+        priorityTopics: body.priorityTopics,
+        exclusions: body.exclusions,
+        maxCards: body.maxCards
+      });
+    }
     if (filtered.length === 0) {
       return NextResponse.json(
         {

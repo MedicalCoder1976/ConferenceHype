@@ -1,6 +1,9 @@
 import type { IngestedItem } from "@/lib/types";
 
 export function isGenericConferenceLandingItem(item: IngestedItem) {
+  if (item.id.startsWith("conference-context-")) {
+    return false;
+  }
   return Boolean(
     item.sourceType === "official" &&
     /\b(?:ASCO Meetings|meetings?|annual meeting|program guide)\b/i.test(

@@ -22,8 +22,24 @@ import {
   createDefaultDailyCoveragePlan,
   normalizeLegacyDailyCoverageDefaults
 } from "@/lib/dailyCoverage";
-import type { DailyCoveragePlan, IngestedItem } from "@/lib/types";
+import type { DailyCoveragePlan, IngestedItem, MedicalConference, SourceConfig } from "@/lib/types";
 
+function conferenceLinkedConfiguredSources(
+  conference: MedicalConference,
+  configuredSources: SourceConfig[]
+) {
+  const label = `${conference.name} ${conference.acronym ?? ""}`.toLowerCase();
+  const matchingSources = /\beha\b|european hematology/.test(label)
+    ? configuredSources.filter((source) => source.id.startsWith("eha-2026-"))
+    : [];
+
+  return matchingSources.map((source) => ({
+    ...source,
+    id: `daily-conference-${conference.id}-${source.id}`,
+    name: `${conference.acronym ?? conference.name}: ${source.name}`,
+    enabled: true
+  }));
+}
 export async function runIngestionJob(
   coverageDateOverride?: string,
   planOverride?: DailyCoveragePlan
@@ -77,14 +93,17 @@ export async function runIngestionJob(
           })),
         ...(conferences ?? [])
           .filter((conference) => dailyPlan.conferenceIds.includes(conference.id))
-          .map((conference) => ({
-            id: conference.id,
-            name: conference.name,
-            url: conference.officialUrl,
-            type: "official" as const,
-            rank: 1,
-            enabled: true
-          })),
+          .flatMap((conference) => [
+            {
+              id: conference.id,
+              name: conference.name,
+              url: conference.officialUrl,
+              type: "official" as const,
+              rank: 1,
+              enabled: true
+            },
+            ...conferenceLinkedConfiguredSources(conference, configuredSources)
+          ]),
         ...dailyPlan.customItems
           .filter((item) => item.url)
           .map((item) => ({

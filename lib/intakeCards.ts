@@ -91,6 +91,50 @@ export async function buildPubMedBackedJournalItem(item: IngestedItem) {
   };
 }
 
+function formatConferenceDateRange(conference: MedicalConference) {
+  if (conference.startDate && conference.endDate) {
+    return conference.startDate === conference.endDate
+      ? conference.startDate
+      : `${conference.startDate} through ${conference.endDate}`;
+  }
+  if (conference.startDate) {
+    return conference.startDate;
+  }
+  if (conference.month && conference.year) {
+    return `${conference.year}-${String(conference.month).padStart(2, "0")}`;
+  }
+  return "";
+}
+
+export function buildConferenceContextItem(conference: MedicalConference): IngestedItem {
+  const acronym = conference.acronym ? `${conference.acronym} ` : "";
+  const dateRange = formatConferenceDateRange(conference);
+  const location = [conference.city, conference.country].filter(Boolean).join(", ");
+  const specialties = conference.specialties.length
+    ? conference.specialties.join(", ")
+    : "medical";
+  const details = [
+    `Official meeting context: ${conference.name} is listed as a ${specialties} meeting.`,
+    dateRange ? `Dates: ${dateRange}.` : "",
+    location ? `Location: ${location}.` : "",
+    `Source: the official meeting page for ${conference.name}.`
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return {
+    id: `conference-context-${conference.id}`,
+    sourceId: `daily-conference-${conference.id}-context`,
+    title: `${acronym}${conference.year ?? ""} official conference context`
+      .replace(/\s+/g, " ")
+      .trim(),
+    url: conference.officialUrl,
+    excerpt: details,
+    sourceName: conference.name,
+    sourceType: "official",
+    rank: 1
+  };
+}
 function monthEdition(item: IngestedItem) {
   const source = item.publishedAt ? new Date(item.publishedAt) : undefined;
   if (source && !Number.isNaN(source.getTime())) {
@@ -214,7 +258,8 @@ export function itemMatchesSelections({
   const conferenceMatch = conferences.some(
     (conference) =>
       item.sourceId === conference.id ||
-      item.sourceId === `daily-conference-${conference.id}`
+      item.sourceId === `daily-conference-${conference.id}` ||
+      item.sourceId?.startsWith(`daily-conference-${conference.id}-`)
   );
   const journalMatch = journals.some(
     (journal) =>

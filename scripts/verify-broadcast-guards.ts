@@ -5,7 +5,7 @@ import { formatVoiceSegment, SEGMENT_CLOSE } from "@/lib/broadcast/voiceSegment"
 import { applySpokenPronunciations } from "@/lib/media/tts";
 import { getUnsafeGeneratedSourceErrors } from "@/lib/generation/sourceSafety";
 import { validateSegmentForApproval } from "@/lib/generation/validator";
-import { itemMatchesSelections } from "@/lib/intakeCards";
+import { buildConferenceContextItem, itemMatchesSelections } from "@/lib/intakeCards";
 import { isGenericConferenceLandingItem } from "@/lib/intakeSelection";
 import { filterBroadcastReadySegments } from "@/lib/data";
 import { normalizeLegacyDailyCoverageDefaults } from "@/lib/dailyCoverage";
@@ -232,6 +232,26 @@ assert.equal(
   true
 );
 
+assert.equal(
+  itemMatchesSelections({
+    item: {
+      id: "selected-eha-program",
+      sourceId: `daily-conference-${selectedConference.id}-eha-2026-program`,
+      title: "Selected meeting program update",
+      url: "https://example.com/meeting/program",
+      excerpt:
+        "The selected meeting program lists a scheduled session with study discussion and registered attendee details.",
+      sourceName: selectedConference.name,
+      sourceType: "official",
+      rank: 1
+    },
+    conferences: [selectedConference],
+    journals: [],
+    sourceIds: []
+  }),
+  true
+);
+assert.equal(isGenericConferenceLandingItem(buildConferenceContextItem(selectedConference)), false);
 assert.ok(
   validateSegmentForApproval({
     ...sponsorBase,

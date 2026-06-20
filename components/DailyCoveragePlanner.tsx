@@ -177,7 +177,8 @@ export function DailyCoveragePlanner({
     const conferenceMatch = selectedConferences.some(
       (conference) =>
         item.sourceId === conference.id ||
-        item.sourceId === `daily-conference-${conference.id}`
+        item.sourceId === `daily-conference-${conference.id}` ||
+        item.sourceId?.startsWith(`daily-conference-${conference.id}-`)
     );
     const journalMatch = selectedJournals.some((journal) =>
       item.sourceId === journal.id ||
@@ -278,7 +279,9 @@ export function DailyCoveragePlanner({
           text:
             batchPayload.sourceMode === "on_demand_ingest"
               ? "Batch complete after an on-demand source fetch. Review the cards in Brand New Ready Cards, or accept them now to schedule this selected hour."
-              : "Batch complete from stored prior-day intake. Review the cards in Brand New Ready Cards, or accept them now to schedule this selected hour.",
+              : batchPayload.sourceMode === "selected_conference_context"
+                ? "Batch complete from selected official conference context. Review the cards in Brand New Ready Cards, or accept them now to schedule this selected hour."
+                : "Batch complete from stored prior-day intake. Review the cards in Brand New Ready Cards, or accept them now to schedule this selected hour.",
           count: batchPayload.count,
           titles: createdTitles,
           segmentIds: createdSegmentIds
