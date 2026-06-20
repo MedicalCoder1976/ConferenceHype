@@ -35,6 +35,10 @@ to YouTube, and exposes the same broadcast on `conferencehype.com`.
 The fixed RTMP URL and key are a legacy fallback. The normal production path is
 the OAuth-created fresh broadcast.
 
+GitHub `main` is the source of truth for final code. Any completed fix must be
+committed and pushed to GitHub before it is treated as final, runnable, or ready
+for production scheduling. Local-only workspace changes are not final code.
+
 ## Public Site
 
 - Status-aware YouTube player with direct YouTube, audio, and HLS fallbacks
