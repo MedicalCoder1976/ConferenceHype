@@ -27,8 +27,8 @@ function isEmptyConferenceInformationCard(segment: Pick<Segment, "title" | "summ
   const text = `${segment.title} ${segment.summary} ${segment.script}`;
   return (
     segment.contentType === "agenda_preview" &&
-    hasFourSectionLabels(text) &&
-    /\b(registration|register\s+virtually|platform|onboarding|thank\s+you\s+for\s+joining|official\s+meeting\s+context|conference\s+context|is\s+listed\s+as\s+a|source:\s+the\s+official\s+meeting\s+page|topics-in-focus|congress\s+platform)\b/i.test(text) &&
+    (hasFourSectionLabels(text) || /\b(official\s+program\s+intake|clinical\s+practice\s+our\s+guidelines|learning\s+paths\s+european\s+hematology\s+curriculum|monitoring\s+and\s+career\s+development|specialized\s+working\s+groups|ebah\s+cme\s+credits|topics-in-focus\s+program)\b/i.test(text)) &&
+    /\b(registration|register\s+virtually|platform|onboarding|thank\s+you\s+for\s+joining|official\s+meeting\s+context|conference\s+context|is\s+listed\s+as\s+a|source:\s+the\s+official\s+meeting\s+page|topics-in-focus|congress\s+platform|clinical\s+practice|guidelines|learning\s+paths|curriculum|working\s+groups|cme\s+credits)\b/i.test(text) &&
     !/\b(objective|patients?|randomi[sz]ed|trial|cohort|endpoint|survival|response|hazard\s+ratio|confidence\s+interval|p\s*[<=>]|median|primary\s+endpoint|secondary\s+endpoint)\b/i.test(text)
   );
 }

@@ -384,6 +384,19 @@ assert.ok(
   }).some((error) => error.includes("must not enter the broadcast queue"))
 );
 
+assert.ok(
+  validateSegmentForApproval({
+    ...sponsorBase,
+    title: "One-hour batch 23:00 UTC: EHA2026 program - The European Hematology Association (EHA)",
+    summary:
+      "EHA, EHA2026 official program intake. Background, Clinical practice Our guidelines initiative Learning paths European Hematology Curriculum Monitoring and career development Career comparison tool Specialized Working Groups Support for SWG scientific meetings Topics-in-Focus program Precision Hematology Topics-in-Focus program Hemoglobinopathies Topics-in-Focus program EHA2026 program EHA2026 EBAH CME credits Information.",
+    script:
+      "Background: Clinical practice Our guidelines initiative Learning paths European Hematology Curriculum Monitoring and career development Career comparison tool Specialized Working Groups Support for SWG scientific meetings Topics-in-Focus program Precision Hematology Topics-in-Focus program Hemoglobinopathies Topics-in-Focus program EHA2026 program EHA2026 EBAH CME credits Information.",
+    contentType: "agenda_preview",
+    riskFlags: ["source_id:eha-2026-program"]
+  }).some((error) => error.includes("must not enter the broadcast queue"))
+);
+
 const dailyCoveragePlannerSource = readFileSync(
   path.join(process.cwd(), "components", "DailyCoveragePlanner.tsx"),
   "utf8"

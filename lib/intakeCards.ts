@@ -68,6 +68,19 @@ export function isClinicalScienceItem(item: IngestedItem) {
   );
 }
 
+export function isNonSubstantiveConferenceInformationItem(item: IngestedItem) {
+  const text = `${item.title} ${item.excerpt} ${item.sourceName}`;
+  return (
+    item.sourceType === "official" &&
+    /\b(program|congress|conference|meeting|topics-in-focus|guidelines|learning\s+paths|curriculum|working\s+groups|cme\s+credits|registration|platform|onboarding|thank\s+you\s+for\s+joining)\b/i.test(text) &&
+    !/\b(abstract|objective|patients?|randomi[sz]ed|trial|cohort|endpoint|survival|response|hazard\s+ratio|confidence\s+interval|p\s*[<=>]|median|primary\s+endpoint|secondary\s+endpoint|results?\s+(?:showed|demonstrated|reported|included))\b/i.test(text) &&
+    (
+      /\b(clinical\s+practice\s+our\s+guidelines|learning\s+paths\s+european\s+hematology\s+curriculum|monitoring\s+and\s+career\s+development|specialized\s+working\s+groups|ebah\s+cme\s+credits|topics-in-focus\s+program)\b/i.test(text) ||
+      text.split(/(?<=[.!?])\s+/).filter((sentence) => sentence.trim().length > 35).length < 3
+    )
+  );
+}
+
 function pubMedSummaryIsUsable({
   title,
   sourceName,
@@ -87,6 +100,9 @@ function pubMedSummaryIsUsable({
 
 export async function buildPubMedBackedJournalItem(item: IngestedItem) {
   const scienceItem = isClinicalScienceItem(item);
+  if (isNonSubstantiveConferenceInformationItem(item)) {
+    return null;
+  }
   if (!scienceItem) {
     return item;
   }
