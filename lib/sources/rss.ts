@@ -6,6 +6,7 @@ import { fetchPubMedAbstract } from "@/lib/sources/pubmed";
 import type { IngestedItem, SourceConfig } from "@/lib/types";
 
 const execFileAsync = promisify(execFile);
+const RSS_USER_AGENT = "Mozilla/5.0 ConferenceHype RSS verifier";
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -86,7 +87,7 @@ export async function fetchJournalArticleAbstract(url: string) {
   try {
     const response = await fetch(url, {
       headers: {
-        "User-Agent": "ConferenceHypeBot/0.1 journal abstract summaries"
+        "User-Agent": RSS_USER_AGENT
       },
       next: { revalidate: 3600 }
     });
@@ -142,6 +143,8 @@ async function fetchWithCurl(url: string) {
     "--show-error",
     "--max-time",
     "30",
+    "-A",
+    RSS_USER_AGENT,
     url
   ], { maxBuffer: 5 * 1024 * 1024 });
   return stdout;
@@ -161,7 +164,7 @@ async function fetchRssText(url: string, sourceName: string) {
   for (let attempt = 0; attempt < 8; attempt += 1) {
     const response = await fetch(currentUrl, {
       headers: {
-        "User-Agent": "ConferenceHypeBot/0.1 source-attributed summaries",
+        "User-Agent": RSS_USER_AGENT,
         Accept: "application/rss+xml, application/xml, text/xml, */*",
         ...(cookie ? { Cookie: cookie } : {})
       },
@@ -183,6 +186,14 @@ async function fetchRssText(url: string, sourceName: string) {
     }
 
     if (!response.ok) {
+      try {
+        const curlText = await fetchWithCurl(currentUrl);
+        if (looksLikeXmlFeed(curlText)) {
+          return curlText;
+        }
+      } catch {
+        // Fall through to the explicit status error below.
+      }
       throw new Error(`RSS fetch failed for ${sourceName}: ${response.status}`);
     }
     const text = await response.text();
