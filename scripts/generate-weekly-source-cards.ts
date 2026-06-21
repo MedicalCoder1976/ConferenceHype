@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import {
   getMedicalConferencesFromDb,
   getOncologyJournalsFromDb,
@@ -7,6 +7,7 @@ import {
   saveGeneratedSegmentsToDb,
   upsertAdminCatalogSeedsToDb
 } from "@/lib/db";
+import { getPersona } from "@/lib/generation/personas";
 import {
   buildBatchSegment,
   buildConferenceContextItem,
@@ -50,6 +51,60 @@ function existingWeeklyKeys(segments: Segment[], weekKey: string) {
           segment.riskFlags.includes(`weekly_key:${weekKey}`)
       )
       .flatMap((segment) => segment.riskFlags.filter((flag) => flag.startsWith("source_url:")))
+  );
+}
+
+function contextContentType(sourceType: IngestedItem["sourceType"]) {
+  if (sourceType === "official") return "agenda_preview" as const;
+  if (sourceType === "company") return "industry_floor" as const;
+  if (sourceType.includes("social")) return "social_signal" as const;
+  return "media_roundup" as const;
+}
+
+function buildWeeklyContextSegment({
+  sourceId,
+  sourceName,
+  sourceUrl,
+  sourceType,
+  weekKey,
+  index
+}: {
+  sourceId: string;
+  sourceName: string;
+  sourceUrl: string;
+  sourceType: IngestedItem["sourceType"];
+  weekKey: string;
+  index: number;
+}): Segment {
+  const persona = getPersona(personaIdForBatchIndex(index));
+  const createdAt = new Date().toISOString();
+  const title = `Weekly update: ${sourceName}`;
+  const summary = `${sourceName} coverage context. The official source page identifies the publication, meeting, or news source for this update.`;
+  const script = `${persona.name} is covering ${sourceName}. This context card is anchored to the official source page for ${sourceName}.`;
+  return markWeeklySourceSegment(
+    {
+      id: `weekly-context-${randomUUID()}`,
+      title,
+      summary,
+      script,
+      contentType: contextContentType(sourceType),
+      personaId: persona.id,
+      personaName: persona.name,
+      hypeLevel: "standard",
+      language: "English",
+      status: "pending_review",
+      citations: [{ label: sourceName, url: sourceUrl, sourceType }],
+      socialBuzzItems: [],
+      riskFlags: [
+        "weekly_source_context",
+        `source_id:${sourceId}`,
+        `source_url:${stableKey(`${sourceUrl}|${title}`.toLowerCase())}`
+      ],
+      confidenceScore: 70,
+      createdAt,
+      updatedAt: createdAt
+    },
+    weekKey
   );
 }
 
@@ -133,6 +188,46 @@ async function buildSegmentsForItems({
   return segments;
 }
 
+function addContextIfEmpty({
+  generated,
+  built,
+  existingKeys,
+  weekKey,
+  sourceId,
+  sourceName,
+  sourceUrl,
+  sourceType
+}: {
+  generated: Segment[];
+  built: Segment[];
+  existingKeys: Set<string>;
+  weekKey: string;
+  sourceId: string;
+  sourceName: string;
+  sourceUrl: string;
+  sourceType: IngestedItem["sourceType"];
+}) {
+  if (built.length > 0) {
+    generated.push(...built);
+    return;
+  }
+  const title = `Weekly update: ${sourceName}`;
+  const key = `source_url:${stableKey(`${sourceUrl}|${title}`.toLowerCase())}`;
+  if (existingKeys.has(key)) {
+    return;
+  }
+  const context = buildWeeklyContextSegment({
+    sourceId,
+    sourceName,
+    sourceUrl,
+    sourceType,
+    weekKey,
+    index: generated.length
+  });
+  generated.push(context);
+  existingKeys.add(key);
+}
+
 async function main() {
   await upsertAdminCatalogSeedsToDb();
   const [conferences, journals, sources, pendingSegments] = await Promise.all([
@@ -165,36 +260,60 @@ async function main() {
   for (const conference of enabledConferences) {
     const selected = pickItemsForSource(items, { conferences: [conference] }, cardsPerSource);
     const fallbackItems = selected.length ? selected : [buildConferenceContextItem(conference)];
-    generated.push(
-      ...(await buildSegmentsForItems({
-        items: fallbackItems,
-        weekKey,
-        existingKeys,
-        startIndex: generated.length
-      }))
-    );
+    const built = await buildSegmentsForItems({
+      items: fallbackItems,
+      weekKey,
+      existingKeys,
+      startIndex: generated.length
+    });
+    addContextIfEmpty({
+      generated,
+      built,
+      existingKeys,
+      weekKey,
+      sourceId: conference.id,
+      sourceName: conference.name,
+      sourceUrl: conference.officialUrl,
+      sourceType: "official"
+    });
   }
 
   for (const journal of enabledJournals) {
-    generated.push(
-      ...(await buildSegmentsForItems({
-        items: pickItemsForSource(items, { journals: [journal] }, cardsPerSource),
-        weekKey,
-        existingKeys,
-        startIndex: generated.length
-      }))
-    );
+    const built = await buildSegmentsForItems({
+      items: pickItemsForSource(items, { journals: [journal] }, cardsPerSource),
+      weekKey,
+      existingKeys,
+      startIndex: generated.length
+    });
+    addContextIfEmpty({
+      generated,
+      built,
+      existingKeys,
+      weekKey,
+      sourceId: `daily-journal-${journal.id}`,
+      sourceName: journal.name,
+      sourceUrl: journal.officialUrl || journal.rssUrl,
+      sourceType: "official"
+    });
   }
 
   for (const source of enabledSources) {
-    generated.push(
-      ...(await buildSegmentsForItems({
-        items: pickItemsForSource(items, { sourceIds: [source.id] }, cardsPerSource),
-        weekKey,
-        existingKeys,
-        startIndex: generated.length
-      }))
-    );
+    const built = await buildSegmentsForItems({
+      items: pickItemsForSource(items, { sourceIds: [source.id] }, cardsPerSource),
+      weekKey,
+      existingKeys,
+      startIndex: generated.length
+    });
+    addContextIfEmpty({
+      generated,
+      built,
+      existingKeys,
+      weekKey,
+      sourceId: source.id,
+      sourceName: source.name,
+      sourceUrl: source.url,
+      sourceType: source.type
+    });
   }
 
   const saved = (await saveGeneratedSegmentsToDb(generated)) ?? generated;
