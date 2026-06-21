@@ -30,7 +30,10 @@ function conferenceLinkedConfiguredSources(
 ) {
   const label = `${conference.name} ${conference.acronym ?? ""}`.toLowerCase();
   const matchingSources = /\beha\b|european hematology/.test(label)
-    ? configuredSources.filter((source) => source.id.startsWith("eha-2026-"))
+    ? configuredSources.filter((source) =>
+        source.id.startsWith("eha-2026-") ||
+        /\beha\b|eha2026|ehaweb|library\.ehaweb\.org/i.test(`${source.name} ${source.url}`)
+      )
     : [];
 
   return matchingSources.map((source) => ({

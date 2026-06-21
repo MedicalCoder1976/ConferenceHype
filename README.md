@@ -305,6 +305,7 @@ and provide the affected YouTube video ID.
   video, Supabase stream state, saved writeout, and `conferencehype.com` all
   match the same video ID, the broadcast process is still broken and must keep
   failing/retrying until fixed.
+- `weekly-source-cards.yml`: low-cost weekly ready-card pre-generation for every enabled conference, journal RSS feed, and clinical news/newspaper source. It fetches the configured source catalog once, creates deterministic pending-review cards without LLM expansion by default, and tags them as the weekly ready-card pool. When an operator selects that conference, journal, or news source for an hour, unused weekly cards are shown and reused first; newly generated cards only fill remaining space. Cards already scheduled/broadcast are not reused ahead of unused weekly cards.
 - `daily-verification-loop.yml`: the single daily verification loop. It runs
   typecheck, broadcast guards, RSS feed verification, randomized platform smoke,
   public stream handoff resolution, YouTube delivery verification, and automatic

@@ -1,0 +1,36 @@
+name: Weekly source cards
+
+on:
+  workflow_dispatch:
+    inputs:
+      cards_per_source:
+        description: "Cards to pre-generate per enabled conference, journal, and news source"
+        required: true
+        default: "2"
+  schedule:
+    # Low-cost weekly pre-generation of ready-card candidates for every enabled
+    # conference, journal RSS feed, and clinical news/newspaper source.
+    - cron: "20 9 * * 0"
+
+permissions:
+  contents: read
+
+jobs:
+  weekly-source-cards:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Generate weekly ready-card pool
+        run: npm run job:weekly-source-cards
+        env:
+          WEEKLY_SOURCE_CARDS_PER_SOURCE: ${{ inputs.cards_per_source || '2' }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}

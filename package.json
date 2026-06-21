@@ -12,6 +12,7 @@
     "test:rss": "tsx scripts/verify-rss-feeds.ts",
     "job:ingest": "tsx scripts/worker.ts ingest",
     "job:generate": "tsx scripts/worker.ts generate",
+    "job:weekly-source-cards": "tsx scripts/generate-weekly-source-cards.ts",
     "job:briefing": "tsx scripts/worker.ts briefing",
     "job:upcoming": "tsx scripts/worker.ts upcoming",
     "job:eha2026": "tsx scripts/prepare-eha-2026-broadcast.ts",

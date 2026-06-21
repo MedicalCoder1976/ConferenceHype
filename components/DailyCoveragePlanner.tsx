@@ -10,12 +10,14 @@ import {
 } from "@/lib/dailyCoverage";
 import { errorMessage } from "@/lib/errors";
 import { isGenericConferenceLandingItem } from "@/lib/intakeSelection";
+import { sortWeeklyReadySegmentsForSelection } from "@/lib/weeklySourceCards";
 import type {
   DailyCoveragePlan,
   IngestedItem,
   MedicalConference,
   OncologyJournal,
-  SourceConfig
+  SourceConfig,
+  Segment
 } from "@/lib/types";
 
 type PlanningDay = {
@@ -82,7 +84,8 @@ export function DailyCoveragePlanner({
   planningDays,
   activePlanningKey,
   selectedStartsAt,
-  initialBatchItems
+  initialBatchItems,
+  initialReadySegments
 }: {
   initialPlan: DailyCoveragePlan;
   conferences: MedicalConference[];
@@ -92,6 +95,7 @@ export function DailyCoveragePlanner({
   activePlanningKey: string;
   selectedStartsAt: string;
   initialBatchItems: IngestedItem[];
+  initialReadySegments: Segment[];
 }) {
   const router = useRouter();
   const [plan, setPlan] = useState(initialPlan);
@@ -167,6 +171,16 @@ export function DailyCoveragePlanner({
   );
   const hasAnySelection =
     selectedConferences.length > 0 || plan.journalIds.length > 0 || plan.sourceIds.length > 0;
+  const matchingWeeklyReadySegments = sortWeeklyReadySegmentsForSelection(initialReadySegments, {
+    conferences: selectedConferences,
+    journals: selectedJournals,
+    sourceIds: plan.sourceIds.filter(
+      (id) =>
+        !id.startsWith("daily-journal-") &&
+        !id.startsWith("daily-conference-") &&
+        !id.startsWith("daily-custom-")
+    )
+  }).slice(0, 24);
   const matchingBatchItems = batchItems.filter((item) => {
     if (isGenericConferenceLandingItem(item)) {
       return false;
@@ -277,11 +291,13 @@ export function DailyCoveragePlanner({
         setBatchStatus({
           state: "done",
           text:
-            batchPayload.sourceMode === "on_demand_ingest"
-              ? "Batch complete after an on-demand source fetch. Review the cards in Brand New Ready Cards, or accept them now to schedule this selected hour."
-              : batchPayload.sourceMode === "selected_conference_context"
-                ? "Batch complete from selected official conference context. Review the cards in Brand New Ready Cards, or accept them now to schedule this selected hour."
-                : "Batch complete from stored prior-day intake. Review the cards in Brand New Ready Cards, or accept them now to schedule this selected hour.",
+            batchPayload.sourceMode === "weekly_ready_pool"
+              ? `Batch complete with ${batchPayload.reusedCount ?? 0} unused weekly ready cards first. Review the cards in Brand New Ready Cards, or accept them now to schedule this selected hour.`
+              : batchPayload.sourceMode === "on_demand_ingest"
+                ? "Batch complete after an on-demand source fetch. Review the cards in Brand New Ready Cards, or accept them now to schedule this selected hour."
+                : batchPayload.sourceMode === "selected_conference_context"
+                  ? "Batch complete from selected official conference context. Review the cards in Brand New Ready Cards, or accept them now to schedule this selected hour."
+                  : "Batch complete from stored prior-day intake. Review the cards in Brand New Ready Cards, or accept them now to schedule this selected hour.",
           count: batchPayload.count,
           titles: createdTitles,
           segmentIds: createdSegmentIds
@@ -593,6 +609,42 @@ export function DailyCoveragePlanner({
             ))}
         </SelectionGroup>
 
+        <section className="border border-ink/10 bg-paper/50 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="text-lg font-black text-ink">Weekly ready-card pool</h3>
+              <p className="mt-1 text-sm font-semibold leading-6 text-ink/60">
+                Unused weekly cards for the selected conference, journal, or news source appear here first. Create one-hour batch cards will reuse these before creating new cards.
+              </p>
+            </div>
+            <span className="border border-ink/10 bg-white px-3 py-2 text-xs font-black uppercase text-ink/60">
+              {matchingWeeklyReadySegments.length} ready
+            </span>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {matchingWeeklyReadySegments.length === 0 ? (
+              <div className="border border-dashed border-ink/20 bg-white p-4 text-sm font-bold text-ink/55 md:col-span-2 xl:col-span-3">
+                No unused weekly ready cards match this selected source mix yet.
+              </div>
+            ) : null}
+            {matchingWeeklyReadySegments.map((segment) => (
+              <article key={segment.id} className="grid gap-3 border border-ink/10 bg-white p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="bg-ink px-2 py-1 text-[11px] font-black uppercase text-white">
+                    ready card
+                  </span>
+                  <span className="text-[11px] font-bold uppercase text-ink/45">
+                    {segment.personaName}
+                  </span>
+                </div>
+                <h4 className="text-sm font-black leading-5 text-ink">{segment.title}</h4>
+                <p className="text-xs font-semibold leading-5 text-ink/65">
+                  {segment.summary.length > 360 ? `${segment.summary.slice(0, 357)}...` : segment.summary}
+                </p>
+              </article>
+            ))}
+          </div>
+        </section>
         <section className="border border-ink/10 bg-paper/50 p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>

@@ -223,6 +223,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               activePlanningKey={activePlanningKey}
               selectedStartsAt={baseTime}
               initialBatchItems={snapshot.batchIntakeItems}
+              initialReadySegments={snapshot.pendingSegments}
             />
             <BroadcastRundown
               key={baseTime}

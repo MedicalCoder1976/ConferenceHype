@@ -4,6 +4,7 @@ import { assertAdminRequest } from "@/lib/auth";
 import {
   getMedicalConferencesFromDb,
   getOncologyJournalsFromDb,
+  getPendingSegmentsFromDb,
   getPreviousDayBatchItemsFromDb,
   saveGeneratedSegmentsToDb
 } from "@/lib/db";
@@ -16,6 +17,7 @@ import {
 } from "@/lib/intakeCards";
 import { errorMessage } from "@/lib/errors";
 import { runIngestionJob } from "@/lib/jobs/ingest";
+import { sortWeeklyReadySegmentsForSelection } from "@/lib/weeklySourceCards";
 import type { IngestedItem, MedicalConference, OncologyJournal } from "@/lib/types";
 
 export const maxDuration = 60;
@@ -30,6 +32,12 @@ const bodySchema = z.object({
   exclusions: z.array(z.string().trim().min(2).max(180)).max(100).default([]),
   maxCards: z.number().int().min(1).max(84).default(24)
 });
+
+type HourSourceMode =
+  | "weekly_ready_pool"
+  | "stored_previous_day"
+  | "on_demand_ingest"
+  | "selected_conference_context";
 
 function includesAnyTerm(text: string, terms: string[]) {
   const normalized = text.toLowerCase();
@@ -100,10 +108,11 @@ export async function POST(request: NextRequest) {
     assertAdminRequest(request);
     const body = bodySchema.parse(await request.json());
     const sourceIds = realSourceIds(body.sourceIds);
-    const [items, conferences, journals] = await Promise.all([
+    const [items, conferences, journals, pendingSegments] = await Promise.all([
       getPreviousDayBatchItemsFromDb(body.coverageDate, 240),
       getMedicalConferencesFromDb(),
-      getOncologyJournalsFromDb()
+      getOncologyJournalsFromDb(),
+      getPendingSegmentsFromDb(500)
     ]);
     const selectedConferences = (conferences ?? []).filter((conference) =>
       body.conferenceIds.includes(conference.id)
@@ -111,21 +120,28 @@ export async function POST(request: NextRequest) {
     const selectedJournals = (journals ?? []).filter((journal) =>
       body.journalIds.includes(journal.id)
     );
-    let sourceMode:
-      | "stored_previous_day"
-      | "on_demand_ingest"
-      | "selected_conference_context" = "stored_previous_day";
-    let filtered = selectBatchItems({
-      items: items ?? [],
+    const weeklyReadySegments = sortWeeklyReadySegmentsForSelection(pendingSegments ?? [], {
       conferences: selectedConferences,
       journals: selectedJournals,
-      sourceIds,
-      priorityTopics: body.priorityTopics,
-      exclusions: body.exclusions,
-      maxCards: body.maxCards
-    });
+      sourceIds
+    }).slice(0, body.maxCards);
+    const newCardLimit = Math.max(body.maxCards - weeklyReadySegments.length, 0);
+    let sourceMode: HourSourceMode = weeklyReadySegments.length
+      ? "weekly_ready_pool"
+      : "stored_previous_day";
+    let filtered = newCardLimit
+      ? selectBatchItems({
+          items: items ?? [],
+          conferences: selectedConferences,
+          journals: selectedJournals,
+          sourceIds,
+          priorityTopics: body.priorityTopics,
+          exclusions: body.exclusions,
+          maxCards: newCardLimit
+        })
+      : [];
 
-    if (filtered.length === 0) {
+    if (filtered.length === 0 && newCardLimit > 0) {
       const freshItems = await runIngestionJob(body.coverageDate, {
         coverageDate: body.coverageDate,
         conferenceIds: body.conferenceIds,
@@ -137,7 +153,7 @@ export async function POST(request: NextRequest) {
         breakingNewsEnabled: true,
         notes: ""
       });
-      sourceMode = "on_demand_ingest";
+      sourceMode = weeklyReadySegments.length ? "weekly_ready_pool" : "on_demand_ingest";
       filtered = selectBatchItems({
         items: freshItems,
         conferences: selectedConferences,
@@ -145,12 +161,14 @@ export async function POST(request: NextRequest) {
         sourceIds,
         priorityTopics: body.priorityTopics,
         exclusions: body.exclusions,
-        maxCards: body.maxCards
+        maxCards: newCardLimit
       });
     }
 
-    if (filtered.length === 0 && selectedConferences.length > 0) {
-      sourceMode = "selected_conference_context";
+    if (filtered.length === 0 && newCardLimit > 0 && selectedConferences.length > 0) {
+      sourceMode = weeklyReadySegments.length
+        ? "weekly_ready_pool"
+        : "selected_conference_context";
       filtered = selectBatchItems({
         items: selectedConferences.map(buildConferenceContextItem),
         conferences: selectedConferences,
@@ -158,10 +176,11 @@ export async function POST(request: NextRequest) {
         sourceIds,
         priorityTopics: body.priorityTopics,
         exclusions: body.exclusions,
-        maxCards: body.maxCards
+        maxCards: newCardLimit
       });
     }
-    if (filtered.length === 0) {
+
+    if (weeklyReadySegments.length === 0 && filtered.length === 0) {
       return NextResponse.json(
         {
           ok: false,
@@ -176,7 +195,7 @@ export async function POST(request: NextRequest) {
       await Promise.all(filtered.map((item) => buildPubMedBackedJournalItem(item)))
     ).filter((item): item is IngestedItem => Boolean(item));
 
-    if (enriched.length === 0) {
+    if (weeklyReadySegments.length === 0 && enriched.length === 0) {
       return NextResponse.json(
         {
           ok: false,
@@ -194,18 +213,21 @@ export async function POST(request: NextRequest) {
       timeZoneName: "short"
     }).format(new Date(body.startsAt));
     const segments = enriched.map((item, index) =>
-      buildBatchSegment(item, personaIdForBatchIndex(index), {
+      buildBatchSegment(item, personaIdForBatchIndex(index + weeklyReadySegments.length), {
         startsAt: body.startsAt,
-        index,
+        index: index + weeklyReadySegments.length,
         batchLabel: `One-hour batch ${startLabel}`
       })
     );
     const saved = (await saveGeneratedSegmentsToDb(segments)) ?? segments;
+    const readySegments = [...weeklyReadySegments, ...saved];
     return NextResponse.json({
       ok: true,
-      count: saved.length,
+      count: readySegments.length,
+      reusedCount: weeklyReadySegments.length,
+      generatedCount: saved.length,
       sourceMode,
-      segments: saved
+      segments: readySegments
     });
   } catch (error) {
     return NextResponse.json(

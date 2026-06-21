@@ -9,6 +9,7 @@ import { buildConferenceContextItem, itemMatchesSelections } from "@/lib/intakeC
 import { isGenericConferenceLandingItem } from "@/lib/intakeSelection";
 import { filterBroadcastReadySegments } from "@/lib/data";
 import { normalizeLegacyDailyCoverageDefaults } from "@/lib/dailyCoverage";
+import { sortWeeklyReadySegmentsForSelection, WEEKLY_SOURCE_POOL_FLAG } from "@/lib/weeklySourceCards";
 import { oncologyJournalSeeds } from "@/lib/catalog/oncologyJournalSeeds";
 import type { IngestedItem, Segment } from "@/lib/types";
 
@@ -252,6 +253,32 @@ assert.equal(
   true
 );
 assert.equal(isGenericConferenceLandingItem(buildConferenceContextItem(selectedConference)), false);
+const weeklyReadyCard: Segment = {
+  ...sponsorBase,
+  id: "weekly-ready-card",
+  title: "Weekly update: selected meeting program",
+  summary: "A selected meeting program update.",
+  script: "A selected meeting program update from the official source.",
+  contentType: "agenda_preview",
+  status: "pending_review",
+  citations: [{ label: "Selected meeting", url: "https://example.com/meeting/program", sourceType: "official" }],
+  riskFlags: [
+    WEEKLY_SOURCE_POOL_FLAG,
+    "weekly_key:2026-W25",
+    `source_id:daily-conference-${selectedConference.id}-eha-2026-program`
+  ],
+  createdAt: "2026-06-15T00:00:00.000Z"
+};
+assert.deepEqual(
+  sortWeeklyReadySegmentsForSelection(
+    [
+      { ...weeklyReadyCard, id: "already-rendered-weekly-card", status: "rendered" },
+      weeklyReadyCard
+    ],
+    { conferences: [selectedConference], journals: [], sourceIds: [] }
+  ).map((segment) => segment.id),
+  ["weekly-ready-card"]
+);
 assert.ok(
   validateSegmentForApproval({
     ...sponsorBase,
