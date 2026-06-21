@@ -47,28 +47,38 @@ jobs:
       - name: Typecheck
         id: typecheck
         continue-on-error: true
-        run: npm run typecheck 2>&1 | tee typecheck.log
+        run: |
+          set -o pipefail
+          npm run typecheck 2>&1 | tee typecheck.log
 
       - name: Broadcast guard verification
         id: guards
         continue-on-error: true
-        run: npm run test:guards 2>&1 | tee broadcast-guards.log
+        run: |
+          set -o pipefail
+          npm run test:guards 2>&1 | tee broadcast-guards.log
 
       - name: Build
         id: build
         continue-on-error: true
-        run: npm run build 2>&1 | tee build.log
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee build.log
 
       - name: RSS source verification
         id: rss
         continue-on-error: true
-        run: npm run test:rss 2>&1 | tee rss-verification.log
+        run: |
+          set -o pipefail
+          npm run test:rss 2>&1 | tee rss-verification.log
 
       - name: Refresh source ingestion after RSS failure
         if: ${{ steps.rss.outcome == 'failure' }}
         id: rss_repair_ingest
         continue-on-error: true
-        run: npm run job:ingest 2>&1 | tee rss-repair-ingest.log
+        run: |
+          set -o pipefail
+          npm run job:ingest 2>&1 | tee rss-repair-ingest.log
         env:
           X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
@@ -78,12 +88,16 @@ jobs:
         if: ${{ steps.rss.outcome == 'failure' }}
         id: rss_after_repair
         continue-on-error: true
-        run: npm run test:rss 2>&1 | tee rss-verification-after-repair.log
+        run: |
+          set -o pipefail
+          npm run test:rss 2>&1 | tee rss-verification-after-repair.log
 
       - name: Generate weekly source cards
         id: weekly_cards
         continue-on-error: true
-        run: npm run job:weekly-source-cards 2>&1 | tee weekly-source-cards.log
+        run: |
+          set -o pipefail
+          npm run job:weekly-source-cards 2>&1 | tee weekly-source-cards.log
         env:
           WEEKLY_SOURCE_CARDS_PER_SOURCE: "2"
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
@@ -94,16 +108,21 @@ jobs:
       - name: Verify weekly source cards
         id: weekly_cards_verify
         continue-on-error: true
-        run: npm run test:weekly-source-cards 2>&1 | tee weekly-source-cards-verify.log
+        run: |
+          set -o pipefail
+          npm run test:weekly-source-cards 2>&1 | tee weekly-source-cards-verify.log
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
       - name: Repair weekly source cards
         if: ${{ steps.weekly_cards_verify.outcome == 'failure' }}
         id: weekly_cards_repair
         continue-on-error: true
-        run: npm run job:weekly-source-cards 2>&1 | tee weekly-source-cards-repair.log
+        run: |
+          set -o pipefail
+          npm run job:weekly-source-cards 2>&1 | tee weekly-source-cards-repair.log
         env:
           WEEKLY_SOURCE_CARDS_PER_SOURCE: "2"
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
@@ -115,9 +134,12 @@ jobs:
         if: ${{ steps.weekly_cards_verify.outcome == 'failure' }}
         id: weekly_cards_after_repair
         continue-on-error: true
-        run: npm run test:weekly-source-cards 2>&1 | tee weekly-source-cards-after-repair.log
+        run: |
+          set -o pipefail
+          npm run test:weekly-source-cards 2>&1 | tee weekly-source-cards-after-repair.log
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
       - name: Randomized platform smoke loop
@@ -309,7 +331,9 @@ jobs:
         if: ${{ steps.delivery_handoff.outputs.unsupported_state != 'true' }}
         id: verify_initial
         continue-on-error: true
-        run: npx tsx scripts/verify-youtube-delivery-loop.ts 2>&1 | tee verify-initial.log
+        run: |
+          set -o pipefail
+          npx tsx scripts/verify-youtube-delivery-loop.ts 2>&1 | tee verify-initial.log
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -327,7 +351,9 @@ jobs:
         if: ${{ steps.delivery_handoff.outputs.unsupported_state != 'true' && steps.verify_initial.outcome == 'failure' }}
         id: repair_visibility
         continue-on-error: true
-        run: npx tsx scripts/update-youtube-video-privacy.ts 2>&1 | tee repair-visibility.log
+        run: |
+          set -o pipefail
+          npx tsx scripts/update-youtube-video-privacy.ts 2>&1 | tee repair-visibility.log
         env:
           YOUTUBE_VIDEO_ID: ${{ steps.delivery_handoff.outputs.video_id }}
           YOUTUBE_PRIVACY_STATUS: public
@@ -339,7 +365,9 @@ jobs:
         if: ${{ steps.delivery_handoff.outputs.unsupported_state != 'true' && steps.verify_initial.outcome == 'failure' }}
         id: verify_after_repair
         continue-on-error: true
-        run: npx tsx scripts/verify-youtube-delivery-loop.ts 2>&1 | tee verify-after-repair.log
+        run: |
+          set -o pipefail
+          npx tsx scripts/verify-youtube-delivery-loop.ts 2>&1 | tee verify-after-repair.log
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
