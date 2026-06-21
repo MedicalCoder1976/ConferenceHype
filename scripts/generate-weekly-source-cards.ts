@@ -80,7 +80,7 @@ function buildWeeklyContextSegment({
   const createdAt = new Date().toISOString();
   const title = `Weekly update: ${sourceName}`;
   const summary = `${sourceName} coverage context. The official source page identifies the publication, meeting, or news source for this update.`;
-  const script = `${persona.name} is covering ${sourceName}. This context card is anchored to the official source page for ${sourceName}.`;
+  const script = `${persona.name} is covering ${sourceName}. This update is anchored to the official source page for ${sourceName}.`;
   return markWeeklySourceSegment(
     {
       id: `weekly-context-${randomUUID()}`,

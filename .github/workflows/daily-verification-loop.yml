@@ -80,6 +80,46 @@ jobs:
         continue-on-error: true
         run: npm run test:rss 2>&1 | tee rss-verification-after-repair.log
 
+      - name: Generate weekly source cards
+        id: weekly_cards
+        continue-on-error: true
+        run: npm run job:weekly-source-cards 2>&1 | tee weekly-source-cards.log
+        env:
+          WEEKLY_SOURCE_CARDS_PER_SOURCE: "2"
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
+
+      - name: Verify weekly source cards
+        id: weekly_cards_verify
+        continue-on-error: true
+        run: npm run test:weekly-source-cards 2>&1 | tee weekly-source-cards-verify.log
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Repair weekly source cards
+        if: ${{ steps.weekly_cards_verify.outcome == 'failure' }}
+        id: weekly_cards_repair
+        continue-on-error: true
+        run: npm run job:weekly-source-cards 2>&1 | tee weekly-source-cards-repair.log
+        env:
+          WEEKLY_SOURCE_CARDS_PER_SOURCE: "2"
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
+
+      - name: Verify weekly source cards after repair
+        if: ${{ steps.weekly_cards_verify.outcome == 'failure' }}
+        id: weekly_cards_after_repair
+        continue-on-error: true
+        run: npm run test:weekly-source-cards 2>&1 | tee weekly-source-cards-after-repair.log
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
       - name: Randomized platform smoke loop
         id: smoke
         continue-on-error: true
@@ -323,6 +363,8 @@ jobs:
           if [ "${GUARDS_OUTCOME}" = "failure" ]; then UNRESOLVED=true; fi
           if [ "${BUILD_OUTCOME}" = "failure" ]; then UNRESOLVED=true; fi
           if [ "${RSS_OUTCOME}" = "failure" ] && [ "${RSS_AFTER_REPAIR_OUTCOME}" != "success" ]; then UNRESOLVED=true; fi
+          if [ "${WEEKLY_CARDS_OUTCOME}" = "failure" ] && [ "${WEEKLY_CARDS_REPAIR_OUTCOME}" != "success" ]; then UNRESOLVED=true; fi
+          if [ "${WEEKLY_CARDS_VERIFY_OUTCOME}" = "failure" ] && [ "${WEEKLY_CARDS_AFTER_REPAIR_OUTCOME}" != "success" ]; then UNRESOLVED=true; fi
           if [ "${SMOKE_OUTCOME}" = "failure" ] && [ "${SMOKE_AFTER_REPAIR_OUTCOME}" != "success" ]; then UNRESOLVED=true; fi
           if [ "${DELIVERY_UNSUPPORTED}" = "true" ]; then UNRESOLVED=true; fi
           if [ "${VERIFY_INITIAL_OUTCOME}" = "failure" ] && [ "${VERIFY_AFTER_REPAIR_OUTCOME}" != "success" ]; then UNRESOLVED=true; fi
@@ -352,6 +394,10 @@ jobs:
           BUILD_OUTCOME: ${{ steps.build.outcome }}
           RSS_OUTCOME: ${{ steps.rss.outcome }}
           RSS_AFTER_REPAIR_OUTCOME: ${{ steps.rss_after_repair.outcome }}
+          WEEKLY_CARDS_OUTCOME: ${{ steps.weekly_cards.outcome }}
+          WEEKLY_CARDS_VERIFY_OUTCOME: ${{ steps.weekly_cards_verify.outcome }}
+          WEEKLY_CARDS_REPAIR_OUTCOME: ${{ steps.weekly_cards_repair.outcome }}
+          WEEKLY_CARDS_AFTER_REPAIR_OUTCOME: ${{ steps.weekly_cards_after_repair.outcome }}
           SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
           SMOKE_AFTER_REPAIR_OUTCOME: ${{ steps.smoke_after_repair.outcome }}
           DELIVERY_UNSUPPORTED: ${{ steps.delivery_handoff.outputs.unsupported_state }}
@@ -385,6 +431,10 @@ jobs:
             echo "RSS verification: ${{ steps.rss.outcome }}"
             echo "RSS repair ingest: ${{ steps.rss_repair_ingest.outcome }}"
             echo "RSS verification after repair: ${{ steps.rss_after_repair.outcome }}"
+            echo "Weekly source card generation: ${{ steps.weekly_cards.outcome }}"
+            echo "Weekly source card verification: ${{ steps.weekly_cards_verify.outcome }}"
+            echo "Weekly source card repair: ${{ steps.weekly_cards_repair.outcome }}"
+            echo "Weekly source card verification after repair: ${{ steps.weekly_cards_after_repair.outcome }}"
             echo "Platform smoke: ${{ steps.smoke.outcome }}"
             echo "Platform smoke after repair: ${{ steps.smoke_after_repair.outcome }}"
             echo "Stream handoff: ${{ steps.stream.outcome }}"
@@ -399,7 +449,7 @@ jobs:
             echo "Initial delivery verifier: ${{ steps.verify_initial.outcome }}"
             echo "Delivery verifier after repair: ${{ steps.verify_after_repair.outcome }}"
             echo ""
-            for file in typecheck.log broadcast-guards.log build.log rss-verification.log rss-repair-ingest.log rss-verification-after-repair.log platform-smoke-loop.log platform-smoke-loop-after-repair.log stream-status.json handoff-repair-smoke.log stream-status-after-repair.json verify-initial.log repair-visibility.log verify-after-repair.log; do
+            for file in typecheck.log broadcast-guards.log build.log rss-verification.log rss-repair-ingest.log rss-verification-after-repair.log weekly-source-cards.log weekly-source-cards-verify.log weekly-source-cards-repair.log weekly-source-cards-after-repair.log platform-smoke-loop.log platform-smoke-loop-after-repair.log stream-status.json handoff-repair-smoke.log stream-status-after-repair.json verify-initial.log repair-visibility.log verify-after-repair.log; do
               if [ -f "$file" ]; then
                 echo "## $file"
                 echo '```text'

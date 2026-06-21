@@ -305,12 +305,12 @@ and provide the affected YouTube video ID.
   video, Supabase stream state, saved writeout, and `conferencehype.com` all
   match the same video ID, the broadcast process is still broken and must keep
   failing/retrying until fixed.
-- `weekly-source-cards.yml`: low-cost weekly ready-card pre-generation for every enabled conference, journal RSS feed, and clinical news/newspaper source. It fetches the configured source catalog once, creates deterministic pending-review cards without LLM expansion by default, and tags them as the weekly ready-card pool. When an operator selects that conference, journal, or news source for an hour, unused weekly cards are shown and reused first; newly generated cards only fill remaining space. Cards already scheduled/broadcast are not reused ahead of unused weekly cards.
+- `weekly-source-cards.yml`: low-cost weekly ready-card pre-generation for every enabled conference, journal RSS feed, and clinical news/newspaper source. It fetches the configured source catalog once, creates deterministic pending-review cards without LLM expansion by default, and tags them as the weekly ready-card pool. When an operator selects that conference, journal, or news source for an hour, unused weekly cards are shown and reused first; newly generated cards only fill remaining space. Cards already scheduled/broadcast are not reused ahead of unused weekly cards. If any enabled source has no weekly card, the generator must create a viewer-facing context card for that source, the verifier must fail, and the daily loop must run the weekly-card repair step until every enabled source has an unused weekly ready card.
 - `daily-verification-loop.yml`: the single daily verification loop. It runs
-  typecheck, broadcast guards, RSS feed verification, randomized platform smoke,
+  typecheck, broadcast guards, RSS feed verification, weekly source-card generation/verification, randomized platform smoke,
   public stream handoff resolution, YouTube delivery verification, and automatic
   repair/retry passes before reporting failure. The automatic repair passes are:
-  refresh ingestion and rerun RSS verification after source failure; rerun the
+  refresh ingestion and rerun RSS verification after source failure; generate and verify weekly source cards, then rerun weekly-card generation if any enabled source is missing an unused weekly ready card; rerun the
   randomized platform smoke loop after smoke failure; run a short smoke repair
   pass and resolve the public handoff again when `conferencehype.com` does not
   expose a live/completed YouTube ID; set the YouTube video privacy to `public`
