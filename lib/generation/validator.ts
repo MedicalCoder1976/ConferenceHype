@@ -14,6 +14,25 @@ function isClinicalScienceCard(segment: Pick<Segment, "title" | "summary" | "scr
   );
 }
 
+function hasFourSectionLabels(text: string) {
+  return (
+    /\bBackground\b\s*[:,-]/i.test(text) &&
+    /\bMethods\b\s*[:,-]/i.test(text) &&
+    /\bResults\b\s*[:,-]/i.test(text) &&
+    /\bDiscussion\b\s*[:,-]/i.test(text)
+  );
+}
+
+function isEmptyConferenceInformationCard(segment: Pick<Segment, "title" | "summary" | "script" | "contentType">) {
+  const text = `${segment.title} ${segment.summary} ${segment.script}`;
+  return (
+    segment.contentType === "agenda_preview" &&
+    hasFourSectionLabels(text) &&
+    /\b(registration|register\s+virtually|platform|onboarding|thank\s+you\s+for\s+joining|official\s+meeting\s+context|conference\s+context|is\s+listed\s+as\s+a|source:\s+the\s+official\s+meeting\s+page|topics-in-focus|congress\s+platform)\b/i.test(text) &&
+    !/\b(objective|patients?|randomi[sz]ed|trial|cohort|endpoint|survival|response|hazard\s+ratio|confidence\s+interval|p\s*[<=>]|median|primary\s+endpoint|secondary\s+endpoint)\b/i.test(text)
+  );
+}
+
 const bannedAdvicePatterns = [
   /\bpatients should\b/i,
   /\bclinicians should\b/i,
@@ -46,6 +65,9 @@ export function validateSegmentForApproval(segment: Pick<Segment, "title" | "sum
     } else if (!hasUsableClinicalSectionSource(`${segment.summary} ${segment.script}`)) {
       errors.push("Science cards require source-grounded Background, Methods, Results, and Discussion before approval.");
     }
+  }
+  if (isEmptyConferenceInformationCard(segment)) {
+    errors.push("Conference coverage cards with only registration, platform, welcome, or context-shell information must not enter the broadcast queue; use music unless substantive source-grounded material is available.");
   }
   for (const pattern of bannedAdvicePatterns) {
     if (pattern.test(segment.script)) {

@@ -371,6 +371,19 @@ assert.ok(
   }).some((error) => error.includes("only listing metadata"))
 );
 
+assert.ok(
+  validateSegmentForApproval({
+    ...sponsorBase,
+    title: "One-hour batch 23:00 UTC: EHA2026 Congress - The European Hematology Association (EHA)",
+    summary:
+      "European Hematology Association Congress intake. Background, Topics-in-Focus program Precision Hematology Topics-in-Focus program Hemoglobinopathies Topics-in-Focus program Thank you for joining us in Stockholm and virtually during EHA2026 Congress. Methods, Registration is still open until June 30. Results, Congress platform will remain open until October.",
+    script:
+      "Background: Topics-in-Focus program Precision Hematology. Methods: Registration is still open until June 30. Results: Congress platform will remain open until October 15, 2026. Discussion: Register virtually until June 30 and enjoy scientific content available on-demand until October.",
+    contentType: "agenda_preview",
+    riskFlags: ["source_id:eha-2026-program"]
+  }).some((error) => error.includes("must not enter the broadcast queue"))
+);
+
 const dailyCoveragePlannerSource = readFileSync(
   path.join(process.cwd(), "components", "DailyCoveragePlanner.tsx"),
   "utf8"

@@ -18,7 +18,8 @@ function isSourceLimitedScienceFailure(errors: string[]) {
   return errors.some(
     (error) =>
       error.includes("only listing metadata") ||
-      error.includes("source-grounded Background, Methods, Results, and Discussion")
+      error.includes("source-grounded Background, Methods, Results, and Discussion") ||
+      error.includes("only registration, platform, welcome, or context-shell information")
   );
 }
 
@@ -59,7 +60,7 @@ async function main() {
 
   for (const { row } of invalid) {
     const nextRiskFlags = Array.from(
-      new Set([...(row.risk_flags ?? []), "rejected_source_limited_science_card"])
+      new Set([...(row.risk_flags ?? []), "rejected_source_limited_science_card", "rejected_empty_information_card"])
     );
     const { error: updateError } = await supabase
       .from("segments")
