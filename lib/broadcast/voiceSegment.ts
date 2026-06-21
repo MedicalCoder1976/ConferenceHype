@@ -115,28 +115,32 @@ export function formatVoiceSegment({
   topic,
   narrative,
   at,
-  maxWords = 90
+  maxWords = 90,
+  cardIndex
 }: {
   voiceName: string;
   topic: string;
   narrative: string;
   at: Date;
   maxWords?: number;
+  cardIndex?: number;
 }) {
   const greeting = broadcastHour(at) < 12 ? "Good morning" : "Good evening";
   const cleanNarrative = stripExistingVoiceFrame(narrative);
   const journalReview = /^From the (?:current|[A-Za-z]+ \d{4}) edition of\b/i.test(cleanNarrative);
   const structuredReview = hasFourSectionNarrative(cleanNarrative);
+  const includeClose = typeof cardIndex === "number" && (cardIndex + 1) % 4 === 0;
+  const closing = includeClose ? SEGMENT_CLOSE : "";
   const opening = journalReview
     ? `${greeting}, wherever you are. This is ${voiceName} from ConferenceHype.`
     : `${greeting}, wherever you are. This is ${voiceName} from ConferenceHype. ` +
       `Our segment will focus on ${cleanTopic(topic)}.`;
-  const narrativeBudget = Math.max(1, maxWords - wordCount(opening) - wordCount(SEGMENT_CLOSE));
+  const narrativeBudget = Math.max(1, maxWords - wordCount(opening) - wordCount(closing));
   const trimmedBody = structuredReview
     ? compactFourSectionNarrative(cleanNarrative)
     : trimToWords(cleanNarrative, narrativeBudget);
 
-  return `${opening} ${trimmedBody} ${SEGMENT_CLOSE}`.replace(/\s+/g, " ").trim();
+  return `${opening} ${trimmedBody} ${closing}`.replace(/\s+/g, " ").trim();
 }
 
 export { SEGMENT_CLOSE };

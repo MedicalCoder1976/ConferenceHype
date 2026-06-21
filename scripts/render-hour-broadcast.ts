@@ -557,7 +557,8 @@ async function buildBlockCards(): Promise<Card[]> {
           voiceName: seg.personaName,
           topic: seg.title,
           narrative: seg.script || seg.summary,
-          at: slotTime
+          at: slotTime,
+          cardIndex: cards.filter((card) => !card.isMusic).length
         });
         cards.push({
           duration: CONTENT_SECONDS,
@@ -627,7 +628,8 @@ async function buildBlockCards(): Promise<Card[]> {
             voiceName: chunk.personaName,
             topic: chunk.title,
             narrative: chunk.script,
-            at: slotTime
+            at: slotTime,
+            cardIndex: cards.filter((card) => !card.isMusic).length
           });
           cards.push({
             duration: CONTENT_SECONDS,

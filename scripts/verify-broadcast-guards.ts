@@ -39,7 +39,15 @@ assert.match(
   framed,
   /^Good (morning|evening), wherever you are\. This is Echo Sage from ConferenceHype\./
 );
-assert.ok(framed.endsWith(SEGMENT_CLOSE));
+assert.ok(!framed.endsWith(SEGMENT_CLOSE));
+const fourthFramed = formatVoiceSegment({
+  voiceName: "Echo Sage",
+  topic: "late-breaking sessions",
+  narrative: "The official program has published a schedule update with source-attributed detail.",
+  at: new Date("2026-06-11T13:00:00Z"),
+  cardIndex: 3
+});
+assert.ok(fourthFramed.endsWith(SEGMENT_CLOSE));
 assert.doesNotMatch(framed, /interactive AI commentary only/i);
 assert.equal(applySpokenPronunciations("ASCO 2026 and Ib disease"), "Ask-ho 2026 and one B disease");
 

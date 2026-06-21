@@ -128,7 +128,8 @@ function withAssignedVoice(segment: Segment, slotIndex: number, at: Date): Segme
       voiceName: persona.name,
       topic: segment.title,
       narrative,
-      at
+      at,
+      cardIndex: slotIndex
     }),
     summary
   };
