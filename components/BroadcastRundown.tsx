@@ -6,6 +6,10 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { cardTypeLabel } from "@/lib/broadcast/cardTypes";
 import { buildBroadcastHourBuckets, buildBroadcastSlots } from "@/lib/rundown/slots";
 import { normalizeLegacySegment } from "@/lib/segments/normalizeLegacy";
+import {
+  segmentSourceMatchesSelection,
+  type SourceSelectionSet
+} from "@/lib/weeklySourceCards";
 import type { Segment } from "@/lib/types";
 
 async function rejectSegment(segment: Segment) {
@@ -105,6 +109,24 @@ function contentLabel(segment?: Segment) {
   return segment ? cardTypeLabel(segment) : "";
 }
 
+const DAILY_COVERAGE_SELECTION_EVENT = "conferencehype:daily-coverage-selection";
+
+type DailyCoverageSelectionEventDetail = {
+  selection: SourceSelectionSet | null;
+};
+
+function filterSegmentsForSourceSelection(
+  segments: Segment[],
+  selection: SourceSelectionSet | null
+) {
+  if (!selection) {
+    return segments;
+  }
+  return segments.filter((segment) =>
+    segmentSourceMatchesSelection(segment, selection)
+  );
+}
+
 export function BroadcastRundown({
   segments,
   reviewSegments,
@@ -125,6 +147,7 @@ export function BroadcastRundown({
   const [visibleReviewSegments, setVisibleReviewSegments] = useState(
     reviewSegments.map(normalizeLegacySegment)
   );
+  const [sourceSelection, setSourceSelection] = useState<SourceSelectionSet | null>(null);
   const [drafts, setDrafts] = useState(
     Object.fromEntries(
       reviewSegments
@@ -145,21 +168,44 @@ export function BroadcastRundown({
   } | null>(null);
   const [pending, startTransition] = useTransition();
   const baseDate = useMemo(() => new Date(baseTime), [baseTime]);
+  const filteredVisibleSegments = useMemo(
+    () => filterSegmentsForSourceSelection(visibleSegments, sourceSelection),
+    [visibleSegments, sourceSelection]
+  );
+  const filteredVisibleReviewSegments = useMemo(
+    () => filterSegmentsForSourceSelection(visibleReviewSegments, sourceSelection),
+    [visibleReviewSegments, sourceSelection]
+  );
+  const filteredScheduleSegments = useMemo(
+    () => filterSegmentsForSourceSelection(scheduleSegments, sourceSelection),
+    [scheduleSegments, sourceSelection]
+  );
+  const filteredSocialVoiceSegments = useMemo(
+    () => (sourceSelection ? [] : socialVoiceSegments),
+    [sourceSelection, socialVoiceSegments]
+  );
   const buckets = useMemo(
     () =>
       buildBroadcastHourBuckets(
         buildBroadcastSlots({
-          segments: visibleSegments,
-          reviewSegments: visibleReviewSegments,
-          scheduleSegments,
-          socialVoiceSegments,
+          segments: filteredVisibleSegments,
+          reviewSegments: filteredVisibleReviewSegments,
+          scheduleSegments: filteredScheduleSegments,
+          socialVoiceSegments: filteredSocialVoiceSegments,
           baseTime: baseDate,
           hours
         }),
         baseDate,
         hours
       ),
-    [visibleSegments, visibleReviewSegments, scheduleSegments, socialVoiceSegments, baseDate, hours]
+    [
+      filteredVisibleSegments,
+      filteredVisibleReviewSegments,
+      filteredScheduleSegments,
+      filteredSocialVoiceSegments,
+      baseDate,
+      hours
+    ]
   );
   const slotTone = (kind: string) => {
     if (kind === "music") {
@@ -189,6 +235,17 @@ export function BroadcastRundown({
   useEffect(() => {
     setVisibleSegments(segments.map(normalizeLegacySegment));
   }, [segments]);
+
+  useEffect(() => {
+    const handleSelectionChange = (event: Event) => {
+      const detail = (event as CustomEvent<DailyCoverageSelectionEventDetail>).detail;
+      setSourceSelection(detail?.selection ?? null);
+    };
+    window.addEventListener(DAILY_COVERAGE_SELECTION_EVENT, handleSelectionChange);
+    return () => {
+      window.removeEventListener(DAILY_COVERAGE_SELECTION_EVENT, handleSelectionChange);
+    };
+  }, []);
 
   useEffect(() => {
     const normalizedReviewSegments = reviewSegments.map(normalizeLegacySegment);
@@ -378,7 +435,7 @@ export function BroadcastRundown({
         ) : null}
       </div>
       <div className="grid gap-4 p-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)] xl:items-start">
-        {visibleSegments.length === 0 && scheduleSegments.length === 0 ? (
+        {filteredVisibleSegments.length === 0 && filteredScheduleSegments.length === 0 ? (
           <div className="border border-dashed border-ink/20 bg-paper/60 p-5 xl:col-start-1">
             <h3 className="text-lg font-black text-ink">
               Nothing is queued for the next hour
@@ -392,7 +449,7 @@ export function BroadcastRundown({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-lg font-black text-ink">Brand new ready cards</h3>
             <span className="text-xs font-black uppercase text-ink/50">
-              {visibleReviewSegments.length} replacement candidates
+              {filteredVisibleReviewSegments.length} replacement candidates
             </span>
           </div>
           <p className="mt-2 text-xs font-bold uppercase leading-5 text-ink/50">
@@ -400,13 +457,13 @@ export function BroadcastRundown({
             replace existing queue cards, or drag one onto a selected time.
           </p>
           <div className="mt-3 grid gap-3 md:grid-cols-2">
-            {visibleReviewSegments.length === 0 ? (
+            {filteredVisibleReviewSegments.length === 0 ? (
               <div className="border border-dashed border-ink/20 bg-white p-4 text-sm font-bold text-ink/55 md:col-span-2">
                 No brand new cards are waiting. Run ingest/generation or add an
                 operator, emergency, or sponsor message below.
               </div>
             ) : null}
-            {visibleReviewSegments.map((segment) => (
+            {filteredVisibleReviewSegments.map((segment) => (
               <article
                 key={segment.id}
                 draggable

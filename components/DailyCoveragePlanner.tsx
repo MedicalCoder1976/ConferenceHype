@@ -3,7 +3,7 @@
 import { CalendarCheck, ExternalLink, Plus, Save, Send, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import {
   createDefaultDailyCoveragePlan,
   normalizeLegacyDailyCoverageDefaults
@@ -52,6 +52,17 @@ function isOngoing(conference: MedicalConference, date: string) {
       conference.endDate &&
       date >= conference.startDate &&
       date <= conference.endDate
+  );
+}
+
+const DAILY_COVERAGE_SELECTION_EVENT = "conferencehype:daily-coverage-selection";
+
+function selectedRealSourceIds(sourceIds: string[]) {
+  return sourceIds.filter(
+    (id) =>
+      !id.startsWith("daily-journal-") &&
+      !id.startsWith("daily-conference-") &&
+      !id.startsWith("daily-custom-")
   );
 }
 
@@ -171,23 +182,41 @@ export function DailyCoveragePlanner({
     });
   };
 
-  const selectedConferences = conferences.filter((conference) =>
-    plan.conferenceIds.includes(conference.id)
+  const selectedConferences = useMemo(
+    () => conferences.filter((conference) => plan.conferenceIds.includes(conference.id)),
+    [conferences, plan.conferenceIds]
   );
-  const selectedJournals = journals.filter((journal) =>
-    plan.journalIds.includes(journal.id)
+  const selectedJournals = useMemo(
+    () => journals.filter((journal) => plan.journalIds.includes(journal.id)),
+    [journals, plan.journalIds]
+  );
+  const realSourceIds = useMemo(
+    () => selectedRealSourceIds(plan.sourceIds),
+    [plan.sourceIds]
   );
   const hasAnySelection =
-    selectedConferences.length > 0 || plan.journalIds.length > 0 || plan.sourceIds.length > 0;
+    selectedConferences.length > 0 || selectedJournals.length > 0 || realSourceIds.length > 0;
+
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent(DAILY_COVERAGE_SELECTION_EVENT, {
+        detail: {
+          selection: hasAnySelection
+            ? {
+                conferences: selectedConferences,
+                journals: selectedJournals,
+                sourceIds: realSourceIds
+              }
+            : null
+        }
+      })
+    );
+  }, [hasAnySelection, selectedConferences, selectedJournals, realSourceIds]);
+
   const matchingWeeklyReadySegments = sortWeeklyReadySegmentsForSelection(initialReadySegments, {
     conferences: selectedConferences,
     journals: selectedJournals,
-    sourceIds: plan.sourceIds.filter(
-      (id) =>
-        !id.startsWith("daily-journal-") &&
-        !id.startsWith("daily-conference-") &&
-        !id.startsWith("daily-custom-")
-    )
+    sourceIds: realSourceIds
   }).slice(0, 24);
   const matchingBatchItems = batchItems.filter((item) => {
     if (isGenericConferenceLandingItem(item)) {

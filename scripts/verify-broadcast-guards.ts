@@ -358,6 +358,19 @@ assert.equal(
   1
 );
 
+const dailyCoveragePlannerSource = readFileSync(
+  path.join(process.cwd(), "components", "DailyCoveragePlanner.tsx"),
+  "utf8"
+);
+const broadcastRundownSource = readFileSync(
+  path.join(process.cwd(), "components", "BroadcastRundown.tsx"),
+  "utf8"
+);
+assert.match(dailyCoveragePlannerSource, /conferencehype:daily-coverage-selection/);
+assert.match(broadcastRundownSource, /conferencehype:daily-coverage-selection/);
+assert.match(broadcastRundownSource, /filterSegmentsForSourceSelection/);
+
+
 const renderHourSource = readFileSync(
   path.join(process.cwd(), "scripts", "render-hour-broadcast.ts"),
   "utf8"
