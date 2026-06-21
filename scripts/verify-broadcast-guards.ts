@@ -358,6 +358,19 @@ assert.equal(
   1
 );
 
+assert.ok(
+  validateSegmentForApproval({
+    ...sponsorBase,
+    title: "EHA2026 abstract LB5001: title-only abstract listing",
+    summary:
+      "EHA, EHA2026 official abstract library intake. Background, Official EHA2026 abstract listing LB5001. Methods, Presenter. Results, EHA Library reference. Discussion, Only the public listing metadata is available here; do not infer methods, results, or clinical significance beyond the title.",
+    script:
+      "Background: Official EHA2026 abstract listing LB5001. Methods: Presenter. Results: EHA Library reference. Discussion: Only the public listing metadata is available here; do not infer methods, results, or clinical significance beyond the title.",
+    contentType: "abstract_buzz",
+    riskFlags: ["source_id:eha-2026-abstract-library"]
+  }).some((error) => error.includes("only listing metadata"))
+);
+
 const dailyCoveragePlannerSource = readFileSync(
   path.join(process.cwd(), "components", "DailyCoveragePlanner.tsx"),
   "utf8"

@@ -164,7 +164,9 @@ export async function POST(request: NextRequest) {
     const weeklyReadySegments = sortWeeklyReadySegmentsForSelection(
       pendingSegments || [],
       selection
-    ).slice(0, body.maxCards);
+    )
+      .filter((segment) => validateSegmentForApproval(segment).length === 0)
+      .slice(0, body.maxCards);
     const newCardLimit = Math.max(body.maxCards - weeklyReadySegments.length, 0);
     let sourceMode: HourSourceMode = weeklyReadySegments.length
       ? "weekly_ready_pool"

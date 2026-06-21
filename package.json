@@ -11,6 +11,7 @@
     "test:guards": "tsx scripts/verify-broadcast-guards.ts",
     "test:rss": "tsx scripts/verify-rss-feeds.ts",
     "test:weekly-source-cards": "tsx scripts/verify-weekly-source-cards.ts",
+    "repair:source-limited-science": "tsx scripts/reject-source-limited-science-cards.ts",
     "job:ingest": "tsx scripts/worker.ts ingest",
     "job:generate": "tsx scripts/worker.ts generate",
     "job:weekly-source-cards": "tsx scripts/generate-weekly-source-cards.ts",

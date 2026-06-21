@@ -1,6 +1,18 @@
 import type { Segment } from "@/lib/types";
 import { getUnsafeReviewSourceErrors } from "@/lib/generation/sourceSafety";
 import { hasMissingIntakeFailureLanguage } from "@/lib/broadcast/sanitizeCopy";
+import {
+  hasSourceLimitedScienceLanguage,
+  hasUsableClinicalSectionSource
+} from "@/lib/segments/sectionSummary";
+
+function isClinicalScienceCard(segment: Pick<Segment, "title" | "summary" | "script" | "contentType">) {
+  const text = `${segment.title} ${segment.summary} ${segment.script}`;
+  return (
+    segment.contentType === "abstract_buzz" ||
+    /\b(abstract|clinical\s+trial|trial|randomized|phase\s?(?:i|ii|iii|iv|1|2|3|4)|cohort|study|results?|endpoint|survival|response|pfs|os|mrd|biomarker|lymphoma|leukemia|myeloma|cancer|oncology)\b/i.test(text)
+  );
+}
 
 const bannedAdvicePatterns = [
   /\bpatients should\b/i,
@@ -24,8 +36,16 @@ export function validateSegmentForApproval(segment: Pick<Segment, "title" | "sum
     errors.push("At least one citation is required before approval.");
   }
   errors.push(...getUnsafeReviewSourceErrors(segment));
-  if (hasMissingIntakeFailureLanguage(`${segment.title}\n${segment.summary}\n${segment.script}`)) {
+  const combinedText = `${segment.title}\n${segment.summary}\n${segment.script}`;
+  if (hasMissingIntakeFailureLanguage(combinedText)) {
     errors.push("Card contains missing-intake failure language and must be replaced with music or regenerated from selected sources.");
+  }
+  if (isClinicalScienceCard(segment)) {
+    if (hasSourceLimitedScienceLanguage(combinedText)) {
+      errors.push("Science cards with only listing metadata must be replaced with music or regenerated from PubMed/full source text; do not infer Background, Methods, Results, or Discussion.");
+    } else if (!hasUsableClinicalSectionSource(`${segment.summary} ${segment.script}`)) {
+      errors.push("Science cards require source-grounded Background, Methods, Results, and Discussion before approval.");
+    }
   }
   for (const pattern of bannedAdvicePatterns) {
     if (pattern.test(segment.script)) {

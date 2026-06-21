@@ -89,6 +89,45 @@ export function hasGenericSectionFallback(value: string) {
     /\btitle\s+indicates\b/i.test(value) ||
     /\btitle\s+signals\b/i.test(value) ||
     new RegExp(String.raw`\bdiscussion\s+context\s+available\s+in\s+the\s+stored\s+intake\s+is\s+limited\b`, "i").test(value) ||
-    /\bfull\s+article\s+text\s+is\s+available\b/i.test(value)
+    /\bfull\s+article\s+text\s+is\s+available\b/i.test(value) ||
+    hasSourceLimitedScienceLanguage(value)
   );
+}
+
+export function hasSourceLimitedScienceLanguage(value: string) {
+  return (
+    /\bonly\s+the\s+public\s+listing\s+metadata\s+is\s+available\b/i.test(value) ||
+    /\bdo\s+not\s+infer\s+(?:methods|results|clinical\s+significance)\b/i.test(value) ||
+    /\bcomplete\s+(?:methods|results|numeric\s+results|discussion)\s+detail\s+needs\s+(?:PubMed|full-record)\s+confirmation\b/i.test(value) ||
+    /\bPubMed\s+abstract\s+(?:unavailable|incomplete)\b/i.test(value) ||
+    /\brejected\s+until\s+PubMed\s+supplies\b/i.test(value)
+  );
+}
+
+function sectionValue(value: string, label: "Background" | "Methods" | "Results" | "Discussion") {
+  return value.match(
+    new RegExp(
+      `\\b${label}\\b\\s*[:.-]?\\s+([\\s\\S]{20,1000}?)(?=\\b(?:Background|Methods|Results|Discussion)\\b\\s*[:.-]?|$)`,
+      "i"
+    )
+  )?.[1]?.trim() ?? "";
+}
+
+function usefulSentenceCount(value: string) {
+  return clean(value)
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter((sentence) => sentence.length > 35)
+    .length;
+}
+
+export function hasUsableClinicalSectionSource(value: string) {
+  const cleaned = clean(value);
+  if (!cleaned || hasSourceLimitedScienceLanguage(cleaned)) {
+    return false;
+  }
+  const explicitSections = (["Background", "Methods", "Results", "Discussion"] as const).every(
+    (label) => sectionValue(cleaned, label).length >= 20
+  );
+  return explicitSections || usefulSentenceCount(cleaned) >= 4;
 }

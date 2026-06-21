@@ -4,7 +4,8 @@ import { isGenericConferenceLandingItem } from "@/lib/intakeSelection";
 import { fetchPubMedAbstract } from "@/lib/sources/pubmed";
 import {
   buildRequiredSectionSummary,
-  hasGenericSectionFallback
+  hasGenericSectionFallback,
+  hasUsableClinicalSectionSource
 } from "@/lib/segments/sectionSummary";
 import type {
   ContentType,
@@ -59,8 +60,34 @@ export function isJournalItem(item: IngestedItem) {
   );
 }
 
+export function isClinicalScienceItem(item: IngestedItem) {
+  const text = `${item.title} ${item.excerpt} ${item.sourceName}`;
+  return (
+    isJournalItem(item) ||
+    /\b(abstract|clinical\s+trial|trial|randomized|phase\s?(?:i|ii|iii|iv|1|2|3|4)|cohort|study|results?|endpoint|survival|response|pfs|os|mrd|biomarker|lymphoma|leukemia|myeloma|cancer|oncology)\b/i.test(text)
+  );
+}
+
+function pubMedSummaryIsUsable({
+  title,
+  sourceName,
+  abstract
+}: {
+  title: string;
+  sourceName: string;
+  abstract: string;
+}) {
+  const summary = buildRequiredSectionSummary({
+    title,
+    sourceName,
+    text: abstract
+  });
+  return hasUsableClinicalSectionSource(abstract) && !hasGenericSectionFallback(summary);
+}
+
 export async function buildPubMedBackedJournalItem(item: IngestedItem) {
-  if (!isJournalItem(item)) {
+  const scienceItem = isClinicalScienceItem(item);
+  if (!scienceItem) {
     return item;
   }
 
@@ -69,26 +96,24 @@ export async function buildPubMedBackedJournalItem(item: IngestedItem) {
     url: item.url
   });
 
-  if (!pubmed?.abstract) {
-    return null;
-  }
-
-  const summary = buildRequiredSectionSummary({
+  if (pubmed?.abstract && pubMedSummaryIsUsable({
     title: pubmed.title || item.title,
     sourceName: item.sourceName,
-    text: pubmed.abstract
-  });
-
-  if (hasGenericSectionFallback(summary)) {
-    return null;
+    abstract: pubmed.abstract
+  })) {
+    return {
+      ...item,
+      title: pubmed.title || item.title,
+      url: pubmed.url || item.url,
+      excerpt: pubmed.abstract
+    };
   }
 
-  return {
-    ...item,
-    title: pubmed.title || item.title,
-    url: pubmed.url || item.url,
-    excerpt: pubmed.abstract
-  };
+  if (!isJournalItem(item) && hasUsableClinicalSectionSource(item.excerpt)) {
+    return item;
+  }
+
+  return null;
 }
 
 function formatConferenceDateRange(conference: MedicalConference) {
