@@ -27,6 +27,8 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Generate weekly ready-card pool
+        id: generate_weekly_cards
+        continue-on-error: true
         run: npm run job:weekly-source-cards
         env:
           WEEKLY_SOURCE_CARDS_PER_SOURCE: ${{ inputs.cards_per_source || '2' }}
@@ -34,3 +36,30 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
+
+      - name: Verify weekly ready-card pool
+        id: verify_weekly_cards
+        continue-on-error: true
+        run: npm run test:weekly-source-cards
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Repair missing weekly ready cards
+        if: ${{ steps.generate_weekly_cards.outcome == 'failure' || steps.verify_weekly_cards.outcome == 'failure' }}
+        run: npm run job:weekly-source-cards
+        env:
+          WEEKLY_SOURCE_CARDS_PER_SOURCE: ${{ inputs.cards_per_source || '2' }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
+
+      - name: Verify weekly ready-card pool after repair
+        if: ${{ steps.generate_weekly_cards.outcome == 'failure' || steps.verify_weekly_cards.outcome == 'failure' }}
+        run: npm run test:weekly-source-cards
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

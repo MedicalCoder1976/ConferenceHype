@@ -1,29 +1,53 @@
+import { loadEnvConfig } from "@next/env";
 import { createHash, randomUUID } from "node:crypto";
-import {
-  getMedicalConferencesFromDb,
-  getOncologyJournalsFromDb,
-  getPendingSegmentsFromDb,
-  getSourcesFromDb,
-  saveGeneratedSegmentsToDb,
-  upsertAdminCatalogSeedsToDb
-} from "@/lib/db";
-import { getPersona } from "@/lib/generation/personas";
-import {
-  buildBatchSegment,
-  buildConferenceContextItem,
-  buildPubMedBackedJournalItem,
-  itemMatchesSelections,
-  personaIdForBatchIndex
-} from "@/lib/intakeCards";
-import { runIngestionJob } from "@/lib/jobs/ingest";
-import { sourceRegistry } from "@/lib/sources/registry";
-import {
-  buildAllCatalogCoveragePlan,
-  markWeeklySourceSegment,
-  weeklySourceWeekKey,
-  WEEKLY_SOURCE_POOL_FLAG
-} from "@/lib/weeklySourceCards";
 import type { IngestedItem, MedicalConference, OncologyJournal, Segment, SourceConfig } from "@/lib/types";
+
+loadEnvConfig(process.cwd());
+
+let getMedicalConferencesFromDb: any;
+let getOncologyJournalsFromDb: any;
+let getPendingSegmentsFromDb: any;
+let getSourcesFromDb: any;
+let saveGeneratedSegmentsToDb: any;
+let upsertAdminCatalogSeedsToDb: any;
+let getPersona: any;
+let buildBatchSegment: any;
+let buildConferenceContextItem: any;
+let buildPubMedBackedJournalItem: any;
+let itemMatchesSelections: any;
+let personaIdForBatchIndex: any;
+let runIngestionJob: any;
+let sourceRegistry: SourceConfig[];
+let buildAllCatalogCoveragePlan: any;
+let markWeeklySourceSegment: any;
+let weeklySourceWeekKey: any;
+let WEEKLY_SOURCE_POOL_FLAG: string;
+
+async function loadDependencies() {
+  const db = await import("@/lib/db");
+  getMedicalConferencesFromDb = db.getMedicalConferencesFromDb;
+  getOncologyJournalsFromDb = db.getOncologyJournalsFromDb;
+  getPendingSegmentsFromDb = db.getPendingSegmentsFromDb;
+  getSourcesFromDb = db.getSourcesFromDb;
+  saveGeneratedSegmentsToDb = db.saveGeneratedSegmentsToDb;
+  upsertAdminCatalogSeedsToDb = db.upsertAdminCatalogSeedsToDb;
+  ({ getPersona } = await import("@/lib/generation/personas"));
+  ({
+    buildBatchSegment,
+    buildConferenceContextItem,
+    buildPubMedBackedJournalItem,
+    itemMatchesSelections,
+    personaIdForBatchIndex
+  } = await import("@/lib/intakeCards"));
+  ({ runIngestionJob } = await import("@/lib/jobs/ingest"));
+  ({ sourceRegistry } = await import("@/lib/sources/registry"));
+  ({
+    buildAllCatalogCoveragePlan,
+    markWeeklySourceSegment,
+    weeklySourceWeekKey,
+    WEEKLY_SOURCE_POOL_FLAG
+  } = await import("@/lib/weeklySourceCards"));
+}
 
 function easternDate(now = new Date()) {
   return new Intl.DateTimeFormat("en-CA", {
@@ -229,6 +253,7 @@ function addContextIfEmpty({
 }
 
 async function main() {
+  await loadDependencies();
   await upsertAdminCatalogSeedsToDb();
   const [conferences, journals, sources, pendingSegments] = await Promise.all([
     getMedicalConferencesFromDb(),
@@ -236,8 +261,8 @@ async function main() {
     getSourcesFromDb(),
     getPendingSegmentsFromDb(2000)
   ]);
-  const enabledConferences = (conferences ?? []).filter((conference) => conference.enabled);
-  const enabledJournals = (journals ?? []).filter((journal) => journal.enabled);
+  const enabledConferences = ((conferences ?? []) as MedicalConference[]).filter((conference) => conference.enabled);
+  const enabledJournals = ((journals ?? []) as OncologyJournal[]).filter((journal) => journal.enabled);
   const enabledSources = ((sources ?? sourceRegistry) as SourceConfig[]).filter(
     (source) => source.enabled && source.type !== "general_social" && source.type !== "manual"
   );

@@ -24,6 +24,16 @@ import { XVoiceCallouts } from "@/components/XVoiceCallouts";
 import { getAdminSnapshot } from "@/lib/data";
 import { getCachedRecordings } from "@/lib/media/recordings";
 import { buildHourlySocialVoiceRundownSegments } from "@/lib/social/hourlyVoiceRundown";
+import {
+  segmentSourceMatchesSelection,
+  type SourceSelectionSet
+} from "@/lib/weeklySourceCards";
+import type {
+  DailyCoveragePlan,
+  MedicalConference,
+  OncologyJournal,
+  Segment
+} from "@/lib/types";
 
 // Prevent Vercel from caching this page so currentBlockStart() always reflects
 // the real server time rather than the build-time snapshot.
@@ -113,7 +123,54 @@ function resolvePreviewStart(start?: string) {
   const parsed = new Date(start);
   return Number.isNaN(parsed.getTime()) ? currentBlockStart() : parsed;
 }
+function realSelectedSourceIds(sourceIds: string[]) {
+  return sourceIds.filter(
+    (sourceId) =>
+      !sourceId.startsWith("daily-journal-") &&
+      !sourceId.startsWith("daily-conference-") &&
+      !sourceId.startsWith("daily-custom-")
+  );
+}
 
+function selectedSourceSet({
+  plan,
+  conferences,
+  journals
+}: {
+  plan: DailyCoveragePlan;
+  conferences: MedicalConference[];
+  journals: OncologyJournal[];
+}): SourceSelectionSet {
+  const selectedConferenceIds = new Set(plan.conferenceIds);
+  const selectedJournalIds = new Set(plan.journalIds);
+  return {
+    conferences: conferences.filter((conference) =>
+      selectedConferenceIds.has(conference.id)
+    ),
+    journals: journals.filter((journal) => selectedJournalIds.has(journal.id)),
+    sourceIds: realSelectedSourceIds(plan.sourceIds)
+  };
+}
+
+function hasSelectedSources(selection: SourceSelectionSet) {
+  return (
+    selection.conferences.length > 0 ||
+    selection.journals.length > 0 ||
+    selection.sourceIds.length > 0
+  );
+}
+
+function filterSegmentsForSelectedSources(
+  segments: Segment[],
+  selection: SourceSelectionSet
+) {
+  if (!hasSelectedSources(selection)) {
+    return segments;
+  }
+  return segments.filter((segment) =>
+    segmentSourceMatchesSelection(segment, selection)
+  );
+}
 export default async function AdminPage({ searchParams }: AdminPageProps) {
   const params = await searchParams;
   const baseDate = resolvePreviewStart(params?.start);
@@ -130,9 +187,26 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   });
   const isPastPreview =
     baseDate.getTime() < Date.now() - PLANNING_WINDOW_HOURS * 60 * 60 * 1000;
-  const presentationSegments = isPastPreview
-    ? snapshot.airedSegments
-    : snapshot.nextBroadcastSegments;
+  const selectedSources = selectedSourceSet({
+    plan: snapshot.dailyCoveragePlan,
+    conferences: snapshot.medicalConferences,
+    journals: snapshot.oncologyJournals
+  });
+  const presentationSegments = filterSegmentsForSelectedSources(
+    isPastPreview ? snapshot.airedSegments : snapshot.nextBroadcastSegments,
+    selectedSources
+  );
+  const reviewSegments = filterSegmentsForSelectedSources(
+    snapshot.pendingSegments,
+    selectedSources
+  );
+  const scheduleSegments = filterSegmentsForSelectedSources(
+    snapshot.scheduleRundownSegments,
+    selectedSources
+  );
+  const socialVoiceSegments = hasSelectedSources(selectedSources)
+    ? []
+    : hourlySocialVoiceSegments;
   const liveBlock = currentBlockStart();
   const planningSlots = Array.from(
     { length: PLANNING_HISTORY_HOURS + PLANNING_FUTURE_HOURS },
@@ -223,14 +297,14 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               activePlanningKey={activePlanningKey}
               selectedStartsAt={baseTime}
               initialBatchItems={snapshot.batchIntakeItems}
-              initialReadySegments={snapshot.pendingSegments}
+              initialReadySegments={reviewSegments}
             />
             <BroadcastRundown
               key={baseTime}
               segments={presentationSegments}
-              reviewSegments={snapshot.pendingSegments}
-              scheduleSegments={snapshot.scheduleRundownSegments}
-              socialVoiceSegments={hourlySocialVoiceSegments}
+              reviewSegments={reviewSegments}
+              scheduleSegments={scheduleSegments}
+              socialVoiceSegments={socialVoiceSegments}
               baseTime={baseTime}
               hours={PLANNING_WINDOW_HOURS}
             />

@@ -1,5 +1,13 @@
 import { personas } from "@/lib/generation/personas";
 import { formatVoiceSegment } from "@/lib/broadcast/voiceSegment";
+import {
+  CONTENT_CARDS_PER_HOUR,
+  CONTENT_SECONDS,
+  CONTENT_SLOTS_PER_MUSIC_BLOCK,
+  MUSIC_BLOCKS_PER_HOUR,
+  MUSIC_SECONDS,
+  addSeconds
+} from "@/lib/broadcast/hourSchedule";
 import { hasMissingIntakeFailureLanguage } from "@/lib/broadcast/sanitizeCopy";
 import type { Segment } from "@/lib/types";
 
@@ -13,19 +21,8 @@ export type BroadcastSlot = {
   replaceable?: boolean;
 };
 
-const CONTENT_SECONDS = 40;   // 40-second content window — ~90 words at 135 wpm, no more silence gaps
-const MUSIC_SECONDS = 20;     // matches 20-second gap-clip library
-const CONTENT_SLOTS_PER_MUSIC_BLOCK = 5;
-const MUSIC_BLOCKS_PER_HOUR = 12;
-const CONTENT_CARDS_PER_HOUR =
-  CONTENT_SLOTS_PER_MUSIC_BLOCK * MUSIC_BLOCKS_PER_HOUR;
-
 export function addMinutes(date: Date, minutes: number) {
   return new Date(date.getTime() + minutes * 60 * 1000);
-}
-
-function addSeconds(date: Date, seconds: number) {
-  return new Date(date.getTime() + seconds * 1000);
 }
 
 export function firstSlotTime(segment: Segment) {

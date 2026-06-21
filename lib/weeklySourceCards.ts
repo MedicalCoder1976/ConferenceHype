@@ -68,12 +68,26 @@ export function segmentMatchesSourceSelection(
   if (sourceIds.length === 0) {
     return false;
   }
-  return sourceIds.some(
-    (sourceId) =>
-      selection.conferences.some((conference) => sourceIdMatchesConference(sourceId, conference)) ||
-      selection.journals.some((journal) => sourceIdMatchesJournal(sourceId, journal)) ||
-      selection.sourceIds.includes(sourceId)
+  return sourceIds.some((sourceId) => sourceIdMatchesSelection(sourceId, selection));
+}
+
+function sourceIdMatchesSelection(sourceId: string, selection: SourceSelectionSet) {
+  return (
+    selection.conferences.some((conference) => sourceIdMatchesConference(sourceId, conference)) ||
+    selection.journals.some((journal) => sourceIdMatchesJournal(sourceId, journal)) ||
+    selection.sourceIds.includes(sourceId)
   );
+}
+
+export function segmentSourceMatchesSelection(
+  segment: Pick<Segment, "riskFlags">,
+  selection: SourceSelectionSet
+) {
+  const sourceIds = sourceIdsFromSegment(segment);
+  if (sourceIds.length === 0) {
+    return false;
+  }
+  return sourceIds.some((sourceId) => sourceIdMatchesSelection(sourceId, selection));
 }
 
 export function sortWeeklyReadySegmentsForSelection(

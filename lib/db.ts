@@ -408,6 +408,26 @@ export async function getNextBroadcastSegmentsFromDb(limit = 42) {
   return (data as SegmentRow[]).map(toSegment);
 }
 
+export async function getBroadcastSegmentsByRiskFlagFromDb(riskFlag: string, limit = 120) {
+  if (!hasSupabase()) {
+    return null;
+  }
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("segments")
+    .select("*")
+    .eq("status", "approved")
+    .contains("risk_flags", [riskFlag])
+    .order("approved_at", { ascending: true, nullsFirst: false })
+    .order("created_at", { ascending: true })
+    .limit(limit);
+
+  if (error) {
+    throw error;
+  }
+  return (data as SegmentRow[]).map(toSegment);
+}
+
 export async function getAiredSegmentsFromDb(limit = 40) {
   if (!hasSupabase()) {
     return null;
@@ -1546,6 +1566,7 @@ export async function saveGeneratedSegmentsToDb(segments: Segment[]) {
         social_buzz_items: segment.socialBuzzItems,
         risk_flags: segment.riskFlags,
         confidence_score: segment.confidenceScore,
+        created_at: dbTimestamp(segment.createdAt) ?? undefined,
         approved_at: segment.approvedAt,
         updated_at: segment.updatedAt ?? segment.approvedAt ?? segment.createdAt
       }))

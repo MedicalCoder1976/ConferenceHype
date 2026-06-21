@@ -30,3 +30,23 @@ export function makeScheduledCopy({
     updatedAt: now
   };
 }
+
+export function makeReadyReuseCopy(source: Segment): Segment {
+  const now = new Date().toISOString();
+  return {
+    ...source,
+    id: `ready-reuse-${source.id}-${Date.now()}`,
+    title: source.title.replace(/^One-hour batch[^:]*:\s*/, "Previously broadcast: "),
+    status: "pending_review",
+    approvedAt: undefined,
+    riskFlags: Array.from(
+      new Set([
+        ...source.riskFlags,
+        "already_broadcast_ready_reuse",
+        `source_segment:${source.id}`
+      ])
+    ),
+    createdAt: source.createdAt,
+    updatedAt: now
+  };
+}

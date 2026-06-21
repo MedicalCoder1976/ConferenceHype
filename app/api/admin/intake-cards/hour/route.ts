@@ -2,12 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { assertAdminRequest } from "@/lib/auth";
 import {
+  getAiredSegmentsFromDb,
   getMedicalConferencesFromDb,
   getOncologyJournalsFromDb,
   getPendingSegmentsFromDb,
   getPreviousDayBatchItemsFromDb,
-  saveGeneratedSegmentsToDb
+  saveGeneratedSegmentsToDb,
+  updateSegmentScheduleInDb
 } from "@/lib/db";
+import { CONTENT_CARDS_PER_HOUR, scheduledContentAt } from "@/lib/broadcast/hourSchedule";
+import { validateSegmentForApproval } from "@/lib/generation/validator";
 import {
   buildBatchSegment,
   buildConferenceContextItem,
@@ -17,8 +21,12 @@ import {
 } from "@/lib/intakeCards";
 import { errorMessage } from "@/lib/errors";
 import { runIngestionJob } from "@/lib/jobs/ingest";
-import { sortWeeklyReadySegmentsForSelection } from "@/lib/weeklySourceCards";
-import type { IngestedItem, MedicalConference, OncologyJournal } from "@/lib/types";
+import {
+  segmentSourceMatchesSelection,
+  sortWeeklyReadySegmentsForSelection
+} from "@/lib/weeklySourceCards";
+import { makeReadyReuseCopy } from "@/lib/reusableSegments";
+import type { IngestedItem, MedicalConference, OncologyJournal, Segment } from "@/lib/types";
 
 export const maxDuration = 60;
 
@@ -30,7 +38,7 @@ const bodySchema = z.object({
   sourceIds: z.array(z.string().trim().min(1).max(120)).max(200).default([]),
   priorityTopics: z.array(z.string().trim().min(2).max(180)).max(100).default([]),
   exclusions: z.array(z.string().trim().min(2).max(180)).max(100).default([]),
-  maxCards: z.number().int().min(1).max(84).default(24)
+  maxCards: z.number().int().min(1).max(180).default(120)
 });
 
 type HourSourceMode =
@@ -103,35 +111,67 @@ function selectBatchItems({
     .slice(0, maxCards);
 }
 
+function asScheduledSegment(segment: Segment, startsAt: string, index: number): Segment {
+  const approvedAt = scheduledContentAt(startsAt, index);
+  return {
+    ...segment,
+    status: "approved",
+    approvedAt,
+    riskFlags: Array.from(
+      new Set([
+        ...segment.riskFlags,
+        "auto_scheduled_one_hour_batch",
+        `scheduled_hour:${startsAt}`
+      ])
+    ),
+    updatedAt: new Date().toISOString()
+  };
+}
+
+function sourceSegmentIds(segments: Segment[]) {
+  return new Set(
+    segments.flatMap((segment) =>
+      segment.riskFlags
+        .filter((flag) => flag.startsWith("source_segment:"))
+        .map((flag) => flag.slice("source_segment:".length))
+    )
+  );
+}
+
 export async function POST(request: NextRequest) {
   try {
     assertAdminRequest(request);
     const body = bodySchema.parse(await request.json());
     const sourceIds = realSourceIds(body.sourceIds);
-    const [items, conferences, journals, pendingSegments] = await Promise.all([
+    const [items, conferences, journals, pendingSegments, airedSegments] = await Promise.all([
       getPreviousDayBatchItemsFromDb(body.coverageDate, 240),
       getMedicalConferencesFromDb(),
       getOncologyJournalsFromDb(),
-      getPendingSegmentsFromDb(500)
+      getPendingSegmentsFromDb(500),
+      getAiredSegmentsFromDb(200)
     ]);
-    const selectedConferences = (conferences ?? []).filter((conference) =>
+    const selectedConferences = (conferences || []).filter((conference) =>
       body.conferenceIds.includes(conference.id)
     );
-    const selectedJournals = (journals ?? []).filter((journal) =>
+    const selectedJournals = (journals || []).filter((journal) =>
       body.journalIds.includes(journal.id)
     );
-    const weeklyReadySegments = sortWeeklyReadySegmentsForSelection(pendingSegments ?? [], {
+    const selection = {
       conferences: selectedConferences,
       journals: selectedJournals,
       sourceIds
-    }).slice(0, body.maxCards);
+    };
+    const weeklyReadySegments = sortWeeklyReadySegmentsForSelection(
+      pendingSegments || [],
+      selection
+    ).slice(0, body.maxCards);
     const newCardLimit = Math.max(body.maxCards - weeklyReadySegments.length, 0);
     let sourceMode: HourSourceMode = weeklyReadySegments.length
       ? "weekly_ready_pool"
       : "stored_previous_day";
     let filtered = newCardLimit
       ? selectBatchItems({
-          items: items ?? [],
+          items: items || [],
           conferences: selectedConferences,
           journals: selectedJournals,
           sourceIds,
@@ -212,22 +252,86 @@ export async function POST(request: NextRequest) {
       hour12: false,
       timeZoneName: "short"
     }).format(new Date(body.startsAt));
-    const segments = enriched.map((item, index) =>
+    const generatedSegments = enriched.map((item, index) =>
       buildBatchSegment(item, personaIdForBatchIndex(index + weeklyReadySegments.length), {
         startsAt: body.startsAt,
         index: index + weeklyReadySegments.length,
         batchLabel: `One-hour batch ${startLabel}`
       })
     );
-    const saved = (await saveGeneratedSegmentsToDb(segments)) ?? segments;
-    const readySegments = [...weeklyReadySegments, ...saved];
+    const weeklyIds = new Set(weeklyReadySegments.map((segment) => segment.id));
+    const readyCandidates = [...weeklyReadySegments, ...generatedSegments];
+    const scheduleCandidates = readyCandidates.slice(0, CONTENT_CARDS_PER_HOUR);
+    const overflowCandidates = readyCandidates.slice(CONTENT_CARDS_PER_HOUR);
+    const scheduledSegments = scheduleCandidates.map((segment, index) =>
+      asScheduledSegment(segment, body.startsAt, index)
+    );
+    const validationErrors = scheduledSegments.flatMap((segment, index) =>
+      validateSegmentForApproval(segment).map((error) => `Card ${index + 1}: ${error}`)
+    );
+    if (validationErrors.length) {
+      return NextResponse.json({ ok: false, errors: validationErrors }, { status: 422 });
+    }
+
+    const generatedScheduled = scheduledSegments.filter((segment) => !weeklyIds.has(segment.id));
+    const generatedOverflow = overflowCandidates.filter((segment) => !weeklyIds.has(segment.id));
+    const existingScheduled = scheduledSegments.filter((segment) => weeklyIds.has(segment.id));
+    const savedGenerated =
+      (await saveGeneratedSegmentsToDb([...generatedScheduled, ...generatedOverflow])) || [];
+    if (generatedScheduled.length + generatedOverflow.length > 0 && savedGenerated.length === 0) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Database is not configured, so batch cards could not be written."
+        },
+        { status: 503 }
+      );
+    }
+
+    const movedExisting = await Promise.all(
+      existingScheduled.map((segment) =>
+        updateSegmentScheduleInDb({
+          segmentId: segment.id,
+          approvedAt: segment.approvedAt!,
+          script: segment.script
+        })
+      )
+    );
+    if (existingScheduled.length > 0 && movedExisting.some((segment) => !segment)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Database is not configured, so ready cards could not be moved into the schedule."
+        },
+        { status: 503 }
+      );
+    }
+
+    const alreadyRepresented = sourceSegmentIds(pendingSegments || []);
+    const oldReadyCopies = (airedSegments || [])
+      .filter((segment) => segmentSourceMatchesSelection(segment, selection))
+      .filter((segment) => !alreadyRepresented.has(segment.id))
+      .slice(0, 24)
+      .map(makeReadyReuseCopy);
+    const savedOldReadyCopies =
+      oldReadyCopies.length > 0 ? (await saveGeneratedSegmentsToDb(oldReadyCopies)) || [] : [];
+
+    const savedScheduledCount = existingScheduled.length + generatedScheduled.length;
+    const savedOverflow = savedGenerated.slice(generatedScheduled.length);
     return NextResponse.json({
       ok: true,
-      count: readySegments.length,
+      count: readyCandidates.length + savedOldReadyCopies.length,
+      scheduledCount: savedScheduledCount,
+      overflowCount: overflowCandidates.length + savedOldReadyCopies.length,
       reusedCount: weeklyReadySegments.length,
-      generatedCount: saved.length,
+      generatedCount: savedGenerated.length,
+      rebroadcastReadyCount: savedOldReadyCopies.length,
       sourceMode,
-      segments: readySegments
+      segments: [...savedOverflow, ...savedOldReadyCopies],
+      scheduledSegments: [
+        ...movedExisting.filter((segment): segment is Segment => Boolean(segment)),
+        ...savedGenerated.slice(0, generatedScheduled.length)
+      ]
     });
   } catch (error) {
     return NextResponse.json(

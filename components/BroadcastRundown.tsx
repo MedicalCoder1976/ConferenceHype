@@ -339,15 +339,15 @@ export function BroadcastRundown({
   };
 
   return (
-    <section className="border border-ink/10 bg-white shadow-panel">
+    <section id="presentation-sequence" tabIndex={-1} className="scroll-mt-4 border border-ink/10 bg-white shadow-panel focus:outline-none">
       <div className="border-b border-ink/10 p-5">
         <div className="flex items-center gap-2">
           <Clock3 className="h-5 w-5 text-broadcast" />
           <h2 className="text-2xl font-black text-ink">Presentation sequence</h2>
         </div>
         <p className="mt-2 text-sm font-semibold leading-6 text-ink/60">
-          Every hour runs twelve 5-minute blocks. Each block holds seven
-          40-second source-grounded cards, followed by one 20-second licensed
+          Every hour runs twelve 5-minute blocks. Each block holds five
+          40-second source-grounded cards, each followed by a 20-second licensed
           transition. Voices are assigned across cards; every script starts with
           the voice name here from ConferenceHype, then moves directly into the
           narrative.

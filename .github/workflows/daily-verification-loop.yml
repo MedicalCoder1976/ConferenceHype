@@ -92,19 +92,6 @@ jobs:
           set -o pipefail
           npm run test:rss 2>&1 | tee rss-verification-after-repair.log
 
-      - name: Generate weekly source cards
-        id: weekly_cards
-        continue-on-error: true
-        run: |
-          set -o pipefail
-          npm run job:weekly-source-cards 2>&1 | tee weekly-source-cards.log
-        env:
-          WEEKLY_SOURCE_CARDS_PER_SOURCE: "2"
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
-
       - name: Verify weekly source cards
         id: weekly_cards_verify
         continue-on-error: true
@@ -141,6 +128,52 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Complete RSS card scheduling report
+        if: ${{ always() }}
+        run: |
+          {
+            echo "Complete RSS card scheduling test loop"
+            echo "RSS verification: ${{ steps.rss.outcome }}"
+            echo "RSS repair ingest: ${{ steps.rss_repair_ingest.outcome }}"
+            echo "RSS verification after repair: ${{ steps.rss_after_repair.outcome }}"
+            echo "Weekly source card verification: ${{ steps.weekly_cards_verify.outcome }}"
+            echo "Weekly source card repair: ${{ steps.weekly_cards_repair.outcome }}"
+            echo "Weekly source card verification after repair: ${{ steps.weekly_cards_after_repair.outcome }}"
+            if [ -f weekly-source-cards-verify.log ]; then
+              echo ""
+              echo "Weekly ready-card coverage:"
+              tail -n 20 weekly-source-cards-verify.log
+            fi
+            if [ -f weekly-source-cards-after-repair.log ]; then
+              echo ""
+              echo "Weekly ready-card coverage after repair:"
+              tail -n 20 weekly-source-cards-after-repair.log
+            fi
+          } | tee rss-card-scheduling-report.log
+          {
+            echo "## Complete RSS card scheduling test loop"
+            echo "- RSS verification: ${{ steps.rss.outcome }}"
+            echo "- RSS repair ingest: ${{ steps.rss_repair_ingest.outcome }}"
+            echo "- RSS verification after repair: ${{ steps.rss_after_repair.outcome }}"
+            echo "- Weekly source card verification: ${{ steps.weekly_cards_verify.outcome }}"
+            echo "- Weekly source card repair: ${{ steps.weekly_cards_repair.outcome }}"
+            echo "- Weekly source card verification after repair: ${{ steps.weekly_cards_after_repair.outcome }}"
+            if [ -f weekly-source-cards-verify.log ]; then
+              echo ""
+              echo "### Weekly ready-card coverage"
+              echo '```text'
+              tail -n 20 weekly-source-cards-verify.log
+              echo '```'
+            fi
+            if [ -f weekly-source-cards-after-repair.log ]; then
+              echo ""
+              echo "### Weekly ready-card coverage after repair"
+              echo '```text'
+              tail -n 20 weekly-source-cards-after-repair.log
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Randomized platform smoke loop
         id: smoke
@@ -391,7 +424,6 @@ jobs:
           if [ "${GUARDS_OUTCOME}" = "failure" ]; then UNRESOLVED=true; fi
           if [ "${BUILD_OUTCOME}" = "failure" ]; then UNRESOLVED=true; fi
           if [ "${RSS_OUTCOME}" = "failure" ] && [ "${RSS_AFTER_REPAIR_OUTCOME}" != "success" ]; then UNRESOLVED=true; fi
-          if [ "${WEEKLY_CARDS_OUTCOME}" = "failure" ] && [ "${WEEKLY_CARDS_REPAIR_OUTCOME}" != "success" ]; then UNRESOLVED=true; fi
           if [ "${WEEKLY_CARDS_VERIFY_OUTCOME}" = "failure" ] && [ "${WEEKLY_CARDS_AFTER_REPAIR_OUTCOME}" != "success" ]; then UNRESOLVED=true; fi
           if [ "${SMOKE_OUTCOME}" = "failure" ] && [ "${SMOKE_AFTER_REPAIR_OUTCOME}" != "success" ]; then UNRESOLVED=true; fi
           if [ "${DELIVERY_UNSUPPORTED}" = "true" ]; then UNRESOLVED=true; fi
@@ -422,7 +454,6 @@ jobs:
           BUILD_OUTCOME: ${{ steps.build.outcome }}
           RSS_OUTCOME: ${{ steps.rss.outcome }}
           RSS_AFTER_REPAIR_OUTCOME: ${{ steps.rss_after_repair.outcome }}
-          WEEKLY_CARDS_OUTCOME: ${{ steps.weekly_cards.outcome }}
           WEEKLY_CARDS_VERIFY_OUTCOME: ${{ steps.weekly_cards_verify.outcome }}
           WEEKLY_CARDS_REPAIR_OUTCOME: ${{ steps.weekly_cards_repair.outcome }}
           WEEKLY_CARDS_AFTER_REPAIR_OUTCOME: ${{ steps.weekly_cards_after_repair.outcome }}
@@ -459,7 +490,6 @@ jobs:
             echo "RSS verification: ${{ steps.rss.outcome }}"
             echo "RSS repair ingest: ${{ steps.rss_repair_ingest.outcome }}"
             echo "RSS verification after repair: ${{ steps.rss_after_repair.outcome }}"
-            echo "Weekly source card generation: ${{ steps.weekly_cards.outcome }}"
             echo "Weekly source card verification: ${{ steps.weekly_cards_verify.outcome }}"
             echo "Weekly source card repair: ${{ steps.weekly_cards_repair.outcome }}"
             echo "Weekly source card verification after repair: ${{ steps.weekly_cards_after_repair.outcome }}"
@@ -477,7 +507,7 @@ jobs:
             echo "Initial delivery verifier: ${{ steps.verify_initial.outcome }}"
             echo "Delivery verifier after repair: ${{ steps.verify_after_repair.outcome }}"
             echo ""
-            for file in typecheck.log broadcast-guards.log build.log rss-verification.log rss-repair-ingest.log rss-verification-after-repair.log weekly-source-cards.log weekly-source-cards-verify.log weekly-source-cards-repair.log weekly-source-cards-after-repair.log platform-smoke-loop.log platform-smoke-loop-after-repair.log stream-status.json handoff-repair-smoke.log stream-status-after-repair.json verify-initial.log repair-visibility.log verify-after-repair.log; do
+            for file in typecheck.log broadcast-guards.log build.log rss-verification.log rss-repair-ingest.log rss-verification-after-repair.log weekly-source-cards-verify.log weekly-source-cards-repair.log weekly-source-cards-after-repair.log rss-card-scheduling-report.log platform-smoke-loop.log platform-smoke-loop-after-repair.log stream-status.json handoff-repair-smoke.log stream-status-after-repair.json verify-initial.log repair-visibility.log verify-after-repair.log; do
               if [ -f "$file" ]; then
                 echo "## $file"
                 echo '```text'
@@ -497,3 +527,4 @@ jobs:
       - name: Fail unresolved daily verification loop
         if: ${{ always() && steps.repair_loop.outputs.unresolved == 'true' }}
         run: exit 1
+

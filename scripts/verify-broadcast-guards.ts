@@ -9,7 +9,11 @@ import { buildConferenceContextItem, itemMatchesSelections } from "@/lib/intakeC
 import { isGenericConferenceLandingItem } from "@/lib/intakeSelection";
 import { filterBroadcastReadySegments } from "@/lib/data";
 import { normalizeLegacyDailyCoverageDefaults } from "@/lib/dailyCoverage";
-import { sortWeeklyReadySegmentsForSelection, WEEKLY_SOURCE_POOL_FLAG } from "@/lib/weeklySourceCards";
+import {
+  segmentSourceMatchesSelection,
+  sortWeeklyReadySegmentsForSelection,
+  WEEKLY_SOURCE_POOL_FLAG
+} from "@/lib/weeklySourceCards";
 import { oncologyJournalSeeds } from "@/lib/catalog/oncologyJournalSeeds";
 import type { IngestedItem, Segment } from "@/lib/types";
 
@@ -279,6 +283,35 @@ assert.deepEqual(
   ).map((segment) => segment.id),
   ["weekly-ready-card"]
 );
+assert.equal(
+  segmentSourceMatchesSelection(weeklyReadyCard, {
+    conferences: [selectedConference],
+    journals: [],
+    sourceIds: []
+  }),
+  true
+);
+assert.equal(
+  segmentSourceMatchesSelection(
+    {
+      riskFlags: [
+        WEEKLY_SOURCE_POOL_FLAG,
+        "weekly_key:2026-W25",
+        "source_id:daily-conference-99999999-9999-4999-8999-999999999999"
+      ]
+    },
+    { conferences: [selectedConference], journals: [], sourceIds: [] }
+  ),
+  false
+);
+assert.equal(
+  segmentSourceMatchesSelection(
+    { riskFlags: ["platform_smoke_scheduled_card"] },
+    { conferences: [selectedConference], journals: [], sourceIds: [] }
+  ),
+  false
+);
+
 assert.ok(
   validateSegmentForApproval({
     ...sponsorBase,

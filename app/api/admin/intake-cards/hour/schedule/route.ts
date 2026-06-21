@@ -2,26 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { assertAdminRequest } from "@/lib/auth";
 import { getSegmentByIdFromDb, saveGeneratedSegmentsToDb } from "@/lib/db";
+import { CONTENT_CARDS_PER_HOUR, scheduledContentAt } from "@/lib/broadcast/hourSchedule";
 import { validateSegmentForApproval } from "@/lib/generation/validator";
 import { makeScheduledCopy } from "@/lib/reusableSegments";
 
-const CONTENT_SECONDS = 40;
-const MUSIC_SECONDS = 20;
-const CONTENT_PER_BLOCK = 7;
-const BLOCK_SECONDS = CONTENT_PER_BLOCK * CONTENT_SECONDS + MUSIC_SECONDS;
-
 const bodySchema = z.object({
   startsAt: z.string().datetime(),
-  segmentIds: z.array(z.string().min(1)).min(1).max(84)
+  segmentIds: z.array(z.string().min(1)).min(1).max(CONTENT_CARDS_PER_HOUR)
 });
 
-function scheduledAt(startsAt: string, index: number) {
-  const start = new Date(startsAt).getTime();
-  const block = Math.floor(index / CONTENT_PER_BLOCK);
-  const position = index % CONTENT_PER_BLOCK;
-  return new Date(start + block * BLOCK_SECONDS * 1000 + position * CONTENT_SECONDS * 1000)
-    .toISOString();
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -44,7 +33,7 @@ export async function POST(request: NextRequest) {
     const scheduledSegments = sources.map((source, index) =>
       makeScheduledCopy({
         source: source!,
-        approvedAt: scheduledAt(body.startsAt, index),
+        approvedAt: scheduledContentAt(body.startsAt, index),
         script: source!.script
       })
     );

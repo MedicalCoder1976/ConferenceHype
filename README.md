@@ -11,9 +11,10 @@ to YouTube, and exposes the same broadcast on `conferencehype.com`.
    exclusions, custom coverage, and approved presentation slots.
 2. Scheduled ingestion and generation create source-attributed review cards.
 3. The operator edits, orders, approves, rejects, or atomically replaces cards.
-4. In Daily coverage decisions, **Create one-hour batch cards** drafts cards
-   for the selected hour. The **Cards scheduled** status confirms those cards
-   were copied into the selected hour as approved scheduled cards.
+4. In Daily coverage decisions, **Create one-hour batch cards** drafts and
+   schedules cards for the selected hour. As soon as scheduling succeeds, the
+   admin view jumps to **Presentation sequence** so the operator can see the
+   approved scheduled cards immediately.
 5. **Start selected hour** dispatches the YouTube workflow from the admin
    rundown preview start time. The plan/preview buttons do not start or confirm
    a broadcast.
@@ -85,6 +86,11 @@ embedder.
   using source IDs rather than loose title/source-name matching. Brand New Ready
   Cards remain candidates until the admin accepts, rejects, or replaces them
   into the presentation sequence.
+- When a conference, meeting, journal RSS feed, clinical news source, or
+  newspaper source is selected, both **Presentation sequence** and **Brand
+  New Ready Cards** must show that selected source set only. Old ASCO cards,
+  platform-smoke cards, and unrelated prior scheduled cards must stay hidden
+  until the operator clears or changes the source selection.
 - Daily guard verification must fail if an unselected journal/meeting/media
   item can generate a card or if a legacy untagged batch card can enter the
   presentation sequence.
@@ -307,10 +313,10 @@ and provide the affected YouTube video ID.
   failing/retrying until fixed.
 - `weekly-source-cards.yml`: low-cost weekly ready-card pre-generation for every enabled conference, journal RSS feed, and clinical news/newspaper source. It fetches the configured source catalog once, creates deterministic pending-review cards without LLM expansion by default, and tags them as the weekly ready-card pool. When an operator selects that conference, journal, or news source for an hour, unused weekly cards are shown and reused first; newly generated cards only fill remaining space. Cards already scheduled/broadcast are not reused ahead of unused weekly cards. If any enabled source has no weekly card, the generator must create a viewer-facing context card for that source, the verifier must fail, and the daily loop must run the weekly-card repair step until every enabled source has an unused weekly ready card.
 - `daily-verification-loop.yml`: the single daily verification loop. It runs
-  typecheck, broadcast guards, RSS feed verification, weekly source-card generation/verification, randomized platform smoke,
+  typecheck, broadcast guards, RSS feed verification, weekly source-card verification, the Complete RSS card scheduling report, randomized platform smoke,
   public stream handoff resolution, YouTube delivery verification, and automatic
   repair/retry passes before reporting failure. The automatic repair passes are:
-  refresh ingestion and rerun RSS verification after source failure; generate and verify weekly source cards, then rerun weekly-card generation if any enabled source is missing an unused weekly ready card; rerun the
+  refresh ingestion and rerun RSS verification after source failure; verify weekly source cards and rerun weekly-card generation if any enabled source is missing an unused weekly ready card; report the Complete RSS card scheduling result daily; rerun the
   randomized platform smoke loop after smoke failure; run a short smoke repair
   pass and resolve the public handoff again when `conferencehype.com` does not
   expose a live/completed YouTube ID; set the YouTube video privacy to `public`

@@ -1,18 +1,33 @@
-import {
-  getMedicalConferencesFromDb,
-  getOncologyJournalsFromDb,
-  getPendingSegmentsFromDb,
-  getSourcesFromDb,
-  upsertAdminCatalogSeedsToDb
-} from "@/lib/db";
-import { sourceRegistry } from "@/lib/sources/registry";
+import { loadEnvConfig } from "@next/env";
 import { createHash } from "node:crypto";
-import {
-  sourceIdsFromSegment,
-  weeklySourceWeekKey,
-  WEEKLY_SOURCE_POOL_FLAG
-} from "@/lib/weeklySourceCards";
 import type { Segment, SourceConfig } from "@/lib/types";
+
+loadEnvConfig(process.cwd());
+
+let getMedicalConferencesFromDb: any;
+let getOncologyJournalsFromDb: any;
+let getPendingSegmentsFromDb: any;
+let getSourcesFromDb: any;
+let upsertAdminCatalogSeedsToDb: any;
+let sourceRegistry: SourceConfig[];
+let sourceIdsFromSegment: any;
+let weeklySourceWeekKey: any;
+let WEEKLY_SOURCE_POOL_FLAG: string;
+
+async function loadDependencies() {
+  const db = await import("@/lib/db");
+  getMedicalConferencesFromDb = db.getMedicalConferencesFromDb;
+  getOncologyJournalsFromDb = db.getOncologyJournalsFromDb;
+  getPendingSegmentsFromDb = db.getPendingSegmentsFromDb;
+  getSourcesFromDb = db.getSourcesFromDb;
+  upsertAdminCatalogSeedsToDb = db.upsertAdminCatalogSeedsToDb;
+  ({ sourceRegistry } = await import("@/lib/sources/registry"));
+  ({
+    sourceIdsFromSegment,
+    weeklySourceWeekKey,
+    WEEKLY_SOURCE_POOL_FLAG
+  } = await import("@/lib/weeklySourceCards"));
+}
 
 type RequiredSource = {
   kind: "conference" | "journal" | "newspaper";
@@ -44,6 +59,7 @@ function segmentHasAlias(segment: Segment, aliases: string[], weekKey: string) {
 }
 
 async function main() {
+  await loadDependencies();
   await upsertAdminCatalogSeedsToDb();
   const [conferences, journals, sources, pendingSegments] = await Promise.all([
     getMedicalConferencesFromDb(),
@@ -52,7 +68,7 @@ async function main() {
     getPendingSegmentsFromDb(5000)
   ]);
   const required: RequiredSource[] = [
-    ...((conferences ?? [])
+    ...(((conferences ?? []) as Array<{ id: string; name: string; enabled: boolean; officialUrl: string }>)
       .filter((conference) => conference.enabled)
       .map((conference) => ({
         kind: "conference" as const,
@@ -65,7 +81,7 @@ async function main() {
           sourceUrlAlias(conference.officialUrl, conference.name)
         ]
       }))),
-    ...((journals ?? [])
+    ...(((journals ?? []) as Array<{ id: string; name: string; enabled: boolean; officialUrl: string; rssUrl: string }>)
       .filter((journal) => journal.enabled)
       .map((journal) => ({
         kind: "journal" as const,
@@ -85,7 +101,7 @@ async function main() {
     }))
   ];
   const weekKey = process.env.WEEKLY_SOURCE_WEEK_KEY ?? weeklySourceWeekKey();
-  const segments = pendingSegments ?? [];
+  const segments = (pendingSegments ?? []) as Segment[];
   const missing = required.filter(
     (source) => !segments.some((segment) => segmentHasAlias(segment, source.aliases, weekKey))
   );
