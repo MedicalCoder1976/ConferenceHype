@@ -1,5 +1,6 @@
 import { loadEnvConfig } from "@next/env";
 import { createHash, randomUUID } from "node:crypto";
+import { isAbstractSourceId } from "@/lib/sources/socialLinks";
 import type { IngestedItem, MedicalConference, OncologyJournal, Segment, SourceConfig } from "@/lib/types";
 
 loadEnvConfig(process.cwd());
@@ -176,6 +177,29 @@ function pickItemsForSource(
     .slice(0, limit);
 }
 
+// Enforces the weekly sequence: official-page items, then abstract-library
+// items, then — last — at most one social-voice item. Reserves a slot for
+// the social card whenever one is available instead of letting it compete
+// on rank with official/abstract items and lose out.
+function orderedPickForEntity(
+  items: IngestedItem[],
+  selection: {
+    conferences?: MedicalConference[];
+    journals?: OncologyJournal[];
+    sourceIds?: string[];
+  },
+  cardsPerSource: number
+) {
+  const matched = pickItemsForSource(items, selection, cardsPerSource * 4);
+  const social = matched.filter((item) => item.sourceType === "general_social");
+  const nonSocial = matched.filter((item) => item.sourceType !== "general_social");
+  const official = nonSocial.filter((item) => !isAbstractSourceId(item.sourceId));
+  const abstracts = nonSocial.filter((item) => isAbstractSourceId(item.sourceId));
+  const socialPick = social.slice(0, 1);
+  const contentBudget = Math.max(cardsPerSource - socialPick.length, 0);
+  return [...official, ...abstracts].slice(0, contentBudget).concat(socialPick);
+}
+
 async function buildSegmentsForItems({
   items,
   weekKey,
@@ -283,7 +307,7 @@ async function main() {
   const generated: Segment[] = [];
 
   for (const conference of enabledConferences) {
-    const selected = pickItemsForSource(items, { conferences: [conference] }, cardsPerSource);
+    const selected = orderedPickForEntity(items, { conferences: [conference] }, cardsPerSource);
     const fallbackItems = selected.length ? selected : [buildConferenceContextItem(conference)];
     const built = await buildSegmentsForItems({
       items: fallbackItems,
@@ -305,7 +329,7 @@ async function main() {
 
   for (const journal of enabledJournals) {
     const built = await buildSegmentsForItems({
-      items: pickItemsForSource(items, { journals: [journal] }, cardsPerSource),
+      items: orderedPickForEntity(items, { journals: [journal] }, cardsPerSource),
       weekKey,
       existingKeys,
       startIndex: generated.length
@@ -324,7 +348,7 @@ async function main() {
 
   for (const source of enabledSources) {
     const built = await buildSegmentsForItems({
-      items: pickItemsForSource(items, { sourceIds: [source.id] }, cardsPerSource),
+      items: orderedPickForEntity(items, { sourceIds: [source.id] }, cardsPerSource),
       weekKey,
       existingKeys,
       startIndex: generated.length

@@ -4,6 +4,7 @@ import {
   sourceToXVoice,
   type XVoice
 } from "@/lib/sources/registry";
+import { conferenceLinkedSourceIds, monitoredXVoiceForEntity } from "@/lib/sources/socialLinks";
 import { fetchRssSource, isRssSource } from "@/lib/sources/rss";
 import { fetchPageSummary } from "@/lib/sources/scraper";
 import { fetchEhaSource } from "@/lib/sources/eha";
@@ -24,25 +25,22 @@ import {
 } from "@/lib/dailyCoverage";
 import type { DailyCoveragePlan, IngestedItem, MedicalConference, SourceConfig } from "@/lib/types";
 
+// A selected conference's official page, plus any of its registered linked
+// sub-pages (program, abstract library, on-site essentials, etc. — matched
+// by the `<acronym>-<year>-<page>` naming convention), are pulled in
+// automatically. No separate source checkbox is required.
 function conferenceLinkedConfiguredSources(
   conference: MedicalConference,
   configuredSources: SourceConfig[]
 ) {
-  const label = `${conference.name} ${conference.acronym ?? ""}`.toLowerCase();
-  const matchingSources = /\beha\b|european hematology/.test(label)
-    ? configuredSources.filter((source) =>
-        source.id.startsWith("eha-2026-") ||
-        /\beha\b|eha2026|ehaweb|library\.ehaweb\.org/i.test(`${source.name} ${source.url}`)
-      )
-    : [];
-
-  return matchingSources.map((source) => ({
+  return conferenceLinkedSourceIds(conference, configuredSources).map((source) => ({
     ...source,
     id: `daily-conference-${conference.id}-${source.id}`,
     name: `${conference.acronym ?? conference.name}: ${source.name}`,
     enabled: true
   }));
 }
+
 export async function runIngestionJob(
   coverageDateOverride?: string,
   planOverride?: DailyCoveragePlan
@@ -182,8 +180,57 @@ export async function runIngestionJob(
     }
   });
 
+  // Every selected conference, journal, or source auto-links to its
+  // monitored X voice (if one is configured) so social posts from that voice
+  // count toward the selection — completing the official-pages → abstracts →
+  // socials cascade without a separate checkbox for the social step.
+  const selectedConferences = (conferences ?? []).filter((conference) =>
+    dailyPlan.conferenceIds.includes(conference.id)
+  );
+  const selectedJournals = (journals ?? []).filter((journal) =>
+    dailyPlan.journalIds.includes(journal.id)
+  );
+  const selectedRealSourceIds = dailyPlan.sourceIds.filter((id) => !id.startsWith("daily-"));
+  const linkedXVoiceMatches = [
+    ...selectedConferences.flatMap((conference) => {
+      const voice = monitoredXVoiceForEntity(conference);
+      return voice
+        ? [
+            {
+              handle: voice.handle.toLowerCase(),
+              sourceId: `daily-conference-${conference.id}-x-${voice.handle.slice(1).toLowerCase()}`
+            }
+          ]
+        : [];
+    }),
+    ...selectedJournals.flatMap((journal) => {
+      const voice = monitoredXVoiceForEntity(journal);
+      return voice
+        ? [
+            {
+              handle: voice.handle.toLowerCase(),
+              sourceId: `daily-journal-${journal.id}-x-${voice.handle.slice(1).toLowerCase()}`
+            }
+          ]
+        : [];
+    }),
+    ...selectedRealSourceIds.flatMap((sourceId) => {
+      const voice = monitoredXVoiceForEntity({ id: sourceId });
+      return voice
+        ? [{ handle: voice.handle.toLowerCase(), sourceId: `${sourceId}-x-${voice.handle.slice(1).toLowerCase()}` }]
+        : [];
+    })
+  ];
+
   const rankedItems = batches
     .flatMap((result) => (result.status === "fulfilled" ? result.value : []))
+    .map((item) => {
+      if (item.sourceType !== "general_social" || !item.author) {
+        return item;
+      }
+      const match = linkedXVoiceMatches.find(({ handle }) => handle === item.author?.toLowerCase());
+      return match ? { ...item, sourceId: match.sourceId } : item;
+    })
     .filter(isRelevantItem)
     .filter((item) => {
       if (!dailyPlan?.exclusions.length) return true;

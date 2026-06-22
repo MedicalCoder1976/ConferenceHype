@@ -6,7 +6,13 @@ import { buildBroadcastSlots } from "@/lib/rundown/slots";
 import { applySpokenPronunciations } from "@/lib/media/tts";
 import { getUnsafeGeneratedSourceErrors } from "@/lib/generation/sourceSafety";
 import { validateSegmentForApproval } from "@/lib/generation/validator";
-import { buildConferenceContextItem, itemMatchesSelections } from "@/lib/intakeCards";
+import {
+  buildBatchSegment,
+  buildConferenceContextItem,
+  buildPubMedBackedJournalItem,
+  itemMatchesSelections,
+  personaIdForBatchIndex
+} from "@/lib/intakeCards";
 import { isGenericConferenceLandingItem } from "@/lib/intakeSelection";
 import { filterBroadcastReadySegments } from "@/lib/data";
 import { normalizeLegacyDailyCoverageDefaults } from "@/lib/dailyCoverage";
@@ -16,6 +22,8 @@ import {
   WEEKLY_SOURCE_POOL_FLAG
 } from "@/lib/weeklySourceCards";
 import { oncologyJournalSeeds } from "@/lib/catalog/oncologyJournalSeeds";
+import { conferenceLinkedSourceIds, monitoredXVoiceForEntity } from "@/lib/sources/socialLinks";
+import { sourceRegistry } from "@/lib/sources/registry";
 import type { IngestedItem, Segment } from "@/lib/types";
 
 const source: IngestedItem = {
@@ -169,6 +177,30 @@ const selectedConference = {
   enabled: true,
   operatorAdded: false
 };
+// Conference/journal/source -> monitored X voice linking must be data-driven
+// (acronym/abbreviation/id keyed), not hardcoded to one conference, so every
+// conference, journal, or newspaper with a matching registry/seed entry
+// auto-links — and unrelated entities must not get a false-positive match.
+assert.equal(monitoredXVoiceForEntity({ acronym: "EHA" })?.handle, "@EHA_Hematology");
+assert.equal(monitoredXVoiceForEntity({ id: "nejm" })?.handle, "@NEJM");
+assert.equal(monitoredXVoiceForEntity({ id: "onclive" })?.handle, "@OncLive");
+assert.equal(monitoredXVoiceForEntity({ id: "stat-news" })?.handle, "@statnews");
+assert.equal(monitoredXVoiceForEntity({ abbreviation: "Lancet Oncology" })?.handle, "@TheLancetOncol");
+assert.equal(monitoredXVoiceForEntity({ id: "medpage-today" }), null);
+assert.equal(monitoredXVoiceForEntity(selectedConference), null);
+
+const ehaConference = {
+  ...selectedConference,
+  id: "44444444-4444-4444-8444-444444444444",
+  name: "European Hematology Association Congress",
+  acronym: "EHA"
+};
+assert.deepEqual(
+  conferenceLinkedSourceIds(ehaConference, sourceRegistry).map((source) => source.id),
+  ["eha-2026-abstract-library", "eha-2026-program", "eha-2026-onsite", "eha-2026-exhibition", "eha-2026-media"]
+);
+assert.deepEqual(conferenceLinkedSourceIds(selectedConference, sourceRegistry), []);
+
 const unselectedJcoItem: IngestedItem = {
   id: "jco-leak",
   sourceId: "daily-journal-22222222-2222-4222-8222-222222222222",
@@ -278,6 +310,30 @@ assert.equal(
   true
 );
 
+// Conference-linked X voice posts (e.g. @EHA_Hematology tagged for the EHA
+// conference) must match the conference selection, skip journal/PubMed
+// enrichment, and pass validation as social signals rather than being held
+// to the science-card Background/Methods/Results/Discussion requirement.
+const conferenceLinkedXPost: IngestedItem = {
+  id: "x-eha-congress-post",
+  sourceId: `daily-conference-${selectedConference.id}-x-eha_hematology`,
+  title: "Monitored X voice: European Hematology Association",
+  url: "https://x.com/EHA_Hematology/status/123",
+  excerpt: "Late-breaking abstract session on CAR-T therapy in relapsed lymphoma is starting now at #EHA2026.",
+  sourceName: "X voice monitor",
+  sourceType: "general_social",
+  rank: 5,
+  author: "@EHA_Hematology"
+};
+assert.equal(
+  itemMatchesSelections({
+    item: conferenceLinkedXPost,
+    conferences: [selectedConference],
+    journals: [],
+    sourceIds: []
+  }),
+  true
+);
 assert.equal(
   itemMatchesSelections({
     item: {
@@ -460,4 +516,18 @@ assert.match(renderHourSource, /Removed \$\{removedContentCards\} trailing conte
 assert.match(renderHourSource, /framedCards\.push\(musicTransitionCard\(remainingSeconds/);
 assert.match(renderHourSource, /durationSeconds = Math\.min\(Number\(process\.env\.HOUR_BROADCAST_SECONDS \?\? 3600\), 3600\)/);
 
-console.log("Broadcast guard verification passed.");
+(async () => {
+  const enrichedXPost = await buildPubMedBackedJournalItem(conferenceLinkedXPost);
+  assert.equal(enrichedXPost, conferenceLinkedXPost);
+  const xPostSegment = buildBatchSegment(enrichedXPost!, personaIdForBatchIndex(0), {
+    startsAt: "2026-06-22T16:00:00.000Z",
+    index: 0
+  });
+  assert.equal(xPostSegment.contentType, "social_signal");
+  assert.deepEqual(validateSegmentForApproval(xPostSegment), []);
+
+  console.log("Broadcast guard verification passed.");
+})().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

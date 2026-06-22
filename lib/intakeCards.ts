@@ -99,6 +99,11 @@ function pubMedSummaryIsUsable({
 }
 
 export async function buildPubMedBackedJournalItem(item: IngestedItem) {
+  // Social posts are short attributed callouts, not journal articles — skip
+  // PubMed enrichment and the structured-science requirements entirely.
+  if (item.sourceType === "general_social") {
+    return item;
+  }
   const scienceItem = isClinicalScienceItem(item);
   if (isNonSubstantiveConferenceInformationItem(item)) {
     return null;
@@ -220,26 +225,38 @@ export function buildBatchSegment(
   const itemPosition =
     typeof options.index === "number" ? ` Card ${options.index + 1}.` : "";
   const journalItem = isJournalItem(item);
+  const socialItem = item.sourceType === "general_social";
   const edition = monthEdition(item);
-  const sectionSummary = buildRequiredSectionSummary({
-    title: topic,
-    sourceName: item.sourceName,
-    text: item.excerpt
-  });
+  // Social posts are short attributed callouts, not journal articles — the
+  // Background/Methods/Results/Discussion template forces a "needs PubMed
+  // confirmation" filler into Methods/Results whenever the post is shorter
+  // than 4 sentences (the common case), which trips the missing-intake
+  // failure-language guard. Use the plain extracted detail instead.
+  const sectionSummary = socialItem
+    ? ""
+    : buildRequiredSectionSummary({
+        title: topic,
+        sourceName: item.sourceName,
+        text: item.excerpt
+      });
   const summary = journalItem
     ? `From the ${edition} edition of ${item.sourceName}. ${truncateWords(sectionSummary, 42)}`
-    : `${item.sourceName} intake. ${truncateWords(sectionSummary, 42)}`;
+    : socialItem
+      ? `${item.sourceName} callout. ${spokenDetail}`
+      : `${item.sourceName} intake. ${truncateWords(sectionSummary, 42)}`;
   const script = journalItem
     ? [
         `From the ${edition} edition of ${item.sourceName}, this journal review looks at ${topic}.`,
         sectionSummary
       ]
-    : [
-        itemPosition,
-        `${persona.name} is covering ${item.sourceName}.`,
-        `The topic is ${topic}.`,
-        truncateWords(sectionSummary || spokenDetail, 82)
-      ];
+    : socialItem
+      ? [itemPosition, `${persona.name} calls out a post from ${item.sourceName}.`, spokenDetail]
+      : [
+          itemPosition,
+          `${persona.name} is covering ${item.sourceName}.`,
+          `The topic is ${topic}.`,
+          truncateWords(sectionSummary || spokenDetail, 82)
+        ];
   const createdAt = new Date().toISOString();
   const batchPrefix = options.batchLabel ? `${options.batchLabel}: ` : "Batch pick: ";
 
@@ -305,8 +322,13 @@ export function itemMatchesSelections({
   const journalMatch = journals.some(
     (journal) =>
       item.sourceId === journal.id ||
-      item.sourceId === `daily-journal-${journal.id}`
+      item.sourceId === `daily-journal-${journal.id}` ||
+      item.sourceId?.startsWith(`daily-journal-${journal.id}-`)
   );
-  const sourceMatch = Boolean(item.sourceId && sourceIds.includes(item.sourceId));
+  const sourceMatch = Boolean(
+    item.sourceId &&
+      (sourceIds.includes(item.sourceId) ||
+        sourceIds.some((id) => item.sourceId!.startsWith(`${id}-`)))
+  );
   return conferenceMatch || journalMatch || sourceMatch;
 }

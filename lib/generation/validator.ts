@@ -7,6 +7,13 @@ import {
 } from "@/lib/segments/sectionSummary";
 
 function isClinicalScienceCard(segment: Pick<Segment, "title" | "summary" | "script" | "contentType">) {
+  // Social posts are attributed callouts, not full studies — they're held to
+  // the social-signal labeling rule below instead of the science-card rule,
+  // even when their text mentions clinical terms (near-certain for any
+  // hematology/oncology conference account's posts).
+  if (segment.contentType === "social_signal") {
+    return false;
+  }
   const text = `${segment.title} ${segment.summary} ${segment.script}`;
   return (
     segment.contentType === "abstract_buzz" ||

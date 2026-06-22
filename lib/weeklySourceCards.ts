@@ -28,17 +28,21 @@ export function buildAllCatalogCoveragePlan({
   journals: OncologyJournal[];
   sources: SourceConfig[];
 }): DailyCoveragePlan {
+  // Includes the X/social search trigger ("conferencehype-tags") and sets
+  // breakingNewsEnabled so the weekly sweep's single batched X search runs —
+  // this is what lets the weekly sequence end with a social card for every
+  // conference, journal, and source whose monitored voice posts that week.
   return {
     coverageDate,
     conferenceIds: conferences.filter((conference) => conference.enabled).map((conference) => conference.id),
     journalIds: journals.filter((journal) => journal.enabled).map((journal) => journal.id),
     sourceIds: sources
-      .filter((source) => source.enabled && source.type !== "general_social" && source.type !== "manual")
+      .filter((source) => source.enabled && source.type !== "manual")
       .map((source) => source.id),
     customItems: [],
     priorityTopics: [],
     exclusions: [],
-    breakingNewsEnabled: false,
+    breakingNewsEnabled: true,
     notes: "Weekly low-cost source-card pre-generation."
   };
 }
