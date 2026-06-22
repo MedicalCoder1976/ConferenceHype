@@ -116,7 +116,8 @@ export function formatVoiceSegment({
   narrative,
   at,
   maxWords = 90,
-  cardIndex
+  cardIndex,
+  includeIntro = true
 }: {
   voiceName: string;
   topic: string;
@@ -124,6 +125,7 @@ export function formatVoiceSegment({
   at: Date;
   maxWords?: number;
   cardIndex?: number;
+  includeIntro?: boolean;
 }) {
   const greeting = broadcastHour(at) < 12 ? "Good morning" : "Good evening";
   const cleanNarrative = stripExistingVoiceFrame(narrative);
@@ -131,10 +133,12 @@ export function formatVoiceSegment({
   const structuredReview = hasFourSectionNarrative(cleanNarrative);
   const includeClose = typeof cardIndex === "number" && (cardIndex + 1) % 4 === 0;
   const closing = includeClose ? SEGMENT_CLOSE : "";
-  const opening = journalReview
-    ? `${greeting}, wherever you are. This is ${voiceName} from ConferenceHype.`
-    : `${greeting}, wherever you are. This is ${voiceName} from ConferenceHype. ` +
-      `Our segment will focus on ${cleanTopic(topic)}.`;
+  const opening = !includeIntro
+    ? ""
+    : journalReview
+      ? `${greeting}, wherever you are. This is ${voiceName} from ConferenceHype.`
+      : `${greeting}, wherever you are. This is ${voiceName} from ConferenceHype. ` +
+        `Our segment will focus on ${cleanTopic(topic)}.`;
   const narrativeBudget = Math.max(1, maxWords - wordCount(opening) - wordCount(closing));
   const trimmedBody = structuredReview
     ? compactFourSectionNarrative(cleanNarrative)

@@ -312,7 +312,11 @@ export function DailyCoveragePlanner({
         });
         const batchPayload = await batchResponse.json();
         if (!batchResponse.ok || !batchPayload.ok) {
-          throw new Error(errorMessage(batchPayload.error, "Could not create one-hour ready cards."));
+          throw new Error(
+            Array.isArray(batchPayload.errors)
+              ? batchPayload.errors.join(" ")
+              : errorMessage(batchPayload.error, "Could not create one-hour ready cards.")
+          );
         }
         const createdTitles = Array.isArray(batchPayload.segments)
           ? batchPayload.segments

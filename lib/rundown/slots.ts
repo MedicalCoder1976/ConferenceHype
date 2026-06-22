@@ -9,7 +9,12 @@ import {
   addSeconds
 } from "@/lib/broadcast/hourSchedule";
 import { hasMissingIntakeFailureLanguage } from "@/lib/broadcast/sanitizeCopy";
-import type { Segment } from "@/lib/types";
+import type { Persona, Segment } from "@/lib/types";
+
+// Each broadcast hour uses exactly 4 voices, one per equal-size section of the
+// hour's content cards, so the hour doesn't sound like back-to-back strangers.
+const VOICES_PER_HOUR = 4;
+const CARDS_PER_VOICE_SECTION = CONTENT_CARDS_PER_HOUR / VOICES_PER_HOUR;
 
 export type BroadcastSlot = {
   at: Date;
@@ -37,8 +42,19 @@ function hashValue(value: string) {
   return hash;
 }
 
-function voiceForSlot(segment: Segment, slotIndex: number) {
-  return personas[hashValue(`${segment.id}-${slotIndex}`) % personas.length];
+// Picks 4 distinct personas for the hour, deterministic on the hour's start
+// time so the same hour always gets the same 4 voices but different hours vary.
+function personasForHour(hourStart: Date): Persona[] {
+  const pool = [...personas];
+  const picked: Persona[] = [];
+  let seed = hashValue(hourStart.toISOString());
+  for (let index = 0; index < VOICES_PER_HOUR && pool.length > 0; index += 1) {
+    seed = hashValue(`${seed}`);
+    const pickIndex = seed % pool.length;
+    picked.push(pool[pickIndex]);
+    pool.splice(pickIndex, 1);
+  }
+  return picked;
 }
 
 function stripIntro(value: string) {
@@ -110,8 +126,13 @@ function cleanForbiddenBroadcastPhrases(value: string) {
     .trim();
 }
 
-function withAssignedVoice(segment: Segment, slotIndex: number, at: Date): Segment {
-  const persona = voiceForSlot(segment, slotIndex);
+function withAssignedVoice(
+  segment: Segment,
+  persona: Persona,
+  slotIndex: number,
+  includeIntro: boolean,
+  at: Date
+): Segment {
   let narrative = cleanForbiddenBroadcastPhrases(stripIntro(segment.script || segment.summary));
 
   // Rule 6: X/social posts — drop @ and # tags, label as ConferenceHype call-out
@@ -129,7 +150,8 @@ function withAssignedVoice(segment: Segment, slotIndex: number, at: Date): Segme
       topic: segment.title,
       narrative,
       at,
-      cardIndex: slotIndex
+      cardIndex: slotIndex,
+      includeIntro
     }),
     summary
   };
@@ -210,6 +232,7 @@ export function buildBroadcastSlots({
 
   for (let hourIndex = 0; hourIndex < hours; hourIndex += 1) {
     const hourStart = addMinutes(baseTime, hourIndex * 60);
+    const hourVoices = personasForHour(hourStart);
     for (let blockIndex = 0; blockIndex < MUSIC_BLOCKS_PER_HOUR; blockIndex += 1) {
       const blockStart = addMinutes(hourStart, blockIndex * 5);
       for (let cardIndex = 0; cardIndex < CONTENT_SLOTS_PER_MUSIC_BLOCK; cardIndex += 1) {
@@ -246,7 +269,10 @@ export function buildBroadcastSlots({
           });
           continue;
         }
-        const segment = withAssignedVoice(sourceSegment, slotIndex, contentAt);
+        const sectionIndex = Math.floor(contentIndex / CARDS_PER_VOICE_SECTION);
+        const persona = hourVoices[sectionIndex] ?? hourVoices[hourVoices.length - 1];
+        const includeIntro = contentIndex % CARDS_PER_VOICE_SECTION === 0;
+        const segment = withAssignedVoice(sourceSegment, persona, slotIndex, includeIntro, contentAt);
         slots.push({
           at: contentAt,
           kind: segmentKind(segment),

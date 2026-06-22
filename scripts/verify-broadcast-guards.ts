@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { formatVoiceSegment, SEGMENT_CLOSE } from "@/lib/broadcast/voiceSegment";
+import { buildBroadcastSlots } from "@/lib/rundown/slots";
 import { applySpokenPronunciations } from "@/lib/media/tts";
 import { getUnsafeGeneratedSourceErrors } from "@/lib/generation/sourceSafety";
 import { validateSegmentForApproval } from "@/lib/generation/validator";
@@ -78,6 +79,38 @@ const sponsorBase: Segment = {
   confidenceScore: 100,
   createdAt: new Date().toISOString()
 };
+
+// An hour must use exactly 4 voices in equal-size sections, each introducing
+// itself only once at the start of its section.
+const hourCheckSegments: Segment[] = Array.from({ length: 80 }, (_, index) => ({
+  ...sponsorBase,
+  id: `hour-check-${index}`,
+  title: `Hour check topic ${index}`,
+  summary: `Plain summary text for hour check item ${index}.`,
+  script: `Plain narrative body for hour check item ${index}.`,
+  contentType: "media_roundup",
+  status: "approved",
+  riskFlags: []
+}));
+const hourCheckSlots = buildBroadcastSlots({
+  segments: hourCheckSegments,
+  scheduleSegments: [],
+  baseTime: new Date("2026-06-22T13:00:00Z"),
+  hours: 1
+}).filter((slot) => slot.kind !== "music" && slot.segment);
+const hourCheckVoices = new Set(hourCheckSlots.map((slot) => slot.segment?.personaName));
+assert.equal(hourCheckVoices.size, 4);
+const hourCheckCounts = new Map<string, number>();
+for (const slot of hourCheckSlots) {
+  const name = slot.segment?.personaName ?? "";
+  hourCheckCounts.set(name, (hourCheckCounts.get(name) ?? 0) + 1);
+}
+assert.ok([...hourCheckCounts.values()].every((count) => count === hourCheckSlots.length / 4));
+const hourCheckIntroCount = hourCheckSlots.filter((slot) =>
+  /This is .+ from ConferenceHype/.test(slot.segment?.script ?? "")
+).length;
+assert.equal(hourCheckIntroCount, 4);
+
 assert.ok(
   validateSegmentForApproval(sponsorBase).some((error) =>
     error.includes("explicitly labeled")
