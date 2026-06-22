@@ -30,7 +30,17 @@ VOICE_TITLES = {
     "af_sarah": "TumorCrusher Maya",
     "am_echo": "TumorCrusher Cole",
     "am_adam": "TumorCrusher Adam",
+    "am_eric": "TumorCrusher Eric",
+    "am_liam": "TumorCrusher Liam",
+    "am_onyx": "TumorCrusher Onyx",
+    "am_puck": "TumorCrusher Puck",
+    "bm_daniel": "TumorCrusher Daniel",
+    "af_nova": "TumorCrusher Nova",
+    "af_jessica": "TumorCrusher Jessica",
+    "af_kore": "TumorCrusher Kore",
+    "bf_emma": "TumorCrusher Emma",
 }
+# Gain/bass tuning is an ear-tuned default per voice; adjust after listening to a render.
 VOICE_MIX = {
     "am_fenrir": {"gain": 1.0, "bass": 0.0},
     "af_heart": {"gain": 1.08, "bass": 0.14},
@@ -40,6 +50,15 @@ VOICE_MIX = {
     "af_sarah": {"gain": 1.04, "bass": 0.1},
     "am_echo": {"gain": 1.05, "bass": 0.22},
     "am_adam": {"gain": 1.08, "bass": 0.42},
+    "am_eric": {"gain": 1.06, "bass": 0.2},
+    "am_liam": {"gain": 1.05, "bass": 0.16},
+    "am_onyx": {"gain": 1.07, "bass": 0.34},
+    "am_puck": {"gain": 1.06, "bass": 0.24},
+    "bm_daniel": {"gain": 1.07, "bass": 0.3},
+    "af_nova": {"gain": 1.06, "bass": 0.12},
+    "af_jessica": {"gain": 1.05, "bass": 0.1},
+    "af_kore": {"gain": 1.07, "bass": 0.16},
+    "bf_emma": {"gain": 1.06, "bass": 0.14},
 }
 
 
