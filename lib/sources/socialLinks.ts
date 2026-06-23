@@ -41,10 +41,10 @@ export function monitoredXVoiceForEntity(entity: LinkableEntity): XVoice | null 
 // `<acronym>-<year>-<page>` in the source registry (e.g. "eha-2026-program").
 // This generalizes the lookup to any conference whose acronym has matching
 // sources configured, instead of hardcoding one conference.
-export function conferenceLinkedSourceIds(
-  conference: MedicalConference,
-  configuredSources: SourceConfig[]
-): SourceConfig[] {
+export function conferenceLinkedSourceIds<T extends Pick<SourceConfig, "id">>(
+  conference: Pick<MedicalConference, "acronym">,
+  configuredSources: T[]
+): T[] {
   if (!conference.acronym) {
     return [];
   }

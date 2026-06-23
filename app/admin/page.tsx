@@ -16,11 +16,18 @@ import { LanguageControls } from "@/components/LanguageControls";
 import { OncologyReporterGrid } from "@/components/OncologyReporterGrid";
 import { MeetingWatchDesk } from "@/components/MeetingWatchDesk";
 import { RecordingLibrary } from "@/components/RecordingLibrary";
+import { RunRealAiBatchButton } from "@/components/RunRealAiBatchButton";
+import { RunWeeklyBatchButton } from "@/components/RunWeeklyBatchButton";
 import { SocialVoiceCompetition } from "@/components/SocialVoiceCompetition";
 import { SourceManager } from "@/components/SourceManager";
 import { StartStreamButton } from "@/components/StartStreamButton";
 import { SpecialtyVoiceDirectory } from "@/components/SpecialtyVoiceDirectory";
 import { XVoiceCallouts } from "@/components/XVoiceCallouts";
+import {
+  buildConferenceCardDecks,
+  buildJournalCardDecks,
+  buildSourceCardDecks
+} from "@/lib/cardDeck";
 import { getAdminSnapshot } from "@/lib/data";
 import { getCachedRecordings } from "@/lib/media/recordings";
 import { buildHourlySocialVoiceRundownSegments } from "@/lib/social/hourlyVoiceRundown";
@@ -204,6 +211,18 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     snapshot.scheduleRundownSegments,
     selectedSources
   );
+  const allDeckSegments = [
+    ...snapshot.pendingSegments,
+    ...snapshot.nextBroadcastSegments,
+    ...snapshot.airedSegments
+  ];
+  const conferenceCardDecks = buildConferenceCardDecks(
+    allDeckSegments,
+    snapshot.medicalConferences,
+    snapshot.sources
+  );
+  const journalCardDecks = buildJournalCardDecks(allDeckSegments, snapshot.oncologyJournals);
+  const sourceCardDecks = buildSourceCardDecks(allDeckSegments, snapshot.sources);
   const socialVoiceSegments = hasSelectedSources(selectedSources)
     ? []
     : hourlySocialVoiceSegments;
@@ -283,6 +302,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           startAt={baseTime}
           label={previewLabel}
         />
+        <RunWeeklyBatchButton />
+        <RunRealAiBatchButton />
       </div>
       <AdminTabs
         initialActive={params?.section}
@@ -298,6 +319,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               selectedStartsAt={baseTime}
               initialBatchItems={snapshot.batchIntakeItems}
               initialReadySegments={reviewSegments}
+              conferenceCardDecks={conferenceCardDecks}
+              journalCardDecks={journalCardDecks}
+              sourceCardDecks={sourceCardDecks}
             />
             <BroadcastRundown
               key={baseTime}
@@ -312,7 +336,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               <FocusSocialPost />
               <InstagramPushPanel />
               <EmergencyOverride streamState={snapshot.streamState} />
-              <SourceManager sources={snapshot.sources} />
+              <SourceManager sources={snapshot.sources} cardDecks={sourceCardDecks} />
               <SocialVoiceCompetition
                 leaders={snapshot.socialVoiceLeaderboard}
                 cadence={snapshot.nextSocialVoiceCompetition}
@@ -324,11 +348,17 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           </div>
         }
         journalWatch={
-          <JournalWatchDesk initialJournals={snapshot.oncologyJournals} />
+          <JournalWatchDesk
+            initialJournals={snapshot.oncologyJournals}
+            cardDecks={journalCardDecks}
+          />
         }
         meetingWatch={
           <div className="grid gap-6">
-            <MeetingWatchDesk conferences={snapshot.medicalConferences} />
+            <MeetingWatchDesk
+              conferences={snapshot.medicalConferences}
+              cardDecks={conferenceCardDecks}
+            />
             <ConferencePlanner
               initialConferences={snapshot.medicalConferences}
               initialCoverageSlots={snapshot.conferenceCoverageSlots}

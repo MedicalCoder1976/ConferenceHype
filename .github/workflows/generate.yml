@@ -2,9 +2,10 @@ name: Generate review segments
 
 on:
   workflow_dispatch:
-  schedule:
-    # One fresh source pull and generation pass per hour.
-    - cron: "10 * * * *"
+  # Automatic hourly Grok generation removed to control xAI spend. The free
+  # weekly-source-cards.yml batch sweep (no LLM calls) covers every enabled
+  # conference, journal, and newspaper. Run this workflow manually from the
+  # Actions tab whenever a fresh real-AI pass is wanted mid-week.
 
 jobs:
   generate:

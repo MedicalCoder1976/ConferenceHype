@@ -2,6 +2,8 @@
 
 import { Hash, Plus, Rss } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
+import { CardDeckSummary } from "@/components/CardDeckSummary";
+import { EMPTY_CARD_DECK, type EntityCardDeck } from "@/lib/cardDeck";
 import type { SourceConfig } from "@/lib/types";
 import {
   instagramPushPrompts,
@@ -34,7 +36,13 @@ async function addSource({
   return payload.source as SourceConfig;
 }
 
-export function SourceManager({ sources }: { sources: SourceConfig[] }) {
+export function SourceManager({
+  sources,
+  cardDecks = {}
+}: {
+  sources: SourceConfig[];
+  cardDecks?: Record<string, EntityCardDeck>;
+}) {
   const [visibleSources, setVisibleSources] = useState(sources);
   const [kind, setKind] = useState<SourceKind>("x_user");
   const [name, setName] = useState("");
@@ -181,22 +189,22 @@ export function SourceManager({ sources }: { sources: SourceConfig[] }) {
       </div>
       <div className="mt-4 grid gap-2">
         {visibleSources.map((source) => (
-          <div
-            key={source.id}
-            className="flex min-w-0 items-center justify-between gap-4 border border-ink/10 p-3"
-          >
-            <div className="min-w-0">
-              <div className="truncate text-sm font-black text-ink">{source.name}</div>
-              <div className="text-xs font-bold uppercase text-ink/50">
-                {source.type} - tier {source.rank}
+          <div key={source.id} className="min-w-0 border border-ink/10 p-3">
+            <div className="flex min-w-0 items-center justify-between gap-4">
+              <div className="min-w-0">
+                <div className="truncate text-sm font-black text-ink">{source.name}</div>
+                <div className="text-xs font-bold uppercase text-ink/50">
+                  {source.type} - tier {source.rank}
+                </div>
+                <div className="truncate text-xs font-semibold text-ink/45">
+                  {source.url}
+                </div>
               </div>
-              <div className="truncate text-xs font-semibold text-ink/45">
-                {source.url}
-              </div>
+              <span className="shrink-0 rounded-full bg-paper px-3 py-1 text-xs font-bold uppercase text-ink">
+                {source.enabled ? "on" : "off"}
+              </span>
             </div>
-            <span className="shrink-0 rounded-full bg-paper px-3 py-1 text-xs font-bold uppercase text-ink">
-              {source.enabled ? "on" : "off"}
-            </span>
+            <CardDeckSummary deck={cardDecks[source.id] ?? EMPTY_CARD_DECK} />
           </div>
         ))}
       </div>

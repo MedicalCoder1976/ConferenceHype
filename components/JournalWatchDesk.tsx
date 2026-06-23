@@ -3,13 +3,17 @@
 import { BookOpen, Plus, WandSparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { CardDeckSummary } from "@/components/CardDeckSummary";
+import { EMPTY_CARD_DECK, type EntityCardDeck } from "@/lib/cardDeck";
 import type { EditorialPackage, OncologyJournal } from "@/lib/types";
 
 export function JournalWatchDesk({
   initialJournals,
+  cardDecks = {},
   onPackageDeveloped
 }: {
   initialJournals: OncologyJournal[];
+  cardDecks?: Record<string, EntityCardDeck>;
   onPackageDeveloped?: (editorialPackage: EditorialPackage) => void;
 }) {
   const [journals, setJournals] = useState(initialJournals);
@@ -77,6 +81,7 @@ export function JournalWatchDesk({
             <div className="mt-2 text-xs font-semibold text-ink/55">
               Last package: {journal.lastIssueKey ?? "awaiting first issue"}
             </div>
+            <CardDeckSummary deck={cardDecks[journal.id] ?? EMPTY_CARD_DECK} />
             <button disabled={pending} onClick={() => develop(journal)} className="mt-4 inline-flex min-h-11 items-center gap-2 bg-ink px-4 text-xs font-black uppercase text-white disabled:opacity-50">
               <WandSparkles className="h-4 w-4" />
               {activeId === journal.id ? "Developing..." : "Develop latest issue"}

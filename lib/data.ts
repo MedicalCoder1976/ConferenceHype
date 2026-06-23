@@ -282,8 +282,11 @@ export async function getAdminSnapshot(baseTime = new Date(), planningHours = 1)
     xFollowVoices,
     blacklistedXHandles
   );
+  // Higher than the 120 default so the per-entity card-deck counts (weekly
+  // batch cards accumulate over time) don't silently undercount once a
+  // catalog has been running for a few weeks.
   const pendingSegments = filterBroadcastReadySegments(
-    (await getPendingSegmentsFromDb()) ?? []
+    (await getPendingSegmentsFromDb(1000)) ?? []
   );
   // Use the same generous limit as the render script so recently-scheduled
   // cards (which sort to the end of the approved_at ASC order) are always

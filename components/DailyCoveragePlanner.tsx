@@ -4,12 +4,15 @@ import { CalendarCheck, ExternalLink, Plus, Save, Send, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { CardDeckSummary } from "@/components/CardDeckSummary";
 import {
   createDefaultDailyCoveragePlan,
   normalizeLegacyDailyCoverageDefaults
 } from "@/lib/dailyCoverage";
+import { EMPTY_CARD_DECK, type EntityCardDeck } from "@/lib/cardDeck";
 import { errorMessage } from "@/lib/errors";
 import { isGenericConferenceLandingItem } from "@/lib/intakeSelection";
+import { conferenceLinkedSourceIds } from "@/lib/sources/socialLinks";
 import { sortWeeklyReadySegmentsForSelection } from "@/lib/weeklySourceCards";
 import type {
   DailyCoveragePlan,
@@ -105,7 +108,10 @@ export function DailyCoveragePlanner({
   activePlanningKey,
   selectedStartsAt,
   initialBatchItems,
-  initialReadySegments
+  initialReadySegments,
+  conferenceCardDecks = {},
+  journalCardDecks = {},
+  sourceCardDecks = {}
 }: {
   initialPlan: DailyCoveragePlan;
   conferences: MedicalConference[];
@@ -116,6 +122,9 @@ export function DailyCoveragePlanner({
   selectedStartsAt: string;
   initialBatchItems: IngestedItem[];
   initialReadySegments: Segment[];
+  conferenceCardDecks?: Record<string, EntityCardDeck>;
+  journalCardDecks?: Record<string, EntityCardDeck>;
+  sourceCardDecks?: Record<string, EntityCardDeck>;
 }) {
   const router = useRouter();
   const [plan, setPlan] = useState(initialPlan);
@@ -194,6 +203,18 @@ export function DailyCoveragePlanner({
     () => selectedRealSourceIds(plan.sourceIds),
     [plan.sourceIds]
   );
+  // A conference's official sub-pages (program, abstract library, etc.) are
+  // covered automatically once the conference itself is selected, so they
+  // should never appear as independently-selectable newspaper tiles.
+  const conferenceLinkedSourceIdSet = useMemo(() => {
+    const ids = new Set<string>();
+    for (const conference of conferences) {
+      for (const source of conferenceLinkedSourceIds(conference, sources)) {
+        ids.add(source.id);
+      }
+    }
+    return ids;
+  }, [conferences, sources]);
   const hasAnySelection =
     selectedConferences.length > 0 || selectedJournals.length > 0 || realSourceIds.length > 0;
 
@@ -541,6 +562,7 @@ export function DailyCoveragePlanner({
                     {conference.startDate ?? `${conference.year}-${String(conference.month).padStart(2, "0")}`}
                     {ongoing ? " - ongoing today" : ""}
                   </span>
+                  <CardDeckSummary deck={conferenceCardDecks[conference.id] ?? EMPTY_CARD_DECK} />
                 </span>
               </label>
             );
@@ -560,6 +582,7 @@ export function DailyCoveragePlanner({
                 <span className="block truncate text-xs font-semibold text-ink/50">
                   {journal.rssUrl}
                 </span>
+                <CardDeckSummary deck={journalCardDecks[journal.id] ?? EMPTY_CARD_DECK} />
               </span>
             </label>
           ))}
@@ -568,6 +591,7 @@ export function DailyCoveragePlanner({
         <SelectionGroup title="Clinical news and newspapers" count={plan.sourceIds.length}>
           {sources
             .filter((source) => source.type !== "general_social" && source.type !== "manual")
+            .filter((source) => !conferenceLinkedSourceIdSet.has(source.id))
             .map((source) => (
               <label key={source.id} className="flex gap-3 border border-ink/10 bg-white p-3">
                 <input
@@ -580,6 +604,7 @@ export function DailyCoveragePlanner({
                   <span className="block truncate text-xs font-semibold text-ink/50">
                     {source.url}
                   </span>
+                  <CardDeckSummary deck={sourceCardDecks[source.id] ?? EMPTY_CARD_DECK} />
                 </span>
               </label>
             ))}

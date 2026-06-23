@@ -296,6 +296,13 @@ async function main() {
     1,
     Math.min(Number(process.env.WEEKLY_SOURCE_CARDS_PER_SOURCE ?? 2), 6)
   );
+  // Journals get a richer weekly card budget than conferences/newspapers —
+  // one structured (Background/Methods/Results/Discussion) template card per
+  // article in that week's RSS edition, still with zero LLM calls.
+  const journalCardsPerSource = Math.max(
+    1,
+    Math.min(Number(process.env.WEEKLY_JOURNAL_CARDS_PER_SOURCE ?? 12), 20)
+  );
   const plan = buildAllCatalogCoveragePlan({
     coverageDate,
     conferences: enabledConferences,
@@ -329,7 +336,7 @@ async function main() {
 
   for (const journal of enabledJournals) {
     const built = await buildSegmentsForItems({
-      items: orderedPickForEntity(items, { journals: [journal] }, cardsPerSource),
+      items: orderedPickForEntity(items, { journals: [journal] }, journalCardsPerSource),
       weekKey,
       existingKeys,
       startIndex: generated.length
@@ -372,6 +379,7 @@ async function main() {
       coverageDate,
       weekKey,
       cardsPerSource,
+      journalCardsPerSource,
       sources: {
         conferences: enabledConferences.length,
         journals: enabledJournals.length,

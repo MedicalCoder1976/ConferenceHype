@@ -53,11 +53,11 @@ export function sourceIdsFromSegment(segment: Pick<Segment, "riskFlags">) {
     .map((flag) => flag.slice("source_id:".length));
 }
 
-function sourceIdMatchesConference(sourceId: string, conference: MedicalConference) {
+export function sourceIdMatchesConference(sourceId: string, conference: Pick<MedicalConference, "id">) {
   return sourceId === conference.id || sourceId.startsWith(`daily-conference-${conference.id}`);
 }
 
-function sourceIdMatchesJournal(sourceId: string, journal: OncologyJournal) {
+export function sourceIdMatchesJournal(sourceId: string, journal: Pick<OncologyJournal, "id">) {
   return sourceId === journal.id || sourceId === `daily-journal-${journal.id}`;
 }
 

@@ -4,9 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       cards_per_source:
-        description: "Cards to pre-generate per enabled conference, journal, and news source"
+        description: "Cards to pre-generate per enabled conference and news source"
         required: true
         default: "2"
+      journal_cards_per_source:
+        description: "Richer per-journal card budget (still template-only, no LLM cost)"
+        required: true
+        default: "12"
   schedule:
     # Low-cost weekly pre-generation of ready-card candidates for every enabled
     # conference, journal RSS feed, and clinical news/newspaper source.
@@ -32,6 +36,7 @@ jobs:
         run: npm run job:weekly-source-cards
         env:
           WEEKLY_SOURCE_CARDS_PER_SOURCE: ${{ inputs.cards_per_source || '2' }}
+          WEEKLY_JOURNAL_CARDS_PER_SOURCE: ${{ inputs.journal_cards_per_source || '12' }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -51,6 +56,7 @@ jobs:
         run: npm run job:weekly-source-cards
         env:
           WEEKLY_SOURCE_CARDS_PER_SOURCE: ${{ inputs.cards_per_source || '2' }}
+          WEEKLY_JOURNAL_CARDS_PER_SOURCE: ${{ inputs.journal_cards_per_source || '12' }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

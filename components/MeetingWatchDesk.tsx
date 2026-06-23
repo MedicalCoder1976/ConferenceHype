@@ -3,9 +3,17 @@
 import { CalendarSearch, WandSparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { CardDeckSummary } from "@/components/CardDeckSummary";
+import { EMPTY_CARD_DECK, type EntityCardDeck } from "@/lib/cardDeck";
 import type { MedicalConference } from "@/lib/types";
 
-export function MeetingWatchDesk({ conferences }: { conferences: MedicalConference[] }) {
+export function MeetingWatchDesk({
+  conferences,
+  cardDecks = {}
+}: {
+  conferences: MedicalConference[];
+  cardDecks?: Record<string, EntityCardDeck>;
+}) {
   const [message, setMessage] = useState("");
   const router = useRouter();
   const [activeId, setActiveId] = useState("");
@@ -54,6 +62,7 @@ export function MeetingWatchDesk({ conferences }: { conferences: MedicalConferen
             <div className="mt-2 text-xs font-semibold text-ink/55">
               {conference.startDate ?? `${conference.year}-${String(conference.month).padStart(2, "0")}`} {conference.city ? `- ${conference.city}` : ""}
             </div>
+            <CardDeckSummary deck={cardDecks[conference.id] ?? EMPTY_CARD_DECK} />
             <button disabled={pending} onClick={() => develop(conference)} className="mt-4 inline-flex min-h-11 items-center gap-2 bg-ink px-4 text-xs font-black uppercase text-white disabled:opacity-50">
               <WandSparkles className="h-4 w-4" />
               {activeId === conference.id ? "Developing..." : "Develop material"}
