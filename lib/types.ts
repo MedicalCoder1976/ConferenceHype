@@ -189,6 +189,22 @@ export type BroadcastWriteout = {
   updatedAt: string;
 };
 
+export type PlatformSmokeRun = {
+  id: string;
+  attempt: number;
+  attemptsAllowed: number;
+  outcome: "running" | "passed" | "failed";
+  conferenceName?: string;
+  journalName?: string;
+  sourceName?: string;
+  workflowRunUrl?: string;
+  errorMessage?: string;
+  fixDeployedAt?: string;
+  fixNotes?: string;
+  startedAt: string;
+  finishedAt?: string;
+};
+
 export type DailyCoverageCustomItem = {
   id: string;
   label: string;

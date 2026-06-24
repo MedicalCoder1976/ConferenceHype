@@ -53,8 +53,8 @@ function buildDeck(segments: Segment[], matchesEntity: (sourceId: string) => boo
 
 export function buildConferenceCardDecks(
   allSegments: Segment[],
-  conferences: Pick<MedicalConference, "id" | "acronym">[],
-  sources: Pick<SourceConfig, "id">[] = []
+  conferences: Pick<MedicalConference, "id" | "acronym" | "year">[],
+  sources: Pick<SourceConfig, "id" | "name">[] = []
 ): Record<string, EntityCardDeck> {
   const segments = dedupeSegments(allSegments);
   const decks: Record<string, EntityCardDeck> = {};

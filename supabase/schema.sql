@@ -207,6 +207,25 @@ create table public.daily_coverage_plans (
   updated_at timestamptz not null default now()
 );
 
+create table public.platform_smoke_runs (
+  id uuid primary key default gen_random_uuid(),
+  attempt int not null default 1,
+  attempts_allowed int not null default 1,
+  outcome text not null default 'running'
+    check (outcome in ('running', 'passed', 'failed')),
+  conference_name text,
+  journal_name text,
+  source_name text,
+  workflow_run_url text,
+  error_message text,
+  fix_deployed_at timestamptz,
+  fix_notes text,
+  started_at timestamptz not null default now(),
+  finished_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create index if not exists ingested_items_source_id_idx
   on public.ingested_items (source_id);
 
@@ -234,6 +253,8 @@ create index if not exists editorial_packages_category_created_idx
   on public.editorial_packages (category, created_at desc);
 create index if not exists daily_coverage_plans_date_idx
   on public.daily_coverage_plans (coverage_date desc);
+create index if not exists platform_smoke_runs_started_at_idx
+  on public.platform_smoke_runs (started_at desc);
 
 insert into public.stream_state (id) values (1) on conflict (id) do nothing;
 
@@ -249,6 +270,7 @@ alter table public.conference_coverage_slots enable row level security;
 alter table public.oncology_journals enable row level security;
 alter table public.editorial_packages enable row level security;
 alter table public.daily_coverage_plans enable row level security;
+alter table public.platform_smoke_runs enable row level security;
 
 create policy "public can read approved segments"
   on public.segments for select
@@ -329,6 +351,15 @@ create policy "authenticated admins can manage daily coverage plans"
   to authenticated
   using ((select auth.role()) = 'authenticated')
   with check ((select auth.role()) = 'authenticated');
+
+create policy "authenticated admins can manage platform smoke runs"
+  on public.platform_smoke_runs for all
+  to authenticated
+  using ((select auth.role()) = 'authenticated')
+  with check ((select auth.role()) = 'authenticated');
+
+grant select, insert, update, delete on public.platform_smoke_runs
+  to authenticated, service_role;
 
 create or replace function public.replace_broadcast_segment(
   p_target_segment_id uuid,

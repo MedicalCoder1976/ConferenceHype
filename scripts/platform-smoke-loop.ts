@@ -3,11 +3,15 @@ import { randomUUID } from "node:crypto";
 import { appendFileSync } from "node:fs";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
+  deleteConferenceCoverageSlotInDb,
+  deleteSegmentsByIdsInDb,
+  finishPlatformSmokeRunInDb,
   getMedicalConferencesFromDb,
   getOncologyJournalsFromDb,
   getPreviousDayBatchItemsFromDb,
   getSourcesFromDb,
   saveGeneratedSegmentsToDb,
+  startPlatformSmokeRunInDb,
 } from "@/lib/db";
 import { sourceRegistry } from "@/lib/sources/registry";
 import { runIngestionJob } from "@/lib/jobs/ingest";
@@ -29,6 +33,13 @@ import type {
 } from "@/lib/types";
 
 loadEnvConfig(process.cwd());
+
+// Tracks every smoke-test segment/slot id created during an attempt so it
+// can be deleted afterward — smoke cards must never linger as real cards.
+type AttemptContext = {
+  segmentIds: Set<string>;
+  slotId?: string;
+};
 
 type PreparedAttempt = {
   slotId: string;
@@ -244,7 +255,7 @@ async function upsertSmokeCoverageSlot({
   return data.id as string;
 }
 
-async function prepareAttempt(attempt: number): Promise<PreparedAttempt> {
+async function prepareAttempt(attempt: number, context: AttemptContext): Promise<PreparedAttempt> {
   const conferences = (await getMedicalConferencesFromDb()) ?? [];
   const journals = ((await getOncologyJournalsFromDb()) ?? []).filter((journal) => journal.enabled);
   const sources = (await getSourcesFromDb()) ?? sourceRegistry;
@@ -290,10 +301,12 @@ async function prepareAttempt(attempt: number): Promise<PreparedAttempt> {
     })
   ) : smokeFallbackSegments({ conference, journal, source });
   const savedReady = (await saveGeneratedSegmentsToDb(readySegments)) ?? readySegments;
+  savedReady.forEach((segment) => context.segmentIds.add(segment.id));
   const slotId = await upsertSmokeCoverageSlot({
     conferenceId: conference.id,
     startsAt
   });
+  context.slotId = slotId;
   const slotRiskFlags = ["platform_smoke_scheduled_card", `coverage_slot:${slotId}`];
   let scheduledSegments = savedReady.map((segment, index) =>
     makeScheduledCopy({
@@ -309,6 +322,7 @@ async function prepareAttempt(attempt: number): Promise<PreparedAttempt> {
   if (validationErrors.length) {
     const fallbackReady = smokeFallbackSegments({ conference, journal, source });
     const savedFallback = (await saveGeneratedSegmentsToDb(fallbackReady)) ?? fallbackReady;
+    savedFallback.forEach((segment) => context.segmentIds.add(segment.id));
     scheduledSegments = savedFallback.map((segment, index) =>
       makeScheduledCopy({
         source: segment,
@@ -325,6 +339,7 @@ async function prepareAttempt(attempt: number): Promise<PreparedAttempt> {
     }
   }
   const savedScheduled = (await saveGeneratedSegmentsToDb(scheduledSegments)) ?? scheduledSegments;
+  savedScheduled.forEach((segment) => context.segmentIds.add(segment.id));
   if (savedScheduled.length === 0) {
     throw new Error("Smoke cards were generated but could not be scheduled.");
   }
@@ -501,25 +516,70 @@ async function assertCompletedSlotAndWriteout(prepared: PreparedAttempt) {
   githubOutput("writeout_id", writeout.id);
 }
 
+// Smoke cards are scaffolding for exercising the real pipeline end to end —
+// once an attempt has been judged (pass or fail), its cards and coverage
+// slot are deleted so they never linger as real broadcast material.
+async function cleanupAttemptArtifacts(context: AttemptContext) {
+  try {
+    if (context.segmentIds.size) {
+      await deleteSegmentsByIdsInDb(Array.from(context.segmentIds));
+    }
+    if (context.slotId) {
+      await deleteConferenceCoverageSlotInDb(context.slotId);
+    }
+  } catch (error) {
+    console.error("PLATFORM_SMOKE_CLEANUP_FAILED", error);
+  }
+}
+
 async function runLoop() {
   const attempts = Number(process.env.PLATFORM_SMOKE_ATTEMPTS ?? String(DEFAULT_ATTEMPTS));
+  const run = await startPlatformSmokeRunInDb({ attempt: 1, attemptsAllowed: attempts });
   let lastError: unknown;
+  let lastPrepared: PreparedAttempt | undefined;
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const context: AttemptContext = { segmentIds: new Set() };
     try {
-      const prepared = await prepareAttempt(attempt);
-      const run = await dispatchYoutubeWorkflow(prepared);
-      await waitForWorkflow(run);
+      const prepared = await prepareAttempt(attempt, context);
+      lastPrepared = prepared;
+      const dispatched = await dispatchYoutubeWorkflow(prepared);
+      await waitForWorkflow(dispatched);
       await assertCompletedSlotAndWriteout(prepared);
       console.log(`PLATFORM_SMOKE_VERIFIED attempt=${attempt}`);
       githubOutput("verified", true);
+      if (run) {
+        await finishPlatformSmokeRunInDb({
+          id: run.id,
+          attempt,
+          outcome: "passed",
+          conferenceName: prepared.conference.name,
+          journalName: prepared.journal.name,
+          sourceName: prepared.source.name,
+          workflowRunUrl: dispatched.html_url
+        });
+      }
       return;
     } catch (error) {
       lastError = error;
       console.error(`PLATFORM_SMOKE_ATTEMPT_FAILED attempt=${attempt}`);
       console.error(error);
+    } finally {
+      await cleanupAttemptArtifacts(context);
     }
   }
   githubOutput("verified", false);
+  const errorMessage = lastError instanceof Error ? lastError.message : JSON.stringify(lastError);
+  if (run) {
+    await finishPlatformSmokeRunInDb({
+      id: run.id,
+      attempt: attempts,
+      outcome: "failed",
+      conferenceName: lastPrepared?.conference.name,
+      journalName: lastPrepared?.journal.name,
+      sourceName: lastPrepared?.source.name,
+      errorMessage
+    });
+  }
   throw lastError instanceof Error
     ? lastError
     : new Error(`Platform smoke loop failed: ${JSON.stringify(lastError)}`);
@@ -527,7 +587,9 @@ async function runLoop() {
 
 const mode = process.argv[2] ?? "loop";
 if (mode === "prepare") {
-  prepareAttempt(1).catch((error) => {
+  // Manual debug entry point only — intentionally leaves its cards in place
+  // so a developer can inspect them; not used by the automated smoke loop.
+  prepareAttempt(1, { segmentIds: new Set() }).catch((error) => {
     console.error(error);
     process.exit(1);
   });

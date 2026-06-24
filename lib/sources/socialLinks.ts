@@ -39,17 +39,27 @@ export function monitoredXVoiceForEntity(entity: LinkableEntity): XVoice | null 
 // A conference's linked official sub-pages (program, abstract library,
 // on-site essentials, etc.) follow the naming convention
 // `<acronym>-<year>-<page>` in the source registry (e.g. "eha-2026-program").
-// This generalizes the lookup to any conference whose acronym has matching
-// sources configured, instead of hardcoding one conference.
-export function conferenceLinkedSourceIds<T extends Pick<SourceConfig, "id">>(
-  conference: Pick<MedicalConference, "acronym">,
+// That id convention only survives in the in-code registry, though:
+// upsertSourcesToDb() upserts registry sources by `url` and never sets `id`,
+// so once Supabase is configured every registry source gets a fresh random
+// uuid in the real `sources` table and the id prefix never matches again.
+// What *does* survive intact is `name` (e.g. "EHA2026 official program"), so
+// fall back to a normalized name-prefix match for real, DB-backed sources.
+export function conferenceLinkedSourceIds<T extends Pick<SourceConfig, "id" | "name">>(
+  conference: Pick<MedicalConference, "acronym" | "year">,
   configuredSources: T[]
 ): T[] {
   if (!conference.acronym) {
     return [];
   }
-  const prefix = `${conference.acronym.toLowerCase()}-`;
-  return configuredSources.filter((source) => source.id.toLowerCase().startsWith(prefix));
+  const idPrefix = `${conference.acronym.toLowerCase()}-`;
+  const namePrefix = normalizeKey(`${conference.acronym}${conference.year ?? ""}`);
+  return configuredSources.filter((source) => {
+    if (source.id.toLowerCase().startsWith(idPrefix)) {
+      return true;
+    }
+    return namePrefix.length > 0 && normalizeKey(source.name).startsWith(namePrefix);
+  });
 }
 
 export function isAbstractSourceId(sourceId: string | undefined): boolean {

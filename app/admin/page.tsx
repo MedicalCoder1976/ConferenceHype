@@ -15,6 +15,7 @@ import { JournalWatchDesk } from "@/components/JournalWatchDesk";
 import { LanguageControls } from "@/components/LanguageControls";
 import { OncologyReporterGrid } from "@/components/OncologyReporterGrid";
 import { MeetingWatchDesk } from "@/components/MeetingWatchDesk";
+import { PlatformSmokeHistory } from "@/components/PlatformSmokeHistory";
 import { RecordingLibrary } from "@/components/RecordingLibrary";
 import { RunRealAiBatchButton } from "@/components/RunRealAiBatchButton";
 import { RunWeeklyBatchButton } from "@/components/RunWeeklyBatchButton";
@@ -344,6 +345,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                 specialtyVoices={snapshot.specialtyXVoices}
               />
               <AnalyticsPanel analytics={snapshot.analytics} />
+              <PlatformSmokeHistory runs={snapshot.platformSmokeRuns} />
             </div>
           </div>
         }

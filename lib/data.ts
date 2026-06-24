@@ -17,6 +17,7 @@ import {
   getOncologyJournalsFromDb,
   getNextBroadcastSegmentsFromDb,
   getPendingSegmentsFromDb,
+  getPlatformSmokeRunsFromDb,
   getPreviousDayBatchItemsFromDb,
   getRecentSocialItemsFromDb,
   getSourcesFromDb,
@@ -303,6 +304,7 @@ export async function getAdminSnapshot(baseTime = new Date(), planningHours = 1)
   const conferenceCoverageSlots = (await getConferenceCoverageSlotsFromDb()) ?? [];
   const oncologyJournals = (await getOncologyJournalsFromDb()) ?? [];
   const editorialPackages = (await getEditorialPackagesFromDb()) ?? [];
+  const platformSmokeRuns = (await getPlatformSmokeRunsFromDb(30)) ?? [];
   const sources = (await getSourcesFromDb()) ?? sourceRegistry;
   const coverageDate = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/New_York",
@@ -334,6 +336,7 @@ export async function getAdminSnapshot(baseTime = new Date(), planningHours = 1)
     scheduleRundownSegments,
     airedSegments,
     broadcastWriteouts,
+    platformSmokeRuns,
     streamState: await getStreamState(),
     sources,
     xFollowVoices,

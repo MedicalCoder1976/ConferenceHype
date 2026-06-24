@@ -17,6 +17,7 @@ import type {
   IngestedItem,
   MedicalConference,
   OncologyJournal,
+  PlatformSmokeRun,
   Segment,
   SocialVoiceLeader,
   SpecialtyXVoice,
@@ -159,6 +160,22 @@ type OncologyJournalRow = {
   official_url: string;
   enabled: boolean;
   last_issue_key?: string | null;
+};
+
+type PlatformSmokeRunRow = {
+  id: string;
+  attempt: number;
+  attempts_allowed: number;
+  outcome: PlatformSmokeRun["outcome"];
+  conference_name?: string | null;
+  journal_name?: string | null;
+  source_name?: string | null;
+  workflow_run_url?: string | null;
+  error_message?: string | null;
+  fix_deployed_at?: string | null;
+  fix_notes?: string | null;
+  started_at: string;
+  finished_at?: string | null;
 };
 
 type EditorialPackageRow = {
@@ -326,6 +343,24 @@ function toOncologyJournal(row: OncologyJournalRow): OncologyJournal {
     officialUrl: row.official_url,
     enabled: row.enabled,
     lastIssueKey: row.last_issue_key ?? undefined
+  };
+}
+
+function toPlatformSmokeRun(row: PlatformSmokeRunRow): PlatformSmokeRun {
+  return {
+    id: row.id,
+    attempt: row.attempt,
+    attemptsAllowed: row.attempts_allowed,
+    outcome: row.outcome,
+    conferenceName: row.conference_name ?? undefined,
+    journalName: row.journal_name ?? undefined,
+    sourceName: row.source_name ?? undefined,
+    workflowRunUrl: row.workflow_run_url ?? undefined,
+    errorMessage: row.error_message ?? undefined,
+    fixDeployedAt: row.fix_deployed_at ?? undefined,
+    fixNotes: row.fix_notes ?? undefined,
+    startedAt: row.started_at,
+    finishedAt: row.finished_at ?? undefined
   };
 }
 
@@ -828,6 +863,151 @@ export async function upsertBroadcastWriteoutInDb(
     throw error;
   }
   return toBroadcastWriteout(data as BroadcastWriteoutRow);
+}
+
+export async function startPlatformSmokeRunInDb({
+  attempt,
+  attemptsAllowed
+}: {
+  attempt: number;
+  attemptsAllowed: number;
+}) {
+  if (!hasSupabase()) {
+    return null;
+  }
+  const { data, error } = await createAdminClient()
+    .from("platform_smoke_runs")
+    .insert({ attempt, attempts_allowed: attemptsAllowed, outcome: "running" })
+    .select("*")
+    .single();
+  if (error) {
+    // Table not migrated yet — let the smoke loop itself proceed without a
+    // run record rather than failing the whole verification run over it.
+    if (error.code === "PGRST205") {
+      return null;
+    }
+    throw error;
+  }
+  return toPlatformSmokeRun(data as PlatformSmokeRunRow);
+}
+
+export async function finishPlatformSmokeRunInDb({
+  id,
+  attempt,
+  outcome,
+  conferenceName,
+  journalName,
+  sourceName,
+  workflowRunUrl,
+  errorMessage
+}: {
+  id: string;
+  attempt?: number;
+  outcome: "passed" | "failed";
+  conferenceName?: string;
+  journalName?: string;
+  sourceName?: string;
+  workflowRunUrl?: string;
+  errorMessage?: string;
+}) {
+  if (!hasSupabase()) {
+    return null;
+  }
+  const { data, error } = await createAdminClient()
+    .from("platform_smoke_runs")
+    .update({
+      outcome,
+      attempt,
+      conference_name: conferenceName,
+      journal_name: journalName,
+      source_name: sourceName,
+      workflow_run_url: workflowRunUrl,
+      error_message: errorMessage,
+      finished_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", id)
+    .select("*")
+    .single();
+  if (error) {
+    if (error.code === "PGRST205") {
+      return null;
+    }
+    throw error;
+  }
+  return toPlatformSmokeRun(data as PlatformSmokeRunRow);
+}
+
+export async function getPlatformSmokeRunsFromDb(limit = 30): Promise<PlatformSmokeRun[] | null> {
+  if (!hasSupabase()) {
+    return null;
+  }
+  const { data, error } = await createAdminClient()
+    .from("platform_smoke_runs")
+    .select("*")
+    .order("started_at", { ascending: false })
+    .limit(limit);
+  if (error) {
+    // PGRST205: table not in PostgREST's schema cache yet, i.e. the
+    // 20260622120000_platform_smoke_runs.sql migration hasn't been applied.
+    // The rest of the admin snapshot must not 500 while that's pending.
+    if (error.code === "PGRST205") {
+      return [];
+    }
+    throw error;
+  }
+  return (data as PlatformSmokeRunRow[]).map(toPlatformSmokeRun);
+}
+
+export async function markPlatformSmokeRunFixDeployedInDb({
+  id,
+  deployed,
+  notes
+}: {
+  id: string;
+  deployed: boolean;
+  notes?: string;
+}) {
+  if (!hasSupabase()) {
+    return null;
+  }
+  const { data, error } = await createAdminClient()
+    .from("platform_smoke_runs")
+    .update({
+      fix_deployed_at: deployed ? new Date().toISOString() : null,
+      fix_notes: notes ?? null,
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", id)
+    .select("*")
+    .single();
+  if (error) {
+    throw error;
+  }
+  return toPlatformSmokeRun(data as PlatformSmokeRunRow);
+}
+
+export async function deleteSegmentsByIdsInDb(segmentIds: string[]) {
+  if (!hasSupabase() || segmentIds.length === 0) {
+    return;
+  }
+  const { error } = await createAdminClient().from("segments").delete().in("id", segmentIds);
+  if (error) {
+    throw error;
+  }
+}
+
+export async function deleteConferenceCoverageSlotInDb(slotId: string) {
+  if (!hasSupabase()) {
+    return;
+  }
+  const { error } = await createAdminClient()
+    .from("conference_coverage_slots")
+    .delete()
+    .eq("id", slotId);
+  if (error) {
+    throw error;
+  }
 }
 
 export async function getOncologyJournalsFromDb(): Promise<OncologyJournal[] | null> {
