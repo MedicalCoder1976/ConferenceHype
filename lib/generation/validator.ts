@@ -66,14 +66,19 @@ export function validateSegmentForApproval(segment: Pick<Segment, "title" | "sum
   if (hasMissingIntakeFailureLanguage(combinedText)) {
     errors.push("Card contains missing-intake failure language and must be replaced with music or regenerated from selected sources.");
   }
-  if (isClinicalScienceCard(segment)) {
+  // Smoke-test placeholder cards are deliberately synthetic scaffolding for
+  // exercising the broadcast pipeline, not real editorial content, so the
+  // content-quality heuristics below (which assume real source material)
+  // don't apply to them — only the structural checks above and below do.
+  const isSmokeTestCard = segment.riskFlags.includes("platform_smoke_test");
+  if (!isSmokeTestCard && isClinicalScienceCard(segment)) {
     if (hasSourceLimitedScienceLanguage(combinedText)) {
       errors.push("Science cards with only listing metadata must be replaced with music or regenerated from PubMed/full source text; do not infer Background, Methods, Results, or Discussion.");
     } else if (!hasUsableClinicalSectionSource(`${segment.summary} ${segment.script}`)) {
       errors.push("Science cards require source-grounded Background, Methods, Results, and Discussion before approval.");
     }
   }
-  if (isEmptyConferenceInformationCard(segment)) {
+  if (!isSmokeTestCard && isEmptyConferenceInformationCard(segment)) {
     errors.push("Conference coverage cards with only registration, platform, welcome, or context-shell information must not enter the broadcast queue; use music unless substantive source-grounded material is available.");
   }
   for (const pattern of bannedAdvicePatterns) {
