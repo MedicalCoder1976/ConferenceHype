@@ -267,6 +267,27 @@ when OAuth Playground is used to obtain that token.
 Rotate the OAuth client secret and refresh token immediately if either is
 exposed in chat, logs, screenshots, or source control.
 
+### Renewing the YouTube refresh token
+
+While the OAuth consent screen is in Testing publishing status, Google
+auto-revokes the refresh token after 7 days — this will recur until the app
+is verified and published to production. Two things make this manageable
+instead of a recurring multi-step manual ordeal:
+
+1. **`npm run youtube:refresh-token`** opens your browser for one sign-in/
+   approval click, exchanges the code for a new refresh token, and pushes it
+   straight to the `YOUTUBE_OAUTH_REFRESH_TOKEN` GitHub secret via `gh secret
+   set` — the token value never touches the terminal output or any log.
+   Requires `YOUTUBE_OAUTH_CLIENT_ID` and `YOUTUBE_OAUTH_CLIENT_SECRET` in
+   `.env.local` (see `.env.example`) and a one-time addition of
+   `http://localhost:53682/oauth/callback` to the OAuth client's authorized
+   redirect URIs in Google Cloud Console.
+2. **`.github/workflows/youtube-oauth-health-check.yml`** runs daily and
+   tries a real refresh-token grant against Google. If it fails, it opens (or
+   keeps open) a single "YouTube OAuth token needs renewal" issue instead of
+   waiting for a scheduled broadcast to silently fail; it auto-closes that
+   issue once a check passes again.
+
 ## Database Migrations
 
 Apply every file in `supabase/migrations` in filename order. Important current

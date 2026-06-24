@@ -1,0 +1,57 @@
+name: YouTube OAuth health check
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Daily early-warning check, independent of any real broadcast attempt —
+    # catches an expired/revoked refresh token before a scheduled stream does.
+    - cron: "0 13 * * *"
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Check YouTube OAuth refresh token
+        id: check
+        continue-on-error: true
+        run: npm run youtube:check-oauth
+        env:
+          YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
+          YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
+          YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
+
+      - name: Open renewal issue if unhealthy
+        if: steps.check.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          existing=$(gh issue list --repo "${{ github.repository }}" --search "YouTube OAuth token needs renewal in:title" --state open --json number --jq '.[0].number // empty')
+          if [ -z "$existing" ]; then
+            gh issue create \
+              --repo "${{ github.repository }}" \
+              --title "YouTube OAuth token needs renewal" \
+              --body "The daily health check could not refresh the YouTube OAuth token (likely expired — refresh tokens auto-expire after 7 days while the Google OAuth consent screen is in Testing mode, or it may have been revoked). Run \`npm run youtube:refresh-token\` locally to get a new one; it opens a browser for one-time sign-in and pushes the new secret to GitHub automatically. Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          else
+            echo "Renewal issue #$existing is already open."
+          fi
+
+      - name: Close renewal issue if healthy
+        if: steps.check.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          existing=$(gh issue list --repo "${{ github.repository }}" --search "YouTube OAuth token needs renewal in:title" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue close "$existing" --repo "${{ github.repository }}" --comment "Resolved — the daily health check now refreshes successfully."
+          fi
