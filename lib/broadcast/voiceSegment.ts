@@ -110,12 +110,15 @@ function stripExistingVoiceFrame(value: string) {
     .trim();
 }
 
+// ~800 words at a natural spoken pace (~130-140 wpm) is the target six-minute
+// segment length -- see buildReporterPrompt's matching length instruction.
+// This is a ceiling, not a target: short, honest segments stay short.
 export function formatVoiceSegment({
   voiceName,
   topic,
   narrative,
   at,
-  maxWords = 90,
+  maxWords = 800,
   cardIndex,
   includeIntro = true
 }: {

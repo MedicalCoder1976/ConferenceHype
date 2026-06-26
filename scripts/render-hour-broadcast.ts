@@ -201,13 +201,28 @@ function wordCount(value: string) {
   return value.trim().split(/\s+/).filter(Boolean).length;
 }
 
+// A card's real spoken length rarely matches its nominal scheduled duration
+// exactly. Longer-than-scheduled segments (the common case for a genuine
+// ~6-minute high-energy-host read) simply expand -- enforceOneHourFrame
+// trims trailing cards later if that pushes the hour over. Shorter ones
+// (an honest "nothing new to report" card, for example) must NOT sit in
+// dead silence for the rest of their nominal slot: the leftover time flows
+// into the music card that follows instead, so the broadcast is always
+// either talking or playing music, never silent.
 function expandContentDurations(cards: Card[]) {
-  for (const card of cards) {
+  for (let index = 0; index < cards.length; index += 1) {
+    const card = cards[index];
     if (card.isMusic || !card.script) {
       continue;
     }
     const spokenSeconds = Math.ceil(wordCount(card.script) / 2) + 5;
-    card.duration = Math.max(card.duration, spokenSeconds);
+    const nominal = card.duration;
+    card.duration = spokenSeconds;
+    const slack = nominal - spokenSeconds;
+    const nextCard = cards[index + 1];
+    if (slack > 0 && nextCard?.isMusic) {
+      nextCard.duration += slack;
+    }
   }
   return cards;
 }

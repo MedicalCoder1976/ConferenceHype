@@ -234,7 +234,10 @@ export function buildBroadcastSlots({
     const hourStart = addMinutes(baseTime, hourIndex * 60);
     const hourVoices = personasForHour(hourStart);
     for (let blockIndex = 0; blockIndex < MUSIC_BLOCKS_PER_HOUR; blockIndex += 1) {
-      const blockStart = addMinutes(hourStart, blockIndex * 5);
+      const blockStart = addSeconds(
+        hourStart,
+        blockIndex * CONTENT_SLOTS_PER_MUSIC_BLOCK * (CONTENT_SECONDS + MUSIC_SECONDS)
+      );
       for (let cardIndex = 0; cardIndex < CONTENT_SLOTS_PER_MUSIC_BLOCK; cardIndex += 1) {
         const contentIndex =
           blockIndex * CONTENT_SLOTS_PER_MUSIC_BLOCK + cardIndex;
