@@ -1,8 +1,7 @@
 const intake = String.raw`stored\s+intake`;
 
 const BANNED_PHRASES = [
-  new RegExp(String.raw`\bConference\s*Hype\s+ASCO\s+energy\s+all\s+day\s+seems\s+to\s+creep\s+in\b[.!?]?\s*`, "gi"),
-  new RegExp(String.raw`\bConference\s*Hype\s+ASCO\s+energy\s+all\s+day\s+long\b[.!?]?\s*`, "gi"),
+  new RegExp(String.raw`\bConference\s*Hype\s+ASCO\s+energy\s*,?\s+all\s+day\b[^.!?\n]*(?:[.!?]|\n|$)`, "gi"),
   new RegExp(String.raw`\bConference\s+energy\s+keep\s+it\s+moving\b[.!?]?\s*`, "gi"),
   /\bsource[- ]only\s+schedule\b[^.!?\n]*(?:[.!?]|\n|$)/gi,
   /\bcheck(?:ing)?\s+using\s+official\s+meeting\s+sources\b[^.!?\n]*(?:[.!?]|\n|$)/gi,

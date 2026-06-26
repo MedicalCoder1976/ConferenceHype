@@ -204,7 +204,11 @@ export function SourceManager({
                 {source.enabled ? "on" : "off"}
               </span>
             </div>
-            <CardDeckSummary deck={cardDecks[source.id] ?? EMPTY_CARD_DECK} />
+            <CardDeckSummary
+              deck={cardDecks[source.id] ?? EMPTY_CARD_DECK}
+              entityType="source"
+              entityId={source.id}
+            />
           </div>
         ))}
       </div>

@@ -188,6 +188,28 @@ Run `npm run test:rss` to make a live request to every seeded feed.
 - Approve an individual slot, a day, or the next seven days.
 - Develop source-grounded meeting packages.
 
+### Weekly Source Cards
+
+- At the start of each week, `weekly-source-cards.yml` pre-generates
+  template-based ready cards (no LLM cost) for every enabled conference,
+  journal, and clinical news/newspaper source. These appear under that
+  entity's checkbox in Broadcast, Journal Watch, and Meeting Watch, with the
+  full spoken script — not just a title — visible in the card deck so the
+  operator can review the actual material before it ever airs.
+- Click "View deck" under any conference, journal, or source to expand its
+  card list and read each card's full summary/script.
+- If the operator does not like what is there, click
+  **"Don't like these? Generate more cards"** under that same entity. This
+  calls `POST /api/admin/source-cards/regenerate` (entityType +
+  entityId), which re-checks that one entity's official sources/abstracts/RSS
+  for anything not already covered, falls back to an X post search (own
+  account, or whoever is discussing it) if nothing new is found there, and
+  appends any new cards to that entity's deck. It is purely additive — it
+  never deletes or replaces existing ready cards, so re-clicking it is always
+  safe.
+- This is scoped to a single entity per click, not a full catalog re-sweep,
+  so it is cheap enough to use repeatedly while reviewing.
+
 ### Records
 
 - **Writeouts:** ordered spoken cards, sources, YouTube and workflow links,

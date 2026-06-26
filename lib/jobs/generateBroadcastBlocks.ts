@@ -47,7 +47,7 @@ function cleanForBroadcast(text: string): string {
       .replace(/\bmonitored\s+X\s+(?:voice|narrative|voices)\b/gi, "")
       .replace(/\bsource[- ]only\s+schedule\b[^.!?\n]*(?:[.!?]|\n|$)/gi, "")
       .replace(/\bcheck(?:ing)?\s+using\s+official\s+meeting\s+sources\b[^.!?\n]*(?:[.!?]|\n|$)/gi, "")
-      .replace(/\bConference\s*Hype\s+ASCO\s+energy\s+all\s+day\s+long\b[.!?]?\s*/gi, "")
+      .replace(/\bConference\s*Hype\s+ASCO\s+energy\s*,?\s+all\s+day\b[^.!?\n]*(?:[.!?]|\n|$)/gi, "")
       .replace(/\boperator[- ](?:added|selected)\b[^.!?\n]*/gi, "")
       .replace(/\bapproved\s+for\s+broadcast\b/gi, "")
       // Clean up spacing

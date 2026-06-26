@@ -1,16 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState, useTransition } from "react";
 import type { EntityCardDeck } from "@/lib/cardDeck";
 
 export function CardDeckSummary({
   deck,
-  autoExpand = false
+  autoExpand = false,
+  entityType,
+  entityId
 }: {
   deck: EntityCardDeck;
   autoExpand?: boolean;
+  // When provided, renders a "Generate more cards" button that re-checks
+  // sources/X for this one entity and adds any new cards to its deck —
+  // for when the admin reviews what's here and doesn't like it.
+  entityType?: "conference" | "journal" | "source";
+  entityId?: string;
 }) {
+  const router = useRouter();
   const [open, setOpen] = useState(autoExpand);
+  const [pending, startTransition] = useTransition();
+  const [message, setMessage] = useState("");
 
   // Checking a conference/journal/source should immediately surface its
   // card content for review, not hide it behind one more click. Once open,
@@ -20,6 +31,35 @@ export function CardDeckSummary({
       setOpen(true);
     }
   }, [autoExpand]);
+
+  const generateMore = () => {
+    if (!entityType || !entityId) {
+      return;
+    }
+    setMessage("");
+    startTransition(async () => {
+      try {
+        const response = await fetch("/api/admin/source-cards/regenerate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ entityType, entityId })
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) {
+          throw new Error(payload.error ?? "Could not generate more cards.");
+        }
+        setMessage(
+          payload.generated > 0
+            ? `Added ${payload.generated} new card${payload.generated === 1 ? "" : "s"}.`
+            : "No new cards found — nothing has changed since the last check."
+        );
+        setOpen(true);
+        router.refresh();
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : "Could not generate more cards.");
+      }
+    });
+  };
 
   return (
     <div className="mt-2">
@@ -31,15 +71,28 @@ export function CardDeckSummary({
           </span>
         ) : null}
       </div>
-      {deck.total > 0 ? (
-        <button
-          type="button"
-          onClick={() => setOpen((value) => !value)}
-          className="mt-1 text-[11px] font-bold uppercase text-ink/50 underline"
-        >
-          {open ? "Hide deck" : "View deck"}
-        </button>
-      ) : null}
+      <div className="mt-1 flex flex-wrap items-center gap-3">
+        {deck.total > 0 ? (
+          <button
+            type="button"
+            onClick={() => setOpen((value) => !value)}
+            className="text-[11px] font-bold uppercase text-ink/50 underline"
+          >
+            {open ? "Hide deck" : "View deck"}
+          </button>
+        ) : null}
+        {entityType && entityId ? (
+          <button
+            type="button"
+            disabled={pending}
+            onClick={generateMore}
+            className="text-[11px] font-bold uppercase text-broadcast underline disabled:opacity-50"
+          >
+            {pending ? "Looking again..." : "Don't like these? Generate more cards"}
+          </button>
+        ) : null}
+      </div>
+      {message ? <div className="mt-1 text-[11px] font-bold text-ink/60">{message}</div> : null}
       {open ? (
         <ol className="mt-2 grid max-h-96 gap-2 overflow-y-auto border border-ink/10 bg-paper/60 p-2">
           {deck.cards.map((card) => {

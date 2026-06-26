@@ -92,7 +92,7 @@ function cleanForbiddenBroadcastPhrases(value: string) {
     .replace(/\bsource[- ]only\s+schedule\b[^.!?\n]*(?:[.!?]|\n|$)/gi, "")
     .replace(/\bcheck(?:ing)?\s+using\s+official\s+meeting\s+sources\b[^.!?\n]*(?:[.!?]|\n|$)/gi, "")
     .replace(/\bofficial\s+source\s+desk\s+is\s+monitoring\b[^.!?\n]*(?:[.!?]|\n|$)/gi, "")
-    .replace(/\bConference\s*Hype\s+ASCO\s+energy\s+all\s+day\s+long\b[.!?]?\s*/gi, "")
+    .replace(/\bConference\s*Hype\s+ASCO\s+energy\s*,?\s+all\s+day\b[^.!?\n]*(?:[.!?]|\n|$)/gi, "")
     .replace(/\bmonitored\s+X\s+(?:voice|narrative|voices)\b/gi, "")
     .replace(/\bsource[- ]backed\s+\w+\s+narrative\b/gi, "")
     .replace(/\bapproved\s+for\s+broadcast\b/gi, "")

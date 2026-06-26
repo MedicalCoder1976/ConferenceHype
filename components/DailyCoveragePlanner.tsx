@@ -565,6 +565,8 @@ export function DailyCoveragePlanner({
                   <CardDeckSummary
                     deck={conferenceCardDecks[conference.id] ?? EMPTY_CARD_DECK}
                     autoExpand={plan.conferenceIds.includes(conference.id)}
+                    entityType="conference"
+                    entityId={conference.id}
                   />
                 </span>
               </label>
@@ -588,6 +590,8 @@ export function DailyCoveragePlanner({
                 <CardDeckSummary
                   deck={journalCardDecks[journal.id] ?? EMPTY_CARD_DECK}
                   autoExpand={plan.journalIds.includes(journal.id)}
+                  entityType="journal"
+                  entityId={journal.id}
                 />
               </span>
             </label>
@@ -613,6 +617,8 @@ export function DailyCoveragePlanner({
                   <CardDeckSummary
                     deck={sourceCardDecks[source.id] ?? EMPTY_CARD_DECK}
                     autoExpand={plan.sourceIds.includes(source.id)}
+                    entityType="source"
+                    entityId={source.id}
                   />
                 </span>
               </label>

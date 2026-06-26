@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { sanitizeBroadcastCopy } from "@/lib/broadcast/sanitizeCopy";
 import { formatVoiceSegment, SEGMENT_CLOSE } from "@/lib/broadcast/voiceSegment";
 import { buildBroadcastSlots } from "@/lib/rundown/slots";
 import { applySpokenPronunciations } from "@/lib/media/tts";
@@ -59,6 +60,23 @@ const fourthFramed = formatVoiceSegment({
 assert.ok(fourthFramed.endsWith(SEGMENT_CLOSE));
 assert.doesNotMatch(framed, /interactive AI commentary only/i);
 assert.equal(applySpokenPronunciations("ASCO 2026 and Ib disease"), "Ask-ho 2026 and one B disease");
+// The ASCO-energy-all-day phrase must never reach air, no matter what filler
+// word the LLM tacks onto the end of it -- "long", "seems to creep in", or
+// any future variant. The strip must hit every speaker pipeline path: the
+// spoken-audio path (applySpokenPronunciations) and the broadcast-copy path
+// (sanitizeBroadcastCopy), not just whichever variant was first reported.
+assert.doesNotMatch(
+  applySpokenPronunciations("This is the desk. Conference Hype ASCO energy all day long. Back to you."),
+  /ASCO\s+energy/i
+);
+assert.doesNotMatch(
+  applySpokenPronunciations("This is the desk. ConferenceHype ASCO energy, all day. Back to you."),
+  /ASCO\s+energy/i
+);
+assert.doesNotMatch(
+  sanitizeBroadcastCopy("This is the desk. Conference Hype ASCO energy all day seems to creep in. Back to you."),
+  /ASCO\s+energy/i
+);
 
 const copiedErrors = getUnsafeGeneratedSourceErrors({
   segment: {
