@@ -1,10 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { EntityCardDeck } from "@/lib/cardDeck";
 
-export function CardDeckSummary({ deck }: { deck: EntityCardDeck }) {
-  const [open, setOpen] = useState(false);
+export function CardDeckSummary({
+  deck,
+  autoExpand = false
+}: {
+  deck: EntityCardDeck;
+  autoExpand?: boolean;
+}) {
+  const [open, setOpen] = useState(autoExpand);
+
+  // Checking a conference/journal/source should immediately surface its
+  // card content for review, not hide it behind one more click. Once open,
+  // leave it to the admin's own toggle — unchecking doesn't snap it shut.
+  useEffect(() => {
+    if (autoExpand) {
+      setOpen(true);
+    }
+  }, [autoExpand]);
 
   return (
     <div className="mt-2">

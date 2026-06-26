@@ -562,7 +562,10 @@ export function DailyCoveragePlanner({
                     {conference.startDate ?? `${conference.year}-${String(conference.month).padStart(2, "0")}`}
                     {ongoing ? " - ongoing today" : ""}
                   </span>
-                  <CardDeckSummary deck={conferenceCardDecks[conference.id] ?? EMPTY_CARD_DECK} />
+                  <CardDeckSummary
+                    deck={conferenceCardDecks[conference.id] ?? EMPTY_CARD_DECK}
+                    autoExpand={plan.conferenceIds.includes(conference.id)}
+                  />
                 </span>
               </label>
             );
@@ -582,7 +585,10 @@ export function DailyCoveragePlanner({
                 <span className="block truncate text-xs font-semibold text-ink/50">
                   {journal.rssUrl}
                 </span>
-                <CardDeckSummary deck={journalCardDecks[journal.id] ?? EMPTY_CARD_DECK} />
+                <CardDeckSummary
+                  deck={journalCardDecks[journal.id] ?? EMPTY_CARD_DECK}
+                  autoExpand={plan.journalIds.includes(journal.id)}
+                />
               </span>
             </label>
           ))}
@@ -604,7 +610,10 @@ export function DailyCoveragePlanner({
                   <span className="block truncate text-xs font-semibold text-ink/50">
                     {source.url}
                   </span>
-                  <CardDeckSummary deck={sourceCardDecks[source.id] ?? EMPTY_CARD_DECK} />
+                  <CardDeckSummary
+                    deck={sourceCardDecks[source.id] ?? EMPTY_CARD_DECK}
+                    autoExpand={plan.sourceIds.includes(source.id)}
+                  />
                 </span>
               </label>
             ))}
