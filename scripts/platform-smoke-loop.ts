@@ -293,13 +293,25 @@ async function prepareAttempt(attempt: number, context: AttemptContext): Promise
   const enriched = (
     await Promise.all(candidates.map((item) => buildPubMedBackedJournalItem(item)))
   ).filter((item): item is IngestedItem => Boolean(item));
-  const readySegments = enriched.length ? enriched.map((item, index) =>
-    buildBatchSegment(item, personaIdForBatchIndex(index), {
-      startsAt,
-      index,
-      batchLabel: "Platform smoke batch"
-    })
-  ) : smokeFallbackSegments({ conference, journal, source });
+  // buildBatchSegment() (the happy path, used whenever real ingested items
+  // exist) doesn't tag its output at all — only the smokeFallbackSegments()
+  // path does. Force the tag here too so every segment this script ever
+  // creates is unambiguously identifiable later, no matter which path built
+  // it. Without this, identifying leftovers requires guessing at title text.
+  const readySegments = (
+    enriched.length
+      ? enriched.map((item, index) =>
+          buildBatchSegment(item, personaIdForBatchIndex(index), {
+            startsAt,
+            index,
+            batchLabel: "Platform smoke batch"
+          })
+        )
+      : smokeFallbackSegments({ conference, journal, source })
+  ).map((segment) => ({
+    ...segment,
+    riskFlags: Array.from(new Set([...segment.riskFlags, "platform_smoke_test"]))
+  }));
   const savedReady = (await saveGeneratedSegmentsToDb(readySegments)) ?? readySegments;
   savedReady.forEach((segment) => context.segmentIds.add(segment.id));
   const slotId = await upsertSmokeCoverageSlot({

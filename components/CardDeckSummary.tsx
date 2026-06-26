@@ -26,22 +26,27 @@ export function CardDeckSummary({ deck }: { deck: EntityCardDeck }) {
         </button>
       ) : null}
       {open ? (
-        <ol className="mt-2 grid max-h-48 gap-1 overflow-y-auto border border-ink/10 bg-paper/60 p-2">
-          {deck.cards.map((card) => (
-            <li
-              key={card.segment.id}
-              className="flex items-center justify-between gap-2 border-b border-ink/5 py-1 text-xs last:border-none"
-            >
-              <span className="truncate font-semibold text-ink/75">{card.segment.title}</span>
-              <span
-                className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black uppercase ${
-                  card.presented ? "bg-ink/10 text-ink/60" : "bg-cyanline/20 text-ink"
-                }`}
-              >
-                {card.presented ? "Presented" : "Not presented"}
-              </span>
-            </li>
-          ))}
+        <ol className="mt-2 grid max-h-96 gap-2 overflow-y-auto border border-ink/10 bg-paper/60 p-2">
+          {deck.cards.map((card) => {
+            const summary = card.segment.summary || card.segment.script;
+            return (
+              <li key={card.segment.id} className="border-b border-ink/10 pb-2 text-xs last:border-none">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-black text-ink/80">{card.segment.title}</span>
+                  <span
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black uppercase ${
+                      card.presented ? "bg-ink/10 text-ink/60" : "bg-cyanline/20 text-ink"
+                    }`}
+                  >
+                    {card.presented ? "Presented" : "Not presented"}
+                  </span>
+                </div>
+                <p className="mt-1 font-semibold leading-5 text-ink/65">
+                  {summary.length > 360 ? `${summary.slice(0, 357)}...` : summary}
+                </p>
+              </li>
+            );
+          })}
         </ol>
       ) : null}
     </div>
