@@ -13,7 +13,6 @@ let saveGeneratedSegmentsToDb: any;
 let upsertAdminCatalogSeedsToDb: any;
 let getPersona: any;
 let buildBatchSegment: any;
-let buildConferenceContextItem: any;
 let buildPubMedBackedJournalItem: any;
 let itemMatchesSelections: any;
 let personaIdForBatchIndex: any;
@@ -35,7 +34,6 @@ async function loadDependencies() {
   ({ getPersona } = await import("@/lib/generation/personas"));
   ({
     buildBatchSegment,
-    buildConferenceContextItem,
     buildPubMedBackedJournalItem,
     itemMatchesSelections,
     personaIdForBatchIndex
@@ -86,26 +84,64 @@ function contextContentType(sourceType: IngestedItem["sourceType"]) {
   return "media_roundup" as const;
 }
 
-function buildWeeklyContextSegment({
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
+
+function naturalDate(isoDate: string) {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  return `${MONTH_NAMES[month - 1]} ${day}, ${year}`;
+}
+
+// Spoken-language date range — "June 11 through 14, 2026" rather than the
+// raw ISO strings a news reader would never actually say aloud.
+function naturalConferenceDateRange(conference: MedicalConference) {
+  if (conference.startDate && conference.endDate) {
+    if (conference.startDate === conference.endDate) {
+      return naturalDate(conference.startDate);
+    }
+    const [startYear, startMonth, startDay] = conference.startDate.split("-").map(Number);
+    const [endYear, endMonth, endDay] = conference.endDate.split("-").map(Number);
+    if (startYear === endYear && startMonth === endMonth) {
+      return `${MONTH_NAMES[startMonth - 1]} ${startDay} through ${endDay}, ${startYear}`;
+    }
+    return `${naturalDate(conference.startDate)} through ${naturalDate(conference.endDate)}`;
+  }
+  if (conference.startDate) {
+    return naturalDate(conference.startDate);
+  }
+  if (conference.month && conference.year) {
+    return `${MONTH_NAMES[conference.month - 1]} ${conference.year}`;
+  }
+  return "";
+}
+
+// Builds the actual Segment shell shared by every fallback announcement
+// type below — only the spoken content differs per entity type.
+function finalizeAnnouncementSegment({
   sourceId,
-  sourceName,
   sourceUrl,
   sourceType,
   weekKey,
-  index
+  index,
+  title,
+  summary,
+  script,
+  citationLabel
 }: {
   sourceId: string;
-  sourceName: string;
   sourceUrl: string;
   sourceType: IngestedItem["sourceType"];
   weekKey: string;
   index: number;
+  title: string;
+  summary: string;
+  script: string;
+  citationLabel: string;
 }): Segment {
   const persona = getPersona(personaIdForBatchIndex(index));
   const createdAt = new Date().toISOString();
-  const title = `Weekly update: ${sourceName}`;
-  const summary = `${sourceName} coverage context. The official source page identifies the publication, meeting, or news source for this update.`;
-  const script = `${persona.name} is covering ${sourceName}. This update is anchored to the official source page for ${sourceName}.`;
   return markWeeklySourceSegment(
     {
       id: `weekly-context-${randomUUID()}`,
@@ -118,7 +154,7 @@ function buildWeeklyContextSegment({
       hypeLevel: "standard",
       language: "English",
       status: "pending_review",
-      citations: [{ label: sourceName, url: sourceUrl, sourceType }],
+      citations: [{ label: citationLabel, url: sourceUrl, sourceType }],
       socialBuzzItems: [],
       riskFlags: [
         "weekly_source_context",
@@ -131,6 +167,94 @@ function buildWeeklyContextSegment({
     },
     weekKey
   );
+}
+
+// Real, fact-grounded, naturally-spoken content using only verified
+// conference metadata (name, dates, location, specialty) — no fabricated
+// claims about sessions or news that hasn't actually been published yet.
+function buildConferenceAnnouncementSegment(
+  conference: MedicalConference,
+  weekKey: string,
+  index: number
+): Segment {
+  const dateRange = naturalConferenceDateRange(conference);
+  const location = [conference.city, conference.country].filter(Boolean).join(", ");
+  const specialty = conference.specialties.length ? conference.specialties.join(" and ") : "medicine";
+  const acronym = conference.acronym ? ` (${conference.acronym})` : "";
+  const whenWhereSpoken = [dateRange ? `for ${dateRange}` : "", location ? `in ${location}` : ""]
+    .filter(Boolean)
+    .join(", ");
+  const whenWherePlain = [dateRange, location].filter(Boolean).join(", ");
+
+  const script = [
+    `${conference.name}${acronym} is on the calendar${whenWhereSpoken ? ` ${whenWhereSpoken}` : ""}.`,
+    `It is a meeting for the ${specialty} community, bringing clinicians and researchers together for sessions and presentations in the field.`,
+    "No fresh official program updates or attributed coverage came through this week, so there is nothing new to summarize yet.",
+    "ConferenceHype will keep tracking the official program, abstracts, and media coverage as they are published, and bring a source-attributed read as soon as there is something to report."
+  ].join(" ");
+
+  const summary = `${conference.name}${acronym} coverage preview${whenWherePlain ? `: ${whenWherePlain}` : ""}. No new official or attributed source material yet this week.`;
+
+  return finalizeAnnouncementSegment({
+    sourceId: conference.id,
+    sourceUrl: conference.officialUrl,
+    sourceType: "official",
+    weekKey,
+    index,
+    title: `Weekly update: ${conference.name}`,
+    summary,
+    script,
+    citationLabel: conference.name
+  });
+}
+
+function buildJournalAnnouncementSegment(
+  journal: OncologyJournal,
+  weekKey: string,
+  index: number
+): Segment {
+  const abbreviation = journal.abbreviation ? ` (${journal.abbreviation})` : "";
+  const script = [
+    `${journal.name}${abbreviation} is one of the journals ConferenceHype tracks for oncology and hematology coverage.`,
+    "No new articles came through this journal's feed this week, so there is nothing fresh to summarize yet.",
+    "ConferenceHype will pick up the next published issue as soon as it is available and bring a source-attributed read of what is in it."
+  ].join(" ");
+  const summary = `${journal.name}${abbreviation}: no new tracked articles this week.`;
+  return finalizeAnnouncementSegment({
+    sourceId: `daily-journal-${journal.id}`,
+    sourceUrl: journal.officialUrl || journal.rssUrl,
+    sourceType: "official",
+    weekKey,
+    index,
+    title: `Weekly update: ${journal.name}`,
+    summary,
+    script,
+    citationLabel: journal.name
+  });
+}
+
+function buildSourceAnnouncementSegment(
+  source: SourceConfig,
+  weekKey: string,
+  index: number
+): Segment {
+  const script = [
+    `${source.name} is one of the clinical news and media sources ConferenceHype monitors.`,
+    "No new attributed items came through this source this week, so there is nothing fresh to summarize yet.",
+    `ConferenceHype will pick up new coverage from ${source.name} as soon as it is published.`
+  ].join(" ");
+  const summary = `${source.name}: no new attributed items this week.`;
+  return finalizeAnnouncementSegment({
+    sourceId: source.id,
+    sourceUrl: source.url,
+    sourceType: source.type,
+    weekKey,
+    index,
+    title: `Weekly update: ${source.name}`,
+    summary,
+    script,
+    citationLabel: source.name
+  });
 }
 
 function sourceMatches(
@@ -240,38 +364,26 @@ function addContextIfEmpty({
   generated,
   built,
   existingKeys,
-  weekKey,
-  sourceId,
-  sourceName,
+  title,
   sourceUrl,
-  sourceType
+  buildFallback
 }: {
   generated: Segment[];
   built: Segment[];
   existingKeys: Set<string>;
-  weekKey: string;
-  sourceId: string;
-  sourceName: string;
+  title: string;
   sourceUrl: string;
-  sourceType: IngestedItem["sourceType"];
+  buildFallback: (index: number) => Segment;
 }) {
   if (built.length > 0) {
     generated.push(...built);
     return;
   }
-  const title = `Weekly update: ${sourceName}`;
   const key = `source_url:${stableKey(`${sourceUrl}|${title}`.toLowerCase())}`;
   if (existingKeys.has(key)) {
     return;
   }
-  const context = buildWeeklyContextSegment({
-    sourceId,
-    sourceName,
-    sourceUrl,
-    sourceType,
-    weekKey,
-    index: generated.length
-  });
+  const context = buildFallback(generated.length);
   generated.push(context);
   existingKeys.add(key);
 }
@@ -315,22 +427,21 @@ async function main() {
 
   for (const conference of enabledConferences) {
     const selected = orderedPickForEntity(items, { conferences: [conference] }, cardsPerSource);
-    const fallbackItems = selected.length ? selected : [buildConferenceContextItem(conference)];
-    const built = await buildSegmentsForItems({
-      items: fallbackItems,
-      weekKey,
-      existingKeys,
-      startIndex: generated.length
-    });
+    const built = selected.length
+      ? await buildSegmentsForItems({
+          items: selected,
+          weekKey,
+          existingKeys,
+          startIndex: generated.length
+        })
+      : [];
     addContextIfEmpty({
       generated,
       built,
       existingKeys,
-      weekKey,
-      sourceId: conference.id,
-      sourceName: conference.name,
+      title: `Weekly update: ${conference.name}`,
       sourceUrl: conference.officialUrl,
-      sourceType: "official"
+      buildFallback: (index) => buildConferenceAnnouncementSegment(conference, weekKey, index)
     });
   }
 
@@ -345,11 +456,9 @@ async function main() {
       generated,
       built,
       existingKeys,
-      weekKey,
-      sourceId: `daily-journal-${journal.id}`,
-      sourceName: journal.name,
+      title: `Weekly update: ${journal.name}`,
       sourceUrl: journal.officialUrl || journal.rssUrl,
-      sourceType: "official"
+      buildFallback: (index) => buildJournalAnnouncementSegment(journal, weekKey, index)
     });
   }
 
@@ -364,11 +473,9 @@ async function main() {
       generated,
       built,
       existingKeys,
-      weekKey,
-      sourceId: source.id,
-      sourceName: source.name,
+      title: `Weekly update: ${source.name}`,
       sourceUrl: source.url,
-      sourceType: source.type
+      buildFallback: (index) => buildSourceAnnouncementSegment(source, weekKey, index)
     });
   }
 
