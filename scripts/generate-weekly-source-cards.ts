@@ -2,6 +2,7 @@ import { loadEnvConfig } from "@next/env";
 import { createHash, randomUUID } from "node:crypto";
 import { isAbstractSourceId } from "@/lib/sources/socialLinks";
 import type { IngestedItem, MedicalConference, OncologyJournal, Segment, SourceConfig } from "@/lib/types";
+import type { TopicSearchEntity } from "@/lib/sources/x";
 
 loadEnvConfig(process.cwd());
 
@@ -22,6 +23,7 @@ let buildAllCatalogCoveragePlan: any;
 let markWeeklySourceSegment: any;
 let weeklySourceWeekKey: any;
 let WEEKLY_SOURCE_POOL_FLAG: string;
+let searchTopicFallback: (entities: TopicSearchEntity[]) => Promise<Map<string, IngestedItem>>;
 
 async function loadDependencies() {
   const db = await import("@/lib/db");
@@ -46,6 +48,7 @@ async function loadDependencies() {
     weeklySourceWeekKey,
     WEEKLY_SOURCE_POOL_FLAG
   } = await import("@/lib/weeklySourceCards"));
+  ({ searchTopicFallback } = await import("@/lib/sources/x"));
 }
 
 function easternDate(now = new Date()) {
@@ -425,16 +428,54 @@ async function main() {
   const existingKeys = existingWeeklyKeys(pendingSegments ?? [], weekKey);
   const generated: Segment[] = [];
 
-  for (const conference of enabledConferences) {
-    const selected = orderedPickForEntity(items, { conferences: [conference] }, cardsPerSource);
-    const built = selected.length
-      ? await buildSegmentsForItems({
-          items: selected,
-          weekKey,
-          existingKeys,
-          startIndex: generated.length
-        })
-      : [];
+  // Pre-pass: figure out which entities have no real official/abstract/RSS
+  // items this week, and for only those, search X once (batched) for either
+  // the entity's own posts or the highest-engagement real post from whoever
+  // is actually discussing it. Run before the per-entity loops below so all
+  // three entity types share the same batched search calls instead of each
+  // hitting the API separately.
+  const conferenceSelections = enabledConferences.map((conference) => ({
+    conference,
+    selected: orderedPickForEntity(items, { conferences: [conference] }, cardsPerSource)
+  }));
+  const journalSelections = enabledJournals.map((journal) => ({
+    journal,
+    selected: orderedPickForEntity(items, { journals: [journal] }, journalCardsPerSource)
+  }));
+  const sourceSelections = enabledSources.map((source) => ({
+    source,
+    selected: orderedPickForEntity(items, { sourceIds: [source.id] }, cardsPerSource)
+  }));
+
+  const topicSearchEntities: TopicSearchEntity[] = [
+    ...conferenceSelections
+      .filter(({ selected }) => selected.length === 0)
+      .map(({ conference }) => ({
+        sourceId: conference.id,
+        name: conference.name,
+        acronym: conference.acronym
+      })),
+    ...journalSelections
+      .filter(({ selected }) => selected.length === 0)
+      .map(({ journal }) => ({
+        sourceId: `daily-journal-${journal.id}`,
+        name: journal.name,
+        acronym: journal.abbreviation
+      })),
+    ...sourceSelections
+      .filter(({ selected }) => selected.length === 0)
+      .map(({ source }) => ({ sourceId: source.id, name: source.name }))
+  ];
+  const topicFallback = await searchTopicFallback(topicSearchEntities);
+
+  for (const { conference, selected } of conferenceSelections) {
+    const socialFallback = selected.length === 0 ? topicFallback.get(conference.id) : undefined;
+    const built = await buildSegmentsForItems({
+      items: selected.length ? selected : socialFallback ? [socialFallback] : [],
+      weekKey,
+      existingKeys,
+      startIndex: generated.length
+    });
     addContextIfEmpty({
       generated,
       built,
@@ -445,9 +486,11 @@ async function main() {
     });
   }
 
-  for (const journal of enabledJournals) {
+  for (const { journal, selected } of journalSelections) {
+    const socialFallback =
+      selected.length === 0 ? topicFallback.get(`daily-journal-${journal.id}`) : undefined;
     const built = await buildSegmentsForItems({
-      items: orderedPickForEntity(items, { journals: [journal] }, journalCardsPerSource),
+      items: selected.length ? selected : socialFallback ? [socialFallback] : [],
       weekKey,
       existingKeys,
       startIndex: generated.length
@@ -462,9 +505,10 @@ async function main() {
     });
   }
 
-  for (const source of enabledSources) {
+  for (const { source, selected } of sourceSelections) {
+    const socialFallback = selected.length === 0 ? topicFallback.get(source.id) : undefined;
     const built = await buildSegmentsForItems({
-      items: orderedPickForEntity(items, { sourceIds: [source.id] }, cardsPerSource),
+      items: selected.length ? selected : socialFallback ? [socialFallback] : [],
       weekKey,
       existingKeys,
       startIndex: generated.length
@@ -492,6 +536,8 @@ async function main() {
         journals: enabledJournals.length,
         newspapers: enabledSources.length
       },
+      topicSearchAttempted: topicSearchEntities.length,
+      topicSearchMatched: topicFallback.size,
       generated: saved.length
     })
   );
