@@ -1252,12 +1252,34 @@ export async function updateConferenceCoverageDeliveryInDb(
   if (patch.youtubeUrl !== undefined || shouldClearStaleVideo) {
     streamStatePatch.youtube_url = patch.youtubeUrl ?? null;
   }
-  const { error: streamStateError } = await supabase
-    .from("stream_state")
-    .update(streamStatePatch)
-    .eq("id", 1);
-  if (streamStateError) {
-    throw streamStateError;
+  // youtube-stream.yml runs intentionally overlap (next hour renders while
+  // the current hour streams), and a run's terminal report -- "failed" or
+  // "completed" -- only fires at the very end of its own lifecycle, after a
+  // 15-minute verification poll. If that run's hour overran, the next
+  // hour's run can already be live by the time this stale report arrives.
+  // Only let a terminal report touch the single shared stream_state row if
+  // it's still reporting on the video that row currently shows -- otherwise
+  // a slow old run would clobber a newer, currently-live broadcast.
+  const isTerminalReport = patch.youtubeStatus === "failed" || patch.youtubeStatus === "completed";
+  let skipStreamStateWrite = false;
+  if (isTerminalReport && patch.youtubeVideoId) {
+    const { data: currentState } = await supabase
+      .from("stream_state")
+      .select("youtube_video_id")
+      .eq("id", 1)
+      .single();
+    if (currentState && currentState.youtube_video_id && currentState.youtube_video_id !== patch.youtubeVideoId) {
+      skipStreamStateWrite = true;
+    }
+  }
+  if (!skipStreamStateWrite) {
+    const { error: streamStateError } = await supabase
+      .from("stream_state")
+      .update(streamStatePatch)
+      .eq("id", 1);
+    if (streamStateError) {
+      throw streamStateError;
+    }
   }
   if (!slotId) {
     if (patch.youtubeVideoId) {
