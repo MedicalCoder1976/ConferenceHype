@@ -10,6 +10,30 @@ function clean(value: string) {
   return value.replace(/\s+/g, " ").trim();
 }
 
+// NCBI E-utils caps unauthenticated callers at ~3 requests/second. A single
+// weekly batch run can fire dozens of these back to back (each journal item
+// needs 1-3 calls), and a 429 was previously indistinguishable from "no
+// PubMed record" -- silently dropping real, available abstracts. Serialize
+// every call through this minimum gap and retry once after a 429.
+let ncbiLastCallAt = 0;
+const NCBI_MIN_INTERVAL_MS = 350;
+
+async function ncbiFetch(url: URL): Promise<Response> {
+  const wait = ncbiLastCallAt + NCBI_MIN_INTERVAL_MS - Date.now();
+  if (wait > 0) {
+    await new Promise((resolve) => setTimeout(resolve, wait));
+  }
+  ncbiLastCallAt = Date.now();
+  const headers = { "User-Agent": "ConferenceHypeBot/0.1 PubMed abstract summaries" };
+  const response = await fetch(url, { headers });
+  if (response.status !== 429) {
+    return response;
+  }
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+  ncbiLastCallAt = Date.now();
+  return fetch(url, { headers });
+}
+
 function scalar(value: unknown): string {
   if (value == null) {
     return "";
@@ -37,6 +61,11 @@ function normalizeTitle(value: string) {
 function titleQuery(title: string) {
   return clean(title)
     .replace(/^One-hour batch\s+.*?UTC:\s*/i, "")
+    // RSS category tags (e.g. "[Articles]", "[Review]", "[Comment]") are
+    // feed-only labels, never part of the PubMed-indexed title -- leaving
+    // one in both breaks the search query and, worse, breaks the exact-title
+    // match check below against a query that otherwise matches.
+    .replace(/^\[[^\]]{1,40}\]\s*/, "")
     .replace(/[“”"]/g, "")
     .replace(/\s+/g, " ");
 }
@@ -49,11 +78,7 @@ async function pubmedSearch(title: string, strictTitle = true) {
   url.searchParams.set("retmax", "5");
   url.searchParams.set("sort", "relevance");
   url.searchParams.set("term", query);
-  const response = await fetch(url, {
-    headers: {
-      "User-Agent": "ConferenceHypeBot/0.1 PubMed abstract summaries"
-    }
-  });
+  const response = await ncbiFetch(url);
   if (!response.ok) {
     return [];
   }
@@ -71,11 +96,7 @@ async function pubmedSearchByDoi(doi: string) {
   url.searchParams.set("retmode", "json");
   url.searchParams.set("retmax", "5");
   url.searchParams.set("term", `${doi}[AID]`);
-  const response = await fetch(url, {
-    headers: {
-      "User-Agent": "ConferenceHypeBot/0.1 PubMed abstract summaries"
-    }
-  });
+  const response = await ncbiFetch(url);
   if (!response.ok) {
     return [];
   }
@@ -129,11 +150,7 @@ async function pubmedFetch(ids: string[]) {
   url.searchParams.set("db", "pubmed");
   url.searchParams.set("retmode", "xml");
   url.searchParams.set("id", ids.join(","));
-  const response = await fetch(url, {
-    headers: {
-      "User-Agent": "ConferenceHypeBot/0.1 PubMed abstract summaries"
-    }
-  });
+  const response = await ncbiFetch(url);
   if (!response.ok) {
     return [];
   }
@@ -166,11 +183,13 @@ export async function fetchPubMedAbstractByTitle(title: string) {
     }
     const articles = await pubmedFetch(ids);
     const normalizedTarget = normalizeTitle(titleQuery(title));
-    return (
-      articles.find((article) => normalizeTitle(article.title) === normalizedTarget) ??
-      articles[0] ??
-      null
-    );
+    // The non-strict fallback search drops the [Title] field restriction and
+    // ranks by relevance across all fields -- for short or generic titles
+    // (editorials, comments, perspectives) that reliably surfaces an
+    // unrelated top hit. Only accept an exact normalized-title match; a
+    // "best guess" would misattribute a wrong article's abstract to this
+    // source, which is worse than finding no match at all.
+    return articles.find((article) => normalizeTitle(article.title) === normalizedTarget) ?? null;
   } catch {
     return null;
   }

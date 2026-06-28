@@ -114,6 +114,14 @@ embedder.
   a PubMed record can be found. Use the complete PubMed abstract to write
   specific Background, Methods, Results, and Discussion content. Do not build
   article cards from RSS issue metadata alone.
+- PubMed title matching must be exact (after stripping the RSS feed's leading
+  category tag, e.g. `[Articles]`, `[Review]`, `[Comment]`). Never accept a
+  "best guess"/top-relevance result as a fallback when no exact title match is
+  found — that has previously misattributed an unrelated article's abstract to
+  the wrong journal. No match means no PubMed enrichment for that item, not a
+  guess. NCBI E-utils calls must stay throttled to roughly 3 requests/second
+  with a retry on `429`; a rate-limited response is not the same as "no record
+  found" and must not be treated as one.
 - For abstract and journal cards, the voiced narration itself must explicitly
   say Background, Methods, Results, and Discussion. Voice framing and word
   trimming must not remove any of the four section labels.
@@ -197,7 +205,9 @@ Run `npm run test:rss` to make a live request to every seeded feed.
   full spoken script — not just a title — visible in the card deck so the
   operator can review the actual material before it ever airs.
 - Click "View deck" under any conference, journal, or source to expand its
-  card list and read each card's full summary/script.
+  card list and read each card's full summary/script. Card text is never
+  truncated here, even for a full ~6-minute script — the card list scrolls,
+  not the individual card.
 - If the operator does not like what is there, click
   **"Don't like these? Generate more cards"** under that same entity. This
   calls `POST /api/admin/source-cards/regenerate` (entityType +
@@ -465,7 +475,11 @@ practice stream. Before declaring the stream visible on both sides, verify:
 - **A scheduled hour does not publish:** confirm the slot is enabled, approved,
   in the future, and still has `youtube_status = not_scheduled`.
 - **No generated cards:** inspect ingestion logs, LLM credentials, source
-  selections, and exclusions.
+  selections, and exclusions. For journal cards specifically, also check for
+  NCBI PubMed `429` rate-limit responses — a journal can have a healthy RSS
+  feed full of real items and still fall back to the generic "no new tracked
+  articles" card if PubMed enrichment was throttled or found no exact title
+  match.
 - **RSS verification fails:** disable or replace the failed official feed.
 
 ## Safety

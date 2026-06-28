@@ -109,8 +109,8 @@ export function CardDeckSummary({
                     {card.presented ? "Presented" : "Not presented"}
                   </span>
                 </div>
-                <p className="mt-1 font-semibold leading-5 text-ink/65">
-                  {summary.length > 360 ? `${summary.slice(0, 357)}...` : summary}
+                <p className="mt-1 whitespace-pre-line font-semibold leading-5 text-ink/65">
+                  {summary}
                 </p>
               </li>
             );
