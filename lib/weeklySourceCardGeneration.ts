@@ -80,6 +80,24 @@ export function existingWeeklyKeys(
   );
 }
 
+// existingKeys is read once at the start of a run, but generation (ingestion
+// + PubMed enrichment) can take long enough for another run -- a daily
+// repair pass, an admin's "generate more cards" click -- to save its own
+// cards for the same source items in the meantime. Re-checking against the
+// latest saved segments immediately before this run's own save narrows that
+// window and has caught real duplicate cards in production.
+export function dedupeAgainstFreshSegments(
+  generated: Segment[],
+  freshSegments: Segment[],
+  weekKey: string,
+  weeklySourcePoolFlag: string
+): Segment[] {
+  const freshKeys = existingWeeklyKeys(freshSegments, weekKey, weeklySourcePoolFlag);
+  return generated.filter(
+    (segment) => !segment.riskFlags.some((flag) => flag.startsWith("source_url:") && freshKeys.has(flag))
+  );
+}
+
 function contextContentType(sourceType: IngestedItem["sourceType"]) {
   if (sourceType === "official") return "agenda_preview" as const;
   if (sourceType === "company") return "industry_floor" as const;

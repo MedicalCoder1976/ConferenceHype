@@ -96,7 +96,11 @@ export function CardDeckSummary({
       {open ? (
         <ol className="mt-2 grid max-h-96 gap-2 overflow-y-auto border border-ink/10 bg-paper/60 p-2">
           {deck.cards.map((card) => {
-            const summary = card.segment.summary || card.segment.script;
+            // Review shows the entire broadcast script, every time -- never
+            // the shorter `summary` field. No fallback to summary: a blank
+            // script is a real bug to surface, not something to mask by
+            // quietly substituting different (and shorter) text.
+            const spokenText = card.segment.script || "No script on this card — flag for review.";
             return (
               <li key={card.segment.id} className="border-b border-ink/10 pb-2 text-xs last:border-none">
                 <div className="flex items-center justify-between gap-2">
@@ -110,7 +114,7 @@ export function CardDeckSummary({
                   </span>
                 </div>
                 <p className="mt-1 whitespace-pre-line font-semibold leading-5 text-ink/65">
-                  {summary}
+                  {spokenText}
                 </p>
               </li>
             );

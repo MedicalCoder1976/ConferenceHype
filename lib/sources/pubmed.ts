@@ -2,12 +2,37 @@ import { XMLParser } from "fast-xml-parser";
 
 const parser = new XMLParser({
   ignoreAttributes: false,
-  attributeNamePrefix: "",
-  processEntities: false
+  attributeNamePrefix: ""
 });
 
+// fast-xml-parser does not preserve document order for mixed content by
+// default, so inline formatting tags (PubMed commonly uses <sup>/<sub> for
+// units like "mg kg<sup>-1</sup>") can lose their surrounding whitespace --
+// e.g. "...mg kg<sup>-1</sup> were..." becomes "...mg kgwere...". Stripping
+// these tags before parsing (keeping their text content inline) avoids that
+// entirely without needing a full mixed-content rewrite.
+function stripInlineFormattingTags(xml: string) {
+  return xml.replace(/<\/?(?:sup|sub|i|b|u)>/gi, "");
+}
+
+// fast-xml-parser's entity processing only covers the 5 predefined XML
+// entities, not numeric character references -- PubMed XML is full of those
+// (e.g. &#x2264; for "≤", &#x2009; for a thin space), which were otherwise
+// left as literal "&#x...;" text straight through to broadcast.
+function decodeNumericEntities(value: string) {
+  return value
+    .replace(/&#x([0-9a-fA-F]+);/g, (_match, hex: string) => String.fromCodePoint(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_match, dec: string) => String.fromCodePoint(parseInt(dec, 10)));
+}
+
 function clean(value: string) {
-  return value.replace(/\s+/g, " ").trim();
+  return decodeNumericEntities(value)
+    .replace(/\s+/g, " ")
+    // PubMed abstracts use a middle dot in place of a decimal point between
+    // digits (e.g. "1·8 years"); left alone, a later broadcast-cleaning pass
+    // treats "·" as a bullet and splits it into a false sentence break.
+    .replace(/(\d)\s*·\s*(\d)/g, "$1.$2")
+    .trim();
 }
 
 // NCBI E-utils caps unauthenticated callers at ~3 requests/second. A single
@@ -154,7 +179,7 @@ async function pubmedFetch(ids: string[]) {
   if (!response.ok) {
     return [];
   }
-  const xml = await response.text();
+  const xml = stripInlineFormattingTags(await response.text());
   const parsed = parser.parse(xml);
   const rawArticles = parsed.PubmedArticleSet?.PubmedArticle ?? [];
   const articles = Array.isArray(rawArticles) ? rawArticles : [rawArticles];

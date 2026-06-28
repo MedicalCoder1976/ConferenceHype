@@ -82,6 +82,16 @@ export function buildRequiredSectionSummary({
   );
 }
 
+// Narrative reviews, editorials, and commentaries have no real Methods or
+// Results to extract -- forcing buildRequiredSectionSummary's template onto
+// them fabricates a "Results"/"Discussion" label over an arbitrary sentence
+// split. Only treat an abstract as a structured clinical write-up if it
+// actually contains a Methods- or Results-style section label.
+export function hasExplicitClinicalStructure(value: string) {
+  const cleaned = clean(value);
+  return Boolean(matchSection(cleaned, ["Methods", "Design"]) || matchSection(cleaned, ["Results", "Findings"]));
+}
+
 export function hasGenericSectionFallback(value: string) {
   return (
     new RegExp(String.raw`\bstored\s+intake\s+text\s+does\s+not\s+expose\b`, "i").test(value) ||

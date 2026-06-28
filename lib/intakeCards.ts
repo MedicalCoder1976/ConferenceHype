@@ -4,6 +4,7 @@ import { isGenericConferenceLandingItem } from "@/lib/intakeSelection";
 import { fetchPubMedAbstract } from "@/lib/sources/pubmed";
 import {
   buildRequiredSectionSummary,
+  hasExplicitClinicalStructure,
   hasGenericSectionFallback,
   hasUsableClinicalSectionSource
 } from "@/lib/segments/sectionSummary";
@@ -227,12 +228,19 @@ export function buildBatchSegment(
   const journalItem = isJournalItem(item);
   const socialItem = item.sourceType === "general_social";
   const edition = monthEdition(item);
+  // Narrative reviews, editorials, and commentaries have no real Methods or
+  // Results to extract. Forcing the Background/Methods/Results/Discussion
+  // template onto those fabricates a "Results"/"Discussion" label over an
+  // arbitrary sentence split. When there is no genuine clinical-trial
+  // structure in the abstract, just call it a good review on the topic and
+  // point listeners to the source instead.
+  const narrativeReview = journalItem && !hasExplicitClinicalStructure(item.excerpt);
   // Social posts are short attributed callouts, not journal articles — the
   // Background/Methods/Results/Discussion template forces a "needs PubMed
   // confirmation" filler into Methods/Results whenever the post is shorter
   // than 4 sentences (the common case), which trips the missing-intake
   // failure-language guard. Use the plain extracted detail instead.
-  const sectionSummary = socialItem
+  const sectionSummary = socialItem || narrativeReview
     ? ""
     : buildRequiredSectionSummary({
         title: topic,
@@ -240,15 +248,23 @@ export function buildBatchSegment(
         text: item.excerpt
       });
   const summary = journalItem
-    ? `From the ${edition} edition of ${item.sourceName}. ${truncateWords(sectionSummary, 42)}`
+    ? narrativeReview
+      ? `From the ${edition} edition of ${item.sourceName}. ${spokenDetail}`
+      : `From the ${edition} edition of ${item.sourceName}. ${truncateWords(sectionSummary, 42)}`
     : socialItem
       ? `${item.sourceName} callout. ${spokenDetail}`
       : `${item.sourceName} intake. ${truncateWords(sectionSummary, 42)}`;
   const script = journalItem
-    ? [
-        `From the ${edition} edition of ${item.sourceName}, this journal review looks at ${topic}.`,
-        sectionSummary
-      ]
+    ? narrativeReview
+      ? [
+          `From the ${edition} edition of ${item.sourceName}, this is a review covering ${topic}.`,
+          spokenDetail,
+          `This is a good review on the topic, well worth reading in full in this issue of ${item.sourceName}.`
+        ]
+      : [
+          `From the ${edition} edition of ${item.sourceName}, this journal review looks at ${topic}.`,
+          sectionSummary
+        ]
     : socialItem
       ? [itemPosition, `${persona.name} calls out a post from ${item.sourceName}.`, spokenDetail]
       : [
@@ -283,7 +299,9 @@ export function buildBatchSegment(
       "previous_day_batch_intake",
       "operator_selected_batch_card",
       "genuine_source_rewrite"
-    ].concat(item.sourceId ? [`source_id:${item.sourceId}`] : []),
+    ]
+      .concat(item.sourceId ? [`source_id:${item.sourceId}`] : [])
+      .concat(narrativeReview ? ["narrative_review_card"] : []),
     confidenceScore: item.excerpt ? 84 : 65,
     createdAt,
     updatedAt: createdAt

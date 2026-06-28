@@ -12,6 +12,7 @@ import { errorMessage } from "@/lib/errors";
 import { runIngestionJob } from "@/lib/jobs/ingest";
 import { searchTopicFallback } from "@/lib/sources/x";
 import {
+  dedupeAgainstFreshSegments,
   entityName as weeklyEntityName,
   entitySelection,
   existingWeeklyKeys,
@@ -103,7 +104,9 @@ export async function POST(request: NextRequest) {
       topicFallback
     });
 
-    const saved = (await saveGeneratedSegmentsToDb(generated)) ?? generated;
+    const freshPendingSegments = (await getPendingSegmentsFromDb(2000)) ?? [];
+    const deduped = dedupeAgainstFreshSegments(generated, freshPendingSegments, weekKey, WEEKLY_SOURCE_POOL_FLAG);
+    const saved = (await saveGeneratedSegmentsToDb(deduped)) ?? deduped;
     return NextResponse.json({
       ok: true,
       entityName: weeklyEntityName(entity),

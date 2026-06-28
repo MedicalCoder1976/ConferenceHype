@@ -19,6 +19,7 @@ let WEEKLY_SOURCE_POOL_FLAG: string;
 let searchTopicFallback: (entities: TopicSearchEntity[]) => Promise<Map<string, IngestedItem>>;
 let entitySelection: typeof WeeklyCardGeneration.entitySelection;
 let existingWeeklyKeys: typeof WeeklyCardGeneration.existingWeeklyKeys;
+let dedupeAgainstFreshSegments: typeof WeeklyCardGeneration.dedupeAgainstFreshSegments;
 let generateWeeklyCardsForEntities: typeof WeeklyCardGeneration.generateWeeklyCardsForEntities;
 let orderedPickForEntity: typeof WeeklyCardGeneration.orderedPickForEntity;
 let topicSearchEntityFor: typeof WeeklyCardGeneration.topicSearchEntityFor;
@@ -41,6 +42,7 @@ async function loadDependencies() {
   ({
     entitySelection,
     existingWeeklyKeys,
+    dedupeAgainstFreshSegments,
     generateWeeklyCardsForEntities,
     orderedPickForEntity,
     topicSearchEntityFor
@@ -122,7 +124,9 @@ async function main() {
     topicFallback
   });
 
-  const saved: Segment[] = (await saveGeneratedSegmentsToDb(generated)) ?? generated;
+  const freshPendingSegments = (await getPendingSegmentsFromDb(2000)) ?? [];
+  const deduped = dedupeAgainstFreshSegments(generated, freshPendingSegments, weekKey, WEEKLY_SOURCE_POOL_FLAG);
+  const saved: Segment[] = (await saveGeneratedSegmentsToDb(deduped)) ?? deduped;
   console.log(
     JSON.stringify({
       ok: true,

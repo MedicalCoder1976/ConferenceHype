@@ -25,6 +25,7 @@ import {
 import { oncologyJournalSeeds } from "@/lib/catalog/oncologyJournalSeeds";
 import { conferenceLinkedSourceIds, monitoredXVoiceForEntity } from "@/lib/sources/socialLinks";
 import { sourceRegistry } from "@/lib/sources/registry";
+import { dedupeAgainstFreshSegments } from "@/lib/weeklySourceCardGeneration";
 import type { IngestedItem, Segment } from "@/lib/types";
 
 const source: IngestedItem = {
@@ -427,6 +428,33 @@ assert.equal(
   false
 );
 
+// dedupeAgainstFreshSegments: a card must be dropped if another process
+// already saved the same source item (same source_url: flag) for this week
+// in the gap between reading existingKeys and this run's own save -- the
+// race this guards against.
+const candidateNewCard: Segment = {
+  ...weeklyReadyCard,
+  id: "candidate-new-card",
+  riskFlags: [
+    WEEKLY_SOURCE_POOL_FLAG,
+    "weekly_key:2026-W26",
+    "source_url:abc123def4567890"
+  ]
+};
+assert.deepEqual(
+  dedupeAgainstFreshSegments(
+    [candidateNewCard],
+    [{ ...weeklyReadyCard, riskFlags: [WEEKLY_SOURCE_POOL_FLAG, "weekly_key:2026-W26", "source_url:abc123def4567890"] }],
+    "2026-W26",
+    WEEKLY_SOURCE_POOL_FLAG
+  ),
+  []
+);
+assert.deepEqual(
+  dedupeAgainstFreshSegments([candidateNewCard], [], "2026-W26", WEEKLY_SOURCE_POOL_FLAG),
+  [candidateNewCard]
+);
+
 assert.ok(
   validateSegmentForApproval({
     ...sponsorBase,
@@ -533,6 +561,28 @@ assert.match(renderHourSource, /function enforceOneHourFrame/);
 assert.match(renderHourSource, /Removed \$\{removedContentCards\} trailing content card/);
 assert.match(renderHourSource, /framedCards\.push\(musicTransitionCard\(remainingSeconds/);
 assert.match(renderHourSource, /durationSeconds = Math\.min\(Number\(process\.env\.HOUR_BROADCAST_SECONDS \?\? 3600\), 3600\)/);
+
+// A narrative review with no Methods/Results structure in its abstract must
+// not be forced into the Background/Methods/Results/Discussion template --
+// it should just be called a good review on the topic, and the validator
+// must not hold it to the structured-section requirement.
+const narrativeReviewItem: IngestedItem = {
+  id: "lancet-haem-review",
+  sourceId: `daily-journal-${selectedJournal.id}`,
+  title: "Donor cell-derived haematological neoplasms after allogeneic haematopoietic cell transplantation",
+  url: "https://pubmed.ncbi.nlm.nih.gov/00000000/",
+  excerpt:
+    "Donor cell-derived haematological neoplasms (DDHN) are rare disorders and currently do not have standardised diagnostic criteria and therapeutic management. International experts in allogeneic transplantation and haematological malignancies from Europe, the Americas, and Australia worked together on behalf of the EBMT Practice Harmonisation and Guidelines Committee to delineate a pragmatic diagnostic framework and issue guidance for downstream clinical management for DDHN. In this Review, we present the epidemiology and clinical definitions of DDHN, provide guidance on diagnosis and prevention, and outline recommendations for donor management.",
+  sourceName: "The Lancet Haematology",
+  sourceType: "official",
+  rank: 1,
+  publishedAt: "2026-06-01T00:00:00.000Z"
+};
+const narrativeReviewSegment = buildBatchSegment(narrativeReviewItem, personaIdForBatchIndex(0), { index: 0 });
+assert.doesNotMatch(narrativeReviewSegment.script, /\bMethods:|\bResults:|\bDiscussion:/);
+assert.match(narrativeReviewSegment.script, /good review on the topic/i);
+assert.ok(narrativeReviewSegment.riskFlags.includes("narrative_review_card"));
+assert.deepEqual(validateSegmentForApproval(narrativeReviewSegment), []);
 
 (async () => {
   const enrichedXPost = await buildPubMedBackedJournalItem(conferenceLinkedXPost);

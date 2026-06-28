@@ -122,9 +122,16 @@ embedder.
   guess. NCBI E-utils calls must stay throttled to roughly 3 requests/second
   with a retry on `429`; a rate-limited response is not the same as "no record
   found" and must not be treated as one.
-- For abstract and journal cards, the voiced narration itself must explicitly
-  say Background, Methods, Results, and Discussion. Voice framing and word
-  trimming must not remove any of the four section labels.
+- For abstract and journal cards backed by a structured clinical-trial
+  abstract (one that actually contains a Methods- or Results-style section),
+  the voiced narration itself must explicitly say Background, Methods,
+  Results, and Discussion. Voice framing and word trimming must not remove
+  any of the four section labels.
+- Narrative reviews, editorials, and commentaries have no real Methods or
+  Results to extract. Do not force the four-section template onto these —
+  that fabricates a "Results"/"Discussion" label over an arbitrary sentence
+  split. It is fine to simply say this is a good review on the topic and
+  point listeners to read it in that issue of the source journal.
 - Conference and meeting cards must not read URLs or page code. If an official
   meeting page exposes script text instead of readable content, discard the
   code-like text and fall back to the official page title/description or a
@@ -205,9 +212,9 @@ Run `npm run test:rss` to make a live request to every seeded feed.
   full spoken script — not just a title — visible in the card deck so the
   operator can review the actual material before it ever airs.
 - Click "View deck" under any conference, journal, or source to expand its
-  card list and read each card's full summary/script. Card text is never
-  truncated here, even for a full ~6-minute script — the card list scrolls,
-  not the individual card.
+  card list and read each card's entire broadcast script, every time. There
+  is no summary shown here and no truncation — the card list scrolls, not the
+  individual card, so a full ~6-minute script always renders in totality.
 - If the operator does not like what is there, click
   **"Don't like these? Generate more cards"** under that same entity. This
   calls `POST /api/admin/source-cards/regenerate` (entityType +
@@ -481,6 +488,12 @@ practice stream. Before declaring the stream visible on both sides, verify:
   articles" card if PubMed enrichment was throttled or found no exact title
   match.
 - **RSS verification fails:** disable or replace the failed official feed.
+- **The same article produces more than one card in the same week:** check
+  the conference/journal/source catalog for a duplicate row by name first —
+  seed reconciliation conflicts on URL, not name, so correcting a feed URL
+  can silently orphan a stale duplicate row that keeps generating its own
+  cards. Weekly card generation also re-checks for an existing match
+  immediately before saving, as a backstop against an overlapping run.
 
 ## Safety
 

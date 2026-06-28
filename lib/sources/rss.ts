@@ -10,8 +10,7 @@ const RSS_USER_AGENT = "Mozilla/5.0 ConferenceHype RSS verifier";
 
 const parser = new XMLParser({
   ignoreAttributes: false,
-  attributeNamePrefix: "",
-  processEntities: false
+  attributeNamePrefix: ""
 });
 
 export function isRssSource(source: SourceConfig) {

@@ -71,10 +71,16 @@ export function validateSegmentForApproval(segment: Pick<Segment, "title" | "sum
   // content-quality heuristics below (which assume real source material)
   // don't apply to them — only the structural checks above and below do.
   const isSmokeTestCard = segment.riskFlags.includes("platform_smoke_test");
+  // Narrative reviews/editorials/commentaries have no real Methods or
+  // Results to extract -- they are deliberately built without the four
+  // section labels (see buildBatchSegment's narrativeReview branch), so they
+  // are exempt from the structured-section requirement below. They still
+  // must clear the listing-metadata/fabrication check.
+  const isNarrativeReviewCard = segment.riskFlags.includes("narrative_review_card");
   if (!isSmokeTestCard && isClinicalScienceCard(segment)) {
     if (hasSourceLimitedScienceLanguage(combinedText)) {
       errors.push("Science cards with only listing metadata must be replaced with music or regenerated from PubMed/full source text; do not infer Background, Methods, Results, or Discussion.");
-    } else if (!hasUsableClinicalSectionSource(`${segment.summary} ${segment.script}`)) {
+    } else if (!isNarrativeReviewCard && !hasUsableClinicalSectionSource(`${segment.summary} ${segment.script}`)) {
       errors.push("Science cards require source-grounded Background, Methods, Results, and Discussion before approval.");
     }
   }
