@@ -98,6 +98,7 @@ export function sortWeeklyReadySegmentsForSelection(
   segments: Segment[],
   selection: SourceSelectionSet
 ) {
+  const currentWeekKey = weeklySourceWeekKey();
   return segments
     .filter((segment) =>
       segment.riskFlags.includes(WEEKLY_SOURCE_POOL_FLAG) &&
@@ -108,6 +109,23 @@ export function sortWeeklyReadySegmentsForSelection(
       const bWeek = b.riskFlags.some((flag) => flag.startsWith("weekly_key:"));
       if (aWeek !== bWeek) {
         return aWeek ? -1 : 1;
+      }
+      // A leftover, never-presented card from a past week (e.g. last week's
+      // "no new tracked articles" announcement) must not outrank this week's
+      // real content just because it has an earlier createdAt -- without
+      // this, a stale fallback card sorts first forever and the real,
+      // freshly generated cards never make it into the schedule.
+      const aCurrentWeek = a.riskFlags.includes(`weekly_key:${currentWeekKey}`);
+      const bCurrentWeek = b.riskFlags.includes(`weekly_key:${currentWeekKey}`);
+      if (aCurrentWeek !== bCurrentWeek) {
+        return aCurrentWeek ? -1 : 1;
+      }
+      // Within the same week, prefer real source-backed cards over the
+      // generic "no new tracked articles" announcement card.
+      const aAnnouncement = a.riskFlags.includes("weekly_source_context");
+      const bAnnouncement = b.riskFlags.includes("weekly_source_context");
+      if (aAnnouncement !== bAnnouncement) {
+        return aAnnouncement ? 1 : -1;
       }
       return a.createdAt.localeCompare(b.createdAt);
     });

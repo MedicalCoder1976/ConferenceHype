@@ -20,6 +20,7 @@ import { normalizeLegacyDailyCoverageDefaults } from "@/lib/dailyCoverage";
 import {
   segmentSourceMatchesSelection,
   sortWeeklyReadySegmentsForSelection,
+  weeklySourceWeekKey,
   WEEKLY_SOURCE_POOL_FLAG
 } from "@/lib/weeklySourceCards";
 import { oncologyJournalSeeds } from "@/lib/catalog/oncologyJournalSeeds";
@@ -398,6 +399,40 @@ assert.deepEqual(
     { conferences: [selectedConference], journals: [], sourceIds: [] }
   ).map((segment) => segment.id),
   ["weekly-ready-card"]
+);
+// A leftover, never-presented announcement card from a past week must not
+// outrank this week's real card just because it has an earlier createdAt --
+// that exact bug let a stale "no new tracked articles" card from last week
+// permanently win the one-hour batch's reuse-from-pool slot over fresh,
+// real, source-backed content generated minutes ago.
+const currentWeekKey = weeklySourceWeekKey();
+const staleAnnouncementCard: Segment = {
+  ...weeklyReadyCard,
+  id: "stale-announcement-card",
+  riskFlags: [
+    WEEKLY_SOURCE_POOL_FLAG,
+    "weekly_source_context",
+    "weekly_key:2020-W01",
+    `source_id:daily-conference-${selectedConference.id}-eha-2026-program`
+  ],
+  createdAt: "2020-01-01T00:00:00.000Z"
+};
+const freshRealCard: Segment = {
+  ...weeklyReadyCard,
+  id: "fresh-real-card",
+  riskFlags: [
+    WEEKLY_SOURCE_POOL_FLAG,
+    `weekly_key:${currentWeekKey}`,
+    `source_id:daily-conference-${selectedConference.id}-eha-2026-program`
+  ],
+  createdAt: new Date().toISOString()
+};
+assert.deepEqual(
+  sortWeeklyReadySegmentsForSelection(
+    [staleAnnouncementCard, freshRealCard],
+    { conferences: [selectedConference], journals: [], sourceIds: [] }
+  ).map((segment) => segment.id),
+  ["fresh-real-card", "stale-announcement-card"]
 );
 assert.equal(
   segmentSourceMatchesSelection(weeklyReadyCard, {

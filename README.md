@@ -14,7 +14,12 @@ to YouTube, and exposes the same broadcast on `conferencehype.com`.
 4. In Daily coverage decisions, **Create one-hour batch cards** drafts and
    schedules cards for the selected hour. As soon as scheduling succeeds, the
    admin view jumps to **Presentation sequence** so the operator can see the
-   approved scheduled cards immediately.
+   approved scheduled cards immediately. This reuses unused weekly ready
+   cards first, before generating anything new — reuse priority is: this
+   week's real, source-backed cards first, then this week's "no new
+   articles" announcement card, then any leftover card from a past week
+   last (a stale past-week announcement must never outrank this week's real
+   content just because it was created earlier).
 5. **Start selected hour** dispatches the YouTube workflow from the admin
    rundown preview start time. The plan/preview buttons do not start or confirm
    a broadcast.
