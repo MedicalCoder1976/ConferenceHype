@@ -62,7 +62,7 @@ function hasVerifiedBroadcastSource(segment: { script: string; summary: string; 
     return true;
   }
   return segment.citations.some((citation) =>
-    ["official", "media", "verified_social", "company"].includes(citation.sourceType)
+    ["official", "media", "verified_social", "general_social", "company"].includes(citation.sourceType)
   );
 }
 

@@ -282,7 +282,7 @@ export async function searchTopicFallback(
             : `https://x.com/i/web/status/${tweet.id}`,
           excerpt: tweet.text,
           sourceName: author ?? "X user",
-          sourceType: "general_social",
+          sourceType: "verified_social",
           rank: 5,
           publishedAt: tweet.created_at,
           author,

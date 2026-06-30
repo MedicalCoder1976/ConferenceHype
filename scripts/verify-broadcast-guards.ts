@@ -619,6 +619,58 @@ assert.match(narrativeReviewSegment.script, /good review on the topic/i);
 assert.ok(narrativeReviewSegment.riskFlags.includes("narrative_review_card"));
 assert.deepEqual(validateSegmentForApproval(narrativeReviewSegment), []);
 
+// Conference announcement cards (weekly_source_context) mention the meeting's
+// specialty (oncology, hematology) in passing — this trips isClinicalScienceCard
+// but these are NOT clinical trial reports. The weekly_source_context exemption
+// must prevent the structured-section validator from rejecting them.
+const conferenceAnnouncementCard: Segment = {
+  ...sponsorBase,
+  id: "conference-announcement-card",
+  title: "Weekly update: EHA Annual Congress",
+  summary: "EHA Annual Congress (EHA) coverage preview: June 11-14, 2026, in Milan, Italy. No new official or attributed source material yet this week.",
+  script: "EHA Annual Congress (EHA) is on the calendar for June 11 through 14, 2026, in Milan, Italy. It is a meeting for the Oncology and Hematology community, bringing clinicians and researchers together for sessions and presentations in the field. No fresh official program updates or attributed coverage came through this week, so there is nothing new to summarize yet. ConferenceHype will keep tracking the official program, abstracts, and media coverage as they are published, and bring a source-attributed read as soon as there is something to report.",
+  contentType: "agenda_preview",
+  citations: [{ label: "EHA Annual Congress", url: "https://ehaweb.org/congress", sourceType: "official" }],
+  riskFlags: [
+    WEEKLY_SOURCE_POOL_FLAG,
+    "weekly_source_context",
+    `weekly_key:${weeklySourceWeekKey()}`,
+    `source_id:${selectedConference.id}`
+  ]
+};
+assert.deepEqual(
+  validateSegmentForApproval(conferenceAnnouncementCard),
+  [],
+  "Conference announcement cards with weekly_source_context must pass validation even when they mention oncology/hematology specialties"
+);
+
+// X topic-search fallback cards (general_social citation) must pass
+// filterBroadcastReadySegments so they appear in the pending pool and can be
+// picked up by sortWeeklyReadySegmentsForSelection. Previously they were
+// silently excluded because hasVerifiedBroadcastSource did not accept
+// general_social — meaning all X conference fallback cards were invisible
+// to "create 1 hour batch cards".
+const xTopicSearchCard: Segment = {
+  ...sponsorBase,
+  id: "x-topic-search-card",
+  title: "Social callout: @OncLive on ASCO Annual Meeting",
+  summary: "@OncLive callout. ASCO data from the plenary session.",
+  script: "TumorCrusher calls out a post from @OncLive. ASCO data from the plenary session.",
+  contentType: "social_signal",
+  citations: [{ label: "@OncLive: ASCO data", url: "https://x.com/OncLive/status/123", sourceType: "general_social" }],
+  riskFlags: [
+    WEEKLY_SOURCE_POOL_FLAG,
+    "weekly_source_context",
+    `weekly_key:${weeklySourceWeekKey()}`,
+    `source_id:${selectedConference.id}`
+  ]
+};
+assert.equal(
+  filterBroadcastReadySegments([xTopicSearchCard]).length,
+  1,
+  "X topic-search cards with general_social citations must pass filterBroadcastReadySegments"
+);
+
 (async () => {
   const enrichedXPost = await buildPubMedBackedJournalItem(conferenceLinkedXPost);
   assert.equal(enrichedXPost, conferenceLinkedXPost);
