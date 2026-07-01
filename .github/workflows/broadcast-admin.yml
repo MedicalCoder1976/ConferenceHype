@@ -1,0 +1,33 @@
+name: Broadcast admin
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Admin action to run"
+        required: true
+        default: "disable-and-report"
+        type: choice
+        options:
+          - disable-and-report
+          - disable-continuous
+          - report-pool
+
+jobs:
+  admin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run broadcast admin action
+        run: npx tsx scripts/broadcast-admin.ts
+        env:
+          BROADCAST_ADMIN_ACTION: ${{ inputs.action }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
