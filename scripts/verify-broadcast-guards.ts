@@ -7,6 +7,7 @@ import { buildBroadcastSlots } from "@/lib/rundown/slots";
 import { applySpokenPronunciations } from "@/lib/media/tts";
 import { getUnsafeGeneratedSourceErrors } from "@/lib/generation/sourceSafety";
 import { validateSegmentForApproval } from "@/lib/generation/validator";
+import { buildConferenceCardDecks, buildJournalCardDecks, buildSourceCardDecks } from "@/lib/cardDeck";
 import {
   buildBatchSegment,
   buildConferenceContextItem,
@@ -646,6 +647,95 @@ assert.equal(
   1,
   "X topic-search cards with general_social citations must pass filterBroadcastReadySegments"
 );
+
+// ---- Deck-filter coverage tests ----
+// Every bad card type must be invisible to the operator across conferences,
+// journals, and newspapers. buildConferenceCardDecks / buildJournalCardDecks /
+// buildSourceCardDecks all call isSubstantiveDeckCard internally.
+
+// 1. Announcement/fallback cards (weekly_source_context flag)
+const announcementCard: Segment = {
+  ...sponsorBase,
+  id: "announcement-deck-test",
+  title: "Weekly update: Selected Oncology Meeting",
+  summary: "Selected Oncology Meeting: no new official or attributed source material yet this week.",
+  script: "Selected Oncology Meeting is on the calendar for June 19 through 20, 2026. No fresh official program updates or attributed coverage came through this week.",
+  contentType: "agenda_preview",
+  citations: [{ label: "Selected Oncology Meeting", url: "https://example.com/meeting", sourceType: "official" }],
+  riskFlags: [WEEKLY_SOURCE_POOL_FLAG, "weekly_source_context", `weekly_key:${weeklySourceWeekKey()}`, `source_id:${selectedConference.id}`]
+};
+const conferenceDeckWithAnnouncement = buildConferenceCardDecks([announcementCard], [selectedConference]);
+assert.equal(conferenceDeckWithAnnouncement[selectedConference.id]?.total, 0, "Announcement cards with weekly_source_context must be hidden from the conference deck");
+
+// 2. Conference context shells (buildConferenceContextItem output → buildBatchSegment)
+const contextShellSegment: Segment = {
+  ...sponsorBase,
+  id: "context-shell-deck-test",
+  title: "Weekly update 2026-W26: SOM 2026 official conference context",
+  summary: "SOM 2026 official conference context intake.",
+  script: "Nova Quinn is covering Selected Oncology Meeting. The topic is SOM 2026 official conference context. Background: Official meeting context: Selected Oncology Meeting is listed as a Oncology meeting. Methods: Dates: 2026-06-19 through 2026-06-20. Results: Location: Chicago, USA. Discussion: Source: the official meeting page for Selected Oncology Meeting.",
+  contentType: "agenda_preview",
+  citations: [{ label: "Selected Oncology Meeting", url: "https://example.com/meeting", sourceType: "official" }],
+  riskFlags: [WEEKLY_SOURCE_POOL_FLAG, `weekly_key:${weeklySourceWeekKey()}`, `source_id:${selectedConference.id}`]
+};
+const conferenceDeckWithShell = buildConferenceCardDecks([contextShellSegment], [selectedConference]);
+assert.equal(conferenceDeckWithShell[selectedConference.id]?.total, 0, "Conference context shell cards (official meeting context / is listed as a) must be hidden from the conference deck");
+
+// 3. EHA-style program pages (topics-in-focus, guidelines, learning paths, cme credits)
+const ehaProgramCard: Segment = {
+  ...sponsorBase,
+  id: "eha-program-deck-test",
+  title: "Weekly update: EHA Topics-in-Focus Program",
+  summary: "EHA congress platform. Topics-in-focus program and clinical practice guidelines.",
+  script: "Nova Quinn is covering European Hematology Association Congress. Background: The EHA Topics-in-focus program offers clinical practice guidelines and learning paths for the European Hematology curriculum and cme credits. Methods: Specialized working groups support monitoring and career development. Results: Registration is open on the congress platform. Discussion: Onboarding sessions are available for members.",
+  contentType: "agenda_preview",
+  citations: [{ label: "EHA Official Program", url: "https://ehaweb.org/program", sourceType: "official" }],
+  riskFlags: [WEEKLY_SOURCE_POOL_FLAG, `weekly_key:${weeklySourceWeekKey()}`, `source_id:${ehaConference.id}`]
+};
+const ehaConferenceDeck = buildConferenceCardDecks([ehaProgramCard], [ehaConference]);
+assert.equal(ehaConferenceDeck[ehaConference.id]?.total, 0, "EHA program/topics-in-focus/guidelines cards must be hidden from the conference deck");
+
+// 4. Journal announcement card (weekly_source_context)
+const journalAnnouncementCard: Segment = {
+  ...sponsorBase,
+  id: "journal-announcement-deck-test",
+  title: "Weekly update: Annals of Oncology",
+  summary: "Annals of Oncology: no new tracked articles this week.",
+  script: "Annals of Oncology is one of the journals ConferenceHype tracks. No new articles came through this journal's feed this week.",
+  contentType: "abstract_buzz",
+  citations: [{ label: "Annals of Oncology", url: "https://www.annalsofoncology.org", sourceType: "official" }],
+  riskFlags: [WEEKLY_SOURCE_POOL_FLAG, "weekly_source_context", `weekly_key:${weeklySourceWeekKey()}`, `source_id:daily-journal-${selectedJournal.id}`]
+};
+const journalDeckWithAnnouncement = buildJournalCardDecks([journalAnnouncementCard], [selectedJournal]);
+assert.equal(journalDeckWithAnnouncement[selectedJournal.id]?.total, 0, "Journal announcement cards with weekly_source_context must be hidden from the journal deck");
+
+// 5. Newspaper/source announcement card (weekly_source_context)
+const sourceAnnouncementCard: Segment = {
+  ...sponsorBase,
+  id: "source-announcement-deck-test",
+  title: "Weekly update: OncLive",
+  summary: "OncLive: no new attributed items this week.",
+  script: "OncLive is one of the clinical news sources ConferenceHype monitors. No new attributed items came through this source this week.",
+  contentType: "media_roundup",
+  citations: [{ label: "OncLive", url: "https://www.onclive.com", sourceType: "media" }],
+  riskFlags: [WEEKLY_SOURCE_POOL_FLAG, "weekly_source_context", `weekly_key:${weeklySourceWeekKey()}`, "source_id:onclive"]
+};
+const sourceDeck = buildSourceCardDecks([sourceAnnouncementCard], [{ id: "onclive" }]);
+assert.equal(sourceDeck["onclive"]?.total, 0, "Source/newspaper announcement cards with weekly_source_context must be hidden from the source deck");
+
+// 6. Real clinical content must still appear in the deck
+const realClinicalCard: Segment = {
+  ...sponsorBase,
+  id: "real-clinical-deck-test",
+  title: "Weekly update 2026-W26: Phase III CARTITUDE-4 results in multiple myeloma",
+  summary: "From the June 2026 edition of The Lancet. Background: CARTITUDE-4 evaluated ciltacabtagene autoleucel in relapsed/refractory myeloma.",
+  script: "From the June 2026 edition of The Lancet, this journal review looks at phase III CARTITUDE-4 results in multiple myeloma. Background: CARTITUDE-4 evaluated ciltacabtagene autoleucel in relapsed/refractory myeloma. Methods: 419 patients were randomized to cilta-cel or standard of care. Results: PFS was significantly improved with cilta-cel. Discussion: These findings support earlier use of CAR-T therapy in myeloma.",
+  contentType: "abstract_buzz",
+  citations: [{ label: "The Lancet: CARTITUDE-4", url: "https://example.com/cartitude", sourceType: "media" }],
+  riskFlags: [WEEKLY_SOURCE_POOL_FLAG, `weekly_key:${weeklySourceWeekKey()}`, `source_id:daily-journal-${selectedJournal.id}`]
+};
+const journalDeckWithReal = buildJournalCardDecks([realClinicalCard], [selectedJournal]);
+assert.equal(journalDeckWithReal[selectedJournal.id]?.total, 1, "Real clinical content must still appear in the journal deck");
 
 (async () => {
   const enrichedXPost = await buildPubMedBackedJournalItem(conferenceLinkedXPost);

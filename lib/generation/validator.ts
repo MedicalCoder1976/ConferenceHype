@@ -30,7 +30,7 @@ function hasFourSectionLabels(text: string) {
   );
 }
 
-function isEmptyConferenceInformationCard(segment: Pick<Segment, "title" | "summary" | "script" | "contentType">) {
+export function isEmptyConferenceInformationCard(segment: Pick<Segment, "title" | "summary" | "script" | "contentType">) {
   const text = `${segment.title} ${segment.summary} ${segment.script}`;
   return (
     segment.contentType === "agenda_preview" &&

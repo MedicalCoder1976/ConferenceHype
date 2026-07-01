@@ -5,6 +5,8 @@ import {
   sourceIdMatchesJournal,
   sourceIdsFromSegment
 } from "@/lib/weeklySourceCards";
+import { isEmptyConferenceInformationCard } from "@/lib/generation/validator";
+import { hasMissingIntakeFailureLanguage } from "@/lib/broadcast/sanitizeCopy";
 
 export type DeckCard = {
   segment: Segment;
@@ -49,17 +51,19 @@ function isSubstantiveDeckCard(segment: Segment) {
   if (segment.riskFlags.includes("weekly_source_context")) {
     return false;
   }
-  // Empty conference-metadata shells: cards whose entire script is just
-  // the conference's name, dates, location, and official-page URL filled
-  // into Background/Methods/Results/Discussion with no real clinical content.
-  // These are caught by the broadcast validator too, but we also hide them
-  // from the deck so they don't inflate the card count and mislead the operator.
-  const text = `${segment.summary} ${segment.script}`;
-  if (
-    segment.contentType === "agenda_preview" &&
-    /\bofficial meeting context\b/i.test(text) &&
-    /\bis listed as a\b/i.test(text)
-  ) {
+  // Conference-admin/program/registration shells (dates, location, topics-in-
+  // focus pages, guidelines pages, etc.) — same predicate as the broadcast
+  // validator's isEmptyConferenceInformationCard so any card that can't be
+  // scheduled for these reasons also won't clutter the deck view.
+  if (isEmptyConferenceInformationCard(segment)) {
+    return false;
+  }
+  // Cards that explicitly admit they have missing content ("The batch item did
+  // not include enough summary detail", "I am sorry, I cannot", etc.) — these
+  // are blocked from pendingSegments/nextBroadcastSegments by
+  // filterBroadcastReadySegments but old aired copies could still surface here.
+  const text = `${segment.title}\n${segment.summary}\n${segment.script}`;
+  if (hasMissingIntakeFailureLanguage(text)) {
     return false;
   }
   return true;
