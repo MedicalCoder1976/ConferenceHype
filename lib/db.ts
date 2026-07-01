@@ -999,9 +999,11 @@ export async function deleteSegmentsByIdsInDb(segmentIds: string[]) {
 
 export async function createGeneralCoverageSlotInDb({
   startsAt,
+  conferenceId,
   durationHours = 1
 }: {
   startsAt: string;
+  conferenceId?: string;
   durationHours?: number;
 }): Promise<ConferenceCoverageSlot> {
   if (!hasSupabase()) {
@@ -1024,11 +1026,26 @@ export async function createGeneralCoverageSlotInDb({
   if (existing) {
     return toConferenceCoverageSlot(existing as ConferenceCoverageSlotRow);
   }
+  // conference_id is NOT NULL in the schema; use the provided id or fall back
+  // to the first enabled conference so journal/source-only broadcasts work.
+  let resolvedConferenceId = conferenceId;
+  if (!resolvedConferenceId) {
+    const { data: firstConf } = await supabase
+      .from("medical_conferences")
+      .select("id")
+      .eq("enabled", true)
+      .limit(1)
+      .maybeSingle();
+    if (!firstConf) {
+      throw new Error("No enabled conference found to attach the coverage slot to");
+    }
+    resolvedConferenceId = (firstConf as { id: string }).id;
+  }
   const now = new Date().toISOString();
   const { data, error } = await supabase
     .from("conference_coverage_slots")
     .insert({
-      conference_id: null,
+      conference_id: resolvedConferenceId,
       starts_at: startsAt,
       duration_hours: durationHours,
       enabled: true,

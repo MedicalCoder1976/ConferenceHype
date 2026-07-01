@@ -326,7 +326,10 @@ export async function POST(request: NextRequest) {
     // Idempotent — safe to call even if admin clicks the button more than once.
     let coverageSlotId: string | undefined;
     try {
-      const slot = await createGeneralCoverageSlotInDb({ startsAt: body.startsAt });
+      const slot = await createGeneralCoverageSlotInDb({
+        startsAt: body.startsAt,
+        conferenceId: body.conferenceIds[0]
+      });
       coverageSlotId = slot.id;
     } catch {
       // Non-fatal: segments are saved; admin can create the slot manually if needed
