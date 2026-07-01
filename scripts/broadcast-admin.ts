@@ -5,6 +5,8 @@
 //   disable-continuous  — sets stream_state.continuous_enabled = false
 //   report-pool         — prints a structured card pool health report
 //   disable-and-report  — both in sequence (default)
+//   check-readiness     — checks whether the next scheduled broadcast hour
+//                         has approved segments and an auto-trigger slot
 
 import { loadEnvConfig } from "@next/env";
 loadEnvConfig(process.cwd());
@@ -14,6 +16,7 @@ import {
   updateContinuousBroadcastInDb,
   getConferenceCoverageSlotsFromDb,
   getPendingSegmentsFromDb,
+  getNextBroadcastSegmentsFromDb,
   getMedicalConferencesFromDb,
   getOncologyJournalsFromDb,
   getSourcesFromDb,
@@ -144,12 +147,109 @@ async function reportPool() {
   }
 }
 
+async function checkReadiness() {
+  // Check the next approved broadcast hour: is there a coverage slot that will
+  // auto-trigger the cron, and do the scheduled segments all pass validation?
+  const [streamState, slots, nextRaw] = await Promise.all([
+    getStreamStateFromDb(),
+    getConferenceCoverageSlotsFromDb(),
+    getNextBroadcastSegmentsFromDb(200)
+  ]);
+
+  const targetEnv = process.env.BROADCAST_CHECK_TARGET;
+  const now = new Date();
+
+  // Find the next approved + not_scheduled slot in the future.
+  const futureSlots = (slots ?? [])
+    .filter((s) => s.approvalStatus === "approved" && s.youtubeStatus === "not_scheduled" && new Date(s.startsAt) > now)
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+
+  const nextSlot = futureSlots[0];
+
+  // If a specific target time is requested, also check that window.
+  const targetTime = targetEnv ? new Date(targetEnv) : nextSlot ? new Date(nextSlot.startsAt) : undefined;
+
+  console.log("=== BROADCAST READINESS CHECK ===");
+  console.log(`Time now:            ${now.toISOString()}`);
+  console.log(`continuous_enabled:  ${streamState?.continuousEnabled}`);
+
+  if (!targetTime) {
+    console.log("\n⚠  No target time and no approved future slots found.");
+    console.log("   Use the admin UI to schedule a broadcast slot, or set BROADCAST_CHECK_TARGET.");
+    return;
+  }
+
+  console.log(`Target slot:         ${targetTime.toISOString()}`);
+
+  // Coverage slot check
+  const matchingSlot = futureSlots.find((s) => {
+    const diff = Math.abs(new Date(s.startsAt).getTime() - targetTime.getTime());
+    return diff < 30 * 60 * 1000; // within 30 min
+  });
+
+  console.log("\n--- Coverage slot (auto-trigger) ---");
+  if (matchingSlot) {
+    console.log(`  ✓ Slot ${matchingSlot.id}`);
+    console.log(`    starts_at:       ${matchingSlot.startsAt}`);
+    console.log(`    approval_status: ${matchingSlot.approvalStatus}`);
+    console.log(`    youtube_status:  ${matchingSlot.youtubeStatus}`);
+    const cronTriggerTime = new Date(targetTime.getTime() - 45 * 60 * 1000);
+    console.log(`    Cron fires at:   ${cronTriggerTime.toISOString()} (45 min before slot)`);
+  } else {
+    console.log("  ✗ No approved coverage slot near the target time");
+    console.log("    → Admin must manually trigger: gh workflow run youtube-stream.yml \\");
+    console.log(`      --field stream_start_time=${targetTime.toISOString()} \\`);
+    console.log("      --field duration_minutes=60");
+  }
+
+  // Approved segments check
+  const nextSegments = filterBroadcastReadySegments(nextRaw ?? []);
+  const windowMs = 2 * 60 * 60 * 1000;
+  const approvedSegments = nextSegments.filter((s) => {
+    if (!s.approvedAt) return false;
+    return Math.abs(new Date(s.approvedAt).getTime() - targetTime.getTime()) < windowMs;
+  });
+
+  console.log("\n--- Approved segments ---");
+  if (approvedSegments.length === 0) {
+    console.log("  ✗ No approved segments found for this time window");
+    console.log("    → Use 'create 1 hour batch cards' in the admin UI for this slot");
+  } else {
+    let allValid = true;
+    for (const s of approvedSegments) {
+      const errors = validateSegmentForApproval(s);
+      const approvedAt = s.approvedAt ? new Date(s.approvedAt).toISOString() : "?";
+      const flag = errors.length === 0 ? "✓" : "✗";
+      console.log(`  ${flag} [${approvedAt}] ${s.title.slice(0, 70)}`);
+      if (errors.length > 0) {
+        allValid = false;
+        for (const e of errors) console.log(`      ERROR: ${e}`);
+      }
+    }
+    console.log(`\n  ${allValid ? "✓" : "✗"} ${approvedSegments.length} segments — ${allValid ? "all valid" : "some have validation errors"}`);
+  }
+
+  console.log("\n=== SUMMARY ===");
+  const ready = Boolean(matchingSlot) && approvedSegments.length > 0 &&
+    approvedSegments.every((s) => validateSegmentForApproval(s).length === 0);
+
+  if (ready) {
+    console.log("✓ READY — no admin action needed. The broadcast will render and stream automatically.");
+  } else {
+    console.log("✗ NOT READY — see issues above.");
+    process.exitCode = 1;
+  }
+}
+
 async function main() {
   if (action === "disable-continuous" || action === "disable-and-report") {
     await disableContinuous();
   }
   if (action === "report-pool" || action === "disable-and-report") {
     await reportPool();
+  }
+  if (action === "check-readiness") {
+    await checkReadiness();
   }
 }
 

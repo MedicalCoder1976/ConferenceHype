@@ -12,6 +12,7 @@ on:
           - disable-and-report
           - disable-continuous
           - report-pool
+          - check-readiness
 
 jobs:
   admin:
