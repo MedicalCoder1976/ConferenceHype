@@ -135,6 +135,7 @@ export function DailyCoveragePlanner({
     text: ""
   });
   const [pendingItemId, setPendingItemId] = useState("");
+  const [pendingReadyId, setPendingReadyId] = useState("");
   const [pendingBatch, setPendingBatch] = useState(false);
   const [pending, startTransition] = useTransition();
   const [customLabel, setCustomLabel] = useState("");
@@ -280,6 +281,36 @@ export function DailyCoveragePlanner({
         setMessage(error instanceof Error ? error.message : "Could not create ready card.");
       } finally {
         setPendingItemId("");
+      }
+    });
+  };
+
+  const scheduleReadyCard = (segmentId: string, title: string) => {
+    setPendingReadyId(segmentId);
+    setMessage("");
+    startTransition(async () => {
+      try {
+        const response = await fetch("/api/admin/intake-cards/hour/schedule", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ startsAt: selectedStartsAt, segmentIds: [segmentId] })
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) {
+          throw new Error(
+            Array.isArray(payload.errors) ? payload.errors.join(" ") : (payload.error ?? "Could not schedule card.")
+          );
+        }
+        const slotNote = payload.coverageSlotId
+          ? " Broadcast slot provisioned — stream fires automatically."
+          : "";
+        setMessage(`"${title}" added to the presentation sequence.${slotNote}`);
+        router.refresh();
+        window.setTimeout(revealPresentationSequence, 150);
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : "Could not schedule card.");
+      } finally {
+        setPendingReadyId("");
       }
     });
   };
@@ -661,6 +692,15 @@ export function DailyCoveragePlanner({
                 <p className="text-xs font-semibold leading-5 text-ink/65">
                   {segment.summary.length > 360 ? `${segment.summary.slice(0, 357)}...` : segment.summary}
                 </p>
+                <button
+                  type="button"
+                  disabled={pending || !!pendingReadyId}
+                  onClick={() => scheduleReadyCard(segment.id, segment.title)}
+                  className="inline-flex min-h-9 items-center justify-center gap-2 bg-broadcast px-3 text-xs font-black uppercase text-white disabled:opacity-50"
+                >
+                  <Send className="h-3.5 w-3.5" />
+                  {pendingReadyId === segment.id ? "Scheduling…" : "Schedule this card"}
+                </button>
               </article>
             ))}
           </div>

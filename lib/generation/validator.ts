@@ -53,6 +53,13 @@ const bannedAdvicePatterns = [
 
 export function validateSegmentForApproval(segment: Pick<Segment, "title" | "summary" | "script" | "citations" | "contentType" | "riskFlags">) {
   const errors: string[] = [];
+  // Weekly context cards are generated when a source had no new content this
+  // week. They are placeholder announcements ("no new articles this week"),
+  // not substantive broadcast content, and must never enter the schedule.
+  if (segment.riskFlags.includes("weekly_source_context")) {
+    errors.push("Weekly context cards with no new source content cannot be broadcast; select a card with substantive clinical content instead.");
+    return errors;
+  }
   // agenda_preview and industry_floor are always sourced from verified official
   // schedule/floor data, so they are trusted without a citation list.
   // This matches the filterBroadcastReadySegments() exemption in lib/data.ts.
