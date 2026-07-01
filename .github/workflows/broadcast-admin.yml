@@ -13,6 +13,11 @@ on:
           - disable-continuous
           - report-pool
           - check-readiness
+          - create-slot
+      slot_time:
+        description: "ISO 8601 UTC time for create-slot (e.g. 2026-07-01T17:00:00Z)"
+        required: false
+        type: string
 
 jobs:
   admin:
@@ -29,6 +34,7 @@ jobs:
         run: npx tsx scripts/broadcast-admin.ts
         env:
           BROADCAST_ADMIN_ACTION: ${{ inputs.action }}
+          BROADCAST_SLOT_TIME: ${{ inputs.slot_time }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

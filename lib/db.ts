@@ -997,6 +997,38 @@ export async function deleteSegmentsByIdsInDb(segmentIds: string[]) {
   }
 }
 
+export async function createGeneralCoverageSlotInDb({
+  startsAt,
+  durationHours = 1
+}: {
+  startsAt: string;
+  durationHours?: number;
+}): Promise<ConferenceCoverageSlot> {
+  if (!hasSupabase()) {
+    throw new Error("Supabase not configured");
+  }
+  const now = new Date().toISOString();
+  const { data, error } = await createAdminClient()
+    .from("conference_coverage_slots")
+    .insert({
+      conference_id: null,
+      starts_at: startsAt,
+      duration_hours: durationHours,
+      enabled: true,
+      approval_status: "approved",
+      approved_at: now,
+      approval_scope: "slot",
+      youtube_status: "not_scheduled",
+      updated_at: now
+    })
+    .select("*")
+    .single();
+  if (error) {
+    throw error;
+  }
+  return toConferenceCoverageSlot(data as ConferenceCoverageSlotRow);
+}
+
 export async function deleteConferenceCoverageSlotInDb(slotId: string) {
   if (!hasSupabase()) {
     return;

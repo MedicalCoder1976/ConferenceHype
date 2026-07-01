@@ -20,7 +20,8 @@ import {
   getMedicalConferencesFromDb,
   getOncologyJournalsFromDb,
   getSourcesFromDb,
-  upsertAdminCatalogSeedsToDb
+  upsertAdminCatalogSeedsToDb,
+  createGeneralCoverageSlotInDb
 } from "@/lib/db";
 import { filterBroadcastReadySegments } from "@/lib/data";
 import { validateSegmentForApproval } from "@/lib/generation/validator";
@@ -241,6 +242,24 @@ async function checkReadiness() {
   }
 }
 
+async function createSlot() {
+  const slotTime = process.env.BROADCAST_SLOT_TIME;
+  if (!slotTime) {
+    console.error("BROADCAST_SLOT_TIME is required (e.g. 2026-07-01T17:00:00Z)");
+    process.exitCode = 1;
+    return;
+  }
+  const startsAt = new Date(slotTime).toISOString();
+  console.log(`[create-slot] Creating approved coverage slot for ${startsAt}`);
+  const slot = await createGeneralCoverageSlotInDb({ startsAt });
+  console.log(`[create-slot] ✓ Created slot ${slot.id}`);
+  console.log(`[create-slot]   starts_at:       ${slot.startsAt}`);
+  console.log(`[create-slot]   approval_status: ${slot.approvalStatus}`);
+  console.log(`[create-slot]   youtube_status:  ${slot.youtubeStatus}`);
+  const cronTriggerTime = new Date(new Date(startsAt).getTime() - 45 * 60 * 1000);
+  console.log(`[create-slot]   Cron will fire:  ${cronTriggerTime.toISOString()} (45 min before slot)`);
+}
+
 async function main() {
   if (action === "disable-continuous" || action === "disable-and-report") {
     await disableContinuous();
@@ -250,6 +269,9 @@ async function main() {
   }
   if (action === "check-readiness") {
     await checkReadiness();
+  }
+  if (action === "create-slot") {
+    await createSlot();
   }
 }
 
