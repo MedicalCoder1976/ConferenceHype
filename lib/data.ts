@@ -108,7 +108,10 @@ export function filterBroadcastReadySegments<T extends {
 
 export async function getPublicSegments() {
   const dbSegments = await getApprovedSegmentsFromDb();
-  return dbSegments?.length ? dbSegments : [buildScheduleFallbackSegment()];
+  const filtered = (dbSegments ?? []).filter(
+    (s) => !s.riskFlags.includes("platform_smoke_test")
+  );
+  return filtered.length ? filtered : [buildScheduleFallbackSegment()];
 }
 
 export type PublicBroadcastCard = {
