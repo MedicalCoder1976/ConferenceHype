@@ -57,8 +57,12 @@ async function reportPool() {
   const weeklyPool = pendingSegments.filter((s) => s.riskFlags.includes(WEEKLY_SOURCE_POOL_FLAG));
   const schedulable = weeklyPool.filter((s) => validateSegmentForApproval(s).length === 0);
 
+  const now = new Date().toISOString();
   const approvedSlots = (slots ?? []).filter(
-    (s) => s.approvalStatus === "approved" && s.youtubeStatus === "not_scheduled"
+    (s) =>
+      s.approvalStatus === "approved" &&
+      s.youtubeStatus === "not_scheduled" &&
+      s.startsAt > now
   );
 
   console.log("\n=== AUTOMATION GATES ===");
@@ -76,7 +80,12 @@ async function reportPool() {
 
   const enabledConferences = (conferences ?? []).filter((c) => c.enabled);
   const enabledJournals = (journals ?? []).filter((j) => j.enabled);
-  const enabledSources = allSources.filter((s) => s.enabled && s.type !== "manual");
+  // Mirror verify-weekly-source-cards.ts: exclude general_social (X follow
+  // voices) — those are individual social handles, not news sources, and they
+  // don't get weekly pool cards by design.
+  const enabledSources = allSources.filter(
+    (s) => s.enabled && s.type !== "manual" && s.type !== "general_social"
+  );
 
   const missingConferences: string[] = [];
   const missingJournals: string[] = [];
