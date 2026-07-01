@@ -89,10 +89,12 @@ export function filterBroadcastReadySegments<T extends {
       segment.riskFlags?.includes("official_schedule_only") ||
       /^Official (?:meeting )?schedule/i.test(text) ||
       /^Official (?:meeting )?schedule/i.test(String(segment.title ?? ""));
+    const isWeeklySourceContext = segment.riskFlags?.includes("weekly_source_context");
     return (
       !isLegacyCopiedSourceCard &&
       !isLegacyUntaggedBatchCard &&
       !isAutoScheduleSpine &&
+      !isWeeklySourceContext &&
       !hasMissingIntakeFailureLanguage(`${segment.title ?? ""}\n${text}`) &&
       !isUnsafeForBroadcastRundown(text) &&
       hasVerifiedBroadcastSource(segment) &&
@@ -109,7 +111,9 @@ export function filterBroadcastReadySegments<T extends {
 export async function getPublicSegments() {
   const dbSegments = await getApprovedSegmentsFromDb();
   const filtered = (dbSegments ?? []).filter(
-    (s) => !s.riskFlags.includes("platform_smoke_test")
+    (s) =>
+      !s.riskFlags.includes("platform_smoke_test") &&
+      !s.riskFlags.includes("weekly_source_context")
   );
   return filtered.length ? filtered : [buildScheduleFallbackSegment()];
 }
