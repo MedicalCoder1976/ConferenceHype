@@ -1,12 +1,11 @@
-// Each voiced card is a full ~6-minute high-energy-host segment (self-intro
+// Each voiced card is a ~3-minute high-energy-host segment (self-intro
 // handled by formatVoiceSegment, then substantive narration of the card's
-// topic), immediately followed by a music transition -- the music ending is
-// the cue for the next card. 360 + 90 = 450s per card, x 8 cards = exactly
-// one hour, and 8 is divisible by VOICES_PER_HOUR (4) in lib/rundown/slots.ts
-// so each hour's 4 voices still get an equal number of cards.
-export const CONTENT_SECONDS = 360;
-export const MUSIC_SECONDS = 90;
-export const CONTENT_SLOTS_PER_MUSIC_BLOCK = 1;
+// topic), immediately followed by a 45-second music transition.
+// 2 cards per block × (180s content + 45s music) × 8 blocks = 3,600s = 1 hour.
+// 16 cards / 4 voices = 4 cards per voice section (equal sections).
+export const CONTENT_SECONDS = 180;
+export const MUSIC_SECONDS = 45;
+export const CONTENT_SLOTS_PER_MUSIC_BLOCK = 2;
 export const MUSIC_BLOCKS_PER_HOUR = 8;
 export const CONTENT_CARDS_PER_HOUR =
   CONTENT_SLOTS_PER_MUSIC_BLOCK * MUSIC_BLOCKS_PER_HOUR;
