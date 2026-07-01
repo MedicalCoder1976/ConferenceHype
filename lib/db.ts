@@ -1007,8 +1007,25 @@ export async function createGeneralCoverageSlotInDb({
   if (!hasSupabase()) {
     throw new Error("Supabase not configured");
   }
+  const supabase = createAdminClient();
+  // Idempotent: return any approved slot already scheduled within ±15 min
+  const target = new Date(startsAt);
+  const windowStart = new Date(target.getTime() - 15 * 60 * 1000).toISOString();
+  const windowEnd = new Date(target.getTime() + 15 * 60 * 1000).toISOString();
+  const { data: existing } = await supabase
+    .from("conference_coverage_slots")
+    .select("*")
+    .eq("approval_status", "approved")
+    .eq("enabled", true)
+    .gte("starts_at", windowStart)
+    .lte("starts_at", windowEnd)
+    .limit(1)
+    .maybeSingle();
+  if (existing) {
+    return toConferenceCoverageSlot(existing as ConferenceCoverageSlotRow);
+  }
   const now = new Date().toISOString();
-  const { data, error } = await createAdminClient()
+  const { data, error } = await supabase
     .from("conference_coverage_slots")
     .insert({
       conference_id: null,
