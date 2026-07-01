@@ -77,14 +77,7 @@ export function validateSegmentForApproval(segment: Pick<Segment, "title" | "sum
   // are exempt from the structured-section requirement below. They still
   // must clear the listing-metadata/fabrication check.
   const isNarrativeReviewCard = segment.riskFlags.includes("narrative_review_card");
-  // Conference and journal announcement/context cards (e.g., "no new content
-  // this week") mention the entity's specialty (oncology, hematology) in
-  // passing, which trips isClinicalScienceCard — but they are NOT actual
-  // clinical trial reporting, so the structured-section requirement does not
-  // apply. These cards are pre-validated at generation time in
-  // buildConferenceAnnouncementSegment / buildJournalAnnouncementSegment.
-  const isWeeklyContextCard = segment.riskFlags.includes("weekly_source_context");
-  if (!isSmokeTestCard && !isWeeklyContextCard && isClinicalScienceCard(segment)) {
+  if (!isSmokeTestCard && isClinicalScienceCard(segment)) {
     if (hasSourceLimitedScienceLanguage(combinedText)) {
       errors.push("Science cards with only listing metadata must be replaced with music or regenerated from PubMed/full source text; do not infer Background, Methods, Results, or Discussion.");
     } else if (!isNarrativeReviewCard && !hasUsableClinicalSectionSource(`${segment.summary} ${segment.script}`)) {
