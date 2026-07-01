@@ -345,23 +345,27 @@ export function DailyCoveragePlanner({
               .filter(Boolean)
               .slice(0, 4)
           : [];
-        setBatchStatus({
-          state: "done",
-          text:
+        const slotNote = batchPayload.coverageSlotId
+          ? " Broadcast slot provisioned — the stream will start automatically at the selected hour."
+          : " No broadcast slot could be created; manually trigger the stream workflow when ready.";
+        const sourceModeText =
             batchPayload.sourceMode === "weekly_ready_pool"
               ? `Batch complete with ${batchPayload.reusedCount ?? 0} unused weekly ready cards first. ${batchPayload.scheduledCount ?? 0} cards moved into the selected hour; overflow remains in Brand New Ready Cards.`
               : batchPayload.sourceMode === "on_demand_ingest"
                 ? `Batch complete after an on-demand source fetch. ${batchPayload.scheduledCount ?? 0} cards moved into the selected hour; overflow remains in Brand New Ready Cards.`
                 : batchPayload.sourceMode === "selected_conference_context"
                   ? `Batch complete from selected official conference context. ${batchPayload.scheduledCount ?? 0} cards moved into the selected hour; overflow remains in Brand New Ready Cards.`
-                  : `Batch complete from stored prior-day intake. ${batchPayload.scheduledCount ?? 0} cards moved into the selected hour; overflow remains in Brand New Ready Cards.`,
+                  : `Batch complete from stored prior-day intake. ${batchPayload.scheduledCount ?? 0} cards moved into the selected hour; overflow remains in Brand New Ready Cards.`;
+        setBatchStatus({
+          state: "done",
+          text: sourceModeText + slotNote,
           count: batchPayload.count,
           titles: createdTitles,
           scheduledCount: batchPayload.scheduledCount,
           overflowCount: batchPayload.overflowCount
         });
         setMessage(
-          `${batchPayload.scheduledCount ?? 0} cards scheduled into the selected one-hour slot. ${batchPayload.overflowCount ?? 0} remaining cards are in Brand New Ready Cards, with prior broadcast cards kept at the bottom.`
+          `${batchPayload.scheduledCount ?? 0} cards scheduled into the selected one-hour slot. ${batchPayload.coverageSlotId ? "Broadcast slot provisioned — stream fires automatically." : "Create broadcast slot manually."} ${batchPayload.overflowCount ?? 0} remaining cards are in Brand New Ready Cards.`
         );
         router.refresh();
         window.setTimeout(revealPresentationSequence, 150);
