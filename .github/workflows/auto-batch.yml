@@ -15,16 +15,18 @@ jobs:
     steps:
       - name: Create batch for upcoming broadcast slots
         run: |
-          RESPONSE=$(curl --fail --silent --show-error \
+          HTTP_STATUS=$(curl --silent --output /tmp/auto-batch-response.json \
+            --write-out "%{http_code}" \
             --request POST \
             "https://conferencehype.com/api/admin/coverage-slots/auto-batch" \
             -H "Content-Type: application/json" \
             -H "x-admin-secret: ${ADMIN_SHARED_SECRET}")
-          echo "${RESPONSE}"
+          RESPONSE=$(cat /tmp/auto-batch-response.json)
+          echo "HTTP ${HTTP_STATUS}: ${RESPONSE}"
           OK=$(echo "${RESPONSE}" | jq -r '.ok // false')
           PROCESSED=$(echo "${RESPONSE}" | jq -r '.slotsProcessed // 0')
           if [ "${OK}" != "true" ]; then
-            echo "::error::Auto-batch failed: ${RESPONSE}"
+            echo "::error::Auto-batch failed (HTTP ${HTTP_STATUS}): ${RESPONSE}"
             exit 1
           fi
           if [ "${PROCESSED}" = "0" ]; then
