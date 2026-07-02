@@ -216,7 +216,12 @@ export async function getPublicBroadcastContext(): Promise<PublicBroadcastContex
   });
   const writeoutCards =
     matchingWriteout?.cards
-      .filter((card) => card.kind === "content")
+      .filter(
+        (card) =>
+          card.kind === "content" &&
+          !card.riskFlags?.includes("platform_smoke_test") &&
+          !card.riskFlags?.includes("weekly_source_context")
+      )
       .map(publicCardFromWriteout) ?? [];
 
   if (writeoutCards.length) {

@@ -40,6 +40,7 @@ type Card = {
   text: string;
   voiceAudioPath?: string;
   voiceDurationMs?: number;
+  riskFlags?: string[];
 };
 
 const DISCLAIMER_INTERVAL_SECONDS = 15 * 60;
@@ -449,6 +450,7 @@ async function buildCards(): Promise<Card[]> {
       sourceLabel: !isMusic ? slot.segment?.citations[0]?.label : undefined,
       sourceUrl: !isMusic ? slot.segment?.citations[0]?.url : undefined,
       script: !isMusic ? (slot.segment?.script || slot.segment?.summary || null) : null,
+      riskFlags: !isMusic ? (slot.segment?.riskFlags ?? []) : undefined,
       text: isMusic
         ? formatTransitionCard()
         : formatCard({
@@ -695,7 +697,8 @@ function buildWriteoutCards(cards: Card[], startsAt: Date): BroadcastWriteoutCar
       contentType: card.contentType,
       script: card.script ?? undefined,
       sourceLabel: card.sourceLabel,
-      sourceUrl: card.sourceUrl
+      sourceUrl: card.sourceUrl,
+      riskFlags: card.riskFlags
     };
   });
 }

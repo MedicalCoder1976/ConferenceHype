@@ -169,6 +169,7 @@ export type BroadcastWriteoutCard = {
   script?: string;
   sourceLabel?: string;
   sourceUrl?: string;
+  riskFlags?: string[];
 };
 
 export type BroadcastWriteout = {
