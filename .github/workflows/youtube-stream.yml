@@ -49,8 +49,12 @@ jobs:
         id: block
         run: |
           if [ "${{ github.event_name }}" = "schedule" ]; then
-            FROM=$(date -u -d "+45 minutes" +"%Y-%m-%dT%H:%M:%SZ")
-            TO=$(date -u -d "+60 minutes" +"%Y-%m-%dT%H:%M:%SZ")
+            # Look back 30 min to catch slots that should have been picked up
+            # if the runner started late (GitHub Actions runners can be 20-30 min
+            # delayed under load). Look ahead 90 min as the upper bound.
+            # youtube_status=not_scheduled prevents double-triggering.
+            FROM=$(date -u -d "-30 minutes" +"%Y-%m-%dT%H:%M:%SZ")
+            TO=$(date -u -d "+90 minutes" +"%Y-%m-%dT%H:%M:%SZ")
             RECORD=$(curl --fail --silent --show-error \
               --get "${NEXT_PUBLIC_SUPABASE_URL}/rest/v1/conference_coverage_slots" \
               -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
