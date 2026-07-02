@@ -734,6 +734,30 @@ export async function upsertMedicalConferenceInDb(
   return toMedicalConference(data as MedicalConferenceRow);
 }
 
+// Returns approved, not_scheduled, enabled slots whose starts_at falls in
+// [now + minMinutes, now + maxMinutes). Used by the auto-batch cron.
+export async function getUpcomingSlotsNeedingBatchFromDb(
+  minMinutes: number,
+  maxMinutes: number
+): Promise<ConferenceCoverageSlot[]> {
+  if (!hasSupabase()) return [];
+  const now = new Date();
+  const from = new Date(now.getTime() + minMinutes * 60 * 1000).toISOString();
+  const to = new Date(now.getTime() + maxMinutes * 60 * 1000).toISOString();
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("conference_coverage_slots")
+    .select("*")
+    .eq("approval_status", "approved")
+    .eq("youtube_status", "not_scheduled")
+    .eq("enabled", true)
+    .gte("starts_at", from)
+    .lt("starts_at", to)
+    .order("starts_at", { ascending: true });
+  if (error) throw error;
+  return (data as ConferenceCoverageSlotRow[]).map(toConferenceCoverageSlot);
+}
+
 export async function getConferenceCoverageSlotsFromDb(): Promise<ConferenceCoverageSlot[] | null> {
   if (!hasSupabase()) {
     return null;

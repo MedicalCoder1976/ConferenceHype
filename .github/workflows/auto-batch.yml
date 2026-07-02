@@ -1,0 +1,36 @@
+name: Auto-batch upcoming broadcasts
+
+on:
+  # Fires at :00 of every hour — one hour before the :00 broadcast,
+  # which is then picked up by the :15 YouTube cron.
+  schedule:
+    - cron: "0 * * * *"
+  # Allow manual trigger for testing
+  workflow_dispatch: {}
+
+jobs:
+  auto-batch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Create batch for upcoming broadcast slots
+        run: |
+          RESPONSE=$(curl --fail --silent --show-error \
+            --request POST \
+            "https://conferencehype.com/api/admin/coverage-slots/auto-batch" \
+            -H "Content-Type: application/json" \
+            -H "x-admin-secret: ${ADMIN_SHARED_SECRET}")
+          echo "${RESPONSE}"
+          OK=$(echo "${RESPONSE}" | jq -r '.ok // false')
+          PROCESSED=$(echo "${RESPONSE}" | jq -r '.slotsProcessed // 0')
+          if [ "${OK}" != "true" ]; then
+            echo "::error::Auto-batch failed: ${RESPONSE}"
+            exit 1
+          fi
+          if [ "${PROCESSED}" = "0" ]; then
+            echo "::notice::No slots needed a batch this hour."
+          else
+            echo "::notice::Batched ${PROCESSED} slot(s) for upcoming broadcast."
+          fi
+        env:
+          ADMIN_SHARED_SECRET: ${{ secrets.ADMIN_SHARED_SECRET }}
