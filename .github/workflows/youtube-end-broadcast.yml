@@ -1,0 +1,26 @@
+name: YouTube end broadcast
+
+on:
+  workflow_dispatch:
+    inputs:
+      youtube_video_id:
+        description: "YouTube video ID to force-transition to complete"
+        required: true
+
+jobs:
+  end:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: End YouTube broadcast
+        run: npx tsx scripts/end-youtube-broadcast.ts
+        env:
+          YOUTUBE_VIDEO_ID: ${{ inputs.youtube_video_id }}
+          YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
+          YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
+          YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
