@@ -15,7 +15,14 @@ const REPO = "lijosimpson/ConferenceHype";
 
 function openBrowser(url: string) {
   if (process.platform === "win32") {
-    spawn("cmd", ["/c", "start", "", url], { stdio: "ignore", detached: true }).unref();
+    // cmd.exe treats unquoted "&" in the URL as a command separator, truncating
+    // the query string. Quote the target and disable Node's own arg-escaping so
+    // our quotes reach cmd.exe verbatim.
+    spawn("cmd", ["/c", "start", '""', `"${url}"`], {
+      stdio: "ignore",
+      detached: true,
+      windowsVerbatimArguments: true
+    }).unref();
   } else if (process.platform === "darwin") {
     spawn("open", [url], { stdio: "ignore", detached: true }).unref();
   } else {
