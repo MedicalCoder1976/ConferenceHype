@@ -7,7 +7,7 @@ import { loadEnvConfig } from "@next/env";
 import ffmpegPath from "ffmpeg-static";
 import { cardTypeEyebrow, cardTypeLabel } from "@/lib/broadcast/cardTypes";
 import { hasMissingIntakeFailureLanguage, sanitizeBroadcastCopy } from "@/lib/broadcast/sanitizeCopy";
-import { HYPE_LINE_VIDEO_FILTER } from "@/lib/media/hypeLine";
+import { HYPE_LINE_LOOP_PATH } from "@/lib/media/hypeLine";
 import {
   formatVoiceSegment,
   stripBroadcastDisclaimer
@@ -21,7 +21,7 @@ const outputPath =
   process.env.HOUR_BROADCAST_OUTPUT ?? "public/rendered/conferencehype-hour-broadcast.mp4";
 const musicPath =
   process.env.HOUR_BROADCAST_MUSIC ??
-  "public/music/conferencehype-gap-music-6min-v3.mp3";
+  "public/music/conferencehype-gap-music-6min-v4.mp3";
 const voicePath = process.env.HOUR_BROADCAST_VOICE;
 
 loadEnvConfig(process.cwd());
@@ -967,6 +967,13 @@ async function main() {
     ];
   }
 
+  // Bars loop is appended as the last input so it doesn't shift the numeric
+  // audio input indices referenced inside audioArgs's filter_complex.
+  const hypeLineLoopInputIndex = 1 + audioArgs.filter((arg) => arg === "-i").length;
+  const hypeLineLoopInputArgs = ["-stream_loop", "-1", "-i", path.resolve(HYPE_LINE_LOOP_PATH)];
+  audioArgs[audioArgs.length - 1] =
+    `${audioArgs[audioArgs.length - 1]};[0:v][${hypeLineLoopInputIndex}:v]overlay=0:0[vout]`;
+
   const args = [
     "-y",
     "-f",
@@ -976,12 +983,11 @@ async function main() {
     "-i",
     concatPath,
     ...audioArgs,
+    ...hypeLineLoopInputArgs,
     "-map",
-    "0:v",
+    "[vout]",
     "-map",
     "[a]",
-    "-vf",
-    HYPE_LINE_VIDEO_FILTER,
     "-r",
     "30",
     "-t",

@@ -1,8 +1,14 @@
+import path from "node:path";
 import { spawn } from "node:child_process";
 import ffmpegPath from "ffmpeg-static";
 import { loadEnvConfig } from "@next/env";
 import { updateConferenceCoverageDeliveryInDb } from "@/lib/db";
-import { HYPE_LINE_VIDEO_FILTER, HYPE_LINE_VIDEO_INPUT } from "@/lib/media/hypeLine";
+import {
+  HYPE_LINE_BACKGROUND_COLOR,
+  HYPE_LINE_FRAME_HEIGHT,
+  HYPE_LINE_FRAME_WIDTH,
+  HYPE_LINE_LOOP_PATH
+} from "@/lib/media/hypeLine";
 import { verifyYoutubeDeliveryLoop } from "@/lib/media/youtubeDeliveryVerifier";
 
 loadEnvConfig(process.cwd());
@@ -10,10 +16,56 @@ loadEnvConfig(process.cwd());
 const ffmpeg = process.env.FFMPEG_PATH ?? ffmpegPath ?? "ffmpeg";
 const videoPath = process.env.STREAM_VIDEO_PATH;
 const musicPath =
-  process.env.STREAM_MUSIC_PATH ?? "public/music/conferencehype-gap-music-6min-v3.mp3";
+  process.env.STREAM_MUSIC_PATH ?? "public/music/conferencehype-gap-music-6min-v4.mp3";
 const voicePath = process.env.STREAM_VOICE_PATH;
 const durationSeconds = process.env.STREAM_DURATION_SECONDS ?? "3600";
 const coverageSlotId = process.env.COVERAGE_SLOT_ID;
+
+async function getYoutubeAccessToken() {
+  const clientId = process.env.YOUTUBE_OAUTH_CLIENT_ID;
+  const clientSecret = process.env.YOUTUBE_OAUTH_CLIENT_SECRET;
+  const refreshToken = process.env.YOUTUBE_OAUTH_REFRESH_TOKEN;
+  if (!clientId || !clientSecret || !refreshToken) {
+    return undefined;
+  }
+  const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
+      grant_type: "refresh_token"
+    })
+  });
+  if (!tokenResponse.ok) {
+    console.error(`YOUTUBE_OAUTH_REFRESH_ERROR: ${tokenResponse.status} ${await tokenResponse.text()}`);
+    return undefined;
+  }
+  const tokenPayload = (await tokenResponse.json()) as { access_token?: string };
+  return tokenPayload.access_token;
+}
+
+// The RTMP feed dropping only tells YouTube the stream is unhealthy; YouTube
+// then waits on its own schedule (which can run well past our stream-end
+// verification window) before it auto-transitions the broadcast to
+// "complete". Ending it explicitly here keeps YouTube's lifeCycleStatus in
+// sync with the moment we mark delivery complete in the database, instead of
+// leaving a window where the site says "completed" while YouTube still shows
+// the video as live.
+async function endYoutubeBroadcast(videoId: string) {
+  const accessToken = await getYoutubeAccessToken();
+  if (!accessToken) {
+    return;
+  }
+  const response = await fetch(
+    `https://www.googleapis.com/youtube/v3/liveBroadcasts/transition?broadcastStatus=complete&part=status&id=${encodeURIComponent(videoId)}`,
+    { method: "POST", headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!response.ok) {
+    console.error(`YOUTUBE_BROADCAST_TRANSITION_FAILED: ${response.status} ${await response.text()}`);
+  }
+}
 
 async function updateDelivery(
   youtubeStatus: "live" | "completed" | "failed",
@@ -46,10 +98,17 @@ async function main() {
   const { getYoutubeRtmpTarget } = await import("@/lib/media/stream");
   const target = getYoutubeRtmpTarget();
 
-  const videoInputArgs = ["-re", "-f", "lavfi", "-i", HYPE_LINE_VIDEO_INPUT];
+  const videoInputArgs = [
+    "-re",
+    "-f",
+    "lavfi",
+    "-i",
+    `color=c=${HYPE_LINE_BACKGROUND_COLOR}:s=${HYPE_LINE_FRAME_WIDTH}x${HYPE_LINE_FRAME_HEIGHT}:r=30`
+  ];
   const liveAudio = videoPath
     ? {
         inputArgs: ["-stream_loop", "-1", "-i", videoPath],
+        audioFilter: undefined as string | undefined,
         mapArgs: ["-map", "1:a:0"]
       }
     : voicePath
@@ -62,10 +121,10 @@ async function main() {
         "-stream_loop",
         "-1",
         "-i",
-        voicePath,
-        "-filter_complex",
-        "[1:a]volume=0.18[music];[2:a]volume=0.85[voice];[music][voice]amix=inputs=2:duration=longest:dropout_transition=0[a]",
+        voicePath
         ],
+        audioFilter:
+          "[1:a]volume=0.18[music];[2:a]volume=0.85[voice];[music][voice]amix=inputs=2:duration=longest:dropout_transition=0[a]",
         mapArgs: [
         "-map",
         "[a]"
@@ -76,26 +135,35 @@ async function main() {
         "-stream_loop",
         "-1",
         "-i",
-        musicPath,
-        "-filter_complex",
-        "[1:a]volume=0.18[a]",
+        musicPath
         ],
+        audioFilter: "[1:a]volume=0.18[a]",
         mapArgs: [
         "-map",
         "[a]"
         ]
       };
 
+  // Bars loop is appended as the last input so it doesn't shift the numeric
+  // audio input indices ("1:a:0" etc.) referenced above.
+  const hypeLineLoopInputIndex = 1 + liveAudio.inputArgs.filter((arg) => arg === "-i").length;
+  const hypeLineLoopInputArgs = ["-stream_loop", "-1", "-i", path.resolve(HYPE_LINE_LOOP_PATH)];
+  const videoOverlayFilter = `[0:v][${hypeLineLoopInputIndex}:v]overlay=0:0[vout]`;
+  const filterComplex = liveAudio.audioFilter
+    ? `${liveAudio.audioFilter};${videoOverlayFilter}`
+    : videoOverlayFilter;
+
   const args = [
     ...videoInputArgs,
     ...liveAudio.inputArgs,
+    ...hypeLineLoopInputArgs,
+    "-filter_complex",
+    filterComplex,
     "-map",
-    "0:v:0",
+    "[vout]",
     ...liveAudio.mapArgs,
     "-t",
     durationSeconds,
-    "-vf",
-    HYPE_LINE_VIDEO_FILTER,
     "-r",
     "30",
     "-c:v",
@@ -201,6 +269,9 @@ async function main() {
       if (errorLine) {
         console.error(`YOUTUBE_RTMP_ERROR: ${errorLine.trim()}`);
       }
+    }
+    if (process.env.YOUTUBE_VIDEO_ID) {
+      await endYoutubeBroadcast(process.env.YOUTUBE_VIDEO_ID);
     }
     await updateDelivery(
       code === 0 ? "completed" : "failed",

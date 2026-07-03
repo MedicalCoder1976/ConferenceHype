@@ -59,7 +59,7 @@ foreach ($clip in $clips) {
   $musicClip = Join-Path $tmpDir "$($clip.Id)-music.wav"
   $intro = Join-Path $tmpDir "$($clip.Id)-intro.wav"
   $output = Join-Path $clipDir $clip.Output
-  $introText = "This is ConferenceHype. Up next, $($clip.NextSpeaker) on the $($clip.NextRole). Conference energy, keep it moving."
+  $introText = "This is ConferenceHype. Up next, $($clip.NextSpeaker) on the $($clip.NextRole)."
 
   py -3.12 (Join-Path $root "scripts\generate-kokoro-dj-voice.py") `
     --mode stinger `

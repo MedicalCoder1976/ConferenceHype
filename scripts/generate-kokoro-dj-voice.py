@@ -340,7 +340,7 @@ def synthesize_stinger(output: Path, voice: str, text: str | None = None) -> Non
     pipeline = KPipeline(lang_code="a", repo_id="hexgrad/Kokoro-82M")
     lines = [
         {"speed": 1.12, "pause": 0.10, "text": line.strip()}  # Rule 9: higher energy pace
-        for line in (text or "ConferenceHype!\nConference energy all day.").splitlines()
+        for line in (text or "ConferenceHype!").splitlines()
         if line.strip()
     ]
     audio = apply_voice_mix(synthesize_lines(pipeline, voice, lines), voice)
