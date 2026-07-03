@@ -496,34 +496,29 @@ export function BroadcastRundown({
                     <h4 className="mt-2 text-sm font-black leading-5 text-ink">
                       {segment.title}
                     </h4>
-                    <p className="mt-1 text-xs font-semibold leading-5 text-ink/65">
-                      {segment.summary}
-                    </p>
-                    <details className="mt-2">
-                      <summary className="cursor-pointer text-[11px] font-black uppercase text-broadcast">
-                        Prepared text and sources
-                      </summary>
-                      <textarea
-                        value={drafts[segment.id] ?? segment.script}
-                        onChange={(event) =>
-                          setDrafts((current) => ({
-                            ...current,
-                            [segment.id]: event.target.value
-                          }))
-                        }
-                        className="mt-2 min-h-40 w-full border border-ink/10 bg-paper/70 p-2 text-xs font-semibold leading-5 text-ink/75"
-                      />
-                      {segment.citations.length ? (
-                        <ul className="mt-2 grid gap-1 text-[11px] font-semibold leading-4 text-ink/60">
-                          {segment.citations.map((citation) => (
-                            <li key={`${segment.id}-${citation.label}`}>
-                              {citation.label}
-                              {citation.url ? ` - ${citation.url}` : ""}
-                            </li>
-                          ))}
-                        </ul>
-                      ) : null}
-                    </details>
+                    <div className="mt-2 text-[11px] font-black uppercase text-broadcast">
+                      Prepared text and sources
+                    </div>
+                    <textarea
+                      value={drafts[segment.id] ?? segment.script}
+                      onChange={(event) =>
+                        setDrafts((current) => ({
+                          ...current,
+                          [segment.id]: event.target.value
+                        }))
+                      }
+                      className="mt-2 min-h-40 w-full border border-ink/10 bg-paper/70 p-2 text-xs font-semibold leading-5 text-ink/75"
+                    />
+                    {segment.citations.length ? (
+                      <ul className="mt-2 grid gap-1 text-[11px] font-semibold leading-4 text-ink/60">
+                        {segment.citations.map((citation) => (
+                          <li key={`${segment.id}-${citation.label}`}>
+                            {citation.label}
+                            {citation.url ? ` - ${citation.url}` : ""}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
                     <p className="mt-2 text-[11px] font-bold uppercase leading-4 text-ink/45">
                       Use Replace, drag into a slot, or Accept and schedule this hour before this card joins the presentation sequence.
                     </p>
@@ -650,19 +645,9 @@ export function BroadcastRundown({
                           <h4 className="text-sm font-black leading-5 text-ink">
                             {slot.segment?.title ?? slot.label}
                           </h4>
-                          <p className="mt-1 text-xs font-semibold leading-5 text-ink/65">
-                            {slot.segment?.summary || slot.segment?.script}
+                          <p className="mt-2 whitespace-pre-wrap border border-ink/10 bg-white/70 p-2 text-xs leading-5 text-ink/75">
+                            {slot.segment?.script || "No script on this card — flag for review."}
                           </p>
-                          {slot.segment?.script ? (
-                            <details className="mt-2">
-                              <summary className="cursor-pointer text-[11px] font-black uppercase text-broadcast">
-                                Full prepared text
-                              </summary>
-                              <p className="mt-2 whitespace-pre-wrap border border-ink/10 bg-white/70 p-2 text-xs leading-5 text-ink/75">
-                                {slot.segment.script}
-                              </p>
-                            </details>
-                          ) : null}
                         </div>
                         {slot.segment && !slot.segment.id.startsWith("virtual-") ? (
                           <button

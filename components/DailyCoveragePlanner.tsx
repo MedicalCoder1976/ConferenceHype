@@ -753,8 +753,8 @@ export function DailyCoveragePlanner({
                   </span>
                 </div>
                 <h4 className="text-sm font-black leading-5 text-ink">{segment.title}</h4>
-                <p className="text-xs font-semibold leading-5 text-ink/65">
-                  {segment.summary.length > 360 ? `${segment.summary.slice(0, 357)}...` : segment.summary}
+                <p className="whitespace-pre-wrap text-xs font-semibold leading-5 text-ink/65">
+                  {segment.script || "No script on this card — flag for review."}
                 </p>
                 <button
                   type="button"

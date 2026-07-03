@@ -183,8 +183,8 @@ export function AiredHistory({ segments }: { segments: Segment[] }) {
             <h3 className="mt-3 text-lg font-black leading-6 text-ink">
               {segment.title}
             </h3>
-            <p className="mt-2 text-sm font-semibold leading-6 text-ink/65">
-              {segment.summary || segment.script}
+            <p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-6 text-ink/65">
+              {segment.script || "No script on this card — flag for review."}
             </p>
           </article>
         ))}
