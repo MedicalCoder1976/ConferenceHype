@@ -8,8 +8,7 @@ import {
   getPendingSegmentsFromDb,
   getPreviousDayBatchItemsFromDb,
   saveGeneratedSegmentsToDb,
-  updateSegmentScheduleInDb,
-  createGeneralCoverageSlotInDb
+  updateSegmentScheduleInDb
 } from "@/lib/db";
 import { CONTENT_CARDS_PER_HOUR, scheduledContentAt } from "@/lib/broadcast/hourSchedule";
 import { validateSegmentForApproval } from "@/lib/generation/validator";
@@ -322,19 +321,11 @@ export async function POST(request: NextRequest) {
     const savedScheduledCount = existingScheduled.length + generatedScheduled.length;
     const savedOverflow = savedGenerated.slice(generatedScheduled.length);
 
-    // Provision an approved coverage slot so the cron auto-triggers at startsAt.
-    // Idempotent — safe to call even if admin clicks the button more than once.
-    let coverageSlotId: string | undefined;
-    try {
-      const slot = await createGeneralCoverageSlotInDb({
-        startsAt: body.startsAt,
-        conferenceId: body.conferenceIds[0]
-      });
-      coverageSlotId = slot.id;
-    } catch {
-      // Non-fatal: segments are saved; admin can create the slot manually if needed
-    }
-
+    // This route only queues cards into the presentation sequence. It does
+    // NOT provision a coverage slot — that's a separate, explicit step (see
+    // /api/admin/coverage-slots/create-broadcast) so an operator can review
+    // the queued cards before committing to actually building and airing
+    // the broadcast.
     return NextResponse.json({
       ok: true,
       count: readyCandidates.length + savedOldReadyCopies.length,
@@ -344,7 +335,6 @@ export async function POST(request: NextRequest) {
       generatedCount: savedGenerated.length,
       rebroadcastReadyCount: savedOldReadyCopies.length,
       sourceMode,
-      coverageSlotId,
       segments: [...savedOverflow, ...savedOldReadyCopies],
       scheduledSegments: [
         ...movedExisting.filter((segment): segment is Segment => Boolean(segment)),

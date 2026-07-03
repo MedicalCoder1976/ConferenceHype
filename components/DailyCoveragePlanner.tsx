@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarCheck, ExternalLink, Plus, Save, Send, X } from "lucide-react";
+import { CalendarCheck, ExternalLink, Plus, Radio, Save, Send, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
@@ -137,6 +137,11 @@ export function DailyCoveragePlanner({
   const [pendingItemId, setPendingItemId] = useState("");
   const [pendingReadyId, setPendingReadyId] = useState("");
   const [pendingBatch, setPendingBatch] = useState(false);
+  const [pendingBroadcast, setPendingBroadcast] = useState(false);
+  const [broadcastStatus, setBroadcastStatus] = useState<BatchStatus>({
+    state: "idle",
+    text: ""
+  });
   const [pending, startTransition] = useTransition();
   const [customLabel, setCustomLabel] = useState("");
   const [customUrl, setCustomUrl] = useState("");
@@ -301,10 +306,9 @@ export function DailyCoveragePlanner({
             Array.isArray(payload.errors) ? payload.errors.join(" ") : (payload.error ?? "Could not schedule card.")
           );
         }
-        const slotNote = payload.coverageSlotId
-          ? " Broadcast slot provisioned — stream fires automatically."
-          : "";
-        setMessage(`"${title}" added to the presentation sequence.${slotNote}`);
+        setMessage(
+          `"${title}" added to the presentation sequence. Use "Create broadcast" when ready to air this hour.`
+        );
         router.refresh();
         window.setTimeout(revealPresentationSequence, 150);
       } catch (error) {
@@ -376,9 +380,7 @@ export function DailyCoveragePlanner({
               .filter(Boolean)
               .slice(0, 4)
           : [];
-        const slotNote = batchPayload.coverageSlotId
-          ? " Broadcast slot provisioned — the stream will start automatically at the selected hour."
-          : " No broadcast slot could be created; manually trigger the stream workflow when ready.";
+        const slotNote = " Cards are queued only — use \"Create broadcast\" when ready to air them.";
         const sourceModeText =
             batchPayload.sourceMode === "weekly_ready_pool"
               ? `Batch complete with ${batchPayload.reusedCount ?? 0} unused weekly ready cards first. ${batchPayload.scheduledCount ?? 0} cards moved into the selected hour; overflow remains in Brand New Ready Cards.`
@@ -396,7 +398,7 @@ export function DailyCoveragePlanner({
           overflowCount: batchPayload.overflowCount
         });
         setMessage(
-          `${batchPayload.scheduledCount ?? 0} cards scheduled into the selected one-hour slot. ${batchPayload.coverageSlotId ? "Broadcast slot provisioned — stream fires automatically." : "Create broadcast slot manually."} ${batchPayload.overflowCount ?? 0} remaining cards are in Brand New Ready Cards.`
+          `${batchPayload.scheduledCount ?? 0} cards queued into the selected one-hour presentation sequence. ${batchPayload.overflowCount ?? 0} remaining cards are in Brand New Ready Cards. Use "Create broadcast" when ready to air this hour.`
         );
         router.refresh();
         window.setTimeout(revealPresentationSequence, 150);
@@ -414,6 +416,39 @@ export function DailyCoveragePlanner({
     });
   };
 
+  const createBroadcastSlot = () => {
+    setMessage("");
+    setPendingBroadcast(true);
+    setBroadcastStatus({ state: "creating", text: "Provisioning the broadcast slot for the selected hour." });
+    startTransition(async () => {
+      try {
+        const response = await fetch("/api/admin/coverage-slots/create-broadcast", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            startsAt: selectedStartsAt,
+            conferenceId: plan.conferenceIds[0]
+          })
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) {
+          throw new Error(errorMessage(payload.error, "Could not create the broadcast slot."));
+        }
+        setBroadcastStatus({
+          state: "done",
+          text: "Broadcast slot provisioned — the stream will build and go live automatically at the selected hour."
+        });
+        setMessage("Broadcast slot provisioned — the stream will build and go live automatically at the selected hour.");
+        router.refresh();
+      } catch (error) {
+        const text = errorMessage(error, "Could not create the broadcast slot.");
+        setBroadcastStatus({ state: "error", text });
+        setMessage(text);
+      } finally {
+        setPendingBroadcast(false);
+      }
+    });
+  };
 
   const save = () => {
     setMessage("");
@@ -508,7 +543,36 @@ export function DailyCoveragePlanner({
             <Send className="h-4 w-4" />
             {pendingBatch ? "Creating batch" : "Create one-hour batch cards"}
           </button>
+          <button
+            type="button"
+            disabled={pending || pendingBroadcast}
+            onClick={createBroadcastSlot}
+            className="inline-flex min-h-11 items-center justify-center gap-2 bg-broadcast px-4 text-xs font-black uppercase text-white disabled:opacity-50"
+          >
+            <Radio className="h-4 w-4" />
+            {pendingBroadcast ? "Creating broadcast" : "Create broadcast"}
+          </button>
         </div>
+        {broadcastStatus.state !== "idle" ? (
+          <div
+            className={`mt-3 border p-3 text-sm font-bold ${
+              broadcastStatus.state === "error"
+                ? "border-red-400/50 bg-red-50 text-red-800"
+                : broadcastStatus.state === "done"
+                  ? "border-cyanline/40 bg-cyanline/10 text-ink"
+                  : "border-gold/50 bg-gold/10 text-ink"
+            }`}
+            aria-live="polite"
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="bg-ink px-2 py-1 text-[11px] font-black uppercase text-white">
+                Broadcast status
+              </span>
+              <span className="text-xs font-black uppercase">{broadcastStatus.state}</span>
+            </div>
+            <p className="mt-2 leading-6">{broadcastStatus.text}</p>
+          </div>
+        ) : null}
         {batchStatus.state !== "idle" ? (
           <div
             className={`mt-3 border p-3 text-sm font-bold ${

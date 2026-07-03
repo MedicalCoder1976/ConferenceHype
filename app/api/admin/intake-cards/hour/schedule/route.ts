@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { assertAdminRequest } from "@/lib/auth";
-import { getSegmentByIdFromDb, saveGeneratedSegmentsToDb, createGeneralCoverageSlotInDb } from "@/lib/db";
+import { getSegmentByIdFromDb, saveGeneratedSegmentsToDb } from "@/lib/db";
 import { CONTENT_CARDS_PER_HOUR, scheduledContentAt } from "@/lib/broadcast/hourSchedule";
 import { validateSegmentForApproval } from "@/lib/generation/validator";
 import { makeScheduledCopy } from "@/lib/reusableSegments";
@@ -55,20 +55,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Provision an approved coverage slot so the cron auto-triggers at startsAt.
-    // Idempotent — safe to call even if admin clicks the button more than once.
-    let coverageSlotId: string | undefined;
-    try {
-      const slot = await createGeneralCoverageSlotInDb({ startsAt: body.startsAt });
-      coverageSlotId = slot.id;
-    } catch {
-      // Non-fatal: segments are saved; admin can create the slot manually if needed
-    }
-
+    // This route only queues the card into the presentation sequence. It does
+    // NOT provision a coverage slot — use /api/admin/coverage-slots/create-broadcast
+    // as a separate, explicit step when ready to actually build and air the hour.
     return NextResponse.json({
       ok: true,
       count: saved.length,
-      coverageSlotId,
       segments: saved
     });
   } catch (error) {
