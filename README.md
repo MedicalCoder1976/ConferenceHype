@@ -12,7 +12,8 @@ to YouTube, and exposes the same broadcast on `conferencehype.com`.
 2. Scheduled ingestion and generation create source-attributed review cards.
 3. The operator edits, orders, approves, rejects, or atomically replaces cards.
 4. In Daily coverage decisions, **Create one-hour batch cards** drafts and
-   schedules cards for the selected hour. As soon as scheduling succeeds, the
+   schedules cards into the presentation sequence for the selected hour only —
+   it does **not** provision a broadcast. As soon as scheduling succeeds, the
    admin view jumps to **Presentation sequence** so the operator can see the
    approved scheduled cards immediately. This reuses unused weekly ready
    cards first, before generating anything new — reuse priority is: this
@@ -20,20 +21,38 @@ to YouTube, and exposes the same broadcast on `conferencehype.com`.
    articles" announcement card, then any leftover card from a past week
    last (a stale past-week announcement must never outrank this week's real
    content just because it was created earlier).
-5. **Start selected hour** dispatches the YouTube workflow from the admin
-   rundown preview start time. The plan/preview buttons do not start or confirm
-   a broadcast.
-6. With OAuth configured, each run creates and binds a fresh YouTube broadcast.
-7. Before public handoff, the workflow enables embedding and tests the exact
+
+   This endpoint is **not idempotent per hour**: calling it again for an hour
+   that already has scheduled cards re-picks all 24 slots from scratch and
+   will collide with what's already there (multiple cards landing on the same
+   slot time). To move a batch to a different hour, first revert its existing
+   segments back to `pending_review` (clear `approved_at`) before creating
+   the new hour's batch — see `POST /api/admin/coverage-slots/create-broadcast`
+   below for the matching slot-side cleanup.
+5. Once the presentation sequence looks right, **Create broadcast**
+   (`POST /api/admin/coverage-slots/create-broadcast`) provisions the approved
+   `conference_coverage_slots` row for that hour. This is a deliberately
+   separate, explicit step from card creation, so an operator can review the
+   queued cards before committing to actually building and airing the hour.
+6. The production cron (`.github/workflows/youtube-stream.yml`, every 15
+   minutes, with a 30-minutes-back/90-minutes-forward lookback window)
+   discovers any approved slot with `youtube_status: not_scheduled` and runs
+   the full render/publish pipeline automatically — nothing further needs to
+   be clicked. Alternatively, **Start selected hour** dispatches the same
+   YouTube workflow immediately instead of waiting for the cron to discover
+   it; the plan/preview buttons never start or confirm a broadcast on their
+   own.
+7. With OAuth configured, each run creates and binds a fresh YouTube broadcast.
+8. Before public handoff, the workflow enables embedding and tests the exact
    ConferenceHype embed request.
-8. The program is rendered and validated for both video and audio.
-9. Supabase `stream_state` receives the current YouTube ID, URL, and delivery
-   status. The public site reads this state dynamically.
-10. FFmpeg publishes the rendered MP4 to the bound YouTube RTMP endpoint.
-11. While FFmpeg is still running, the workflow loops until it verifies the
+9. The program is rendered and validated for both video and audio.
+10. Supabase `stream_state` receives the current YouTube ID, URL, and delivery
+    status. The public site reads this state dynamically.
+11. FFmpeg publishes the rendered MP4 to the bound YouTube RTMP endpoint.
+12. While FFmpeg is still running, the workflow loops until it verifies the
     rendered video, YouTube live state, Supabase public stream state, and
     `conferencehype.com` all point to the same video ID.
-12. After FFmpeg finishes, the workflow loops again until the saved YouTube
+13. After FFmpeg finishes, the workflow loops again until the saved YouTube
     video/archive remains available, the public stream state and saved writeout
     still match the same YouTube video ID, and the final public status is
     `completed`.
