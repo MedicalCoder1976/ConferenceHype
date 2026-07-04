@@ -150,7 +150,16 @@ embedder.
   abstract (one that actually contains a Methods- or Results-style section),
   the voiced narration itself must explicitly say Background, Methods,
   Results, and Discussion. Voice framing and word trimming must not remove
-  any of the four section labels.
+  any of the four section labels — but preserving the labels must never mean
+  compacting the actual content down to a token summary. The full narrative
+  is read as-is whenever it already fits the segment's word budget (the
+  normal case); the four-section split only kicks in, with each section
+  getting a fair share of the real budget, when the narrative genuinely
+  exceeds it. An earlier version of this logic compacted every structured
+  card to a fixed ~13 words per section regardless of budget, which is what
+  "just intros of the voices and generic music" on the public site turned
+  out to mean — nearly every real journal card was being read as a ~50-word
+  summary instead of its actual content.
 - Narrative reviews, editorials, and commentaries have no real Methods or
   Results to extract. Do not force the four-section template onto these —
   that fabricates a "Results"/"Discussion" label over an arbitrary sentence
