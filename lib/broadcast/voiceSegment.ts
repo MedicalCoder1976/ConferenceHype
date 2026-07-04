@@ -50,14 +50,29 @@ function hasFourSectionNarrative(value: string) {
   );
 }
 
-function compactFourSectionNarrative(value: string) {
+// Only compacts when the full narrative genuinely exceeds the word budget --
+// this used to compact unconditionally to a fixed 13 words/section (from
+// before the 2026-06-26 substantive-narration spec), which reduced every
+// structured Background/Methods/Results/Discussion card -- i.e. nearly every
+// real journal card -- down to a ~50-word summary regardless of the 800-word
+// budget, leaving most of the card's slot silent/music instead of the
+// genuine narrated coverage the spec calls for. The guarantee this exists to
+// preserve (word-trimming must never silently drop a section label) still
+// holds: when trimming is actually needed, each section gets a fair share of
+// the real budget instead of naive truncation that could cut off before
+// "Discussion" is ever reached.
+function compactFourSectionNarrative(value: string, maxWords: number) {
+  if (wordCount(value) <= maxWords) {
+    return value.trim();
+  }
+  const perSectionBudget = Math.max(20, Math.floor(maxWords / 4));
   return [
     ["Background", sectionText(value, "Background")],
     ["Methods", sectionText(value, "Methods")],
     ["Results", sectionText(value, "Results")],
     ["Discussion", sectionText(value, "Discussion")]
   ]
-    .map(([label, text]) => `${label}: ${compactWords(text || "not specified in the available abstract", 13)}`)
+    .map(([label, text]) => `${label}: ${compactWords(text || "not specified in the available abstract", perSectionBudget)}`)
     .join(" ");
 }
 
@@ -144,7 +159,7 @@ export function formatVoiceSegment({
         `Our segment will focus on ${cleanTopic(topic)}.`;
   const narrativeBudget = Math.max(1, maxWords - wordCount(opening) - wordCount(closing));
   const trimmedBody = structuredReview
-    ? compactFourSectionNarrative(cleanNarrative)
+    ? compactFourSectionNarrative(cleanNarrative, narrativeBudget)
     : trimToWords(cleanNarrative, narrativeBudget);
 
   return `${opening} ${trimmedBody} ${closing}`.replace(/\s+/g, " ").trim();
