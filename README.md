@@ -48,7 +48,13 @@ to YouTube, and exposes the same broadcast on `conferencehype.com`.
 9. The program is rendered and validated for both video and audio.
 10. Supabase `stream_state` receives the current YouTube ID, URL, and delivery
     status. The public site reads this state dynamically.
-11. FFmpeg publishes the rendered MP4 to the bound YouTube RTMP endpoint.
+11. FFmpeg publishes the rendered MP4 to the bound YouTube RTMP endpoint —
+    `scripts/youtube-hour-presentation-stream.ts` restreams that video's own
+    video and audio tracks directly (the hype-line bars are already baked
+    into the render, from `render-hour-broadcast.ts`); it does not build a
+    separate visual for the live stream. (Fixed 2026-07-04: it previously
+    streamed a blank canvas with the bars overlaid on top instead of the
+    real rendered video, so only the audio was ever correct on air.)
 12. While FFmpeg is still running, the workflow loops until it verifies the
     rendered video, YouTube live state, Supabase public stream state, and
     `conferencehype.com` all point to the same video ID.
@@ -181,7 +187,7 @@ embedder.
   60 minutes, remove trailing card material as whole cards from the end until
   the program fits. If the remaining content is shorter than 60 minutes, fill
   the gap with music so the final render stays within the hour.
-- Narration style: pronounce `ASCO` as `ASKho`/`Ask-ho`, never as the individual letters A-S-C-O. Pronounce `Ib` and `1b` as `one B`.
+- Narration style: pronounce `ASCO` as `ASKho`/`Ask-ho`, never as the individual letters A-S-C-O. Pronounce `Ib` and `1b` as `one B`. Pronounce `ECOG` as a word (`EE-kog`), not individual letters. Expand `PR` to "partial response", `CR` to "complete response", `pCR` to "pathologic complete response", and `WHO` to "World Health Organization" when spoken. Spell `NCI` out as individual letters ("N-C-I").
 - Transition audio rotates through six 20-second tracks:
   four licensed voiced stingers in `public/music/gap-clips` and two generated
   preview tracks in `public/music`.
