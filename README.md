@@ -152,6 +152,20 @@ embedder.
   guess. NCBI E-utils calls must stay throttled to roughly 3 requests/second
   with a retry on `429`; a rate-limited response is not the same as "no record
   found" and must not be treated as one.
+- The NCBI throttle (`ncbiFetch` in `lib/sources/pubmed.ts`) must genuinely
+  serialize calls, not just gate on a shared last-call timestamp. A
+  timestamp-check-then-set is not atomic across concurrent async calls —
+  every caller that starts before the first one finishes reads the same
+  stale timestamp and computes the same wait, so they still fire in a burst.
+  `POST /api/admin/intake-cards/hour` enriches every matched item via
+  `Promise.all`, so this isn't a theoretical race: confirmed empirically on
+  2026-07-04 that a batch of 30 items enriched 16/30 successfully one at a
+  time but 0/30 through `Promise.all`, because the burst got rate-limited by
+  NCBI and returned the exact "422: No selected items could be turned into
+  PubMed-backed journal cards" admin error. Fixed by chaining every call
+  through a single queue promise so concurrent callers genuinely wait their
+  turn. If this error recurs, suspect the throttle regressing back to a
+  timestamp-only check before suspecting a real lack of PubMed coverage.
 - For abstract and journal cards backed by a structured clinical-trial
   abstract (one that actually contains a Methods- or Results-style section),
   the voiced narration itself must explicitly say Background, Methods,
@@ -191,10 +205,41 @@ embedder.
 - Transition audio rotates through six 20-second tracks:
   four licensed voiced stingers in `public/music/gap-clips` and two generated
   preview tracks in `public/music`.
+- Gap-clip stinger intros must never name a specific upcoming speaker,
+  persona, or content type (e.g. "Up next, Adam on the snarky social feed").
+  These 20-second clips rotate on their own index
+  (`scripts/render-hour-broadcast.ts`'s `GAP_CLIP_PATHS`/`gapClipPaths`
+  rotation), completely independent of which persona the card scheduler
+  (`lib/rundown/slots.ts`) actually picks next — nothing ties a clip's
+  position to a real card. The four licensed stingers previously promised
+  named "up next" speakers ("Fenrir", "Rebecca", "Adam", "AussieOnc") left
+  over from an earlier DJ-persona concept (`scripts/generate-kokoro-dj-voice.py`)
+  that was never wired into the actual broadcast; none of those names exist
+  in the current 17-persona roster (`lib/generation/personas.ts`), so the
+  promised segment never followed. Keep stinger intro text generic (matching
+  `formatTransitionCard()`'s copy) instead. This is a separate failure mode
+  from the "replace empty content cards with music" rule two bullets below —
+  that rule covers real dynamic cards with no script; this one covers a
+  static licensed audio asset whose baked-in spoken intro makes a promise the
+  scheduler can't keep. Fixed 2026-07-04; see `scripts/generate-licensed-gap-clips.ps1`.
 - Active scripts and data use general ConferenceHype branding. Retired
   conference-specific branding was removed from current content.
 - When a rendered MP4 is streamed, FFmpeg maps the MP4's own video and audio.
   It does not layer separate voice or music inputs over the finished program.
+- The synthetic gap-music bed (`scripts/generate-gap-music.ps1`, current
+  output `public/music/conferencehype-gap-music-6min-v5.mp3` +
+  `conferencehype-gap-music-20sec-preview-v3.mp3`) must never contain a layer
+  gated to fire on a sub-6-second periodic cycle (e.g. an ffmpeg `mod(t\,1)`
+  or `mod(t\,2)` volume/noise gate). A `[clap]` layer that gated a bandpassed
+  noise burst once every `mod(t\,1)` second was previously baked into every
+  version through v4 — because the bed loops continuously under the entire
+  hour (mixed in at all times, not just during gap-clip transitions), that
+  read on the live broadcast as a constant background buzz for the full hour,
+  not an occasional percussion hit. Removed entirely in v5/v3 (2026-07-04).
+  Kick/sub/bassline layers gated at `mod(t\,0.5)`/`mod(t\,2)` are fine — they
+  sit under 250 Hz and read as bass pulse, not buzz — but do not add a new
+  gated layer in the 900 Hz+ range without listening to a full-hour render
+  first.
 
 Keep purchase and license evidence for third-party tracks outside the
 repository. See `public/music/README.md`.

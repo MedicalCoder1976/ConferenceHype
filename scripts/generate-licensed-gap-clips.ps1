@@ -14,43 +14,35 @@ if (!(Test-Path $ffmpeg)) {
 $clips = @(
   @{
     Id = "elevate-fenrir"
-    Title = "Elevate into Fenrir"
+    Title = "Elevate into schedule desk"
     Source = "C:\Users\lijos\Downloads\Elevate.mp3"
     Output = "conferencehype-gap-elevate-to-fenrir-20s.mp3"
     Start = 0
     Voice = "am_fenrir"
-    NextSpeaker = "Fenrir"
-    NextRole = "schedule desk"
   },
   @{
     Id = "nightclub-rebecca"
-    Title = "Nightclub System Overload into Rebecca"
+    Title = "Nightclub System Overload into reporter desk"
     Source = "C:\Users\lijos\Downloads\Nightclub_System_Overload.mp3"
     Output = "conferencehype-gap-nightclub-to-rebecca-20s.mp3"
     Start = 0
     Voice = "af_bella"
-    NextSpeaker = "Rebecca"
-    NextRole = "high-hype reporter desk"
   },
   @{
     Id = "subterranean-adam"
-    Title = "Subterranean Pulse into Adam"
+    Title = "Subterranean Pulse into social feed"
     Source = "C:\Users\lijos\Downloads\Subterranean_Pulse.mp3"
     Output = "conferencehype-gap-subterranean-to-adam-20s.mp3"
     Start = 0
     Voice = "am_adam"
-    NextSpeaker = "Adam"
-    NextRole = "snarky social feed"
   },
   @{
     Id = "skyline-aussieonc"
-    Title = "Skyline Echo into AussieOnc"
+    Title = "Skyline Echo into global hype desk"
     Source = "C:\Users\lijos\Downloads\Skyline_Echo.mp3"
     Output = "conferencehype-gap-skyline-to-aussieonc-20s.mp3"
     Start = 0
     Voice = "bm_lewis"
-    NextSpeaker = "AussieOnc"
-    NextRole = "global hype desk"
   }
 )
 
@@ -59,7 +51,15 @@ foreach ($clip in $clips) {
   $musicClip = Join-Path $tmpDir "$($clip.Id)-music.wav"
   $intro = Join-Path $tmpDir "$($clip.Id)-intro.wav"
   $output = Join-Path $clipDir $clip.Output
-  $introText = "This is ConferenceHype. Up next, $($clip.NextSpeaker) on the $($clip.NextRole)."
+  # Rule 11 (2026-07-04): do not name a specific "up next" speaker/persona in
+  # this intro. These 20-second gap clips rotate independently of the actual
+  # card scheduler (lib/rundown/slots.ts) -- nothing ties a given clip's
+  # position to any particular persona actually playing next, so a named
+  # promise ("Up next, Adam on the snarky social feed") reads as a real
+  # segment that never shows up when that persona/content-type doesn't exist
+  # in the current 17-persona roster (see lib/generation/personas.ts). Keep
+  # the intro generic, matching formatTransitionCard()'s copy.
+  $introText = "This is ConferenceHype. Stay with us -- coverage continues."
 
   py -3.12 (Join-Path $root "scripts\generate-kokoro-dj-voice.py") `
     --mode stinger `
@@ -107,8 +107,6 @@ foreach ($clip in $clips) {
     id = $clip.Id
     title = $clip.Title
     sourceTrack = [IO.Path]::GetFileName($clip.Source)
-    nextSpeaker = $clip.NextSpeaker
-    nextRole = $clip.NextRole
     durationSeconds = 20
     audioPath = "/music/gap-clips/$($clip.Output)"
     introText = $introText
@@ -118,7 +116,7 @@ foreach ($clip in $clips) {
 $manifest = [ordered]@{
   generatedAt = (Get-Date).ToUniversalTime().ToString("o")
   licenseNote = "User supplied these as purchased techno tracks for ConferenceHype broadcast use. Keep proof of purchase outside the repo."
-  rotationRule = "Use one 20-second clip between approved broadcast segments, matching nextSpeaker when possible. Each clip includes a ConferenceHype channel intro to the next speaker."
+  rotationRule = "Use one 20-second clip between approved broadcast segments. The clip includes a generic ConferenceHype channel intro -- it must not name a specific upcoming speaker or persona, since gap-clip rotation is independent of the card scheduler and cannot guarantee who plays next."
   clips = $manifestItems
 }
 
@@ -128,7 +126,7 @@ $manifest | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $manifestPath -En
 $playlistPath = Join-Path $clipDir "broadcast-gap-rotation.m3u"
 $playlistLines = @("#EXTM3U")
 foreach ($item in $manifestItems) {
-  $playlistLines += "#EXTINF:20,$($item.title) - next: $($item.nextSpeaker)"
+  $playlistLines += "#EXTINF:20,$($item.title)"
   $playlistLines += $item.audioPath
 }
 $playlistLines | Set-Content -LiteralPath $playlistPath -Encoding UTF8

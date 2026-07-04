@@ -16,7 +16,7 @@ loadEnvConfig(process.cwd());
 const ffmpeg = process.env.FFMPEG_PATH ?? ffmpegPath ?? "ffmpeg";
 const videoPath = process.env.STREAM_VIDEO_PATH;
 const musicPath =
-  process.env.STREAM_MUSIC_PATH ?? "public/music/conferencehype-gap-music-6min-v4.mp3";
+  process.env.STREAM_MUSIC_PATH ?? "public/music/conferencehype-gap-music-6min-v5.mp3";
 const voicePath = process.env.STREAM_VOICE_PATH;
 const durationSeconds = process.env.STREAM_DURATION_SECONDS ?? "3600";
 const coverageSlotId = process.env.COVERAGE_SLOT_ID;

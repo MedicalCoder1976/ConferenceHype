@@ -29,3 +29,11 @@ Recommended workflow:
   chirpy pulse layer.
 - `conferencehype-gap-music-6min-v3.mp3`: louder version of the smoother gap
   bed with the base music raised while keeping the stingers controlled.
+- `conferencehype-gap-music-6min-v4.mp3`: added a `[clap]` layer gated to fire
+  once every `mod(t,1)` second. Since this bed loops under the entire hour
+  (not just gap transitions), that gate read as a constant background buzz
+  for the whole broadcast. Superseded — do not use.
+- `conferencehype-gap-music-6min-v5.mp3` / `conferencehype-gap-music-20sec-preview-v3.mp3`
+  (current, 2026-07-04): the `[clap]` layer removed entirely. See the
+  "Broadcast Presentation" section of the top-level `README.md` for the rule
+  against reintroducing a sub-6-second periodic gate in this filter graph.

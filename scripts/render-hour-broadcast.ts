@@ -21,7 +21,7 @@ const outputPath =
   process.env.HOUR_BROADCAST_OUTPUT ?? "public/rendered/conferencehype-hour-broadcast.mp4";
 const musicPath =
   process.env.HOUR_BROADCAST_MUSIC ??
-  "public/music/conferencehype-gap-music-6min-v4.mp3";
+  "public/music/conferencehype-gap-music-6min-v5.mp3";
 const voicePath = process.env.HOUR_BROADCAST_VOICE;
 
 loadEnvConfig(process.cwd());
@@ -51,8 +51,8 @@ const GAP_CLIP_PATHS = [
   "public/music/gap-clips/conferencehype-gap-nightclub-to-rebecca-20s.mp3",
   "public/music/gap-clips/conferencehype-gap-subterranean-to-adam-20s.mp3",
   "public/music/gap-clips/conferencehype-gap-skyline-to-aussieonc-20s.mp3",
-  "public/music/conferencehype-gap-music-20sec-preview-v1.mp3",
-  "public/music/conferencehype-gap-music-20sec-preview-v2.mp3"
+  "public/music/conferencehype-gap-music-20sec-preview-v3.mp3",
+  "public/music/conferencehype-gap-music-20sec-preview-v3.mp3"
 ];
 
 function run(command: string, args: string[]) {
@@ -433,8 +433,8 @@ async function buildCards(): Promise<Card[]> {
     "public/music/gap-clips/conferencehype-gap-nightclub-to-rebecca-20s.mp3",
     "public/music/gap-clips/conferencehype-gap-subterranean-to-adam-20s.mp3",
     "public/music/gap-clips/conferencehype-gap-skyline-to-aussieonc-20s.mp3",
-    "public/music/conferencehype-gap-music-20sec-preview-v1.mp3",
-    "public/music/conferencehype-gap-music-20sec-preview-v2.mp3"
+    "public/music/conferencehype-gap-music-20sec-preview-v3.mp3",
+    "public/music/conferencehype-gap-music-20sec-preview-v3.mp3"
   ];
   let musicIndex = 0;
   return slots.map((slot) => {
@@ -530,8 +530,8 @@ async function buildBlockCards(): Promise<Card[]> {
     "public/music/gap-clips/conferencehype-gap-nightclub-to-rebecca-20s.mp3",
     "public/music/gap-clips/conferencehype-gap-subterranean-to-adam-20s.mp3",
     "public/music/gap-clips/conferencehype-gap-skyline-to-aussieonc-20s.mp3",
-    "public/music/conferencehype-gap-music-20sec-preview-v1.mp3",
-    "public/music/conferencehype-gap-music-20sec-preview-v2.mp3"
+    "public/music/conferencehype-gap-music-20sec-preview-v3.mp3",
+    "public/music/conferencehype-gap-music-20sec-preview-v3.mp3"
   ];
   let musicIndex = 0;
 

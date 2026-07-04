@@ -40,10 +40,36 @@ function clean(value: string) {
 // needs 1-3 calls), and a 429 was previously indistinguishable from "no
 // PubMed record" -- silently dropping real, available abstracts. Serialize
 // every call through this minimum gap and retry once after a 429.
+//
+// The gap alone is not enough when callers overlap: intake-cards/hour
+// enriches every matched item via `Promise.all`, so a whole batch of items
+// call ncbiFetch at once. A naive "read last-call timestamp, compute wait,
+// then set timestamp" check is not atomic across concurrent async calls --
+// every concurrent invocation reads the same stale `ncbiLastCallAt` before
+// any of them updates it, so they all compute the same wait and still fire
+// in a burst. That burst gets 429'd by NCBI almost in full (confirmed
+// empirically: 16/30 items enriched when run one at a time vs. 0/30 when run
+// through `Promise.all` like the real route does), which is exactly the
+// "429 mistaken for no PubMed record" failure this throttle exists to
+// prevent -- it just didn't hold up under concurrent load. Chaining every
+// call onto a single queue promise forces genuine one-at-a-time execution
+// regardless of how many callers start at once.
 let ncbiLastCallAt = 0;
 const NCBI_MIN_INTERVAL_MS = 350;
+let ncbiQueue: Promise<void> = Promise.resolve();
 
-async function ncbiFetch(url: URL): Promise<Response> {
+function ncbiFetch(url: URL): Promise<Response> {
+  const task = ncbiQueue.then(() => ncbiFetchSerialized(url));
+  // Keep the queue alive even if this call ends up rejecting/erroring --
+  // otherwise one failed request would wedge every call queued behind it.
+  ncbiQueue = task.then(
+    () => undefined,
+    () => undefined
+  );
+  return task;
+}
+
+async function ncbiFetchSerialized(url: URL): Promise<Response> {
   const wait = ncbiLastCallAt + NCBI_MIN_INTERVAL_MS - Date.now();
   if (wait > 0) {
     await new Promise((resolve) => setTimeout(resolve, wait));
