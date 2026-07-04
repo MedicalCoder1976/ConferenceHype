@@ -98,18 +98,30 @@ async function main() {
   const { getYoutubeRtmpTarget } = await import("@/lib/media/stream");
   const target = getYoutubeRtmpTarget();
 
-  const videoInputArgs = [
-    "-re",
-    "-f",
-    "lavfi",
-    "-i",
-    `color=c=${HYPE_LINE_BACKGROUND_COLOR}:s=${HYPE_LINE_FRAME_WIDTH}x${HYPE_LINE_FRAME_HEIGHT}:r=30`
-  ];
+  // When a pre-rendered video is supplied, it already has real card visuals
+  // and the hype-line bars baked in (see render-hour-broadcast.ts) -- restream
+  // its own video+audio directly. Only fall back to the blank-canvas +
+  // hype-line-bars composite when there is no rendered video at all (the
+  // music/voice-only path), since in that case there is no real video track
+  // to show.
+  const videoInputArgs = videoPath
+    ? []
+    : [
+        "-re",
+        "-f",
+        "lavfi",
+        "-i",
+        `color=c=${HYPE_LINE_BACKGROUND_COLOR}:s=${HYPE_LINE_FRAME_WIDTH}x${HYPE_LINE_FRAME_HEIGHT}:r=30`
+      ];
   const liveAudio = videoPath
     ? {
-        inputArgs: ["-stream_loop", "-1", "-i", videoPath],
+        // -re paces this input to real-time playback speed; previously that
+        // pacing came from the (now-removed) blank-canvas lavfi input, so it
+        // must live here instead or the stream reads/pushes the whole file
+        // as fast as disk I/O allows instead of at real-time.
+        inputArgs: ["-re", "-stream_loop", "-1", "-i", videoPath],
         audioFilter: undefined as string | undefined,
-        mapArgs: ["-map", "1:a:0"]
+        mapArgs: ["-map", "0:v:0", "-map", "0:a:0"]
       }
     : voicePath
       ? {
@@ -145,22 +157,25 @@ async function main() {
       };
 
   // Bars loop is appended as the last input so it doesn't shift the numeric
-  // audio input indices ("1:a:0" etc.) referenced above.
+  // audio input indices ("1:a:0" etc.) referenced above. Not needed at all
+  // when streaming a pre-rendered video, since the bars are already baked in.
   const hypeLineLoopInputIndex = 1 + liveAudio.inputArgs.filter((arg) => arg === "-i").length;
-  const hypeLineLoopInputArgs = ["-stream_loop", "-1", "-i", path.resolve(HYPE_LINE_LOOP_PATH)];
+  const hypeLineLoopInputArgs = videoPath
+    ? []
+    : ["-stream_loop", "-1", "-i", path.resolve(HYPE_LINE_LOOP_PATH)];
   const videoOverlayFilter = `[0:v][${hypeLineLoopInputIndex}:v]overlay=0:0[vout]`;
-  const filterComplex = liveAudio.audioFilter
-    ? `${liveAudio.audioFilter};${videoOverlayFilter}`
-    : videoOverlayFilter;
+  const filterComplex = videoPath
+    ? undefined
+    : liveAudio.audioFilter
+      ? `${liveAudio.audioFilter};${videoOverlayFilter}`
+      : videoOverlayFilter;
 
   const args = [
     ...videoInputArgs,
     ...liveAudio.inputArgs,
     ...hypeLineLoopInputArgs,
-    "-filter_complex",
-    filterComplex,
-    "-map",
-    "[vout]",
+    ...(filterComplex ? ["-filter_complex", filterComplex] : []),
+    ...(filterComplex ? ["-map", "[vout]"] : []),
     ...liveAudio.mapArgs,
     "-t",
     durationSeconds,

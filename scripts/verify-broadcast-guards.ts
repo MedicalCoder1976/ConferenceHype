@@ -63,6 +63,10 @@ const fourthFramed = formatVoiceSegment({
 assert.ok(fourthFramed.endsWith(SEGMENT_CLOSE));
 assert.doesNotMatch(framed, /interactive AI commentary only/i);
 assert.equal(applySpokenPronunciations("ASCO 2026 and Ib disease"), "Ask-ho 2026 and one B disease");
+assert.equal(
+  applySpokenPronunciations("ECOG PS 1, PR, CR, pCR, WHO, and NCI data"),
+  "EE-kog PS 1, partial response, complete response, pathologic complete response, World Health Organization, and N-C-I data"
+);
 // The ASCO-energy-all-day phrase must never reach air, no matter what filler
 // word the LLM tacks onto the end of it -- "long", "seems to creep in", or
 // any future variant. The strip must hit every speaker pipeline path: the

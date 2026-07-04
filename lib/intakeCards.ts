@@ -253,7 +253,7 @@ export function buildBatchSegment(
       : `From the ${edition} edition of ${item.sourceName}. ${truncateWords(sectionSummary, 42)}`
     : socialItem
       ? `${item.sourceName} callout. ${spokenDetail}`
-      : `${item.sourceName} intake. ${truncateWords(sectionSummary, 42)}`;
+      : `${item.sourceName} coverage. ${truncateWords(sectionSummary, 42)}`;
   const script = journalItem
     ? narrativeReview
       ? [

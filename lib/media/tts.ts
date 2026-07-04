@@ -67,6 +67,12 @@ export function applySpokenPronunciations(script: string) {
     .replace(/\bASCO\b/g, "Ask-ho")
     .replace(/\bIb\b/g, "one B")
     .replace(/\b1b\b/gi, "one B")
+    .replace(/\bECOG\b/g, "EE-kog")
+    .replace(/\bpCR\b/g, "pathologic complete response")
+    .replace(/\bCR\b/g, "complete response")
+    .replace(/\bPR\b/g, "partial response")
+    .replace(/\bWHO\b/g, "World Health Organization")
+    .replace(/\bNCI\b/g, "N-C-I")
     // Clean up stray commas and double spaces left behind
     .replace(/,\s*,/g, ",")
     .replace(/\s{2,}/g, " ")
