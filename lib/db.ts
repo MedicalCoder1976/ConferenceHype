@@ -1343,23 +1343,34 @@ export async function updateConferenceCoverageDeliveryInDb(
     streamStatePatch.youtube_url = patch.youtubeUrl ?? null;
   }
   // youtube-stream.yml runs intentionally overlap (next hour renders while
-  // the current hour streams), and a run's terminal report -- "failed" or
-  // "completed" -- only fires at the very end of its own lifecycle, after a
-  // 15-minute verification poll. If that run's hour overran, the next
-  // hour's run can already be live by the time this stale report arrives.
-  // Only let a terminal report touch the single shared stream_state row if
-  // it's still reporting on the video that row currently shows -- otherwise
-  // a slow old run would clobber a newer, currently-live broadcast.
+  // the current hour streams), and the cron's wide lookahead window can pick
+  // up a future hour's slot well before its scheduled start if the current
+  // hour's run overran -- that next-hour run reaches its own "Save YouTube
+  // video link" step (a non-terminal "queued" report, made before it's
+  // actually live) while the current hour is still genuinely live. Two
+  // situations must not clobber the single shared stream_state row:
+  // 1. A stale terminal report ("failed"/"completed") for a video that row
+  //    no longer shows -- some other run has already moved state forward.
+  // 2. ANY report -- terminal or not -- for a different video while the row
+  //    currently shows a broadcast that's actively "live". Only that other
+  //    video's own "live" report (the genuine handover moment) or the
+  //    currently-live broadcast's own terminal report may advance the row.
   const isTerminalReport = patch.youtubeStatus === "failed" || patch.youtubeStatus === "completed";
   let skipStreamStateWrite = false;
-  if (isTerminalReport && patch.youtubeVideoId) {
+  if (patch.youtubeVideoId) {
     const { data: currentState } = await supabase
       .from("stream_state")
-      .select("youtube_video_id")
+      .select("youtube_video_id, youtube_status")
       .eq("id", 1)
       .single();
-    if (currentState && currentState.youtube_video_id && currentState.youtube_video_id !== patch.youtubeVideoId) {
-      skipStreamStateWrite = true;
+    const currentVideoDiffers = Boolean(
+      currentState?.youtube_video_id && currentState.youtube_video_id !== patch.youtubeVideoId
+    );
+    if (currentVideoDiffers) {
+      const currentIsLive = currentState?.youtube_status === "live";
+      if (isTerminalReport || (currentIsLive && patch.youtubeStatus !== "live")) {
+        skipStreamStateWrite = true;
+      }
     }
   }
   if (!skipStreamStateWrite) {
