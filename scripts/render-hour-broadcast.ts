@@ -806,17 +806,19 @@ async function main() {
   const gapEntries: GapEntry[] = [];    // gap-clip stingers, one per music card
   let offsetMs = 0;
 
-  // Resolve every card to its cache path and collect the ones that need synthesis
-  type SynthTask = {
-    voice: string;
-    text: string;
-    wavPath: string;
-    cachePath: string;
-    startMs: number;
-    durationMs: number;
-  };
-  const tasks: SynthTask[] = [];
-  const alreadyCached: Array<{ cachePath: string; startMs: number; durationMs: number }> = [];
+  // Resolve every card to its cache path and collect the ones that need synthesis.
+  // Multiple distinct card slots can share an identical cacheKey -- most
+  // commonly the BROADCAST_DISCLAIMER card, which is the exact same text and
+  // persona every time it's inserted (every ~15 minutes, so 2-3x per hour).
+  // Those occurrences must be deduplicated for synthesis (no point asking
+  // Kokoro to render identical audio 3 times) but each occurrence still needs
+  // its OWN voiceEntry at its own startMs, since they land in different
+  // slots of the broadcast.
+  type SynthTask = { voice: string; text: string; wavPath: string; cachePath: string };
+  type Occurrence = { cacheKey: string; cachePath: string; startMs: number; durationMs: number };
+  const taskByCacheKey = new Map<string, SynthTask>();
+  const pendingOccurrences: Occurrence[] = [];
+  const alreadyCached: Occurrence[] = [];
 
   for (const card of cards) {
     // Rule 7: collect gap-clip start times for music cards
@@ -851,18 +853,15 @@ async function main() {
             .update(`${persona.voiceEnvKey}|${processedScript}`)
             .digest("hex");
           const cachePath = path.join(voiceCacheDir, `${cacheKey}.mp3`);
+          const durationMs = card.duration * 1000;
           if (existsSync(cachePath)) {
-            alreadyCached.push({ cachePath, startMs: offsetMs, durationMs: card.duration * 1000 });
+            alreadyCached.push({ cacheKey, cachePath, startMs: offsetMs, durationMs });
           } else {
-            const wavPath = path.join(voiceWavDir, `${cacheKey}.wav`);
-            tasks.push({
-              voice: voiceName,
-              text: processedScript,
-              wavPath,
-              cachePath,
-              startMs: offsetMs,
-              durationMs: card.duration * 1000
-            });
+            pendingOccurrences.push({ cacheKey, cachePath, startMs: offsetMs, durationMs });
+            if (!taskByCacheKey.has(cacheKey)) {
+              const wavPath = path.join(voiceWavDir, `${cacheKey}.wav`);
+              taskByCacheKey.set(cacheKey, { voice: voiceName, text: processedScript, wavPath, cachePath });
+            }
           }
         }
       }
@@ -870,7 +869,10 @@ async function main() {
     offsetMs += card.duration * 1000;
   }
 
-  // Add already-cached entries first (preserving time order below)
+  const tasks = [...taskByCacheKey.values()];
+
+  // Add already-cached entries first (preserving time order below) -- one
+  // voiceEntry per occurrence, even when several slots share a cachePath.
   for (const entry of alreadyCached) {
     voiceEntries.push({
       path: entry.cachePath,
@@ -912,19 +914,13 @@ async function main() {
       console.warn(`Kokoro batch TTS reported an error — salvaging any cards it did finish: ${err}`);
     }
 
-    // Convert each WAV to MP3 and add to cache + voice entries. Runs
-    // regardless of whether the batch call above succeeded, so a crash
-    // partway through still keeps the narration for every card synthesized
-    // before it.
+    // Convert each unique WAV to MP3 exactly once. Runs regardless of
+    // whether the batch call above succeeded, so a crash partway through
+    // still keeps the narration for every card synthesized before it.
     for (const task of tasks) {
       if (existsSync(task.wavPath)) {
         try {
           await run(ffmpeg, ["-y", "-i", task.wavPath, "-c:a", "libmp3lame", "-b:a", "128k", task.cachePath]);
-          voiceEntries.push({
-            path: task.cachePath,
-            startMs: task.startMs,
-            durationMs: task.durationMs
-          });
         } catch (convErr) {
           console.warn(`MP3 conversion failed for ${path.basename(task.wavPath)}: ${convErr}`);
         } finally {
@@ -933,6 +929,28 @@ async function main() {
       }
     }
     await rm(batchJsonPath, { force: true }).catch(() => {});
+
+    // Now fan each successfully-produced cachePath back out to every card
+    // slot that needed it, not just the first. Previously this pushed a
+    // voiceEntry inline in the loop above, keyed to one task per cachePath --
+    // when 2+ card slots shared an identical cacheKey (most commonly the
+    // BROADCAST_DISCLAIMER card, which repeats verbatim every ~15 minutes),
+    // only the first slot got a voiceEntry; the wav was deleted right after
+    // its conversion, so by the time the loop reached the next occurrence of
+    // that same cacheKey it found nothing to convert and silently produced no
+    // voiceEntry at all for that slot -- confirmed 2026-07-06 on a real
+    // broadcast where 2 of 3 disclaimer repeats within the hour played music
+    // with no narration. Every occurrence now gets its own voiceEntry at its
+    // own startMs as long as the shared mp3 exists on disk.
+    for (const occurrence of pendingOccurrences) {
+      if (existsSync(occurrence.cachePath)) {
+        voiceEntries.push({
+          path: occurrence.cachePath,
+          startMs: occurrence.startMs,
+          durationMs: occurrence.durationMs
+        });
+      }
+    }
   }
 
   // Sort voice entries by start time so adelay values are ordered
