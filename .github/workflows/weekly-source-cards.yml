@@ -6,11 +6,11 @@ on:
       cards_per_source:
         description: "Cards to pre-generate per enabled conference and news source"
         required: true
-        default: "2"
+        default: "8"
       journal_cards_per_source:
         description: "Richer per-journal card budget (still template-only, no LLM cost)"
         required: true
-        default: "12"
+        default: "16"
   schedule:
     # Low-cost weekly pre-generation of ready-card candidates for every enabled
     # conference, journal RSS feed, and clinical news/newspaper source.
@@ -35,8 +35,8 @@ jobs:
         continue-on-error: true
         run: npm run job:weekly-source-cards
         env:
-          WEEKLY_SOURCE_CARDS_PER_SOURCE: ${{ inputs.cards_per_source || '2' }}
-          WEEKLY_JOURNAL_CARDS_PER_SOURCE: ${{ inputs.journal_cards_per_source || '12' }}
+          WEEKLY_SOURCE_CARDS_PER_SOURCE: ${{ inputs.cards_per_source || '8' }}
+          WEEKLY_JOURNAL_CARDS_PER_SOURCE: ${{ inputs.journal_cards_per_source || '16' }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -55,8 +55,8 @@ jobs:
         if: ${{ steps.generate_weekly_cards.outcome == 'failure' || steps.verify_weekly_cards.outcome == 'failure' }}
         run: npm run job:weekly-source-cards
         env:
-          WEEKLY_SOURCE_CARDS_PER_SOURCE: ${{ inputs.cards_per_source || '2' }}
-          WEEKLY_JOURNAL_CARDS_PER_SOURCE: ${{ inputs.journal_cards_per_source || '12' }}
+          WEEKLY_SOURCE_CARDS_PER_SOURCE: ${{ inputs.cards_per_source || '8' }}
+          WEEKLY_JOURNAL_CARDS_PER_SOURCE: ${{ inputs.journal_cards_per_source || '16' }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

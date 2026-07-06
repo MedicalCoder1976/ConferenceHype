@@ -38,7 +38,11 @@ const bodySchema = z.object({
   sourceIds: z.array(z.string().trim().min(1).max(120)).max(200).default([]),
   priorityTopics: z.array(z.string().trim().min(2).max(180)).max(100).default([]),
   exclusions: z.array(z.string().trim().min(2).max(180)).max(100).default([]),
-  maxCards: z.number().int().min(1).max(180).default(120)
+  // Kept in sync with the DailyCoveragePlanner default: enrichment below runs
+  // one live, throttled PubMed lookup per candidate against this route's 60s
+  // maxDuration, so this default must stay low enough to avoid a mid-request
+  // function kill (see components/DailyCoveragePlanner.tsx maxCards comment).
+  maxCards: z.number().int().min(1).max(180).default(40)
 });
 
 type HourSourceMode =

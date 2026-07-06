@@ -363,7 +363,14 @@ export function DailyCoveragePlanner({
             sourceIds: savedPlan.sourceIds,
             priorityTopics,
             exclusions,
-            maxCards: 120
+            // Every non-cached candidate is enriched with a live, throttled
+            // (350ms-serialized) PubMed lookup before this route can respond,
+            // and the route is capped at maxDuration = 60s. 120 candidates
+            // routinely blew that budget, killing the function mid-request
+            // and returning Vercel's crash page instead of JSON. 40 leaves
+            // headroom for the 24/hour actually scheduled plus some overflow
+            // buffer without risking the timeout.
+            maxCards: 40
           })
         });
         const batchPayload = await batchResponse.json();
