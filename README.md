@@ -227,8 +227,8 @@ embedder.
 - When a rendered MP4 is streamed, FFmpeg maps the MP4's own video and audio.
   It does not layer separate voice or music inputs over the finished program.
 - The synthetic gap-music bed (`scripts/generate-gap-music.ps1`, current
-  output `public/music/conferencehype-gap-music-6min-v5.mp3` +
-  `conferencehype-gap-music-20sec-preview-v3.mp3`) must never contain a layer
+  output `public/music/conferencehype-gap-music-6min-v6.mp3` +
+  `conferencehype-gap-music-20sec-preview-v4.mp3`) must never contain a layer
   gated to fire on a sub-6-second periodic cycle (e.g. an ffmpeg `mod(t\,1)`
   or `mod(t\,2)` volume/noise gate). A `[clap]` layer that gated a bandpassed
   noise burst once every `mod(t\,1)` second was previously baked into every
@@ -240,6 +240,15 @@ embedder.
   sit under 250 Hz and read as bass pulse, not buzz — but do not add a new
   gated layer in the 900 Hz+ range without listening to a full-hour render
   first.
+- This bed must also stay purely instrumental. v1 through v5 baked in a
+  spoken "ConferenceHype!" Kokoro stinger (`am_adam`) every 90 seconds —
+  because the bed loops continuously under the entire hour, that surfaced on
+  the live broadcast as an unpredictable "ConferenceHype" voice bleeding
+  through under the narrator's own narration, not an occasional transition
+  moment. Removed entirely in v6/v4 (2026-07-06). The gap-clip stingers in
+  `public/music/gap-clips/*.mp3` already cover the spoken "up next" moment
+  and only mix in during actual music-transition slots — do not reintroduce
+  spoken word into this continuous bed.
 
 Keep purchase and license evidence for third-party tracks outside the
 repository. See `public/music/README.md`.

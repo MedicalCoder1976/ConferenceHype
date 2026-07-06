@@ -33,8 +33,19 @@ function expandRomanNumerals(text: string): string {
   return out;
 }
 
+// PubMed/NLM structured-abstract labels (Background, Methods, Results...)
+// arrive ALL CAPS straight from the source XML's `Label` attribute
+// (see abstractParts in lib/sources/pubmed.ts). Kokoro's G2P treats
+// unrecognized ALL-CAPS tokens as abbreviations and spells them out
+// letter-by-letter instead of reading them as words -- confirmed empirically
+// 2026-07-06 for "METHODS". Must run before the colon-to-comma rule below,
+// since these labels are always followed by a colon in the source text.
+const STRUCTURED_ABSTRACT_LABELS =
+  /\b(BACKGROUND|OBJECTIVES?|PURPOSE|IMPORTANCE|INTRODUCTION|METHODS?|DESIGN|SETTING|PARTICIPANTS|INTERVENTIONS?|RESULTS|FINDINGS|DISCUSSION|CONCLUSIONS?|LIMITATIONS|MEASURES|OUTCOMES?|PATIENTS|REGISTRATION)\b/g;
+
 export function applySpokenPronunciations(script: string) {
   return expandRomanNumerals(script)
+    .replace(STRUCTURED_ABSTRACT_LABELS, (word) => word.charAt(0) + word.slice(1).toLowerCase())
     // Rule 1: strip URLs — TTS would read out raw links character-by-character
     .replace(/https?:\/\/[^\s)\]}>]+/g, "")
     .replace(/\bwww\.\S+/g, "")

@@ -34,6 +34,16 @@ Recommended workflow:
   (not just gap transitions), that gate read as a constant background buzz
   for the whole broadcast. Superseded — do not use.
 - `conferencehype-gap-music-6min-v5.mp3` / `conferencehype-gap-music-20sec-preview-v3.mp3`
-  (current, 2026-07-04): the `[clap]` layer removed entirely. See the
+  (2026-07-04): the `[clap]` layer removed entirely. See the
   "Broadcast Presentation" section of the top-level `README.md` for the rule
   against reintroducing a sub-6-second periodic gate in this filter graph.
+  Superseded — do not use.
+- `conferencehype-gap-music-6min-v6.mp3` / `conferencehype-gap-music-20sec-preview-v4.mp3`
+  (current, 2026-07-06): removed the baked-in spoken "ConferenceHype!" Kokoro
+  stinger entirely. Because this bed loops continuously under the whole
+  broadcast hour (not just gap transitions), that stinger surfaced every ~90
+  seconds as an unpredictable "ConferenceHype" voice bleeding through under
+  the narrator's own narration. This bed must stay purely instrumental — the
+  gap-clip stingers in `public/music/gap-clips/*.mp3` already cover the
+  spoken "up next" moment, and only play during actual music-transition
+  slots. See `scripts/generate-gap-music.ps1`.

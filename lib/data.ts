@@ -194,14 +194,24 @@ function findMatchingWriteout({
 
 function currentWriteoutCard(cards: PublicBroadcastCard[], now = new Date()) {
   const timedCards = cards.filter((card) => card.startsAt && card.durationSeconds);
-  return (
-    timedCards.find((card) => {
-      const start = new Date(card.startsAt!).getTime();
-      const end = start + (card.durationSeconds ?? 0) * 1000;
-      return now.getTime() >= start && now.getTime() < end;
-    }) ??
-    cards[0]
-  );
+  const exactMatch = timedCards.find((card) => {
+    const start = new Date(card.startsAt!).getTime();
+    const end = start + (card.durationSeconds ?? 0) * 1000;
+    return now.getTime() >= start && now.getTime() < end;
+  });
+  if (exactMatch) {
+    return exactMatch;
+  }
+  // No card's window contains "now" exactly (a card ran slightly long, or
+  // "now" lands in a rounding gap between two cards). Falling straight back
+  // to cards[0] here made the publicly displayed "current topic" regularly
+  // jump back to the very first card of the hour instead of the most recent
+  // real one. Prefer the most recently started card; only show the first
+  // card if the hour genuinely has not started yet.
+  const mostRecentlyStarted = [...timedCards]
+    .filter((card) => new Date(card.startsAt!).getTime() <= now.getTime())
+    .sort((a, b) => new Date(b.startsAt!).getTime() - new Date(a.startsAt!).getTime())[0];
+  return mostRecentlyStarted ?? cards[0];
 }
 
 export async function getPublicBroadcastContext(): Promise<PublicBroadcastContext> {

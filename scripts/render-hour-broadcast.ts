@@ -21,7 +21,7 @@ const outputPath =
   process.env.HOUR_BROADCAST_OUTPUT ?? "public/rendered/conferencehype-hour-broadcast.mp4";
 const musicPath =
   process.env.HOUR_BROADCAST_MUSIC ??
-  "public/music/conferencehype-gap-music-6min-v5.mp3";
+  "public/music/conferencehype-gap-music-6min-v6.mp3";
 const voicePath = process.env.HOUR_BROADCAST_VOICE;
 
 loadEnvConfig(process.cwd());
@@ -51,8 +51,8 @@ const GAP_CLIP_PATHS = [
   "public/music/gap-clips/conferencehype-gap-nightclub-to-rebecca-20s.mp3",
   "public/music/gap-clips/conferencehype-gap-subterranean-to-adam-20s.mp3",
   "public/music/gap-clips/conferencehype-gap-skyline-to-aussieonc-20s.mp3",
-  "public/music/conferencehype-gap-music-20sec-preview-v3.mp3",
-  "public/music/conferencehype-gap-music-20sec-preview-v3.mp3"
+  "public/music/conferencehype-gap-music-20sec-preview-v4.mp3",
+  "public/music/conferencehype-gap-music-20sec-preview-v4.mp3"
 ];
 
 function run(command: string, args: string[]) {
@@ -433,8 +433,8 @@ async function buildCards(): Promise<Card[]> {
     "public/music/gap-clips/conferencehype-gap-nightclub-to-rebecca-20s.mp3",
     "public/music/gap-clips/conferencehype-gap-subterranean-to-adam-20s.mp3",
     "public/music/gap-clips/conferencehype-gap-skyline-to-aussieonc-20s.mp3",
-    "public/music/conferencehype-gap-music-20sec-preview-v3.mp3",
-    "public/music/conferencehype-gap-music-20sec-preview-v3.mp3"
+    "public/music/conferencehype-gap-music-20sec-preview-v4.mp3",
+    "public/music/conferencehype-gap-music-20sec-preview-v4.mp3"
   ];
   let musicIndex = 0;
   return slots.map((slot) => {
@@ -530,8 +530,8 @@ async function buildBlockCards(): Promise<Card[]> {
     "public/music/gap-clips/conferencehype-gap-nightclub-to-rebecca-20s.mp3",
     "public/music/gap-clips/conferencehype-gap-subterranean-to-adam-20s.mp3",
     "public/music/gap-clips/conferencehype-gap-skyline-to-aussieonc-20s.mp3",
-    "public/music/conferencehype-gap-music-20sec-preview-v3.mp3",
-    "public/music/conferencehype-gap-music-20sec-preview-v3.mp3"
+    "public/music/conferencehype-gap-music-20sec-preview-v4.mp3",
+    "public/music/conferencehype-gap-music-20sec-preview-v4.mp3"
   ];
   let musicIndex = 0;
 
@@ -884,29 +884,39 @@ async function main() {
     try {
       console.log(`Synthesizing ${tasks.length} uncached voice card(s) via Kokoro batch...`);
       await run(pyCmd, [...pyPrefix, pyScript, "--mode", "batch", "--batch-file", batchJsonPath]);
+    } catch (err) {
+      // The batch script now skips individual failed cards and keeps going
+      // (see synthesize_batch in generate-kokoro-dj-voice.py), so this only
+      // fires on a genuine process-level crash. Even then, do NOT bail out of
+      // the whole hour's narration here -- salvage whatever wav files were
+      // already written before the crash instead of discarding them. This
+      // used to catch-and-return here, which meant one bad card (or any
+      // transient failure) silenced every already-synthesized card too and
+      // fell back to a music-only broadcast for the entire hour.
+      console.warn(`Kokoro batch TTS reported an error — salvaging any cards it did finish: ${err}`);
+    }
 
-      // Convert each WAV to MP3 and add to cache + voice entries
-      for (const task of tasks) {
-        if (existsSync(task.wavPath)) {
-          try {
-            await run(ffmpeg, ["-y", "-i", task.wavPath, "-c:a", "libmp3lame", "-b:a", "128k", task.cachePath]);
-            voiceEntries.push({
-              path: task.cachePath,
-              startMs: task.startMs,
-              durationMs: task.durationMs
-            });
-          } catch (convErr) {
-            console.warn(`MP3 conversion failed for ${path.basename(task.wavPath)}: ${convErr}`);
-          } finally {
-            await rm(task.wavPath, { force: true }).catch(() => {});
-          }
+    // Convert each WAV to MP3 and add to cache + voice entries. Runs
+    // regardless of whether the batch call above succeeded, so a crash
+    // partway through still keeps the narration for every card synthesized
+    // before it.
+    for (const task of tasks) {
+      if (existsSync(task.wavPath)) {
+        try {
+          await run(ffmpeg, ["-y", "-i", task.wavPath, "-c:a", "libmp3lame", "-b:a", "128k", task.cachePath]);
+          voiceEntries.push({
+            path: task.cachePath,
+            startMs: task.startMs,
+            durationMs: task.durationMs
+          });
+        } catch (convErr) {
+          console.warn(`MP3 conversion failed for ${path.basename(task.wavPath)}: ${convErr}`);
+        } finally {
+          await rm(task.wavPath, { force: true }).catch(() => {});
         }
       }
-    } catch (err) {
-      console.warn(`Kokoro batch TTS failed — broadcast will be music-only: ${err}`);
-    } finally {
-      await rm(batchJsonPath, { force: true }).catch(() => {});
     }
+    await rm(batchJsonPath, { force: true }).catch(() => {});
   }
 
   // Sort voice entries by start time so adelay values are ordered
@@ -924,7 +934,13 @@ async function main() {
     const gapInputArgs = gapEntries.flatMap((e) => ["-i", e.path]);
     const filterParts: string[] = [`[1:a]volume=0.25[bed]`];
     voiceEntries.forEach((e, i) => {
-      const durationSeconds = Math.max(0.1, e.durationMs / 1000);
+      // card.duration (and so e.durationMs) is a word-count estimate of the
+      // spoken length, not the real Kokoro output length. atrim is only here
+      // to stop a voice track from bleeding into the next card's slot, not to
+      // guarantee the estimate is exact — a +3s safety margin means a card
+      // whose real narration runs slightly longer than estimated still gets
+      // its last words heard instead of hard-cut mid-sentence.
+      const durationSeconds = Math.max(0.1, e.durationMs / 1000) + 3;
       filterParts.push(
         `[${i + 2}:a]volume=0.85,atrim=0:${durationSeconds.toFixed(
           3

@@ -440,29 +440,45 @@ def synthesize_batch(batch_file: Path) -> None:
 
     pipeline = KPipeline(lang_code="a", repo_id="hexgrad/Kokoro-82M")
     total = len(items)
+    failed = 0
 
+    # One bad item (unsupported voice, a Kokoro G2P exception on unusual
+    # text, etc.) must not take down the whole hour's narration. This used to
+    # raise and let the whole batch process exit non-zero, which made the
+    # caller (render-hour-broadcast.ts) discard every already-synthesized
+    # item too and fall back to a music-only broadcast for the entire hour --
+    # confirmed 2026-07-06 as the cause of "most cards weren't narrated" /
+    # "the voice cuts to mute unpredictably". Skip the offending item instead
+    # and keep going so the rest of the hour still gets real narration.
     for index, item in enumerate(items):
-        voice = item["voice"]
-        if voice not in VOICE_MIX:
-            supported = ", ".join(VOICE_MIX.keys())
-            raise ValueError(f"Unsupported voice '{voice}'. Use one of: {supported}")
+        try:
+            voice = item["voice"]
+            if voice not in VOICE_MIX:
+                supported = ", ".join(VOICE_MIX.keys())
+                raise ValueError(f"Unsupported voice '{voice}'. Use one of: {supported}")
 
-        text = str(item["text"])
-        output = Path(item["output"])
-        speed = float(item.get("speed", 1.15))  # Rule 9: higher energy — 1.15× speaking pace
+            text = str(item["text"])
+            output = Path(item["output"])
+            speed = float(item.get("speed", 1.15))  # Rule 9: higher energy — 1.15× speaking pace
 
-        lines = [
-            {"speed": speed, "pause": 0.12, "text": line.strip()}
-            for line in text.splitlines()
-            if line.strip()
-        ]
-        if not lines:
-            lines = [{"speed": speed, "pause": 0.0, "text": text.strip()}]
+            lines = [
+                {"speed": speed, "pause": 0.12, "text": line.strip()}
+                for line in text.splitlines()
+                if line.strip()
+            ]
+            if not lines:
+                lines = [{"speed": speed, "pause": 0.0, "text": text.strip()}]
 
-        audio = apply_voice_mix(synthesize_lines(pipeline, voice, lines), voice)
-        output.parent.mkdir(parents=True, exist_ok=True)
-        sf.write(str(output), audio, SAMPLE_RATE)
-        print(f"[{index + 1}/{total}] {output.name} ({voice})")
+            audio = apply_voice_mix(synthesize_lines(pipeline, voice, lines), voice)
+            output.parent.mkdir(parents=True, exist_ok=True)
+            sf.write(str(output), audio, SAMPLE_RATE)
+            print(f"[{index + 1}/{total}] {output.name} ({voice})")
+        except Exception as error:  # noqa: BLE001 - intentionally broad, see comment above
+            failed += 1
+            print(f"[{index + 1}/{total}] FAILED ({error}) — skipping this card, continuing batch")
+
+    if failed:
+        print(f"Batch finished with {failed}/{total} card(s) failed to synthesize.")
 
 
 def main() -> None:
