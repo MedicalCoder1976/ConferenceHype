@@ -324,6 +324,14 @@ def synthesize_lines(pipeline: KPipeline, voice: str, lines: list[dict[str, obje
         if pause > 0:
             chunks.append(np.zeros(int(SAMPLE_RATE * pause), dtype=np.float32))
 
+    if not chunks:
+        # Kokoro doesn't raise on empty/whitespace-only text -- it just
+        # yields zero audio results per line, so every line above hit the
+        # `if not generated: continue` and chunks stayed empty. Raise here
+        # with a clear message instead of letting `np.concatenate([])` blow
+        # up below with an opaque "need at least one array to concatenate".
+        raise ValueError("no speakable audio produced (input text was empty or unspeakable)")
+
     return normalize(np.concatenate(chunks))
 
 

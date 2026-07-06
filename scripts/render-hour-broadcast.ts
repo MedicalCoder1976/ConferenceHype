@@ -832,22 +832,38 @@ async function main() {
       const voiceName = process.env[persona.voiceEnvKey];
       if (voiceName) {
         const processedScript = applySpokenPronunciations(card.script);
-        const cacheKey = createHash("sha256")
-          .update(`${persona.voiceEnvKey}|${processedScript}`)
-          .digest("hex");
-        const cachePath = path.join(voiceCacheDir, `${cacheKey}.mp3`);
-        if (existsSync(cachePath)) {
-          alreadyCached.push({ cachePath, startMs: offsetMs, durationMs: card.duration * 1000 });
+        // replaceEmptyContentCardsWithMusic already screened out cards whose
+        // RAW script is empty, but applySpokenPronunciations (stripping URLs,
+        // bracketed citations, and internal operator-language sentences) can
+        // still reduce a genuinely non-empty script down to "" -- e.g. a card
+        // whose entire content is a bare URL or a single internal-label
+        // sentence like "Source-only schedule confirmed for this session."
+        // Kokoro doesn't throw on empty text itself; it just returns zero
+        // audio chunks, and concatenating zero chunks downstream is what
+        // actually raised. Skip creating a synthesis task at all in that
+        // case rather than handing Kokoro text with nothing to say.
+        if (!processedScript.trim()) {
+          console.warn(
+            `Skipping voice synthesis for a card whose script became empty after pronunciation cleanup (persona ${persona.voiceEnvKey}).`
+          );
         } else {
-          const wavPath = path.join(voiceWavDir, `${cacheKey}.wav`);
-          tasks.push({
-            voice: voiceName,
-            text: processedScript,
-            wavPath,
-            cachePath,
-            startMs: offsetMs,
-            durationMs: card.duration * 1000
-          });
+          const cacheKey = createHash("sha256")
+            .update(`${persona.voiceEnvKey}|${processedScript}`)
+            .digest("hex");
+          const cachePath = path.join(voiceCacheDir, `${cacheKey}.mp3`);
+          if (existsSync(cachePath)) {
+            alreadyCached.push({ cachePath, startMs: offsetMs, durationMs: card.duration * 1000 });
+          } else {
+            const wavPath = path.join(voiceWavDir, `${cacheKey}.wav`);
+            tasks.push({
+              voice: voiceName,
+              text: processedScript,
+              wavPath,
+              cachePath,
+              startMs: offsetMs,
+              durationMs: card.duration * 1000
+            });
+          }
         }
       }
     }
