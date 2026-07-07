@@ -126,10 +126,10 @@ function cleanForbiddenBroadcastPhrases(value: string) {
     .trim();
 }
 
-function withAssignedVoice(
+export function withAssignedVoice(
   segment: Segment,
   persona: Persona,
-  slotIndex: number,
+  slotIndex: number | undefined,
   includeIntro: boolean,
   at: Date
 ): Segment {

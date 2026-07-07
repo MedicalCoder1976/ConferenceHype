@@ -12,8 +12,9 @@ import {
   formatVoiceSegment,
   stripBroadcastDisclaimer
 } from "@/lib/broadcast/voiceSegment";
+import { MUSIC_SECONDS } from "@/lib/broadcast/hourSchedule";
 import { defaultDisclaimer } from "@/lib/generation/disclaimers";
-import type { BroadcastWriteoutCard, ContentType, Segment } from "@/lib/types";
+import type { BroadcastWriteoutCard, ContentType, Persona, Segment } from "@/lib/types";
 
 const durationSeconds = Math.min(Number(process.env.HOUR_BROADCAST_SECONDS ?? 3600), 3600);
 const renderDir = process.env.HOUR_BROADCAST_DIR ?? "public/rendered/hour-broadcast";
@@ -247,6 +248,131 @@ function musicTransitionCard(duration: number, musicIndex: number): Card {
   };
 }
 
+// How far a music-only gap is allowed to stretch beyond a normal transition
+// before the leftover time gets redirected into a bonus content card instead.
+const MUSIC_GAP_CAP_SECONDS = 30;
+// Safety bound against a pathologically short card chaining an unbounded
+// number of inserts into a single gap.
+const MAX_BONUS_CARDS_PER_GAP = 2;
+
+function isUsableBonusCandidate(segment: Segment) {
+  const raw = segment.script || segment.summary || "";
+  if (!raw.trim()) {
+    return false;
+  }
+  return !hasMissingIntakeFailureLanguage(`${segment.title} ${raw}`);
+}
+
+// Real spoken card length routinely undershoots the nominal 135s slot (often
+// 45-90s), and expandContentDurations above dumps ALL of that leftover into
+// the single following music card -- compounding across an hour into long
+// music-only stretches. Cap each individual gap at MUSIC_SECONDS + a small
+// fixed amount and use whatever's reclaimed to insert real, already-approved
+// content instead, falling back to a longer (but still capped) music
+// stretch only once the leftover-candidate pool for this hour runs dry.
+// unusedApproved is the exact same already-vetted pool buildBroadcastSlots'
+// internal round-robin fallback draws from -- just the portion of it none of
+// the official 20 slots happened to consume. Consumed here in place so a
+// later gap in the same hour never reuses a candidate an earlier gap spent,
+// and a candidate that fails validation is discarded (not retried) so a
+// single bad candidate can never permanently block every later gap.
+async function fillLeftoverGapsWithBonusCards(
+  cards: Card[],
+  unusedApproved: Segment[],
+  applySpokenPronunciations: (script: string) => string,
+  getPersona: (personaId: string) => Persona
+): Promise<Card[]> {
+  const { withAssignedVoice } = await import("@/lib/rundown/slots");
+  const pool = [...unusedApproved];
+  const result: Card[] = [];
+  let musicIndex = 0;
+
+  for (let index = 0; index < cards.length; index += 1) {
+    const card = cards[index];
+    result.push(card);
+
+    if (card.isMusic) {
+      musicIndex += 1;
+      continue;
+    }
+
+    const musicCard = cards[index + 1];
+    if (!musicCard?.isMusic) {
+      continue;
+    }
+
+    // Consume the music card here (skip the loop's natural next iteration
+    // for it below) so we control exactly what gets inserted after it.
+    index += 1;
+    const cap = MUSIC_SECONDS + MUSIC_GAP_CAP_SECONDS;
+    // Bonus pairs draw from the FULL original gap, not from a pre-capped
+    // surplus above the cap -- a real bonus card + its own transition
+    // (typically 90-135s) is usually comparable in size to the whole gap
+    // being replaced, so reserving the cap up front left too little room
+    // for even one bonus pair to ever fit. Insert as many pairs as the gap
+    // can afford; whatever's left afterward (including a whole gap that
+    // couldn't fit even one pair) gets hard-capped -- any amount trimmed
+    // off here isn't lost, it flows into enforceOneHourFrame's existing
+    // end-of-hour padding, same as it already does for any other shortfall.
+    let remaining = musicCard.duration;
+    result.push(musicCard);
+    musicIndex += 1;
+
+    let bonusCount = 0;
+    while (remaining > cap && pool.length > 0 && bonusCount < MAX_BONUS_CARDS_PER_GAP) {
+      const candidate = pool[0];
+      if (!isUsableBonusCandidate(candidate)) {
+        pool.shift();
+        continue;
+      }
+      const persona = card.personaId ? getPersona(card.personaId) : undefined;
+      if (!persona) {
+        break;
+      }
+      const voiced = withAssignedVoice(candidate, persona, undefined, false, new Date());
+      const processedScript = applySpokenPronunciations(voiced.script);
+      if (!processedScript.trim()) {
+        pool.shift();
+        continue;
+      }
+      const bonusDuration = Math.ceil(wordCount(voiced.script) / 2) + 5;
+      const totalCost = bonusDuration + MUSIC_SECONDS;
+      if (totalCost > remaining) {
+        break;
+      }
+
+      pool.shift();
+      result.push({
+        duration: bonusDuration,
+        isMusic: false,
+        personaId: voiced.personaId,
+        personaName: voiced.personaName,
+        contentType: voiced.contentType,
+        title: voiced.title,
+        sourceLabel: voiced.citations[0]?.label,
+        sourceUrl: voiced.citations[0]?.url,
+        script: voiced.script,
+        riskFlags: voiced.riskFlags,
+        text: formatCard({
+          eyebrow: `${voiced.personaName ?? "ConferenceHype"} / ${cardTypeEyebrow(voiced)}`,
+          title: voiced.title,
+          body: voiced.script,
+          source: voiced.citations[0]?.url
+        })
+      });
+      result.push(musicTransitionCard(MUSIC_SECONDS, musicIndex));
+      musicIndex += 1;
+
+      remaining -= totalCost;
+      bonusCount += 1;
+    }
+
+    musicCard.duration = Math.min(remaining, cap);
+  }
+
+  return result;
+}
+
 function enforceOneHourFrame(cards: Card[], frameSeconds = 3600) {
   const framedCards = [...cards];
   let removedContentCards = 0;
@@ -343,7 +469,7 @@ function applyPresentationPolicy(cards: Card[]) {
   });
 }
 
-async function buildCards(): Promise<Card[]> {
+async function buildCards(): Promise<{ cards: Card[]; unusedApproved: Segment[] }> {
   const [
     { filterBroadcastReadySegments },
     {
@@ -437,7 +563,7 @@ async function buildCards(): Promise<Card[]> {
     "public/music/conferencehype-gap-music-20sec-preview-v4.mp3"
   ];
   let musicIndex = 0;
-  return slots.map((slot) => {
+  const cards = slots.map((slot) => {
     const isMusic = slot.kind === "music";
     return {
       duration: slot.durationSeconds,
@@ -461,6 +587,18 @@ async function buildCards(): Promise<Card[]> {
           })
     };
   });
+
+  // Segments approved for this render but never assigned to any of the
+  // official slots above (buildBroadcastSlots' internal round-robin fallback
+  // only draws as many as it needs) -- this is the exact same already-vetted
+  // pool, just the leftover portion of it. Used by fillLeftoverGapsWithBonusCards
+  // to insert real content into gaps instead of stretching music.
+  const usedIds = new Set(
+    slots.filter((slot) => slot.segment).map((slot) => slot.segment!.id)
+  );
+  const unusedApproved = renderSegments.filter((segment) => !usedIds.has(segment.id));
+
+  return { cards, unusedApproved };
 }
 
 // ---------------------------------------------------------------------------
@@ -751,16 +889,51 @@ async function saveBroadcastWriteout(cards: Card[]) {
 async function main() {
   const ffmpeg = process.env.FFMPEG_PATH ?? ffmpegPath ?? "ffmpeg";
   const useBlockMode = process.env.HOUR_BROADCAST_MODE === "blocks";
+  const { applySpokenPronunciations } = await import("@/lib/media/tts");
+  const { getPersona } = await import("@/lib/generation/personas");
+  const { cards: rawCards, unusedApproved } = useBlockMode
+    ? { cards: await buildBlockCards(), unusedApproved: [] as Segment[] }
+    : await buildCards();
   const cards = enforceOneHourFrame(
-    expandContentDurations(
-      replaceEmptyContentCardsWithMusic(
-        replaceMissingIntakeCardsWithMusic(
-          applyPresentationPolicy(useBlockMode ? await buildBlockCards() : await buildCards())
+    await fillLeftoverGapsWithBonusCards(
+      expandContentDurations(
+        replaceEmptyContentCardsWithMusic(
+          replaceMissingIntakeCardsWithMusic(applyPresentationPolicy(rawCards))
         )
-      )
+      ),
+      unusedApproved,
+      applySpokenPronunciations,
+      getPersona
     ),
     3600
   );
+
+  // Opt-in, no-op-by-default escape hatch for sanity-checking the full card
+  // pipeline (scheduling, duration expansion, bonus-gap-filling, hour
+  // framing) against real data without running ffmpeg or writing anything.
+  if (process.env.HOUR_BROADCAST_DRY_RUN === "1") {
+    console.log(
+      JSON.stringify(
+        {
+          dryRun: true,
+          totalSeconds: totalCardSeconds(cards),
+          contentCards: cards.filter((card) => !card.isMusic).length,
+          musicCards: cards.filter((card) => card.isMusic).length,
+          unusedApprovedAvailable: unusedApproved.length,
+          cards: cards.map((card) => ({
+            isMusic: card.isMusic,
+            duration: card.duration,
+            title: card.title,
+            script: card.script ?? undefined
+          }))
+        },
+        null,
+        2
+      )
+    );
+    return;
+  }
+
   await saveBroadcastWriteout(cards);
   await mkdir(renderDir, { recursive: true });
   await mkdir(path.dirname(outputPath), { recursive: true });
@@ -797,8 +970,6 @@ async function main() {
   const voiceWavDir = path.join(voiceCacheDir, "wav-tmp");
   await mkdir(voiceCacheDir, { recursive: true });
   await mkdir(voiceWavDir, { recursive: true });
-  const { applySpokenPronunciations } = await import("@/lib/media/tts");
-  const { getPersona } = await import("@/lib/generation/personas");
 
   type VoiceEntry = { path: string; startMs: number; durationMs: number };
   type GapEntry = { path: string; startMs: number };
