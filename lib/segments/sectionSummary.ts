@@ -21,8 +21,21 @@ function sentenceAt(value: string, index: number) {
 function matchSection(text: string, labels: string[]) {
   for (const label of labels) {
     const match = text.match(
+      // Bug fixed 2026-07-06: the {20,700} upper bound didn't just truncate
+      // an overlong section -- it made the whole match fail outright
+      // whenever the real distance to the next section label exceeded 700
+      // characters (routine for a genuine multi-sentence Results or
+      // Discussion section in a real clinical abstract), confirmed against
+      // a real PubMed abstract where a ~900-char Results section caused
+      // this regex to return no match at all. That silently fell through to
+      // sentenceAt(), a position-based fallback scoped to the whole abstract
+      // rather than this section, which is how a Results field ended up
+      // duplicating an earlier Methods sentence. firstSentence() below
+      // already reduces whatever this captures down to one sentence, so
+      // there's no need for an upper bound here -- only a floor to avoid
+      // matching on a bare label with nothing after it.
       new RegExp(
-        `\\b${label}\\b\\s*[:.-]?\\s+([\\s\\S]{20,700}?)(?=\\b(?:Background|Purpose|Objective|Importance|Methods|Design|Results|Findings|Discussion|Conclusion|Conclusions)\\b\\s*[:.-]?|$)`,
+        `\\b${label}\\b\\s*[:.-]?\\s+([\\s\\S]{20,}?)(?=\\b(?:Background|Purpose|Objective|Importance|Methods|Design|Results|Findings|Discussion|Conclusion|Conclusions)\\b\\s*[:.-]?|$)`,
         "i"
       )
     )?.[1];
@@ -115,9 +128,13 @@ export function hasSourceLimitedScienceLanguage(value: string) {
 }
 
 function sectionValue(value: string, label: "Background" | "Methods" | "Results" | "Discussion") {
+  // See the matching note in matchSection above -- an upper bound here has
+  // the same failure mode (a long real section fails to match at all,
+  // rather than truncating), which would wrongly fail
+  // hasUsableClinicalSectionSource for a perfectly good structured abstract.
   return value.match(
     new RegExp(
-      `\\b${label}\\b\\s*[:.-]?\\s+([\\s\\S]{20,1000}?)(?=\\b(?:Background|Methods|Results|Discussion)\\b\\s*[:.-]?|$)`,
+      `\\b${label}\\b\\s*[:.-]?\\s+([\\s\\S]{20,}?)(?=\\b(?:Background|Methods|Results|Discussion)\\b\\s*[:.-]?|$)`,
       "i"
     )
   )?.[1]?.trim() ?? "";

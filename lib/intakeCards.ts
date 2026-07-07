@@ -271,7 +271,22 @@ export function buildBatchSegment(
           itemPosition,
           `${persona.name} is covering ${item.sourceName}.`,
           `The topic is ${topic}.`,
-          truncateWords(sectionSummary || spokenDetail, 82)
+          // Bug fixed 2026-07-06: this used to hard-truncate the whole
+          // Background/Methods/Results/Discussion narrative at a blind
+          // 82-word cutoff, with no regard for sentence boundaries -- cards
+          // from any source isJournalItem() doesn't recognize (e.g. "JCO
+          // Precision Oncology", which has no "journal"/"jama"/"lancet"/etc.
+          // keyword in its name) went through this branch instead of the
+          // journalItem branch above, which already uses sectionSummary in
+          // full. Real aired cards showed the truncation landing mid-
+          // sentence in Discussion ("The proceedings revealed that.", full
+          // stop, nothing more). sectionSummary's own buildRequiredSectionSummary
+          // already keeps each section to one sentence via firstSentence(),
+          // so it doesn't need a second, cruder word-count cap here -- and
+          // formatVoiceSegment's word-budget trimming at render time already
+          // handles the rare case where the real narrative is genuinely too
+          // long, in a section-aware way (see compactFourSectionNarrative).
+          sectionSummary || truncateWords(spokenDetail, 82)
         ];
   const createdAt = new Date().toISOString();
   const batchPrefix = options.batchLabel ? `${options.batchLabel}: ` : "Batch pick: ";
