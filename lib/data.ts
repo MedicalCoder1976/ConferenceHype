@@ -224,6 +224,13 @@ export async function getPublicBroadcastContext(): Promise<PublicBroadcastContex
     writeouts: writeouts ?? [],
     streamState
   });
+  // card.position is the card's index in the full interleaved
+  // content+music sequence (see buildWriteoutCards in
+  // render-hour-broadcast.ts), so content cards alone land at every other
+  // position (1, 3, 5, ...) once the music cards are filtered out below.
+  // Renumber sequentially here so the public "Broadcast rundown" list reads
+  // 1, 2, 3, ... instead of only odd numbers -- id generation still uses the
+  // original position, so ids stay unique.
   const writeoutCards =
     matchingWriteout?.cards
       .filter(
@@ -232,7 +239,7 @@ export async function getPublicBroadcastContext(): Promise<PublicBroadcastContex
           !card.riskFlags?.includes("platform_smoke_test") &&
           !card.riskFlags?.includes("weekly_source_context")
       )
-      .map(publicCardFromWriteout) ?? [];
+      .map((card, index) => ({ ...publicCardFromWriteout(card), position: index + 1 })) ?? [];
 
   if (writeoutCards.length) {
     return {
