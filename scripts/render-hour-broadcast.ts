@@ -31,6 +31,7 @@ type Card = {
   duration: number;
   isMusic: boolean;
   gapClipPath?: string;
+  segmentId?: string;
   personaId?: string;
   personaName?: string;
   contentType?: ContentType;
@@ -345,6 +346,7 @@ async function fillLeftoverGapsWithBonusCards(
       result.push({
         duration: bonusDuration,
         isMusic: false,
+        segmentId: voiced.id,
         personaId: voiced.personaId,
         personaName: voiced.personaName,
         contentType: voiced.contentType,
@@ -569,6 +571,7 @@ async function buildCards(): Promise<{ cards: Card[]; unusedApproved: Segment[] 
       duration: slot.durationSeconds,
       isMusic,
       gapClipPath: isMusic ? gapClipPaths[musicIndex++ % gapClipPaths.length] : undefined,
+      segmentId: !isMusic ? slot.segment?.id : undefined,
       personaId: !isMusic ? (slot.segment?.personaId ?? "echo-sage") : undefined,
       personaName: !isMusic ? slot.segment?.personaName : undefined,
       contentType: !isMusic ? slot.segment?.contentType : undefined,
@@ -935,6 +938,27 @@ async function main() {
   }
 
   await saveBroadcastWriteout(cards);
+
+  // Mark every real, DB-backed segment used in this hour's card list as
+  // aired, so it stops being pulled into a future hour's approved-segment
+  // pool (getNextBroadcastSegmentsFromDb only selects status="approved").
+  // Synthetic, non-DB segment ids (the conference-opening card, schedule/
+  // social fallback segments) simply don't match any row and are silently
+  // skipped by the .eq("status","approved") guard inside the update.
+  const usedSegmentIds = [
+    ...new Set(
+      cards
+        .filter((card) => !card.isMusic && card.segmentId)
+        .map((card) => card.segmentId!)
+    )
+  ];
+  if (usedSegmentIds.length > 0) {
+    const { markSegmentsRenderedInDb } = await import("@/lib/db");
+    await markSegmentsRenderedInDb(usedSegmentIds).catch((error) => {
+      console.warn(`Failed to mark segments as rendered — the broadcast still airs normally: ${error}`);
+    });
+  }
+
   await mkdir(renderDir, { recursive: true });
   await mkdir(path.dirname(outputPath), { recursive: true });
 

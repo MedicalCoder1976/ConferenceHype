@@ -1957,6 +1957,29 @@ export async function updateSegmentScheduleInDb({
   return toSegment(data as SegmentRow);
 }
 
+// Marks segments as aired once a broadcast that used them has been rendered.
+// Only ever moves approved -> rendered (never touches pending_review or
+// rejected), and only for the exact ids passed in, so this is safe to call
+// with ids that don't exist or aren't currently approved -- they're simply
+// not matched and nothing happens. getNextBroadcastSegmentsFromDb only
+// selects status="approved", so this is what keeps an already-aired segment
+// from being pulled into a future hour again.
+export async function markSegmentsRenderedInDb(segmentIds: string[]) {
+  if (!hasSupabase() || segmentIds.length === 0) {
+    return;
+  }
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("segments")
+    .update({ status: "rendered", updated_at: new Date().toISOString() })
+    .in("id", segmentIds)
+    .eq("status", "approved");
+
+  if (error) {
+    throw error;
+  }
+}
+
 export async function replaceBroadcastSegmentInDb({
   targetSegmentId,
   replacementSegmentId,
