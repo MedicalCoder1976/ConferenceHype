@@ -23,7 +23,7 @@ to YouTube, and exposes the same broadcast on `conferencehype.com`.
    content just because it was created earlier).
 
    This endpoint is **not idempotent per hour**: calling it again for an hour
-   that already has scheduled cards re-picks all 24 slots from scratch and
+   that already has scheduled cards re-picks all 20 slots from scratch and
    will collide with what's already there (multiple cards landing on the same
    slot time). To move a batch to a different hour, first revert its existing
    segments back to `pending_review` (clear `approved_at`) before creating
@@ -62,6 +62,21 @@ to YouTube, and exposes the same broadcast on `conferencehype.com`.
     video/archive remains available, the public stream state and saved writeout
     still match the same YouTube video ID, and the final public status is
     `completed`.
+14. Once the writeout for a rendered hour is saved, every real (database-backed)
+    segment used in that hour transitions `status: "approved"` -> `"rendered"`
+    (`markSegmentsRenderedInDb`, called from `render-hour-broadcast.ts` right
+    after `saveBroadcastWriteout`). `getNextBroadcastSegmentsFromDb` only ever
+    selects `status = "approved"`, so this is what keeps an already-aired
+    segment from being picked again for a future hour. Added 2026-07-08 after
+    confirming segments from a completed broadcast were still sitting at
+    `approved` a day later and got picked again — this only applies going
+    forward from when it shipped; it does not retroactively fix history.
+    **Because of this, the approved pool only shrinks as hours air — it does
+    not refill itself.** Card creation/approval must keep pace with how much
+    airs, or later hours will have thinner presentation sequences and less
+    material available for bonus-card gap filling (see "Broadcast
+    Presentation" below). Watch the approved-segment count if broadcasts feel
+    sparse.
 
 The fixed RTMP URL and key are a legacy fallback. The normal production path is
 the OAuth-created fresh broadcast.
@@ -180,6 +195,25 @@ embedder.
   "just intros of the voices and generic music" on the public site turned
   out to mean — nearly every real journal card was being read as a ~50-word
   summary instead of its actual content.
+- Two compounding bugs, both fixed 2026-07-06, previously caused structured
+  cards to end mid-sentence or duplicate an earlier section's text:
+  `buildBatchSegment` (`lib/intakeCards.ts`) hard-truncated the whole
+  Background/Methods/Results/Discussion narrative at a blind 82-word cutoff
+  for any source `isJournalItem()` didn't recognize by name (e.g. "JCO
+  Precision Oncology"); and `matchSection`'s regex
+  (`lib/segments/sectionSummary.ts`) capped its capture at 700 characters,
+  which didn't just truncate an overlong section but made the match fail
+  outright whenever a real Results/Discussion section ran longer than that,
+  silently falling back to a position-based sentence pick from the whole
+  abstract. Fixed by letting `sectionSummary` through in full (it already
+  keeps each section to one sentence via `firstSentence()`, so it doesn't
+  need a second, cruder cap) and removing the regex's upper bound (only a
+  floor is needed). Cards generated before this fix keep their original
+  truncated/garbled text — nothing retroactively repairs already-created
+  segments (see `scripts/regenerate-structured-article-cards.ts` if that's
+  ever wanted, but it also rejects any segment it can't re-verify against a
+  live PubMed abstract, so treat it as a deliberate, reviewed action, not a
+  quick fix).
 - Narrative reviews, editorials, and commentaries have no real Methods or
   Results to extract. Do not force the four-section template onto these —
   that fabricates a "Results"/"Discussion" label over an arbitrary sentence
@@ -201,6 +235,34 @@ embedder.
   60 minutes, remove trailing card material as whole cards from the end until
   the program fits. If the remaining content is shorter than 60 minutes, fill
   the gap with music so the final render stays within the hour.
+- The hour's 20 official slots are a fixed presentation-sequence structure
+  (`CONTENT_CARDS_PER_HOUR` in `lib/broadcast/hourSchedule.ts` — 4 personas x
+  5 cards each, exactly what the admin schedules and what
+  `scripts/verify-broadcast-guards.ts` checks), but the *rendered* hour can
+  contain more cards than that. Real spoken length routinely undershoots the
+  135s nominal slot (often 45-90s), and rather than dump 100% of that
+  leftover into a single stretched music transition,
+  `fillLeftoverGapsWithBonusCards` (`scripts/render-hour-broadcast.ts`) caps
+  each gap at `MUSIC_SECONDS + 30s` and spends the reclaimed time on extra,
+  already-approved real content instead, drawn from the same pool
+  `buildBroadcastSlots`' own round-robin fallback already uses (segments
+  approved but not pinned to this specific hour) — falling back to a longer
+  music stretch only once that pool is exhausted. Added 2026-07-08; verified
+  on real data this took a broadcast hour from 20 to 36 content cards with
+  music gaps averaging ~47s instead of ~120s. This only touches the render
+  step, never the admin-facing 20-slot schedule, scheduling API routes, or
+  `scheduledContentAt`.
+- Bonus-card and round-robin-fallback candidates must be deduplicated by
+  *content*, not just database row id (`contentSignature` in
+  `scripts/render-hour-broadcast.ts`, preferring the first citation URL, then
+  normalized script text). Found 2026-07-08: an old ingestion run left 5
+  separate approved rows citing 2 distinct tweets (3 rows for one, 2 for the
+  other) with byte-identical script text each — nothing before this dedup
+  caught that these were the same underlying source item under different
+  ids, so the same card could be (and was) selected 2-3 times into one hour.
+  If a "the same card played twice" report recurs, check for duplicate rows
+  sharing a citation URL or script text first, before assuming a scheduling
+  bug.
 - Narration style: pronounce `ASCO` as `ASKho`/`Ask-ho`, never as the individual letters A-S-C-O. Pronounce `Ib` and `1b` as `one B`. Pronounce `ECOG` as a word (`EE-kog`), not individual letters. Expand `PR` to "partial response", `CR` to "complete response", `pCR` to "pathologic complete response", and `WHO` to "World Health Organization" when spoken. Spell `NCI` out as individual letters ("N-C-I").
 - Transition audio rotates through six 20-second tracks:
   four licensed voiced stingers in `public/music/gap-clips` and two generated
@@ -263,7 +325,16 @@ repository. See `public/music/README.md`.
 - Approve, reject, discard, or atomically replace cards.
 - Manage source URLs, X follows, social items, and emergency overrides.
 - Approve conference coverage by slot, day, or week.
-- Start or stop continuous YouTube delivery.
+- Two explicit, always-visible buttons control continuous YouTube delivery
+  (`components/StartStreamButton.tsx`, redesigned 2026-07-08 from a single
+  state-toggling button): "Stop continuous / scheduled only" and "Allow
+  continuous mode." Scheduled-only (continuous off) is the default/expected
+  mode; continuous is a deliberate opt-in an operator chooses, not something
+  a single ambiguous toggle should make easy to leave on by accident.
+  Whichever action matches the current state is disabled so it can't be
+  clicked redundantly. Both call the same `/api/admin/start-stream` route
+  with `action: "start"` or `"stop"` — no backend change, just two explicit
+  entry points instead of one.
 - Inspect YouTube status, video links, workflow links, and delivery errors.
 
 ### Journal Watch
@@ -327,7 +398,16 @@ Run `npm run test:rss` to make a live request to every seeded feed.
 - **Memory:** developed packages waiting for an operator-assigned start time.
 - **Specialty X Voices:** curated and operator-added voices, blacklist
   controls, and a real-ingestion leaderboard with no fabricated rankings.
-- **Talked About:** previously covered segments.
+- **Talked About:** every card that has actually aired (`status: "rendered"`),
+  newest first, with its source attribution and a "Send back for
+  re-presentation" button. Updated 2026-07-09: aired cards used to stay
+  mixed into their journal/conference/source's regular deck (just tagged
+  "Presented") — they're now excluded from that deck entirely
+  (`lib/cardDeck.ts`'s `buildDeck`) and only live here. "Send back" reuses
+  the existing `/api/admin/approve` endpoint (`action: "approve"`, no new
+  backend logic) to move a card from `rendered` back to `approved`, making
+  it schedulable again. Confirmed `buildDeck()` is display-only — this
+  doesn't touch card creation, selection, or the render/broadcast pipeline.
 
 ## Required Services
 
@@ -587,6 +667,20 @@ practice stream. Before declaring the stream visible on both sides, verify:
   can silently orphan a stale duplicate row that keeps generating its own
   cards. Weekly card generation also re-checks for an existing match
   immediately before saving, as a backstop against an overlapping run.
+- **The same card plays more than once in one hour:** check for duplicate
+  approved rows sharing a citation URL or script text (see the
+  content-signature dedup note under "Broadcast Presentation") before
+  assuming it's a scheduling bug.
+- **Broadcasts feel sparse, or bonus-card gap filling stops finding
+  content:** check how many segments are currently `status = "approved"`
+  (`select count(*) from segments where status = 'approved'`). Since
+  segments now transition to `rendered` after actually airing (see
+  "Production Flow" step 14), the approved pool only drains — it never
+  refills itself. If continuous mode has been running without matching card
+  approval, this count can get very low (confirmed near-empty, 2 rows,
+  during testing on 2026-07-09). Run **Create one-hour batch cards**, **Run
+  weekly batch now**, or **Run real-AI batch now** to replenish it, or check
+  why the `pending_review` backlog isn't being approved.
 
 ## Safety
 

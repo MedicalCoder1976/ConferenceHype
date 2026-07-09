@@ -1,5 +1,6 @@
 import { History } from "lucide-react";
 import { cardTypeLabel } from "@/lib/broadcast/cardTypes";
+import { SendBackButton } from "@/components/SendBackButton";
 import type { Segment } from "@/lib/types";
 
 type XMention = {
@@ -101,8 +102,9 @@ export function AiredHistory({ segments }: { segments: Segment[] }) {
           <h2 className="text-2xl font-black text-ink">Talked about</h2>
         </div>
         <p className="mt-2 text-sm font-semibold leading-6 text-ink/60">
-          Rendered broadcast items with the timestamp recorded when the segment
-          was last updated by the broadcast pipeline.
+          Every card that has actually aired, newest first. These no longer
+          appear in their journal/conference/source deck — use "Send back for
+          re-presentation" on a card here to make it schedulable again.
         </p>
       </div>
       <div className="grid gap-4 p-5">
@@ -169,16 +171,24 @@ export function AiredHistory({ segments }: { segments: Segment[] }) {
         ) : null}
         {segments.map((segment) => (
           <article key={segment.id} className="border border-ink/10 p-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="bg-ink px-2 py-1 text-xs font-black uppercase text-white">
-                {airedTime(segment)}
-              </span>
-              <span className="bg-broadcast px-2 py-1 text-xs font-black uppercase text-white">
-                {segment.personaName}
-              </span>
-              <span className="border border-ink/15 px-2 py-1 text-xs font-bold uppercase text-ink/70">
-                {cardTypeLabel(segment)}
-              </span>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="bg-ink px-2 py-1 text-xs font-black uppercase text-white">
+                  {airedTime(segment)}
+                </span>
+                <span className="bg-broadcast px-2 py-1 text-xs font-black uppercase text-white">
+                  {segment.personaName}
+                </span>
+                <span className="border border-ink/15 px-2 py-1 text-xs font-bold uppercase text-ink/70">
+                  {cardTypeLabel(segment)}
+                </span>
+                {segment.citations[0]?.label ? (
+                  <span className="border border-ink/15 bg-paper/60 px-2 py-1 text-xs font-bold uppercase text-ink/70">
+                    {segment.citations[0].label}
+                  </span>
+                ) : null}
+              </div>
+              <SendBackButton segmentId={segment.id} script={segment.script} />
             </div>
             <h3 className="mt-3 text-lg font-black leading-6 text-ink">
               {segment.title}

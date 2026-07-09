@@ -10,20 +10,15 @@ import { hasMissingIntakeFailureLanguage } from "@/lib/broadcast/sanitizeCopy";
 
 export type DeckCard = {
   segment: Segment;
-  presented: boolean;
 };
 
 export type EntityCardDeck = {
   total: number;
-  presentedCount: number;
-  notPresentedCount: number;
   cards: DeckCard[];
 };
 
 export const EMPTY_CARD_DECK: EntityCardDeck = {
   total: 0,
-  presentedCount: 0,
-  notPresentedCount: 0,
   cards: []
 };
 
@@ -70,18 +65,23 @@ function isSubstantiveDeckCard(segment: Segment) {
 }
 
 // Newest first, so older weeks' cards sink to the bottom of the deck.
+// Already-aired (status "rendered") cards are excluded here entirely --
+// once a card has actually broadcast, it belongs in "Talked About"
+// (components/AiredHistory.tsx, fed by getAiredSegmentsFromDb), not mixed
+// back into the ready-to-schedule deck the operator is reviewing. Send a
+// card back to its journal/conference/source for future re-presentation
+// from that Talked About view (re-approves it, same as any other approval).
 function buildDeck(segments: Segment[], matchesEntity: (sourceId: string) => boolean): EntityCardDeck {
   const cards = segments
-    .filter((segment) => isSubstantiveDeckCard(segment) && sourceIdsFromSegment(segment).some(matchesEntity))
+    .filter(
+      (segment) =>
+        segment.status !== "rendered" &&
+        isSubstantiveDeckCard(segment) &&
+        sourceIdsFromSegment(segment).some(matchesEntity)
+    )
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .map((segment) => ({ segment, presented: segment.status === "rendered" }));
-  const presentedCount = cards.filter((card) => card.presented).length;
-  return {
-    total: cards.length,
-    presentedCount,
-    notPresentedCount: cards.length - presentedCount,
-    cards
-  };
+    .map((segment) => ({ segment }));
+  return { total: cards.length, cards };
 }
 
 export function buildConferenceCardDecks(

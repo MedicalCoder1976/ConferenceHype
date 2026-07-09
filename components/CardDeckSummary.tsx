@@ -64,12 +64,7 @@ export function CardDeckSummary({
   return (
     <div className="mt-2">
       <div className="text-xs font-black uppercase text-broadcast">
-        {deck.total} card{deck.total === 1 ? "" : "s"} available
-        {deck.total > 0 ? (
-          <span className="ml-1 font-semibold text-ink/45">
-            ({deck.notPresentedCount} ready / {deck.presentedCount} presented)
-          </span>
-        ) : null}
+        {deck.total} card{deck.total === 1 ? "" : "s"} ready
       </div>
       <div className="mt-1 flex flex-wrap items-center gap-3">
         {deck.total > 0 ? (
@@ -105,13 +100,6 @@ export function CardDeckSummary({
               <li key={card.segment.id} className="border-b border-ink/10 pb-2 text-xs last:border-none">
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-black text-ink/80">{card.segment.title}</span>
-                  <span
-                    className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black uppercase ${
-                      card.presented ? "bg-ink/10 text-ink/60" : "bg-cyanline/20 text-ink"
-                    }`}
-                  >
-                    {card.presented ? "Presented" : "Not presented"}
-                  </span>
                 </div>
                 <p className="mt-1 whitespace-pre-line font-semibold leading-5 text-ink/65">
                   {spokenText}
