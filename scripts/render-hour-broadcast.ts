@@ -204,6 +204,24 @@ function wordCount(value: string) {
   return value.trim().split(/\s+/).filter(Boolean).length;
 }
 
+// Identifies a segment's real underlying content, independent of its
+// database row id. Found on 2026-07-08: an old ingestion run left 5
+// separate approved segment rows all citing the exact same tweet with
+// byte-identical script text ("X voice monitor: ... STAT ... $8 billion in
+// Medicaid funds..."), and the round-robin/bonus-fill fallback pools only
+// ever deduped by segment id, so multiple of those rows could -- and did --
+// get selected into the same broadcast hour, playing the same card 2-3
+// times. Prefer the citation URL (the strongest signal of "same source
+// item"); fall back to normalized script text for segments with no
+// citation (e.g. synthetic/schedule cards).
+function contentSignature(segment: Segment) {
+  const url = segment.citations[0]?.url?.trim().toLowerCase();
+  if (url) {
+    return `url:${url}`;
+  }
+  return `script:${segment.script.trim().toLowerCase().replace(/\s+/g, " ")}`;
+}
+
 // A card's real spoken length rarely matches its nominal scheduled duration
 // exactly. Longer-than-scheduled segments (the common case for a genuine
 // ~6-minute high-energy-host read) simply expand -- enforceOneHourFrame
@@ -596,10 +614,31 @@ async function buildCards(): Promise<{ cards: Card[]; unusedApproved: Segment[] 
   // only draws as many as it needs) -- this is the exact same already-vetted
   // pool, just the leftover portion of it. Used by fillLeftoverGapsWithBonusCards
   // to insert real content into gaps instead of stretching music.
+  //
+  // Dedupe by content signature, not just id: a duplicate-content segment
+  // (different row, same underlying source item -- see contentSignature)
+  // must never be picked as bonus filler if its content is already airing
+  // this hour via an official slot, and if several unused candidates share
+  // one signature, only the first is eligible -- the rest would just be the
+  // same card again under a different id.
   const usedIds = new Set(
     slots.filter((slot) => slot.segment).map((slot) => slot.segment!.id)
   );
-  const unusedApproved = renderSegments.filter((segment) => !usedIds.has(segment.id));
+  const usedSignatures = new Set(
+    slots.filter((slot) => slot.segment).map((slot) => contentSignature(slot.segment!))
+  );
+  const unusedApproved: Segment[] = [];
+  for (const segment of renderSegments) {
+    if (usedIds.has(segment.id)) {
+      continue;
+    }
+    const signature = contentSignature(segment);
+    if (usedSignatures.has(signature)) {
+      continue;
+    }
+    usedSignatures.add(signature);
+    unusedApproved.push(segment);
+  }
 
   return { cards, unusedApproved };
 }
