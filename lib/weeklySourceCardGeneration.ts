@@ -4,6 +4,7 @@ import {
   buildBatchSegment,
   buildPubMedBackedJournalItem,
   itemMatchesSelections,
+  journalIdFromSourceId,
   personaIdForBatchIndex
 } from "@/lib/intakeCards";
 import { fetchPubMedArticlesForJournal, pubmedArticlesToIngestedItems } from "@/lib/sources/pubmed";
@@ -199,7 +200,9 @@ function finalizeAnnouncementSegment({
       hypeLevel: "standard",
       language: "English",
       status: "pending_review",
-      citations: [{ label: citationLabel, url: sourceUrl, sourceType }],
+      citations: [
+        { label: citationLabel, url: sourceUrl, sourceType, journalId: journalIdFromSourceId(sourceId) }
+      ],
       socialBuzzItems: [],
       riskFlags: [
         "weekly_source_context",

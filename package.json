@@ -21,6 +21,7 @@
     "job:eha2026": "tsx scripts/prepare-eha-2026-broadcast.ts",
     "preview:noon": "tsx scripts/preview-broadcast-rundown.ts today-21",
     "preview:planning": "tsx scripts/preview-broadcast-rundown.ts today-21",
+    "preview:youtube-metadata": "tsx scripts/preview-broadcast-metadata.ts",
     "job:render": "tsx scripts/ffmpeg-render.ts",
     "job:stream": "tsx scripts/youtube-rtmp-loop.ts",
     "verify:youtube-delivery": "tsx scripts/verify-youtube-delivery-loop.ts",

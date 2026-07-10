@@ -61,6 +61,21 @@ export function isJournalItem(item: IngestedItem) {
   );
 }
 
+// Journal-sourced items carry their catalog journal id as item.sourceId,
+// either bare (real RSS/PubMed-ingested items -- lib/jobs/ingest.ts's
+// additionalSources gives journal-derived sources `id: journal.id`,
+// unprefixed) or prefixed "daily-journal-" (weekly-sweep context items --
+// see weeklySourceCardGeneration.ts). Returns whichever raw id is present
+// as a *candidate* -- this has no DB access, so it cannot validate against
+// a real journal list. The consumer (lib/youtube/broadcastMetadata.ts)
+// resolves the candidate against a real journalsById map and treats any
+// miss (including a stray non-journal id) as "no journal data," so a
+// false-positive candidate here is harmless.
+export function journalIdFromSourceId(sourceId: string | undefined): string | undefined {
+  if (!sourceId) return undefined;
+  return sourceId.match(/^daily-journal-(.+)$/)?.[1] ?? sourceId;
+}
+
 export function isClinicalScienceItem(item: IngestedItem) {
   const text = `${item.title} ${item.excerpt} ${item.sourceName}`;
   return (
@@ -306,7 +321,9 @@ export function buildBatchSegment(
       {
         label: `${item.sourceName}: ${item.title}`,
         url: item.url,
-        sourceType: item.sourceType
+        sourceType: item.sourceType,
+        journalId: journalItem ? journalIdFromSourceId(item.sourceId) : undefined,
+        publishedAt: item.publishedAt
       }
     ],
     socialBuzzItems: [],

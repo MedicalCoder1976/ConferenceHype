@@ -98,7 +98,13 @@ jobs:
           echo "slot_id=${SLOT_ID}" >> $GITHUB_OUTPUT
           echo "block_start=${BLOCK_START}" >> $GITHUB_OUTPUT
           echo "duration_seconds=${DURATION_SECONDS}" >> $GITHUB_OUTPUT
-          echo "broadcast_title=ConferenceHype: ${CONFERENCE_NAME} live programming - ${BLOCK_START}" >> $GITHUB_OUTPUT
+          # Only set an explicit title for a manual dispatch (where an
+          # operator may want to force one). Leaving it unset on the
+          # scheduled/cron path lets create-youtube-broadcast.ts's
+          # journal-aware title builder become the effective default there.
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "broadcast_title=ConferenceHype: ${CONFERENCE_NAME} live programming - ${BLOCK_START}" >> $GITHUB_OUTPUT
+          fi
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -150,6 +156,10 @@ jobs:
           BROADCAST_START_AT: ${{ steps.block.outputs.block_start }}
           BROADCAST_DURATION_SECONDS: ${{ steps.block.outputs.duration_seconds }}
           BROADCAST_TITLE: ${{ steps.block.outputs.broadcast_title }}
+          COVERAGE_SLOT_ID: ${{ steps.block.outputs.slot_id }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
       - name: Enable and verify YouTube embedding
         if: ${{ steps.block.outputs.block_start != '' }}

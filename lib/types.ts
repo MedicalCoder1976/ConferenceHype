@@ -31,6 +31,14 @@ export type Citation = {
   label: string;
   url: string;
   sourceType: SourceType;
+  // Journal-sourced citations only. Populated going forward; absent on
+  // cards created before this change and on non-journal citations. A
+  // *candidate* id -- see journalIdFromItem() in lib/intakeCards.ts.
+  // Consumers must resolve it against a real journals list and treat a
+  // miss as "no journal data," never assume it's valid.
+  journalId?: string;
+  // Copied from IngestedItem.publishedAt when known.
+  publishedAt?: string;
 };
 
 export type Segment = {

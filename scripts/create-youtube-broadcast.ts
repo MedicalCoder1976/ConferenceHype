@@ -59,9 +59,65 @@ const tokenPayload = (await tokenResponse.json()) as { access_token: string };
 const authorization = `Bearer ${tokenPayload.access_token}`;
 const scheduledStart = new Date(startAt);
 const scheduledEnd = new Date(scheduledStart.getTime() + durationSeconds * 1000);
+
+let metadata: { title: string; description: string; tags: string[]; categoryId: string } | undefined;
+try {
+  const [
+    { filterBroadcastReadySegments },
+    { getNextBroadcastSegmentsFromDb, getOncologyJournalsFromDb, getConferenceCoverageSlotsFromDb, getMedicalConferencesFromDb },
+    { buildBroadcastSlots },
+    { buildBroadcastMetadata }
+  ] = await Promise.all([
+    import("@/lib/data"),
+    import("@/lib/db"),
+    import("@/lib/rundown/slots"),
+    import("@/lib/youtube/broadcastMetadata")
+  ]);
+  const [rawApproved, journals, coverageSlots, conferences] = await Promise.all([
+    getNextBroadcastSegmentsFromDb(120),
+    getOncologyJournalsFromDb(),
+    getConferenceCoverageSlotsFromDb(),
+    getMedicalConferencesFromDb()
+  ]);
+  const approved = filterBroadcastReadySegments(rawApproved ?? []);
+  // Title/description only need content + music slots, not the schedule
+  // spine (schedule-spine cards never carry journal citations anyway).
+  const slots = buildBroadcastSlots({
+    segments: approved,
+    scheduleSegments: [],
+    baseTime: scheduledStart,
+    hours: 1
+  });
+  const journalsById = new Map((journals ?? []).map((journal) => [journal.id, journal]));
+  const activeSlot = (coverageSlots ?? []).find((slot) => slot.id === process.env.COVERAGE_SLOT_ID);
+  const activeConference = activeSlot
+    ? (conferences ?? []).find((conference) => conference.id === activeSlot.conferenceId)
+    : undefined;
+  metadata = buildBroadcastMetadata({
+    hourStart: scheduledStart,
+    conferenceName: activeConference?.acronym ?? activeConference?.name,
+    slots,
+    journalsById
+  });
+} catch (error) {
+  console.log(
+    `::warning::Could not build journal-aware YouTube metadata, falling back to generic title/description: ${String(error)}`
+  );
+}
+
+// GitHub Actions sets an env var from an output that was never echoed as an
+// empty string, not undefined -- `??` would not fall through in that case,
+// so an empty string must be treated the same as "not set" here.
 const title =
-  process.env.BROADCAST_TITLE ??
+  process.env.BROADCAST_TITLE ||
+  metadata?.title ||
   `ConferenceHype live programming - ${scheduledStart.toISOString().slice(0, 16).replace("T", " ")}`;
+const description =
+  process.env.BROADCAST_DESCRIPTION ||
+  metadata?.description ||
+  "Source-attributed ConferenceHype medical-conference programming.";
+const tags = metadata?.tags ?? [];
+const categoryId = process.env.YOUTUBE_BROADCAST_CATEGORY_ID || metadata?.categoryId || "27";
 
 const broadcastResponse = await fetch(
   "https://www.googleapis.com/youtube/v3/liveBroadcasts?part=snippet,status,contentDetails",
@@ -74,9 +130,9 @@ const broadcastResponse = await fetch(
     body: JSON.stringify({
       snippet: {
         title,
-        description:
-          process.env.BROADCAST_DESCRIPTION ??
-          "Source-attributed ConferenceHype medical-conference programming.",
+        description,
+        tags,
+        categoryId,
         scheduledStartTime: scheduledStart.toISOString(),
         scheduledEndTime: scheduledEnd.toISOString()
       },
