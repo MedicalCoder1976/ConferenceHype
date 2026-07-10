@@ -548,6 +548,41 @@ migrations include:
 `https://conferencehype.com/api/stream/status` is the fastest production check
 for the current `youtubeVideoId`, URL, and delivery status.
 
+## YouTube Title/Description/Tags/Category Automation
+
+Each hourly broadcast's YouTube title, description, tags, and category are
+built automatically from that hour's actual scheduled cards
+(`lib/youtube/broadcastMetadata.ts`, wired into
+`scripts/create-youtube-broadcast.ts`) so the broadcast surfaces in
+search/recommendations for physicians, NPs, and PAs following specific
+journals or specialties, instead of a generic always-identical title.
+
+- **Title**: dominant journal + specialty + date when one journal clearly
+  leads the hour (≥2 cards); falls back to a specialty-only "Roundup" framing
+  for a genuinely mixed hour; falls back to today's original generic
+  conference-based title when zero cards have resolvable journal data — a
+  zero-journal-data hour is never worse off than before this feature.
+- **Description**: one YouTube-chapter-formatted line per content card
+  (`M:SS Journal - Specialty - Mon YYYY`), which YouTube auto-converts into
+  clickable chapters, plus an intro sentence and a closing hashtag line.
+- **Tags/category**: every distinct journal/specialty that aired that hour
+  plus fixed medical-education keywords; `categoryId` defaults to Education
+  (`"27"`), overridable via `YOUTUBE_BROADCAST_CATEGORY_ID`.
+- `BROADCAST_TITLE`/`BROADCAST_DESCRIPTION` env vars still take precedence
+  over the automated output when explicitly set (manual/emergency override,
+  e.g. via `workflow_dispatch`) — the scheduled/cron path in
+  `youtube-stream.yml` deliberately leaves `broadcast_title` unset so the
+  automated builder becomes the effective default there.
+- `Citation.journalId`/`Citation.publishedAt` are optional fields populated
+  going forward at card-creation time (`lib/intakeCards.ts`'s
+  `buildBatchSegment`); cards created before this shipped simply lack them
+  and degrade to the same generic framing as any other non-journal card —
+  never a crash, never a misattributed journal.
+- Verify without ever calling the YouTube API: `npm run
+  preview:youtube-metadata [ISO timestamp]` prints the title/description/
+  tags/category that would be generated for a real hour's real approved
+  segments.
+
 ## YouTube Embed Protection
 
 The main workflow runs `scripts/enable-youtube-embed.ts` immediately after
