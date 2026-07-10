@@ -375,6 +375,16 @@ Run `npm run test:rss` to make a live request to every seeded feed.
   entity's checkbox in Broadcast, Journal Watch, and Meeting Watch, with the
   full spoken script — not just a title — visible in the card deck so the
   operator can review the actual material before it ever airs.
+- The admin page's "Run weekly batch now (free)" button runs all three
+  entity types together, matching the scheduled cron. Three additional
+  buttons — "Run journals batch now", "Run conferences batch now", "Run
+  newspapers batch now" — trigger only one entity type via the workflow's
+  `scope` input (`all` / `journals` / `conferences` / `newspapers`), so a
+  much smaller journals-only run (or any single type) doesn't also
+  regenerate cards for the other two. `WEEKLY_SOURCE_SCOPE` is read by both
+  `scripts/generate-weekly-source-cards.ts` and
+  `scripts/verify-weekly-source-cards.ts`, so a scoped run's own
+  verify/repair steps don't fail on entity types it deliberately skipped.
 - Click "View deck" under any conference, journal, or source to expand its
   card list and read each card's entire broadcast script, every time. There
   is no summary shown here and no truncation — the card list scrolls, not the
