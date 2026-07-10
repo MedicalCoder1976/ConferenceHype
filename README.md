@@ -176,11 +176,16 @@ embedder.
   This is a different mechanism from the title-matching rule above — it is
   not a "best guess," it is a genuine search scoped to that specific
   journal's own indexed output. A journal whose RSS succeeded but returned
-  nothing new this week gets the same PubMed `[Journal]` search from
-  `scripts/generate-weekly-source-cards.ts` too, and always *before* the X
-  topic-search fallback — PubMed is the higher-priority, more authoritative
-  source for journal content and must be exhausted before falling back to a
-  generic social search.
+  nothing new this week gets the same PubMed `[Journal]` search too, always
+  *before* the X topic-search fallback — PubMed is the higher-priority, more
+  authoritative source for journal content and must be exhausted before
+  falling back to a generic social search. This rule applies to every card
+  generation path, not just the Sunday sweep: the shared
+  `pubMedRescueJournalItems()` in `lib/weeklySourceCardGeneration.ts` is
+  called by both `scripts/generate-weekly-source-cards.ts` and the
+  on-demand "generate more cards" admin action
+  (`app/api/admin/source-cards/regenerate/route.ts`), so the two entry
+  points can't drift apart on this again.
 - The NCBI throttle (`ncbiFetch` in `lib/sources/pubmed.ts`) must genuinely
   serialize calls, not just gate on a shared last-call timestamp. A
   timestamp-check-then-set is not atomic across concurrent async calls —
