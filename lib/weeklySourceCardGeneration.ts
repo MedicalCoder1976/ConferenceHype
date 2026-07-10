@@ -6,6 +6,7 @@ import {
   itemMatchesSelections,
   personaIdForBatchIndex
 } from "@/lib/intakeCards";
+import { fetchPubMedArticlesForJournal, pubmedArticlesToIngestedItems } from "@/lib/sources/pubmed";
 import { isAbstractSourceId } from "@/lib/sources/socialLinks";
 import type { TopicSearchEntity } from "@/lib/sources/x";
 import { markWeeklySourceSegment } from "@/lib/weeklySourceCards";
@@ -54,6 +55,28 @@ export function entitySelection(entity: WeeklyCardEntity) {
 
 export function topicSearchEntityFor(entity: WeeklyCardEntity): TopicSearchEntity {
   return { sourceId: entitySourceId(entity), name: entityName(entity), acronym: entityAcronym(entity) };
+}
+
+// Must run before any X topic search, for every card-generation path (the
+// weekly Sunday sweep and the on-demand "generate more cards" admin action
+// alike) -- PubMed is the higher-priority, more authoritative source for
+// journal content and has to be exhausted before falling back to a generic
+// social search. Only applies to journal entities; conferences and
+// newspapers have no PubMed equivalent and go straight to X as before.
+export async function pubMedRescueJournalItems(entity: WeeklyCardEntity): Promise<IngestedItem[]> {
+  if (entity.type !== "journal") {
+    return [];
+  }
+  const articles = await fetchPubMedArticlesForJournal(entity.journal.name);
+  if (articles.length === 0) {
+    return [];
+  }
+  return pubmedArticlesToIngestedItems(articles, {
+    sourceId: entity.journal.id,
+    sourceName: entity.journal.name,
+    sourceType: "official",
+    rank: 1
+  });
 }
 
 function stableKey(value: string) {

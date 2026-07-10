@@ -18,6 +18,7 @@ import {
   existingWeeklyKeys,
   generateWeeklyCardsForEntities,
   orderedPickForEntity,
+  pubMedRescueJournalItems,
   topicSearchEntityFor,
   type WeeklyCardEntity
 } from "@/lib/weeklySourceCardGeneration";
@@ -91,7 +92,17 @@ export async function POST(request: NextRequest) {
     // of the normal weekly budget rather than the lighter automatic default.
     const cardsPerSourceFor = (target: WeeklyCardEntity) => (target.type === "journal" ? 12 : 6);
 
-    const selected = orderedPickForEntity(items, entitySelection(entity), cardsPerSourceFor(entity));
+    let selected = orderedPickForEntity(items, entitySelection(entity), cardsPerSourceFor(entity));
+    // Try a direct PubMed journal search before ever falling back to X --
+    // PubMed is the higher-priority, more authoritative source for journal
+    // content, same rule as the weekly Sunday sweep.
+    if (selected.length === 0) {
+      const rescued = await pubMedRescueJournalItems(entity);
+      if (rescued.length > 0) {
+        items.push(...rescued);
+        selected = orderedPickForEntity(items, entitySelection(entity), cardsPerSourceFor(entity));
+      }
+    }
     const topicFallback =
       selected.length === 0 ? await searchTopicFallback([topicSearchEntityFor(entity)]) : new Map<string, IngestedItem>();
 

@@ -17,14 +17,13 @@ let buildAllCatalogCoveragePlan: any;
 let weeklySourceWeekKey: any;
 let WEEKLY_SOURCE_POOL_FLAG: string;
 let searchTopicFallback: (entities: TopicSearchEntity[]) => Promise<Map<string, IngestedItem>>;
-let fetchPubMedArticlesForJournal: typeof import("@/lib/sources/pubmed").fetchPubMedArticlesForJournal;
-let pubmedArticlesToIngestedItems: typeof import("@/lib/sources/pubmed").pubmedArticlesToIngestedItems;
 let entitySelection: typeof WeeklyCardGeneration.entitySelection;
 let existingWeeklyKeys: typeof WeeklyCardGeneration.existingWeeklyKeys;
 let dedupeAgainstFreshSegments: typeof WeeklyCardGeneration.dedupeAgainstFreshSegments;
 let generateWeeklyCardsForEntities: typeof WeeklyCardGeneration.generateWeeklyCardsForEntities;
 let orderedPickForEntity: typeof WeeklyCardGeneration.orderedPickForEntity;
 let topicSearchEntityFor: typeof WeeklyCardGeneration.topicSearchEntityFor;
+let pubMedRescueJournalItems: typeof WeeklyCardGeneration.pubMedRescueJournalItems;
 type WeeklyCardEntity = WeeklyCardGeneration.WeeklyCardEntity;
 
 async function loadDependencies() {
@@ -41,16 +40,14 @@ async function loadDependencies() {
     "@/lib/weeklySourceCards"
   ));
   ({ searchTopicFallback } = await import("@/lib/sources/x"));
-  ({ fetchPubMedArticlesForJournal, pubmedArticlesToIngestedItems } = await import(
-    "@/lib/sources/pubmed"
-  ));
   ({
     entitySelection,
     existingWeeklyKeys,
     dedupeAgainstFreshSegments,
     generateWeeklyCardsForEntities,
     orderedPickForEntity,
-    topicSearchEntityFor
+    topicSearchEntityFor,
+    pubMedRescueJournalItems
   } = await import("@/lib/weeklySourceCardGeneration"));
 }
 
@@ -120,25 +117,16 @@ async function main() {
   // Journals with nothing new this week (RSS itself may have succeeded but
   // returned only already-carded items -- lib/jobs/ingest.ts's own PubMed
   // fallback only covers an outright RSS failure) get one more direct PubMed
-  // [Journal] search before anything falls back to X. PubMed is a more
-  // authoritative, on-topic source for medical journal content than a
-  // generic social search, so it must be tried first, not after.
+  // [Journal] search before anything falls back to X.
   let pubMedRescued = 0;
   for (const entity of entities) {
     if (entity.type !== "journal") continue;
     const hasItems =
       orderedPickForEntity(items, entitySelection(entity), cardsPerSourceFor(entity)).length > 0;
     if (hasItems) continue;
-    const articles = await fetchPubMedArticlesForJournal(entity.journal.name);
-    if (articles.length === 0) continue;
-    items.push(
-      ...pubmedArticlesToIngestedItems(articles, {
-        sourceId: entity.journal.id,
-        sourceName: entity.journal.name,
-        sourceType: "official",
-        rank: 1
-      })
-    );
+    const rescued = await pubMedRescueJournalItems(entity);
+    if (rescued.length === 0) continue;
+    items.push(...rescued);
     pubMedRescued += 1;
   }
 
