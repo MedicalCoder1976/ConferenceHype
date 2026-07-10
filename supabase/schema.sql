@@ -171,6 +171,7 @@ create table public.oncology_journals (
   official_url text not null,
   enabled boolean not null default true,
   last_issue_key text,
+  specialty text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

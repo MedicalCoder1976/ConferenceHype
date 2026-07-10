@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { CardDeckSummary } from "@/components/CardDeckSummary";
+import { SpecialtyJournalTabs } from "@/components/SpecialtyJournalTabs";
 import {
   createDefaultDailyCoveragePlan,
   normalizeLegacyDailyCoverageDefaults
@@ -681,27 +682,12 @@ export function DailyCoveragePlanner({
         </SelectionGroup>
 
         <SelectionGroup title="Journal RSS feeds" count={plan.journalIds.length}>
-          {journals.map((journal) => (
-            <label key={journal.id} className="flex gap-3 border border-ink/10 bg-white p-3">
-              <input
-                type="checkbox"
-                checked={plan.journalIds.includes(journal.id)}
-                onChange={() => toggle("journalIds", journal.id)}
-              />
-              <span className="min-w-0">
-                <span className="block text-sm font-black">{journal.name}</span>
-                <span className="block truncate text-xs font-semibold text-ink/50">
-                  {journal.rssUrl}
-                </span>
-                <CardDeckSummary
-                  deck={journalCardDecks[journal.id] ?? EMPTY_CARD_DECK}
-                  autoExpand={plan.journalIds.includes(journal.id)}
-                  entityType="journal"
-                  entityId={journal.id}
-                />
-              </span>
-            </label>
-          ))}
+          <SpecialtyJournalTabs
+            journals={journals}
+            journalIds={plan.journalIds}
+            toggle={toggle}
+            journalCardDecks={journalCardDecks}
+          />
         </SelectionGroup>
 
         <SelectionGroup title="Clinical news and newspapers" count={plan.sourceIds.length}>

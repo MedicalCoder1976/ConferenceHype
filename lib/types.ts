@@ -235,6 +235,11 @@ export type OncologyJournal = {
   officialUrl: string;
   enabled: boolean;
   lastIssueKey?: string;
+  // Journal Watch specialty tab grouping -- see
+  // lib/catalog/journalWatchSpecialties.ts. Optional/free string so an
+  // unrecognized or missing value never breaks reads; the UI's
+  // groupJournalsBySpecialty() falls back to "Others".
+  specialty?: string;
 };
 
 export type EditorialPackageCard = {

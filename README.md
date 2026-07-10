@@ -509,6 +509,12 @@ migrations include:
   persistent continuous-feed state
 - `20260615173849_remove_legacy_conference_content.sql`: removes retired
   conference-specific content from active data
+- `20260709120000_journal_specialty.sql`: adds `oncology_journals.specialty`,
+  which groups the "Journal RSS feeds" picker into specialty tabs (see
+  `lib/catalog/journalWatchSpecialties.ts`). After applying, run
+  `npm run backfill:journal-specialty` once to stamp the specialty value onto
+  journal rows that already existed in the database (the catalog seed upsert
+  uses `ignoreDuplicates: true`, so it won't update pre-existing rows).
 
 `https://conferencehype.com/api/stream/status` is the fastest production check
 for the current `youtubeVideoId`, URL, and delivery status.

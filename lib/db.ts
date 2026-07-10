@@ -160,6 +160,7 @@ type OncologyJournalRow = {
   official_url: string;
   enabled: boolean;
   last_issue_key?: string | null;
+  specialty?: string | null;
 };
 
 type PlatformSmokeRunRow = {
@@ -342,7 +343,8 @@ function toOncologyJournal(row: OncologyJournalRow): OncologyJournal {
     rssUrl: row.rss_url,
     officialUrl: row.official_url,
     enabled: row.enabled,
-    lastIssueKey: row.last_issue_key ?? undefined
+    lastIssueKey: row.last_issue_key ?? undefined,
+    specialty: row.specialty ?? undefined
   };
 }
 
@@ -1144,6 +1146,7 @@ export async function upsertOncologyJournalInDb(
       rss_url: journal.rssUrl,
       official_url: journal.officialUrl,
       enabled: journal.enabled,
+      specialty: journal.specialty ?? null,
       updated_at: new Date().toISOString()
     }, { onConflict: "rss_url" })
     .select("*")
@@ -1653,7 +1656,8 @@ export async function upsertAdminCatalogSeedsToDb() {
         abbreviation: journal.abbreviation,
         rss_url: journal.rssUrl,
         official_url: journal.officialUrl,
-        enabled: true
+        enabled: true,
+        specialty: journal.specialty ?? null
       })),
       { onConflict: "rss_url", ignoreDuplicates: true }
     )
