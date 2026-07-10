@@ -67,11 +67,21 @@ async function main() {
     getSourcesFromDb(),
     getPendingSegmentsFromDb(2000)
   ]);
-  const enabledConferences = ((conferences ?? []) as MedicalConference[]).filter((conference) => conference.enabled);
-  const enabledJournals = ((journals ?? []) as OncologyJournal[]).filter((journal) => journal.enabled);
-  const enabledSources = ((sources ?? sourceRegistry) as SourceConfig[]).filter(
-    (source) => source.enabled && source.type !== "general_social" && source.type !== "manual"
-  );
+  const scope = process.env.WEEKLY_SOURCE_SCOPE ?? "all";
+  const enabledConferences =
+    scope === "all" || scope === "conferences"
+      ? ((conferences ?? []) as MedicalConference[]).filter((conference) => conference.enabled)
+      : [];
+  const enabledJournals =
+    scope === "all" || scope === "journals"
+      ? ((journals ?? []) as OncologyJournal[]).filter((journal) => journal.enabled)
+      : [];
+  const enabledSources =
+    scope === "all" || scope === "newspapers"
+      ? ((sources ?? sourceRegistry) as SourceConfig[]).filter(
+          (source) => source.enabled && source.type !== "general_social" && source.type !== "manual"
+        )
+      : [];
   const coverageDate = process.env.WEEKLY_SOURCE_COVERAGE_DATE ?? easternDate();
   const weekKey = process.env.WEEKLY_SOURCE_WEEK_KEY ?? weeklySourceWeekKey();
   const cardsPerSource = Math.max(
@@ -132,6 +142,7 @@ async function main() {
       ok: true,
       coverageDate,
       weekKey,
+      scope,
       cardsPerSource,
       journalCardsPerSource,
       sources: {

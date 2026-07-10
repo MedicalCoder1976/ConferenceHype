@@ -67,38 +67,45 @@ async function main() {
     getSourcesFromDb(),
     getPendingSegmentsFromDb(5000)
   ]);
+  const scope = process.env.WEEKLY_SOURCE_SCOPE ?? "all";
   const required: RequiredSource[] = [
-    ...(((conferences ?? []) as Array<{ id: string; name: string; enabled: boolean; officialUrl: string }>)
-      .filter((conference) => conference.enabled)
-      .map((conference) => ({
-        kind: "conference" as const,
-        id: conference.id,
-        label: conference.name,
-        aliases: [
-          conference.id,
-          `daily-conference-${conference.id}`,
-          `daily-conference-${conference.id}-context`,
-          sourceUrlAlias(conference.officialUrl, conference.name)
-        ]
-      }))),
-    ...(((journals ?? []) as Array<{ id: string; name: string; enabled: boolean; officialUrl: string; rssUrl: string }>)
-      .filter((journal) => journal.enabled)
-      .map((journal) => ({
-        kind: "journal" as const,
-        id: journal.id,
-        label: journal.name,
-        aliases: [
-          journal.id,
-          `daily-journal-${journal.id}`,
-          sourceUrlAlias(journal.officialUrl || journal.rssUrl, journal.name)
-        ]
-      }))),
-    ...enabledNewspaperSources(((sources ?? sourceRegistry) as SourceConfig[])).map((source) => ({
-      kind: "newspaper" as const,
-      id: source.id,
-      label: source.name,
-      aliases: [source.id, sourceUrlAlias(source.url, source.name)]
-    }))
+    ...(scope === "all" || scope === "conferences"
+      ? ((conferences ?? []) as Array<{ id: string; name: string; enabled: boolean; officialUrl: string }>)
+          .filter((conference) => conference.enabled)
+          .map((conference) => ({
+            kind: "conference" as const,
+            id: conference.id,
+            label: conference.name,
+            aliases: [
+              conference.id,
+              `daily-conference-${conference.id}`,
+              `daily-conference-${conference.id}-context`,
+              sourceUrlAlias(conference.officialUrl, conference.name)
+            ]
+          }))
+      : []),
+    ...(scope === "all" || scope === "journals"
+      ? ((journals ?? []) as Array<{ id: string; name: string; enabled: boolean; officialUrl: string; rssUrl: string }>)
+          .filter((journal) => journal.enabled)
+          .map((journal) => ({
+            kind: "journal" as const,
+            id: journal.id,
+            label: journal.name,
+            aliases: [
+              journal.id,
+              `daily-journal-${journal.id}`,
+              sourceUrlAlias(journal.officialUrl || journal.rssUrl, journal.name)
+            ]
+          }))
+      : []),
+    ...(scope === "all" || scope === "newspapers"
+      ? enabledNewspaperSources(((sources ?? sourceRegistry) as SourceConfig[])).map((source) => ({
+          kind: "newspaper" as const,
+          id: source.id,
+          label: source.name,
+          aliases: [source.id, sourceUrlAlias(source.url, source.name)]
+        }))
+      : [])
   ];
   const weekKey = process.env.WEEKLY_SOURCE_WEEK_KEY ?? weeklySourceWeekKey();
   const segments = (pendingSegments ?? []) as Segment[];
@@ -109,6 +116,7 @@ async function main() {
   console.log(
     JSON.stringify({
       ok: missing.length === 0,
+      scope,
       weekKey,
       required: required.length,
       available: required.length - missing.length,

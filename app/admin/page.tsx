@@ -304,6 +304,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           label={previewLabel}
         />
         <RunWeeklyBatchButton />
+        <RunWeeklyBatchButton scope="journals" buttonLabel="Run journals batch now (free)" />
+        <RunWeeklyBatchButton scope="conferences" buttonLabel="Run conferences batch now (free)" />
+        <RunWeeklyBatchButton scope="newspapers" buttonLabel="Run newspapers batch now (free)" />
         <RunRealAiBatchButton />
       </div>
       <AdminTabs

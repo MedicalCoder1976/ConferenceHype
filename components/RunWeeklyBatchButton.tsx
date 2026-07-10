@@ -3,7 +3,22 @@
 import { RefreshCcw } from "lucide-react";
 import { useState, useTransition } from "react";
 
-export function RunWeeklyBatchButton() {
+type WeeklyBatchScope = "all" | "journals" | "conferences" | "newspapers";
+
+const SCOPE_LABEL: Record<WeeklyBatchScope, string> = {
+  all: "every conference, journal, and newspaper",
+  journals: "every journal",
+  conferences: "every conference",
+  newspapers: "every newspaper"
+};
+
+export function RunWeeklyBatchButton({
+  scope = "all",
+  buttonLabel = "Run weekly batch now (free)"
+}: {
+  scope?: WeeklyBatchScope;
+  buttonLabel?: string;
+}) {
   const [message, setMessage] = useState("");
   const [pending, startTransition] = useTransition();
 
@@ -11,13 +26,17 @@ export function RunWeeklyBatchButton() {
     setMessage("");
     startTransition(async () => {
       try {
-        const response = await fetch("/api/admin/run-weekly-batch", { method: "POST" });
+        const response = await fetch("/api/admin/run-weekly-batch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ scope })
+        });
         const payload = await response.json();
         if (!response.ok || !payload.ok) {
           throw new Error(payload.error ?? "Could not start the weekly batch.");
         }
         setMessage(
-          "Weekly batch started in GitHub Actions. New cards for every conference, journal, and newspaper land in Brand New Ready Cards when it finishes — no Grok cost."
+          `Weekly batch started in GitHub Actions. New cards for ${SCOPE_LABEL[scope]} land in Brand New Ready Cards when it finishes — no Grok cost.`
         );
       } catch (error) {
         setMessage(error instanceof Error ? error.message : "Could not start the weekly batch.");
@@ -34,7 +53,7 @@ export function RunWeeklyBatchButton() {
         onClick={run}
       >
         <RefreshCcw className="h-4 w-4" />
-        {pending ? "Starting..." : "Run weekly batch now (free)"}
+        {pending ? "Starting..." : buttonLabel}
       </button>
       {message ? (
         <div className="max-w-sm border border-ink/10 bg-paper px-3 py-2 text-xs font-bold leading-5 text-ink/70">

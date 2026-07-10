@@ -11,6 +11,16 @@ on:
         description: "Richer per-journal card budget (still template-only, no LLM cost)"
         required: true
         default: "16"
+      scope:
+        description: "Which entity types to generate cards for"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - all
+          - journals
+          - conferences
+          - newspapers
   schedule:
     # Low-cost weekly pre-generation of ready-card candidates for every enabled
     # conference, journal RSS feed, and clinical news/newspaper source.
@@ -37,6 +47,7 @@ jobs:
         env:
           WEEKLY_SOURCE_CARDS_PER_SOURCE: ${{ inputs.cards_per_source || '8' }}
           WEEKLY_JOURNAL_CARDS_PER_SOURCE: ${{ inputs.journal_cards_per_source || '16' }}
+          WEEKLY_SOURCE_SCOPE: ${{ inputs.scope || 'all' }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -47,6 +58,7 @@ jobs:
         continue-on-error: true
         run: npm run test:weekly-source-cards
         env:
+          WEEKLY_SOURCE_SCOPE: ${{ inputs.scope || 'all' }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -57,6 +69,7 @@ jobs:
         env:
           WEEKLY_SOURCE_CARDS_PER_SOURCE: ${{ inputs.cards_per_source || '8' }}
           WEEKLY_JOURNAL_CARDS_PER_SOURCE: ${{ inputs.journal_cards_per_source || '16' }}
+          WEEKLY_SOURCE_SCOPE: ${{ inputs.scope || 'all' }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -66,6 +79,7 @@ jobs:
         if: ${{ steps.generate_weekly_cards.outcome == 'failure' || steps.verify_weekly_cards.outcome == 'failure' }}
         run: npm run test:weekly-source-cards
         env:
+          WEEKLY_SOURCE_SCOPE: ${{ inputs.scope || 'all' }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

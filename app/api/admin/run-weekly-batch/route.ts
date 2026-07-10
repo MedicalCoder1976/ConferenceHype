@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { assertAdminRequest } from "@/lib/auth";
 import { env } from "@/lib/env";
 
+const ALLOWED_SCOPES = ["all", "journals", "conferences", "newspapers"] as const;
+type WeeklyBatchScope = (typeof ALLOWED_SCOPES)[number];
+
 export async function POST(request: NextRequest) {
   try {
     assertAdminRequest(request);
@@ -16,6 +19,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const body = await request.json().catch(() => ({}));
+    const scope: WeeklyBatchScope = ALLOWED_SCOPES.includes(body?.scope)
+      ? body.scope
+      : "all";
+
     const response = await fetch(
       `https://api.github.com/repos/${env.GITHUB_DISPATCH_REPO}/actions/workflows/weekly-source-cards.yml/dispatches`,
       {
@@ -26,7 +34,7 @@ export async function POST(request: NextRequest) {
           "Content-Type": "application/json",
           "X-GitHub-Api-Version": "2022-11-28"
         },
-        body: JSON.stringify({ ref: "main", inputs: {} })
+        body: JSON.stringify({ ref: "main", inputs: { scope } })
       }
     );
 
@@ -41,7 +49,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ ok: true, workflow: "weekly-source-cards.yml" });
+    return NextResponse.json({ ok: true, workflow: "weekly-source-cards.yml", scope });
   } catch (error) {
     return NextResponse.json({ ok: false, error: String(error) }, { status: 400 });
   }
