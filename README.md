@@ -175,7 +175,12 @@ embedder.
   sources matched by exact catalog journal id (never a name/URL heuristic).
   This is a different mechanism from the title-matching rule above — it is
   not a "best guess," it is a genuine search scoped to that specific
-  journal's own indexed output.
+  journal's own indexed output. A journal whose RSS succeeded but returned
+  nothing new this week gets the same PubMed `[Journal]` search from
+  `scripts/generate-weekly-source-cards.ts` too, and always *before* the X
+  topic-search fallback — PubMed is the higher-priority, more authoritative
+  source for journal content and must be exhausted before falling back to a
+  generic social search.
 - The NCBI throttle (`ncbiFetch` in `lib/sources/pubmed.ts`) must genuinely
   serialize calls, not just gate on a shared last-call timestamp. A
   timestamp-check-then-set is not atomic across concurrent async calls —
