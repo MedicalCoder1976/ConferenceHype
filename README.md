@@ -167,6 +167,15 @@ embedder.
   guess. NCBI E-utils calls must stay throttled to roughly 3 requests/second
   with a retry on `429`; a rate-limited response is not the same as "no record
   found" and must not be treated as one.
+- When a journal's own RSS feed fails entirely (e.g. a publisher 403ing
+  GitHub Actions' IP range — confirmed for several Wiley and AHA journals),
+  `runIngestionJob` in `lib/jobs/ingest.ts` falls back to a direct NCBI
+  `[Journal]` field search (`fetchPubMedArticlesForJournal` in
+  `lib/sources/pubmed.ts`) for that journal's last ~90 days, only for
+  sources matched by exact catalog journal id (never a name/URL heuristic).
+  This is a different mechanism from the title-matching rule above — it is
+  not a "best guess," it is a genuine search scoped to that specific
+  journal's own indexed output.
 - The NCBI throttle (`ncbiFetch` in `lib/sources/pubmed.ts`) must genuinely
   serialize calls, not just gate on a shared last-call timestamp. A
   timestamp-check-then-set is not atomic across concurrent async calls —
