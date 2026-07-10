@@ -103,8 +103,9 @@ export function AiredHistory({ segments }: { segments: Segment[] }) {
         </div>
         <p className="mt-2 text-sm font-semibold leading-6 text-ink/60">
           Every card that has actually aired, newest first. These no longer
-          appear in their journal/conference/source deck — use "Send back for
-          re-presentation" on a card here to make it schedulable again.
+          appear in their journal/conference/source deck — use &ldquo;Send
+          back for re-presentation&rdquo; on a card here to make it
+          schedulable again.
         </p>
       </div>
       <div className="grid gap-4 p-5">
