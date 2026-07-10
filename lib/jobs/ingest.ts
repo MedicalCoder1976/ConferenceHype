@@ -5,6 +5,7 @@ import {
   type XVoice
 } from "@/lib/sources/registry";
 import { conferenceLinkedSourceIds, monitoredXVoiceForEntity } from "@/lib/sources/socialLinks";
+import { fetchPubMedArticlesForJournal } from "@/lib/sources/pubmed";
 import { fetchRssSource, isRssSource } from "@/lib/sources/rss";
 import { fetchPageSummary } from "@/lib/sources/scraper";
 import { fetchEhaSource } from "@/lib/sources/eha";
@@ -125,6 +126,7 @@ export async function runIngestionJob(
       ])
     ).values()
   );
+  const journalById = new Map((journals ?? []).map((journal) => [journal.id, journal]));
   const extraXVoices = enabled
     .map(sourceToXVoice)
     .filter((voice): voice is XVoice => Boolean(voice));
@@ -159,7 +161,36 @@ export async function runIngestionJob(
         return fetchEhaSource(source);
       }
       if (isRssSource(source)) {
-        return fetchRssSource(source);
+        try {
+          return await fetchRssSource(source);
+        } catch (error) {
+          // Some publishers (seen so far: Wiley, AHA) block GitHub Actions'
+          // IP ranges with a 403 even though the same feed resolves fine
+          // from a normal machine. Only for sources that are genuinely a
+          // catalog journal (matched by id, not a heuristic on name/URL) --
+          // conferences and newspapers still fail the normal way -- fall
+          // back to a direct PubMed [Journal] search for that journal's
+          // last ~90 days of output instead of losing the source entirely.
+          const journal = journalById.get(source.id);
+          if (!journal) {
+            throw error;
+          }
+          const articles = await fetchPubMedArticlesForJournal(journal.name);
+          if (articles.length === 0) {
+            throw error;
+          }
+          return articles.map((article, index) => ({
+            id: `${source.id}-pubmed-${index}-${article.pmid}`,
+            sourceId: source.id,
+            title: article.title,
+            url: article.url,
+            excerpt: article.abstract.slice(0, 2200),
+            sourceName: source.name,
+            sourceType: source.type,
+            rank: source.rank,
+            publishedAt: article.publishedAt
+          }));
+        }
       }
       return fetchPageSummary(source);
     })

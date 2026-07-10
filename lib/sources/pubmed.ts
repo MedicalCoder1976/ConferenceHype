@@ -193,6 +193,22 @@ function articleTitle(article: Record<string, unknown>) {
   return clean(scalar(article.ArticleTitle));
 }
 
+function articlePubDate(article: Record<string, unknown>) {
+  const pubDate = (
+    (article.Journal as Record<string, unknown> | undefined)?.JournalIssue as
+      | Record<string, unknown>
+      | undefined
+  )?.PubDate as Record<string, unknown> | undefined;
+  if (!pubDate) return undefined;
+  const medlineDate = clean(scalar(pubDate.MedlineDate ?? ""));
+  if (medlineDate) return medlineDate;
+  const year = clean(scalar(pubDate.Year ?? ""));
+  if (!year) return undefined;
+  const month = clean(scalar(pubDate.Month ?? ""));
+  const day = clean(scalar(pubDate.Day ?? ""));
+  return [year, month, day].filter(Boolean).join(" ");
+}
+
 async function pubmedFetch(ids: string[]) {
   if (!ids.length) {
     return [];
@@ -220,10 +236,47 @@ async function pubmedFetch(ids: string[]) {
         pmid,
         title,
         abstract: parts.join(" "),
-        url: pmid ? `https://pubmed.ncbi.nlm.nih.gov/${pmid}/` : ""
+        url: pmid ? `https://pubmed.ncbi.nlm.nih.gov/${pmid}/` : "",
+        publishedAt: articlePubDate(article)
       };
     })
     .filter((entry) => entry.pmid && entry.abstract);
+}
+
+// Direct journal lookup, used as a fallback when a journal's own RSS feed
+// can't be reached (e.g. a publisher blocking the GitHub Actions IP range)
+// -- not a title/DOI match against a known article, but a genuine search for
+// that journal's own recent output via NCBI's [Journal] field, restricted to
+// the last ~90 days so it behaves like "the latest issue" rather than
+// returning the journal's entire back catalog.
+async function pubmedSearchByJournal(journalName: string, retmax: number) {
+  const url = new URL("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi");
+  url.searchParams.set("db", "pubmed");
+  url.searchParams.set("retmode", "json");
+  url.searchParams.set("retmax", String(retmax));
+  url.searchParams.set("sort", "pub+date");
+  url.searchParams.set("datetype", "pdat");
+  url.searchParams.set("reldate", "90");
+  url.searchParams.set("term", `"${clean(journalName)}"[Journal]`);
+  const response = await ncbiFetch(url);
+  if (!response.ok) {
+    return [];
+  }
+  const payload = (await response.json()) as {
+    esearchresult?: {
+      idlist?: string[];
+    };
+  };
+  return payload.esearchresult?.idlist ?? [];
+}
+
+export async function fetchPubMedArticlesForJournal(journalName: string, retmax = 15) {
+  try {
+    const ids = await pubmedSearchByJournal(journalName, retmax);
+    return await pubmedFetch(ids);
+  } catch {
+    return [];
+  }
 }
 
 export async function fetchPubMedAbstractByTitle(title: string) {
