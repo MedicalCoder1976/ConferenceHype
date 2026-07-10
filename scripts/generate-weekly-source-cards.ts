@@ -17,6 +17,8 @@ let buildAllCatalogCoveragePlan: any;
 let weeklySourceWeekKey: any;
 let WEEKLY_SOURCE_POOL_FLAG: string;
 let searchTopicFallback: (entities: TopicSearchEntity[]) => Promise<Map<string, IngestedItem>>;
+let fetchPubMedArticlesForJournal: typeof import("@/lib/sources/pubmed").fetchPubMedArticlesForJournal;
+let pubmedArticlesToIngestedItems: typeof import("@/lib/sources/pubmed").pubmedArticlesToIngestedItems;
 let entitySelection: typeof WeeklyCardGeneration.entitySelection;
 let existingWeeklyKeys: typeof WeeklyCardGeneration.existingWeeklyKeys;
 let dedupeAgainstFreshSegments: typeof WeeklyCardGeneration.dedupeAgainstFreshSegments;
@@ -39,6 +41,9 @@ async function loadDependencies() {
     "@/lib/weeklySourceCards"
   ));
   ({ searchTopicFallback } = await import("@/lib/sources/x"));
+  ({ fetchPubMedArticlesForJournal, pubmedArticlesToIngestedItems } = await import(
+    "@/lib/sources/pubmed"
+  ));
   ({
     entitySelection,
     existingWeeklyKeys,
@@ -112,11 +117,36 @@ async function main() {
   const cardsPerSourceFor = (entity: WeeklyCardEntity) =>
     entity.type === "journal" ? journalCardsPerSource : cardsPerSource;
 
-  // Figure out which entities have no real official/abstract/RSS items this
-  // week, and for only those, search X once (batched) for either the
-  // entity's own posts or the highest-engagement real post from whoever is
-  // actually discussing it — before generating any cards, so all three
-  // entity types share the same batched search calls.
+  // Journals with nothing new this week (RSS itself may have succeeded but
+  // returned only already-carded items -- lib/jobs/ingest.ts's own PubMed
+  // fallback only covers an outright RSS failure) get one more direct PubMed
+  // [Journal] search before anything falls back to X. PubMed is a more
+  // authoritative, on-topic source for medical journal content than a
+  // generic social search, so it must be tried first, not after.
+  let pubMedRescued = 0;
+  for (const entity of entities) {
+    if (entity.type !== "journal") continue;
+    const hasItems =
+      orderedPickForEntity(items, entitySelection(entity), cardsPerSourceFor(entity)).length > 0;
+    if (hasItems) continue;
+    const articles = await fetchPubMedArticlesForJournal(entity.journal.name);
+    if (articles.length === 0) continue;
+    items.push(
+      ...pubmedArticlesToIngestedItems(articles, {
+        sourceId: entity.journal.id,
+        sourceName: entity.journal.name,
+        sourceType: "official",
+        rank: 1
+      })
+    );
+    pubMedRescued += 1;
+  }
+
+  // Figure out which entities still have no real official/abstract/RSS/
+  // PubMed items this week, and for only those, search X once (batched) for
+  // either the entity's own posts or the highest-engagement real post from
+  // whoever is actually discussing it — before generating any cards, so all
+  // three entity types share the same batched search calls.
   const topicSearchEntities: TopicSearchEntity[] = entities
     .filter(
       (entity) =>
@@ -150,6 +180,7 @@ async function main() {
         journals: enabledJournals.length,
         newspapers: enabledSources.length
       },
+      pubMedRescued,
       topicSearchAttempted: topicSearchEntities.length,
       topicSearchMatched: topicFallback.size,
       generated: saved.length

@@ -5,7 +5,7 @@ import {
   type XVoice
 } from "@/lib/sources/registry";
 import { conferenceLinkedSourceIds, monitoredXVoiceForEntity } from "@/lib/sources/socialLinks";
-import { fetchPubMedArticlesForJournal } from "@/lib/sources/pubmed";
+import { fetchPubMedArticlesForJournal, pubmedArticlesToIngestedItems } from "@/lib/sources/pubmed";
 import { fetchRssSource, isRssSource } from "@/lib/sources/rss";
 import { fetchPageSummary } from "@/lib/sources/scraper";
 import { fetchEhaSource } from "@/lib/sources/eha";
@@ -179,17 +179,12 @@ export async function runIngestionJob(
           if (articles.length === 0) {
             throw error;
           }
-          return articles.map((article, index) => ({
-            id: `${source.id}-pubmed-${index}-${article.pmid}`,
+          return pubmedArticlesToIngestedItems(articles, {
             sourceId: source.id,
-            title: article.title,
-            url: article.url,
-            excerpt: article.abstract.slice(0, 2200),
             sourceName: source.name,
             sourceType: source.type,
-            rank: source.rank,
-            publishedAt: article.publishedAt
-          }));
+            rank: source.rank
+          });
         }
       }
       return fetchPageSummary(source);

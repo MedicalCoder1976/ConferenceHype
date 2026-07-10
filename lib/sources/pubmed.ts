@@ -1,4 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
+import type { IngestedItem, SourceType } from "@/lib/types";
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -325,4 +326,25 @@ export async function fetchPubMedAbstract({
   } catch {
     return null;
   }
+}
+
+// Shared by lib/jobs/ingest.ts (RSS fetch failed entirely) and
+// scripts/generate-weekly-source-cards.ts (RSS succeeded but had nothing new
+// this week) so both convert a direct-journal PubMed search into
+// IngestedItems the exact same way.
+export function pubmedArticlesToIngestedItems(
+  articles: Awaited<ReturnType<typeof fetchPubMedArticlesForJournal>>,
+  source: { sourceId: string; sourceName: string; sourceType: SourceType; rank: number }
+): IngestedItem[] {
+  return articles.map((article, index) => ({
+    id: `${source.sourceId}-pubmed-${index}-${article.pmid}`,
+    sourceId: source.sourceId,
+    title: article.title,
+    url: article.url,
+    excerpt: article.abstract.slice(0, 2200),
+    sourceName: source.sourceName,
+    sourceType: source.sourceType,
+    rank: source.rank,
+    publishedAt: article.publishedAt
+  }));
 }
