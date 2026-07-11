@@ -301,11 +301,16 @@ async function prepareAttempt(attempt: number, context: AttemptContext): Promise
   const readySegments = (
     enriched.length
       ? enriched.map((item, index) =>
-          buildBatchSegment(item, personaIdForBatchIndex(index), {
-            startsAt,
-            index,
-            batchLabel: "Platform smoke batch"
-          })
+          buildBatchSegment(
+            item,
+            personaIdForBatchIndex(index),
+            {
+              startsAt,
+              index,
+              batchLabel: "Platform smoke batch"
+            },
+            new Set([journal.id])
+          )
         )
       : smokeFallbackSegments({ conference, journal, source })
   ).map((segment) => ({

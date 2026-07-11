@@ -65,15 +65,22 @@ export function isJournalItem(item: IngestedItem) {
 // either bare (real RSS/PubMed-ingested items -- lib/jobs/ingest.ts's
 // additionalSources gives journal-derived sources `id: journal.id`,
 // unprefixed) or prefixed "daily-journal-" (weekly-sweep context items --
-// see weeklySourceCardGeneration.ts). Returns whichever raw id is present
-// as a *candidate* -- this has no DB access, so it cannot validate against
-// a real journal list. The consumer (lib/youtube/broadcastMetadata.ts)
-// resolves the candidate against a real journalsById map and treats any
-// miss (including a stray non-journal id) as "no journal data," so a
-// false-positive candidate here is harmless.
-export function journalIdFromSourceId(sourceId: string | undefined): string | undefined {
+// see weeklySourceCardGeneration.ts). isJournalItem()'s regex fallback
+// (for items without the prefix) is imprecise -- it can fire true for a
+// non-journal item whose sourceName merely contains a word like "journal"
+// or "nature", in which case the candidate derived here would be that
+// item's own non-journal sourceId, not a real journal id. validJournalIds
+// (the real catalog id set, required, not optional) closes that gap by
+// construction: a candidate is only ever returned if it's actually in the
+// real journal list, so a false-positive isJournalItem() result can only
+// ever produce "no journal data," never a wrong-but-real journal.
+export function journalIdFromSourceId(
+  sourceId: string | undefined,
+  validJournalIds: ReadonlySet<string>
+): string | undefined {
   if (!sourceId) return undefined;
-  return sourceId.match(/^daily-journal-(.+)$/)?.[1] ?? sourceId;
+  const candidate = sourceId.match(/^daily-journal-(.+)$/)?.[1] ?? sourceId;
+  return validJournalIds.has(candidate) ? candidate : undefined;
 }
 
 export function isClinicalScienceItem(item: IngestedItem) {
@@ -229,7 +236,12 @@ export function buildBatchSegment(
     startsAt?: string;
     index?: number;
     batchLabel?: string;
-  } = {}
+  } = {},
+  // Required, not optional -- TypeScript refuses to compile any call site
+  // that forgets it, which is what actually guarantees every card's
+  // journalId is validated against real data instead of silently trusting
+  // an unvalidated candidate again.
+  journalIds: ReadonlySet<string>
 ): Segment {
   const persona = getPersona(personaId);
   const topic = topicFromItem(item);
@@ -322,7 +334,7 @@ export function buildBatchSegment(
         label: `${item.sourceName}: ${item.title}`,
         url: item.url,
         sourceType: item.sourceType,
-        journalId: journalItem ? journalIdFromSourceId(item.sourceId) : undefined,
+        journalId: journalItem ? journalIdFromSourceId(item.sourceId, journalIds) : undefined,
         publishedAt: item.publishedAt
       }
     ],

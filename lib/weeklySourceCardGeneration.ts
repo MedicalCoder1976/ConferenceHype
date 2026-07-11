@@ -4,7 +4,6 @@ import {
   buildBatchSegment,
   buildPubMedBackedJournalItem,
   itemMatchesSelections,
-  journalIdFromSourceId,
   personaIdForBatchIndex
 } from "@/lib/intakeCards";
 import { fetchPubMedArticlesForJournal, pubmedArticlesToIngestedItems } from "@/lib/sources/pubmed";
@@ -174,7 +173,8 @@ function finalizeAnnouncementSegment({
   title,
   summary,
   script,
-  citationLabel
+  citationLabel,
+  journalId
 }: {
   sourceId: string;
   sourceUrl: string;
@@ -185,6 +185,11 @@ function finalizeAnnouncementSegment({
   summary: string;
   script: string;
   citationLabel: string;
+  // Explicit, not derived from sourceId here -- only
+  // buildJournalAnnouncementSegment ever passes one, and it passes the real
+  // OncologyJournal.id directly (it already has the real object in scope),
+  // never a string-shape guess. Conference/source callers pass undefined.
+  journalId: string | undefined;
 }): Segment {
   const persona = getPersona(personaIdForBatchIndex(index));
   const createdAt = new Date().toISOString();
@@ -200,9 +205,7 @@ function finalizeAnnouncementSegment({
       hypeLevel: "standard",
       language: "English",
       status: "pending_review",
-      citations: [
-        { label: citationLabel, url: sourceUrl, sourceType, journalId: journalIdFromSourceId(sourceId) }
-      ],
+      citations: [{ label: citationLabel, url: sourceUrl, sourceType, journalId }],
       socialBuzzItems: [],
       riskFlags: [
         "weekly_source_context",
@@ -252,7 +255,8 @@ function buildConferenceAnnouncementSegment(
     title: `Weekly update: ${conference.name}`,
     summary,
     script,
-    citationLabel: conference.name
+    citationLabel: conference.name,
+    journalId: undefined
   });
 }
 
@@ -277,7 +281,11 @@ function buildJournalAnnouncementSegment(
     title: `Weekly update: ${journal.name}`,
     summary,
     script,
-    citationLabel: journal.name
+    citationLabel: journal.name,
+    // The real OncologyJournal object is already in scope here -- pass its
+    // id directly rather than deriving one from a string, the strongest
+    // possible guarantee.
+    journalId: journal.id
   });
 }
 
@@ -301,7 +309,8 @@ function buildSourceAnnouncementSegment(
     title: `Weekly update: ${source.name}`,
     summary,
     script,
-    citationLabel: source.name
+    citationLabel: source.name,
+    journalId: undefined
   });
 }
 
@@ -370,12 +379,14 @@ async function buildSegmentsForItems({
   items,
   weekKey,
   existingKeys,
-  startIndex
+  startIndex,
+  journalIds
 }: {
   items: IngestedItem[];
   weekKey: string;
   existingKeys: Set<string>;
   startIndex: number;
+  journalIds: ReadonlySet<string>;
 }) {
   const segments: Segment[] = [];
   for (const item of items) {
@@ -388,9 +399,12 @@ async function buildSegmentsForItems({
       continue;
     }
     const segment = markWeeklySourceSegment(
-      buildBatchSegment(enriched, personaIdForBatchIndex(startIndex + segments.length), {
-        batchLabel: `Weekly update ${weekKey}`
-      }),
+      buildBatchSegment(
+        enriched,
+        personaIdForBatchIndex(startIndex + segments.length),
+        { batchLabel: `Weekly update ${weekKey}` },
+        journalIds
+      ),
       weekKey
     );
     segments.push({
@@ -449,6 +463,10 @@ export async function generateWeeklyCardsForEntities({
   cardsPerSourceFor: (entity: WeeklyCardEntity) => number;
   topicFallback: Map<string, IngestedItem>;
 }): Promise<Segment[]> {
+  const journalIds = new Set(
+    entities.filter((entity): entity is Extract<WeeklyCardEntity, { type: "journal" }> => entity.type === "journal")
+      .map((entity) => entity.journal.id)
+  );
   const generated: Segment[] = [];
   for (const entity of entities) {
     const selected = orderedPickForEntity(items, entitySelection(entity), cardsPerSourceFor(entity));
@@ -457,7 +475,8 @@ export async function generateWeeklyCardsForEntities({
       items: selected.length ? selected : socialFallback ? [socialFallback] : [],
       weekKey,
       existingKeys,
-      startIndex: generated.length
+      startIndex: generated.length,
+      journalIds
     });
     addContextIfEmpty({
       generated,

@@ -618,7 +618,12 @@ const narrativeReviewItem: IngestedItem = {
   rank: 1,
   publishedAt: "2026-06-01T00:00:00.000Z"
 };
-const narrativeReviewSegment = buildBatchSegment(narrativeReviewItem, personaIdForBatchIndex(0), { index: 0 });
+const narrativeReviewSegment = buildBatchSegment(
+  narrativeReviewItem,
+  personaIdForBatchIndex(0),
+  { index: 0 },
+  new Set([selectedJournal.id])
+);
 assert.doesNotMatch(narrativeReviewSegment.script, /\bMethods:|\bResults:|\bDiscussion:/);
 assert.match(narrativeReviewSegment.script, /good review on the topic/i);
 assert.ok(narrativeReviewSegment.riskFlags.includes("narrative_review_card"));
@@ -744,10 +749,15 @@ assert.equal(journalDeckWithReal[selectedJournal.id]?.total, 1, "Real clinical c
 (async () => {
   const enrichedXPost = await buildPubMedBackedJournalItem(conferenceLinkedXPost);
   assert.equal(enrichedXPost, conferenceLinkedXPost);
-  const xPostSegment = buildBatchSegment(enrichedXPost!, personaIdForBatchIndex(0), {
-    startsAt: "2026-06-22T16:00:00.000Z",
-    index: 0
-  });
+  const xPostSegment = buildBatchSegment(
+    enrichedXPost!,
+    personaIdForBatchIndex(0),
+    {
+      startsAt: "2026-06-22T16:00:00.000Z",
+      index: 0
+    },
+    new Set()
+  );
   assert.equal(xPostSegment.contentType, "social_signal");
   assert.deepEqual(validateSegmentForApproval(xPostSegment), []);
 

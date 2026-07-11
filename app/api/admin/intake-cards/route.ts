@@ -3,6 +3,7 @@ import { z } from "zod";
 import { assertAdminRequest } from "@/lib/auth";
 import {
   getIngestedItemByIdFromDb,
+  getOncologyJournalsFromDb,
   getPreviousDayBatchItemsFromDb,
   saveGeneratedSegmentsToDb
 } from "@/lib/db";
@@ -51,7 +52,9 @@ export async function POST(request: NextRequest) {
         { status: 422 }
       );
     }
-    const segment = buildBatchSegment(enrichedItem, body.personaId);
+    const journals = (await getOncologyJournalsFromDb()) ?? [];
+    const journalIds = new Set(journals.map((journal) => journal.id));
+    const segment = buildBatchSegment(enrichedItem, body.personaId, {}, journalIds);
     const [saved] = (await saveGeneratedSegmentsToDb([segment])) ?? [segment];
     return NextResponse.json({ ok: true, segment: saved ?? segment });
   } catch (error) {

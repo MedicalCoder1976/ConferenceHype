@@ -258,12 +258,18 @@ export async function POST(request: NextRequest) {
       hour12: false,
       timeZoneName: "short"
     }).format(new Date(body.startsAt));
+    const journalIds = new Set((journals ?? []).map((journal) => journal.id));
     const generatedSegments = enriched.map((item, index) =>
-      buildBatchSegment(item, personaIdForBatchIndex(index + weeklyReadySegments.length), {
-        startsAt: body.startsAt,
-        index: index + weeklyReadySegments.length,
-        batchLabel: `One-hour batch ${startLabel}`
-      })
+      buildBatchSegment(
+        item,
+        personaIdForBatchIndex(index + weeklyReadySegments.length),
+        {
+          startsAt: body.startsAt,
+          index: index + weeklyReadySegments.length,
+          batchLabel: `One-hour batch ${startLabel}`
+        },
+        journalIds
+      )
     );
     const weeklyIds = new Set(weeklyReadySegments.map((segment) => segment.id));
     const readyCandidates = [...weeklyReadySegments, ...generatedSegments];
