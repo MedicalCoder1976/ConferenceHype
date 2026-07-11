@@ -98,13 +98,17 @@ jobs:
           echo "slot_id=${SLOT_ID}" >> $GITHUB_OUTPUT
           echo "block_start=${BLOCK_START}" >> $GITHUB_OUTPUT
           echo "duration_seconds=${DURATION_SECONDS}" >> $GITHUB_OUTPUT
-          # Only set an explicit title for a manual dispatch (where an
-          # operator may want to force one). Leaving it unset on the
-          # scheduled/cron path lets create-youtube-broadcast.ts's
-          # journal-aware title builder become the effective default there.
-          if [ "${{ github.event_name }}" != "schedule" ]; then
-            echo "broadcast_title=ConferenceHype: ${CONFERENCE_NAME} live programming - ${BLOCK_START}" >> $GITHUB_OUTPUT
-          fi
+          # Never set an explicit title here, on either the scheduled/cron
+          # path or a manual workflow_dispatch -- there is no operator input
+          # for a real custom title on the dispatch path either, so this was
+          # only ever generating an unhelpful generic filler
+          # ("ConferenceHype: ConferenceHype live programming - ...") that
+          # shadowed create-youtube-broadcast.ts's journal-aware title
+          # builder on every manual/test run. Leaving broadcast_title unset
+          # on every path lets that builder always be the effective title,
+          # confirmed as a real gap via a live test dispatch on 2026-07-11.
+          # BROADCAST_TITLE remains a valid manual override if a future
+          # workflow_dispatch input for it is ever added.
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
