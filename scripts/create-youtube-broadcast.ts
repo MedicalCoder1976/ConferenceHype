@@ -140,10 +140,10 @@ const broadcastResponse = await fetch(
     },
     body: JSON.stringify({
       snippet: {
+        // liveBroadcasts' snippet has no categoryId/tags fields -- those
+        // are set via a follow-up videos.update call below instead.
         title,
         description,
-        tags,
-        categoryId,
         scheduledStartTime: scheduledStart.toISOString(),
         scheduledEndTime: scheduledEnd.toISOString()
       },
@@ -167,13 +167,39 @@ if (!broadcastResponse.ok) {
     `YouTube broadcast creation failed: ${broadcastResponse.status} ${await broadcastResponse.text()}`
   );
 }
-const broadcast = (await broadcastResponse.json()) as {
-  id: string;
-  snippet?: { categoryId?: string; tags?: string[] };
-};
-console.log(
-  `YouTube echoed back categoryId=${broadcast.snippet?.categoryId ?? "(none)"} tags=${JSON.stringify(broadcast.snippet?.tags ?? [])}`
-);
+const broadcast = (await broadcastResponse.json()) as { id: string };
+
+// liveBroadcasts.insert's snippet has no categoryId/tags fields at all --
+// those only exist on the *videos* resource's snippet, not liveBroadcasts.
+// Confirmed via a live test (2026-07-11): the insert response echoed back
+// categoryId=(none) tags=[] even though both were sent, meaning the API
+// was silently ignoring them the entire time this feature was live.
+// liveBroadcasts.insert creates an underlying video with the same id, so a
+// follow-up videos.update targets that video directly. Non-blocking, same
+// as the thumbnail step below -- must never prevent the broadcast/stream.
+try {
+  const videosUpdateResponse = await fetch("https://www.googleapis.com/youtube/v3/videos?part=snippet", {
+    method: "PUT",
+    headers: { Authorization: authorization, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      id: broadcast.id,
+      snippet: {
+        title,
+        description,
+        tags,
+        categoryId
+      }
+    })
+  });
+  if (!videosUpdateResponse.ok) {
+    throw new Error(
+      `videos.update failed: ${videosUpdateResponse.status} ${await videosUpdateResponse.text()}`
+    );
+  }
+  console.log(`Set categoryId=${categoryId} and ${tags.length} tags for ${broadcast.id}`);
+} catch (error) {
+  console.log(`::warning::Could not set YouTube category/tags via videos.update: ${String(error)}`);
+}
 
 // Custom thumbnail, built from the exact same resolved metadata (tier,
 // journal, specialty) the title/description already used -- never a second,
