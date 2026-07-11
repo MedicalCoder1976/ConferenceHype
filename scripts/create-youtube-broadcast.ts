@@ -167,7 +167,13 @@ if (!broadcastResponse.ok) {
     `YouTube broadcast creation failed: ${broadcastResponse.status} ${await broadcastResponse.text()}`
   );
 }
-const broadcast = (await broadcastResponse.json()) as { id: string };
+const broadcast = (await broadcastResponse.json()) as {
+  id: string;
+  snippet?: { categoryId?: string; tags?: string[] };
+};
+console.log(
+  `YouTube echoed back categoryId=${broadcast.snippet?.categoryId ?? "(none)"} tags=${JSON.stringify(broadcast.snippet?.tags ?? [])}`
+);
 
 // Custom thumbnail, built from the exact same resolved metadata (tier,
 // journal, specialty) the title/description already used -- never a second,
