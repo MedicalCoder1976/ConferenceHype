@@ -578,10 +578,36 @@ journals or specialties, instead of a generic always-identical title.
   `buildBatchSegment`); cards created before this shipped simply lack them
   and degrade to the same generic framing as any other non-journal card —
   never a crash, never a misattributed journal.
+- `journalIdFromSourceId()` in `lib/intakeCards.ts` requires a real
+  `validJournalIds` set and only ever returns a candidate that's actually in
+  it. `isJournalItem()`'s name-regex fallback is imprecise (can fire true on
+  a non-journal item whose name merely contains a word like "journal"), so
+  candidates are validated against real catalog data before being trusted —
+  a false positive can only ever produce "no journal data," never a
+  wrong-but-real journal. `buildBatchSegment`'s `journalIds` parameter is
+  required (no default), so a missed call site is a compile error, not a
+  silent gap.
 - Verify without ever calling the YouTube API: `npm run
   preview:youtube-metadata [ISO timestamp]` prints the title/description/
   tags/category that would be generated for a real hour's real approved
   segments.
+
+## YouTube Custom Thumbnails
+
+`app/api/youtube-thumbnail/route.tsx` renders a 1280×720 thumbnail via
+`next/og`'s `ImageResponse` (no new dependency — built into Next.js) with
+three tiers matching the title's own tiers exactly (dominant journal +
+specialty, specialty-only roundup, or the generic ConferenceHype wordmark).
+`scripts/create-youtube-broadcast.ts` fetches this route using the *exact
+same* resolved metadata already computed for the title (never a second
+independent resolution, so title and thumbnail can't disagree) and uploads
+it via `thumbnails.set` right after the broadcast is created. Wrapped in
+try/catch — YouTube requires the channel to be phone-verified before custom
+thumbnails are accepted (see `LAUNCH_CHECKLIST.md`'s YouTube section), which
+can't be confirmed from code, so an unverified channel just means the
+thumbnail step silently no-ops with a logged warning; broadcast creation,
+title/description/tags/category, and the stream itself are all unaffected
+either way.
 
 ## YouTube Embed Protection
 
