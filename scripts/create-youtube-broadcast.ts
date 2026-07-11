@@ -60,7 +60,18 @@ const authorization = `Bearer ${tokenPayload.access_token}`;
 const scheduledStart = new Date(startAt);
 const scheduledEnd = new Date(scheduledStart.getTime() + durationSeconds * 1000);
 
-let metadata: { title: string; description: string; tags: string[]; categoryId: string } | undefined;
+let metadata:
+  | {
+      title: string;
+      description: string;
+      tags: string[];
+      categoryId: string;
+      tier: "dominant" | "roundup" | "generic";
+      journalName?: string;
+      specialty?: string;
+      dateLabel: string;
+    }
+  | undefined;
 try {
   const [
     { filterBroadcastReadySegments },
@@ -157,6 +168,43 @@ if (!broadcastResponse.ok) {
   );
 }
 const broadcast = (await broadcastResponse.json()) as { id: string };
+
+// Custom thumbnail, built from the exact same resolved metadata (tier,
+// journal, specialty) the title/description already used -- never a second,
+// independent resolution, so the thumbnail can't disagree with the title.
+// Requires the YouTube channel to be phone-verified; if it isn't, or the
+// site fetch/upload fails for any reason, this must never block the
+// broadcast itself (title/description/tags/category and the stream are
+// already committed above).
+try {
+  if (metadata) {
+    const siteUrl = process.env.PUBLIC_SITE_URL || "https://conferencehype.com";
+    const thumbnailParams = new URLSearchParams({ tier: metadata.tier, date: metadata.dateLabel });
+    if (metadata.journalName) thumbnailParams.set("journal", metadata.journalName);
+    if (metadata.specialty) thumbnailParams.set("specialty", metadata.specialty);
+    const thumbnailResponse = await fetch(`${siteUrl}/api/youtube-thumbnail?${thumbnailParams.toString()}`);
+    if (!thumbnailResponse.ok) {
+      throw new Error(`Thumbnail render failed: ${thumbnailResponse.status} ${await thumbnailResponse.text()}`);
+    }
+    const thumbnailBytes = await thumbnailResponse.arrayBuffer();
+    const uploadResponse = await fetch(
+      `https://www.googleapis.com/upload/youtube/v3/thumbnails/set?videoId=${encodeURIComponent(broadcast.id)}`,
+      {
+        method: "POST",
+        headers: { Authorization: authorization, "Content-Type": "image/png" },
+        body: thumbnailBytes
+      }
+    );
+    if (!uploadResponse.ok) {
+      throw new Error(`Thumbnail upload failed: ${uploadResponse.status} ${await uploadResponse.text()}`);
+    }
+    console.log(`Set custom thumbnail (tier: ${metadata.tier}) for ${broadcast.id}`);
+  }
+} catch (error) {
+  console.log(
+    `::warning::Could not set a custom YouTube thumbnail (channel may not be phone-verified yet): ${String(error)}`
+  );
+}
 
 const streamResponse = await fetch(
   "https://www.googleapis.com/youtube/v3/liveStreams?part=snippet,cdn,contentDetails",

@@ -11,11 +11,21 @@ export type BroadcastMetadataInput = {
   journalsById: Map<string, OncologyJournal>;
 };
 
+export type BroadcastMetadataTier = "dominant" | "roundup" | "generic";
+
 export type BroadcastMetadata = {
   title: string;
   description: string;
   tags: string[];
   categoryId: string;
+  // The same tier the title/description used, plus the exact values that
+  // drove it -- exposed so a consumer (the thumbnail route) can reuse the
+  // identical resolved data instead of re-deriving it (e.g. by parsing the
+  // title string), which would risk disagreeing with the title/description.
+  tier: BroadcastMetadataTier;
+  journalName?: string;
+  specialty?: string;
+  dateLabel: string;
 };
 
 const TITLE_MAX_LENGTH = 100;
@@ -108,26 +118,47 @@ function tallyDominant(cards: ResolvedCard[]) {
   };
 }
 
-function buildTitle({
+// Single source of truth for which of the three tiers a given hour falls
+// into -- both the title and the thumbnail (and the returned
+// BroadcastMetadata.tier field) must use this exact same resolution, never
+// a second independent derivation, so they can never disagree.
+function resolveTier({
   dominantJournal,
   dominantSpecialty,
-  anyJournalResolved,
-  conferenceName,
-  hourStart
+  anyJournalResolved
 }: {
   dominantJournal?: { journal: OncologyJournal; count: number };
   dominantSpecialty?: string;
   anyJournalResolved: boolean;
-  conferenceName?: string;
-  hourStart: Date;
-}) {
-  const label = dateLabel(hourStart);
-  let title: string;
+}): { tier: BroadcastMetadataTier; journalName?: string; specialty?: string } {
   if (dominantJournal && dominantJournal.count >= 2) {
-    const specialtyPart = dominantJournal.journal.specialty ? ` - ${dominantJournal.journal.specialty}` : "";
-    title = `ConferenceHype: ${dominantJournal.journal.name}${specialtyPart} - ${label}`;
-  } else if (anyJournalResolved) {
-    title = `ConferenceHype: ${dominantSpecialty ?? "Medical Journal"} Roundup - ${label}`;
+    return {
+      tier: "dominant",
+      journalName: dominantJournal.journal.name,
+      specialty: dominantJournal.journal.specialty
+    };
+  }
+  if (anyJournalResolved) {
+    return { tier: "roundup", specialty: dominantSpecialty };
+  }
+  return { tier: "generic" };
+}
+
+function buildTitle({
+  resolved,
+  conferenceName,
+  label
+}: {
+  resolved: { tier: BroadcastMetadataTier; journalName?: string; specialty?: string };
+  conferenceName?: string;
+  label: string;
+}) {
+  let title: string;
+  if (resolved.tier === "dominant") {
+    const specialtyPart = resolved.specialty ? ` - ${resolved.specialty}` : "";
+    title = `ConferenceHype: ${resolved.journalName}${specialtyPart} - ${label}`;
+  } else if (resolved.tier === "roundup") {
+    title = `ConferenceHype: ${resolved.specialty ?? "Medical Journal"} Roundup - ${label}`;
   } else {
     title = `ConferenceHype: ${conferenceName ?? "Medical Conference"} live programming - ${label}`;
   }
@@ -200,14 +231,10 @@ function buildTags(cards: ResolvedCard[]) {
 export function buildBroadcastMetadata(input: BroadcastMetadataInput): BroadcastMetadata {
   const cards = resolveContentCards(input.slots, input.journalsById);
   const { dominantJournal, dominantSpecialty, anyJournalResolved } = tallyDominant(cards);
+  const resolved = resolveTier({ dominantJournal, dominantSpecialty, anyJournalResolved });
+  const label = dateLabel(input.hourStart);
 
-  const title = buildTitle({
-    dominantJournal,
-    dominantSpecialty,
-    anyJournalResolved,
-    conferenceName: input.conferenceName,
-    hourStart: input.hourStart
-  });
+  const title = buildTitle({ resolved, conferenceName: input.conferenceName, label });
   const tags = buildTags(cards);
   const description = buildDescription({
     cards,
@@ -225,6 +252,10 @@ export function buildBroadcastMetadata(input: BroadcastMetadataInput): Broadcast
     // Env-var override precedence is applied by the caller
     // (scripts/create-youtube-broadcast.ts), not here -- this module stays
     // pure/deterministic for testability.
-    categoryId: "27"
+    categoryId: "27",
+    tier: resolved.tier,
+    journalName: resolved.journalName,
+    specialty: resolved.specialty,
+    dateLabel: label
   };
 }

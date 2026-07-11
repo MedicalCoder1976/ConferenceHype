@@ -75,6 +75,9 @@ async function main() {
     JSON.stringify(
       {
         hourStart: hourStart.toISOString(),
+        tier: metadata.tier,
+        journalName: metadata.journalName,
+        specialty: metadata.specialty,
         title: metadata.title,
         titleLength: metadata.title.length,
         description: metadata.description,
