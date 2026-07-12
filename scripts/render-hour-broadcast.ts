@@ -1036,8 +1036,12 @@ async function main() {
 
   type VoiceEntry = { path: string; startMs: number; durationMs: number };
   type GapEntry = { path: string; startMs: number };
+  type BedEntry = { startMs: number; durationMs: number };
   const voiceEntries: VoiceEntry[] = [];
   const gapEntries: GapEntry[] = [];    // gap-clip stingers, one per music card
+  // Music-bed windows, one per music-kind card -- confined to that card's own
+  // slot so the bed only ever plays during an actual gap, never under voice.
+  const bedEntries: BedEntry[] = [];
   let offsetMs = 0;
 
   // Resolve every card to its cache path and collect the ones that need synthesis.
@@ -1055,6 +1059,14 @@ async function main() {
   const alreadyCached: Occurrence[] = [];
 
   for (const card of cards) {
+    // Rule 9: the music bed only plays inside a music-kind card's own slot,
+    // never under voice -- previously it looped continuously for the whole
+    // hour and got mixed under every voice card too, confirmed as a real
+    // bug from a live operator report (background music audible "often",
+    // not just between cards) rather than the intended gap-only sound.
+    if (card.isMusic) {
+      bedEntries.push({ startMs: offsetMs, durationMs: card.duration * 1000 });
+    }
     // Rule 7: collect gap-clip start times for music cards
     if (card.isMusic && card.gapClipPath) {
       const resolvedGap = path.resolve(card.gapClipPath);
@@ -1196,11 +1208,31 @@ async function main() {
   let audioArgs: string[];
   if (voiceEntries.length > 0 || gapEntries.length > 0) {
     // Kokoro per-card voices + gap-clip stingers, all delayed to their slot start,
-    // mixed over a quiet continuous music bed.
-    // Rule 9: music bed raised to 0.25 so it's audible between voice cards.
+    // mixed over a music bed confined to each music-kind card's own window.
     const voiceInputArgs = voiceEntries.flatMap((e) => ["-i", e.path]);
     const gapInputArgs = gapEntries.flatMap((e) => ["-i", e.path]);
-    const filterParts: string[] = [`[1:a]volume=0.25[bed]`];
+    const filterParts: string[] = [];
+    // Rule 9: the bed must only sound during an actual gap slot, never under
+    // voice. It previously looped continuously for the whole hour and got
+    // mixed into every voice card too -- a real operator-reported bug
+    // ("hearing background music/noise often", not just between cards).
+    // Referencing the single looped bed input [1:a] more than once directly
+    // is invalid ffmpeg filter syntax, so asplit fans it out to one
+    // independent copy per music-kind slot, each trimmed/delayed to just
+    // that slot's own window.
+    const bedStreamLabels = bedEntries.map((_, i) => `[bed${i}]`);
+    if (bedEntries.length > 0) {
+      const bedSplitLabels = bedEntries.map((_, i) => `[bedsrc${i}]`);
+      filterParts.push(`[1:a]asplit=${bedEntries.length}${bedSplitLabels.join("")}`);
+      bedEntries.forEach((e, i) => {
+        const durationSeconds = Math.max(0.1, e.durationMs / 1000);
+        filterParts.push(
+          `[bedsrc${i}]atrim=0:${durationSeconds.toFixed(
+            3
+          )},asetpts=PTS-STARTPTS,adelay=${e.startMs}|${e.startMs},volume=0.25[bed${i}]`
+        );
+      });
+    }
     voiceEntries.forEach((e, i) => {
       // card.duration (and so e.durationMs) is a word-count estimate of the
       // spoken length, not the real Kokoro output length. atrim is only here
@@ -1223,11 +1255,11 @@ async function main() {
       );
     });
     const allStreams = [
-      "[bed]",
+      ...bedStreamLabels,
       ...voiceEntries.map((_, i) => `[v${i}]`),
       ...gapEntries.map((_, i) => `[g${i}]`)
     ].join("");
-    const totalStreams = 1 + voiceEntries.length + gapEntries.length;
+    const totalStreams = bedStreamLabels.length + voiceEntries.length + gapEntries.length;
     filterParts.push(
       `${allStreams}amix=inputs=${totalStreams}:duration=first:normalize=0[a]`
     );
