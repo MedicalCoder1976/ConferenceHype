@@ -603,6 +603,18 @@ assert.match(renderHourSource, /Removed \$\{removedContentCards\} trailing conte
 assert.match(renderHourSource, /framedCards\.push\(musicTransitionCard\(remainingSeconds/);
 assert.match(renderHourSource, /durationSeconds = Math\.min\(Number\(process\.env\.HOUR_BROADCAST_SECONDS \?\? 3600\), 3600\)/);
 
+// Bug fixed 2026-07-12: the per-card audio amix must run for the length of
+// the LONGEST (latest-ending) stream, not the FIRST one. allStreams lists
+// the per-gap music-bed entries first, and each bed entry is now a short,
+// finite clip trimmed to just its own slot (since the earlier bed-bleeding
+// fix) -- with duration=first, the whole mixed audio output ended the
+// instant that first, early, short bed clip finished, silencing every
+// card scheduled after it even though the video kept rendering for the
+// full hour. Confirmed on a real broadcast where only the opening stretch
+// of content was audible.
+assert.match(renderHourSource, /amix=inputs=\$\{totalStreams\}:duration=longest:normalize=0/);
+assert.doesNotMatch(renderHourSource, /amix=inputs=\$\{totalStreams\}:duration=first/);
+
 // A narrative review with no Methods/Results structure in its abstract must
 // not be forced into the Background/Methods/Results/Discussion template --
 // it should just be called a good review on the topic, and the validator

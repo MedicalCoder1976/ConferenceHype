@@ -1260,8 +1260,22 @@ async function main() {
       ...gapEntries.map((_, i) => `[g${i}]`)
     ].join("");
     const totalStreams = bedStreamLabels.length + voiceEntries.length + gapEntries.length;
+    // Bug fixed 2026-07-12: this was "duration=first" from before the
+    // per-gap bed fix, when the single [1:a] bed stream (looped for the
+    // whole hour) was always first in allStreams and never naturally ended,
+    // so "first" was effectively "as long as needed." Once the bed became
+    // one short, finite-duration entry per music slot ([bed0], [bed1], ...)
+    // -- still listed first in allStreams -- "duration=first" made the
+    // WHOLE mixed output end the instant that first, short bed clip ended,
+    // often just minutes into the hour: everything scheduled after that
+    // point (the large majority of the hour's narration) went completely
+    // silent even though ffmpeg reported success and the video rendered for
+    // the full 3600s. Confirmed against a real broadcast (2026-07-12, video
+    // Lh_PPcBQuU4) where only the first stretch of content was actually
+    // audible. "longest" makes the mix run until the latest-ending stream
+    // (always a card near the end of the hour) instead of the earliest one.
     filterParts.push(
-      `${allStreams}amix=inputs=${totalStreams}:duration=first:normalize=0[a]`
+      `${allStreams}amix=inputs=${totalStreams}:duration=longest:normalize=0[a]`
     );
     audioArgs = [
       "-stream_loop", "-1", "-i", musicPath,
