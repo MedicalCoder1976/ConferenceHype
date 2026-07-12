@@ -292,7 +292,7 @@ export function packageToScheduledSegments(
     return {
       id: `package-${randomUUID()}`,
       title: `${editorialPackage.title}: ${card.title}`,
-      summary: `${editorialPackage.category === "journal_watch" ? "Journal Watch" : "Meeting Watch"} package card ${index + 1} of ${cards.length}.`,
+      summary: `${editorialPackage.category === "journal_watch" ? "Journal Watch" : "Meeting Watch"} package: ${card.title}.`,
       script: index === 0 ? `${editorialPackage.introScript} ${card.script}` : card.script,
       contentType: card.contentType,
       personaId: persona.id,

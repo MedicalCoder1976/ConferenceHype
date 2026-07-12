@@ -250,8 +250,6 @@ export function buildBatchSegment(
     "The batch item did not include enough summary detail, so the card should be reviewed against the linked source before placement.";
   const sourceDetail = details.length ? details.join(" ") : fallbackDetail;
   const spokenDetail = truncateWords(sourceDetail, 64);
-  const itemPosition =
-    typeof options.index === "number" ? ` Card ${options.index + 1}.` : "";
   const journalItem = isJournalItem(item);
   const socialItem = item.sourceType === "general_social";
   const edition = monthEdition(item);
@@ -293,9 +291,8 @@ export function buildBatchSegment(
           sectionSummary
         ]
     : socialItem
-      ? [itemPosition, `${persona.name} calls out a post from ${item.sourceName}.`, spokenDetail]
+      ? [`${persona.name} calls out a post from ${item.sourceName}.`, spokenDetail]
       : [
-          itemPosition,
           `${persona.name} is covering ${item.sourceName}.`,
           `The topic is ${topic}.`,
           // Bug fixed 2026-07-06: this used to hard-truncate the whole
