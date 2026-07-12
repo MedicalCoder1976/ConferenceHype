@@ -63,7 +63,17 @@ async function endYoutubeBroadcast(videoId: string) {
     { method: "POST", headers: { Authorization: `Bearer ${accessToken}` } }
   );
   if (!response.ok) {
-    console.error(`YOUTUBE_BROADCAST_TRANSITION_FAILED: ${response.status} ${await response.text()}`);
+    const body = await response.text();
+    // YouTube can auto-transition a broadcast to complete on its own right
+    // as the RTMP connection closes near stream end -- our own explicit
+    // transition call then races it and gets a 403 "redundantTransition".
+    // That's expected, not a failure: the broadcast is already exactly
+    // where we wanted it (complete). Anything else is a real problem.
+    if (/redundantTransition/i.test(body)) {
+      console.log(`YOUTUBE_BROADCAST_TRANSITION_REDUNDANT: already complete on YouTube's side (${response.status}).`);
+    } else {
+      console.error(`YOUTUBE_BROADCAST_TRANSITION_FAILED: ${response.status} ${body}`);
+    }
   }
 }
 
@@ -288,11 +298,36 @@ async function main() {
     if (process.env.YOUTUBE_VIDEO_ID) {
       await endYoutubeBroadcast(process.env.YOUTUBE_VIDEO_ID);
     }
+    // FFmpeg's -t duration timer and YouTube's ingest-side RTMP teardown are
+    // not coordinated -- YouTube can close its end of the socket right as
+    // our timer expires, and the final trailer/flush write then races an
+    // already-closed pipe ("Error submitting a packet to the muxer: Broken
+    // pipe"), non-zero exit, even though the stream had already been
+    // delivered live for essentially the full scheduled hour. Confirmed
+    // against a real 60-minute production broadcast (2026-07-12) that
+    // delivered 3470s of a 3600s target and was still reported "failed".
+    // Only treat this as success if the connection was ever stable AND we
+    // ran for the large majority of the target duration AND stderr shows
+    // this specific muxer/broken-pipe signature -- a genuinely short or
+    // unstable connection still reports failed exactly as before.
+    const targetDurationSeconds = Number(durationSeconds) || 3600;
+    const isLateTeardownRace =
+      stable &&
+      code !== 0 &&
+      elapsedSeconds >= targetDurationSeconds * 0.9 &&
+      /broken pipe|error submitting a packet to the muxer/i.test(stderr);
+    if (isLateTeardownRace) {
+      console.log(
+        `YOUTUBE_LATE_TEARDOWN_RACE: FFmpeg exited with code ${code} after ${elapsedSeconds.toFixed(
+          1
+        )}s of a ${targetDurationSeconds}s target -- treating as a completed delivery, not a failure.`
+      );
+    }
     await updateDelivery(
-      code === 0 ? "completed" : "failed",
-      code === 0 ? undefined : `FFmpeg exited with code ${code ?? "unknown"}.`
+      code === 0 || isLateTeardownRace ? "completed" : "failed",
+      code === 0 || isLateTeardownRace ? undefined : `FFmpeg exited with code ${code ?? "unknown"}.`
     );
-    process.exit(code ?? 1);
+    process.exit(code === 0 || isLateTeardownRace ? 0 : code ?? 1);
   });
 }
 
