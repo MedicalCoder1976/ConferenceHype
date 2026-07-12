@@ -121,7 +121,7 @@ export function hasSourceLimitedScienceLanguage(value: string) {
   return (
     /\bonly\s+the\s+public\s+listing\s+metadata\s+is\s+available\b/i.test(value) ||
     /\bdo\s+not\s+infer\s+(?:methods|results|clinical\s+significance)\b/i.test(value) ||
-    /\bcomplete\s+(?:methods|results|numeric\s+results|discussion)\s+detail\s+needs\s+(?:PubMed|full-record)\s+confirmation\b/i.test(value) ||
+    /\bcomplete\s+(?:methods|results|numeric\s+results|discussion)\s+detail\s+needs\s+(?:PubMed|full-record)(?:\s+or\s+(?:PubMed|full-record))?\s+confirmation\b/i.test(value) ||
     /\bPubMed\s+abstract\s+(?:unavailable|incomplete)\b/i.test(value) ||
     /\brejected\s+until\s+PubMed\s+supplies\b/i.test(value)
   );

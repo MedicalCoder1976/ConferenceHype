@@ -160,6 +160,7 @@ export async function POST(request: NextRequest) {
     const selectedJournals = (journals || []).filter((journal) =>
       body.journalIds.includes(journal.id)
     );
+    const journalIds = new Set((journals ?? []).map((journal) => journal.id));
     const selection = {
       conferences: selectedConferences,
       journals: selectedJournals,
@@ -238,7 +239,7 @@ export async function POST(request: NextRequest) {
     }
 
     const enriched = (
-      await Promise.all(filtered.map((item) => buildPubMedBackedJournalItem(item)))
+      await Promise.all(filtered.map((item) => buildPubMedBackedJournalItem(item, journalIds)))
     ).filter((item): item is IngestedItem => Boolean(item));
 
     if (weeklyReadySegments.length === 0 && enriched.length === 0) {
@@ -258,7 +259,6 @@ export async function POST(request: NextRequest) {
       hour12: false,
       timeZoneName: "short"
     }).format(new Date(body.startsAt));
-    const journalIds = new Set((journals ?? []).map((journal) => journal.id));
     const generatedSegments = enriched.map((item, index) =>
       buildBatchSegment(
         item,

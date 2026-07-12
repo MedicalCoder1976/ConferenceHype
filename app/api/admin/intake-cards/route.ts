@@ -41,7 +41,9 @@ export async function POST(request: NextRequest) {
     if (!item) {
       return NextResponse.json({ ok: false, error: "Batch item not found." }, { status: 404 });
     }
-    const enrichedItem = await buildPubMedBackedJournalItem(item);
+    const journals = (await getOncologyJournalsFromDb()) ?? [];
+    const journalIds = new Set(journals.map((journal) => journal.id));
+    const enrichedItem = await buildPubMedBackedJournalItem(item, journalIds);
     if (!enrichedItem) {
       return NextResponse.json(
         {
@@ -52,8 +54,6 @@ export async function POST(request: NextRequest) {
         { status: 422 }
       );
     }
-    const journals = (await getOncologyJournalsFromDb()) ?? [];
-    const journalIds = new Set(journals.map((journal) => journal.id));
     const segment = buildBatchSegment(enrichedItem, body.personaId, {}, journalIds);
     const [saved] = (await saveGeneratedSegmentsToDb([segment])) ?? [segment];
     return NextResponse.json({ ok: true, segment: saved ?? segment });

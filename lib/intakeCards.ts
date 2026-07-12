@@ -52,12 +52,14 @@ function truncateWords(value: string, maxWords: number) {
   return words.length > maxWords ? `${words.slice(0, maxWords).join(" ")}.` : value;
 }
 
-export function isJournalItem(item: IngestedItem) {
-  return (
+export function isJournalItem(item: IngestedItem, validJournalIds?: ReadonlySet<string>) {
+  const bareCandidate = item.sourceId?.match(/^daily-journal-(.+)$/)?.[1] ?? item.sourceId;
+  return Boolean(
     item.sourceId?.startsWith("daily-journal-") ||
-    /\b(journal|jama|lancet|nejm|nature|annals|leukemia|bmj|blood cancer)\b/i.test(
-      item.sourceName
-    )
+      (validJournalIds && bareCandidate && validJournalIds.has(bareCandidate)) ||
+      /\b(journal|jama|lancet|nejm|nature|annals|leukemia|bmj|blood cancer)\b/i.test(
+        item.sourceName
+      )
   );
 }
 
@@ -83,10 +85,10 @@ export function journalIdFromSourceId(
   return validJournalIds.has(candidate) ? candidate : undefined;
 }
 
-export function isClinicalScienceItem(item: IngestedItem) {
+export function isClinicalScienceItem(item: IngestedItem, validJournalIds?: ReadonlySet<string>) {
   const text = `${item.title} ${item.excerpt} ${item.sourceName}`;
   return (
-    isJournalItem(item) ||
+    isJournalItem(item, validJournalIds) ||
     /\b(abstract|clinical\s+trial|trial|randomized|phase\s?(?:i|ii|iii|iv|1|2|3|4)|cohort|study|results?|endpoint|survival|response|pfs|os|mrd|biomarker|lymphoma|leukemia|myeloma|cancer|oncology)\b/i.test(text)
   );
 }
@@ -121,13 +123,16 @@ function pubMedSummaryIsUsable({
   return hasUsableClinicalSectionSource(abstract) && !hasGenericSectionFallback(summary);
 }
 
-export async function buildPubMedBackedJournalItem(item: IngestedItem) {
+export async function buildPubMedBackedJournalItem(
+  item: IngestedItem,
+  validJournalIds: ReadonlySet<string>
+) {
   // Social posts are short attributed callouts, not journal articles — skip
   // PubMed enrichment and the structured-science requirements entirely.
   if (item.sourceType === "general_social") {
     return item;
   }
-  const scienceItem = isClinicalScienceItem(item);
+  const scienceItem = isClinicalScienceItem(item, validJournalIds);
   if (isNonSubstantiveConferenceInformationItem(item)) {
     return null;
   }
@@ -153,7 +158,7 @@ export async function buildPubMedBackedJournalItem(item: IngestedItem) {
     };
   }
 
-  if (!isJournalItem(item) && hasUsableClinicalSectionSource(item.excerpt)) {
+  if (!isJournalItem(item, validJournalIds) && hasUsableClinicalSectionSource(item.excerpt)) {
     return item;
   }
 
@@ -250,7 +255,7 @@ export function buildBatchSegment(
     "The batch item did not include enough summary detail, so the card should be reviewed against the linked source before placement.";
   const sourceDetail = details.length ? details.join(" ") : fallbackDetail;
   const spokenDetail = truncateWords(sourceDetail, 64);
-  const journalItem = isJournalItem(item);
+  const journalItem = isJournalItem(item, journalIds);
   const socialItem = item.sourceType === "general_social";
   const edition = monthEdition(item);
   // Narrative reviews, editorials, and commentaries have no real Methods or

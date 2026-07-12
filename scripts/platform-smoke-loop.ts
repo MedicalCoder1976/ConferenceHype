@@ -290,8 +290,9 @@ async function prepareAttempt(attempt: number, context: AttemptContext): Promise
     sourceIds: [source.id],
     maxCards: Number(process.env.PLATFORM_SMOKE_MAX_CARDS ?? "12")
   });
+  const journalIds = new Set([journal.id]);
   const enriched = (
-    await Promise.all(candidates.map((item) => buildPubMedBackedJournalItem(item)))
+    await Promise.all(candidates.map((item) => buildPubMedBackedJournalItem(item, journalIds)))
   ).filter((item): item is IngestedItem => Boolean(item));
   // buildBatchSegment() (the happy path, used whenever real ingested items
   // exist) doesn't tag its output at all — only the smokeFallbackSegments()
@@ -309,7 +310,7 @@ async function prepareAttempt(attempt: number, context: AttemptContext): Promise
               index,
               batchLabel: "Platform smoke batch"
             },
-            new Set([journal.id])
+            journalIds
           )
         )
       : smokeFallbackSegments({ conference, journal, source })

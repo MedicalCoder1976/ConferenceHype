@@ -12,6 +12,7 @@ import {
   buildBatchSegment,
   buildConferenceContextItem,
   buildPubMedBackedJournalItem,
+  isJournalItem,
   itemMatchesSelections,
   personaIdForBatchIndex
 } from "@/lib/intakeCards";
@@ -629,6 +630,42 @@ assert.match(narrativeReviewSegment.script, /good review on the topic/i);
 assert.ok(narrativeReviewSegment.riskFlags.includes("narrative_review_card"));
 assert.deepEqual(validateSegmentForApproval(narrativeReviewSegment), []);
 
+// Bug fixed 2026-07-12: isJournalItem() only recognized the
+// "daily-journal-" prefixed sourceId form or a narrow sourceName keyword
+// regex (journal/jama/lancet/nejm/nature/annals/leukemia/bmj/blood cancer).
+// pubMedRescueJournalItems() (the NCBI [Journal]-search fallback) sets a
+// bare, unprefixed journal id as sourceId, and most of the 90 real journals
+// added in the specialty-tab expansion (e.g. "Kidney Medicine") don't match
+// the keyword regex either -- so those items were silently misclassified as
+// non-journal, skipped the narrative-review exemption entirely, and got
+// forced through the strict four-section template. When the source was
+// short (an erratum notice, a case report, a commentary), that template's
+// own honest "needs PubMed or full-record confirmation" fallback strings --
+// which are indistinguishable at the regex level from genuine intake-failure
+// language -- made the card permanently unable to pass approval. Confirmed
+// against real stuck pending_review rows in production.
+const bareIdJournalItem: IngestedItem = {
+  id: "kidney-med-erratum",
+  sourceId: selectedJournal.id,
+  title: "Erratum to Impact of Prior Kidney Transplantation on Symptom Burden",
+  url: "https://pubmed.ncbi.nlm.nih.gov/00000001/",
+  excerpt: "[This corrects the article DOI: 10.1016/j.xkme.2026.101357.].",
+  sourceName: "Kidney Medicine",
+  sourceType: "official",
+  rank: 1,
+  publishedAt: "2026-06-01T00:00:00.000Z"
+};
+assert.equal(isJournalItem(bareIdJournalItem), false, "without a validJournalIds set, the bare id is indistinguishable from any other non-journal sourceId");
+assert.equal(isJournalItem(bareIdJournalItem, new Set([selectedJournal.id])), true, "a bare sourceId that matches a real catalog journal id must be recognized as a journal item");
+const bareIdJournalSegment = buildBatchSegment(
+  bareIdJournalItem,
+  personaIdForBatchIndex(0),
+  { index: 0 },
+  new Set([selectedJournal.id])
+);
+assert.ok(bareIdJournalSegment.riskFlags.includes("narrative_review_card"), "a thin bare-id journal item must take the narrative-review path, not the forced four-section template");
+assert.deepEqual(validateSegmentForApproval(bareIdJournalSegment), [], "a correctly-classified thin journal item must not be stuck with missing-intake failure language");
+
 // X topic-search fallback cards (general_social citation) must pass
 // filterBroadcastReadySegments so they appear in the pending pool and can be
 // picked up by sortWeeklyReadySegmentsForSelection. Previously they were
@@ -747,7 +784,7 @@ const journalDeckWithReal = buildJournalCardDecks([realClinicalCard], [selectedJ
 assert.equal(journalDeckWithReal[selectedJournal.id]?.total, 1, "Real clinical content must still appear in the journal deck");
 
 (async () => {
-  const enrichedXPost = await buildPubMedBackedJournalItem(conferenceLinkedXPost);
+  const enrichedXPost = await buildPubMedBackedJournalItem(conferenceLinkedXPost, new Set());
   assert.equal(enrichedXPost, conferenceLinkedXPost);
   const xPostSegment = buildBatchSegment(
     enrichedXPost!,

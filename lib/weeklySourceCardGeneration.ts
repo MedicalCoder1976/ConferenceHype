@@ -394,7 +394,7 @@ async function buildSegmentsForItems({
     if (existingKeys.has(urlFlag)) {
       continue;
     }
-    const enriched = await buildPubMedBackedJournalItem(item);
+    const enriched = await buildPubMedBackedJournalItem(item, journalIds);
     if (!enriched) {
       continue;
     }
