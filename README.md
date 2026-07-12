@@ -591,6 +591,35 @@ journals or specialties, instead of a generic always-identical title.
   preview:youtube-metadata [ISO timestamp]` prints the title/description/
   tags/category that would be generated for a real hour's real approved
   segments.
+- `isJournalItem()` also accepts an optional `validJournalIds` set (2026-07-12)
+  and checks the bare, unprefixed `sourceId` against it in addition to the
+  `daily-journal-` prefix and the name-regex fallback above. Without this, a
+  real journal item whose `sourceId` is a bare catalog id — `
+  pubMedRescueJournalItems()`'s NCBI `[Journal]`-search fallback, and any
+  journal whose name doesn't hit the 8-word regex (most of the 90 journals
+  added in the specialty-tab expansion, e.g. "Kidney Medicine") — was
+  silently treated as non-journal. That skips the narrative-review exemption
+  entirely and forces the item through the strict four-section template, and
+  when the source is genuinely thin (an erratum, a case report, a short
+  commentary) that template's own honest "needs PubMed or full-record
+  confirmation" fallback text is indistinguishable, at the regex level, from
+  real intake-failure language — the card becomes permanently unable to pass
+  approval. Every caller of `buildPubMedBackedJournalItem` /
+  `isClinicalScienceItem` / `buildBatchSegment` threads the same real
+  journal-id set through for this reason.
+- The same misclassification existed on the social side: `buildBatchSegment`'s
+  `socialItem` check only matched `sourceType === "general_social"`, so
+  `verified_social` items (X-monitored/verified-account posts) fell through
+  to the same forced four-section template — a tweet essentially never has
+  real Methods/Results content, so this always produced the same
+  permanently-unapprovable text. Fixed by checking
+  `sourceType.includes("social")` instead, matching the pattern
+  `contentTypeForItem()` already used. The validator's own social-attribution
+  check had a related dead regex — `@\w{1,15}` was wrapped in a shared
+  `\b...\b` boundary, but `@` is never a word character so that boundary can
+  never be satisfied immediately before it, making the alternative
+  unreachable in any context even though real social cards commonly carry a
+  bare `@handle` as their only attribution marker.
 
 ## YouTube Custom Thumbnails
 
