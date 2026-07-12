@@ -666,6 +666,37 @@ const bareIdJournalSegment = buildBatchSegment(
 assert.ok(bareIdJournalSegment.riskFlags.includes("narrative_review_card"), "a thin bare-id journal item must take the narrative-review path, not the forced four-section template");
 assert.deepEqual(validateSegmentForApproval(bareIdJournalSegment), [], "a correctly-classified thin journal item must not be stuck with missing-intake failure language");
 
+// Bug fixed 2026-07-12: buildBatchSegment's socialItem check only matched
+// sourceType === "general_social", so verified_social items (X-monitored/
+// verified-account posts) fell through to the generic non-journal,
+// non-social branch, which unconditionally builds a full Background/
+// Methods/Results/Discussion clinical template out of the tweet text -- a
+// tweet essentially never has real Methods/Results content, so this always
+// produced the same permanently-unapprovable missing-intake failure
+// language. Confirmed against real stuck pending_review rows in production
+// (a holiday-greeting tweet rendered with a fake "Methods:"/"Results:"
+// structure).
+const verifiedSocialItem: IngestedItem = {
+  id: "onclive-holiday-post",
+  sourceId: "x-onclive-holiday",
+  title: "Social callout: @OncLive on OncLive",
+  url: "https://x.com/OncLive/status/1",
+  excerpt: "Happy Fourth of July! From all of us at OncLive, we wish you a safe and memorable holiday.",
+  sourceName: "@OncLive",
+  sourceType: "verified_social",
+  rank: 5,
+  author: "@OncLive"
+};
+const verifiedSocialSegment = buildBatchSegment(
+  verifiedSocialItem,
+  personaIdForBatchIndex(0),
+  { index: 0 },
+  new Set()
+);
+assert.doesNotMatch(verifiedSocialSegment.script, /\bMethods:|\bResults:|\bDiscussion:/, "a verified_social item must not be forced through the structured clinical template");
+assert.match(verifiedSocialSegment.script, /calls out a post from/i);
+assert.deepEqual(validateSegmentForApproval(verifiedSocialSegment), [], "a correctly-classified verified_social item must not be stuck with missing-intake failure language");
+
 // X topic-search fallback cards (general_social citation) must pass
 // filterBroadcastReadySegments so they appear in the pending pool and can be
 // picked up by sortWeeklyReadySegmentsForSelection. Previously they were

@@ -366,8 +366,8 @@ export function orderedPickForEntity(
   cardsPerSource: number
 ) {
   const matched = pickItemsForSource(items, selection, cardsPerSource * 4);
-  const social = matched.filter((item) => item.sourceType === "general_social");
-  const nonSocial = matched.filter((item) => item.sourceType !== "general_social");
+  const social = matched.filter((item) => item.sourceType.includes("social"));
+  const nonSocial = matched.filter((item) => !item.sourceType.includes("social"));
   const official = nonSocial.filter((item) => !isAbstractSourceId(item.sourceId));
   const abstracts = nonSocial.filter((item) => isAbstractSourceId(item.sourceId));
   const socialPick = social.slice(0, 1);

@@ -101,8 +101,17 @@ export function validateSegmentForApproval(segment: Pick<Segment, "title" | "sum
   }
   if (
     segment.contentType === "social_signal" &&
-    !/\b(posted|claimed|reacted|discussed|social buzz|source-backed|monitored X|X narrative|X voice|@\w{1,15})\b/i.test(
-      segment.script
+    // Bug fixed 2026-07-12: "@" is never a word character, so \b immediately
+    // before "@\w{1,15}" could never match -- the @handle alternative here
+    // was dead, unreachable regardless of context. Real social_signal
+    // scripts commonly carry a bare "@handle" sourceName as their only
+    // attribution marker (e.g. "calls out a post from @OncLive."), so this
+    // silently rejected exactly the cards it was meant to allow. Given its
+    // own \b boundary requirement, split it out of the shared \b...\b group.
+    !(
+      /\b(posted|claimed|reacted|discussed|social buzz|source-backed|monitored X|X narrative|X voice)\b/i.test(
+        segment.script
+      ) || /@\w{1,15}\b/.test(segment.script)
     )
   ) {
     errors.push("Social signal scripts must be labeled as attributed posts or monitored X narratives.");

@@ -129,7 +129,9 @@ export async function buildPubMedBackedJournalItem(
 ) {
   // Social posts are short attributed callouts, not journal articles — skip
   // PubMed enrichment and the structured-science requirements entirely.
-  if (item.sourceType === "general_social") {
+  // Covers both general_social and verified_social (see the socialItem fix
+  // in buildBatchSegment below for the matching bug this mirrors).
+  if (item.sourceType.includes("social")) {
     return item;
   }
   const scienceItem = isClinicalScienceItem(item, validJournalIds);
@@ -256,7 +258,19 @@ export function buildBatchSegment(
   const sourceDetail = details.length ? details.join(" ") : fallbackDetail;
   const spokenDetail = truncateWords(sourceDetail, 64);
   const journalItem = isJournalItem(item, journalIds);
-  const socialItem = item.sourceType === "general_social";
+  // Bug fixed 2026-07-12: this only matched "general_social", so
+  // "verified_social" items (X-monitored/verified-account posts -- see
+  // lib/sources/x.ts) fell through to the generic non-journal branch below,
+  // which unconditionally builds a full Background/Methods/Results/
+  // Discussion clinical template via buildRequiredSectionSummary. A tweet
+  // essentially never has real Methods/Results content, so that template's
+  // own honest "needs PubMed or full-record confirmation" fallback text
+  // always fired -- and that text is exactly what validateSegmentForApproval
+  // rejects as missing-intake failure language, permanently stuck. Confirmed
+  // against real stuck pending_review rows in production (e.g. a holiday
+  // greeting tweet rendered as "Background: Happy Fourth of July... Methods:
+  // Complete methods detail needs PubMed or full-record confirmation").
+  const socialItem = item.sourceType.includes("social");
   const edition = monthEdition(item);
   // Narrative reviews, editorials, and commentaries have no real Methods or
   // Results to extract. Forcing the Background/Methods/Results/Discussion
