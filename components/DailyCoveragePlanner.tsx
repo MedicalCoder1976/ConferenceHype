@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { CardDeckSummary } from "@/components/CardDeckSummary";
 import { SpecialtyJournalTabs } from "@/components/SpecialtyJournalTabs";
+import { SingleJournalPicker } from "@/components/SingleJournalPicker";
 import {
   createDefaultDailyCoveragePlan,
   normalizeLegacyDailyCoverageDefaults
@@ -140,6 +141,22 @@ export function DailyCoveragePlanner({
   const [pendingBatch, setPendingBatch] = useState(false);
   const [pendingBroadcast, setPendingBroadcast] = useState(false);
   const [broadcastStatus, setBroadcastStatus] = useState<BatchStatus>({
+    state: "idle",
+    text: ""
+  });
+  // Two independent 30-minute single-journal show slots per selected hour
+  // (:00 and :30) -- each picks its own journal and provisions its own
+  // journal_broadcast_slots row, separate from the hour's conference
+  // broadcast controls above.
+  const [journalSlotIdFirstHalf, setJournalSlotIdFirstHalf] = useState<string | undefined>(undefined);
+  const [journalSlotIdSecondHalf, setJournalSlotIdSecondHalf] = useState<string | undefined>(undefined);
+  const [pendingJournalSlotFirstHalf, setPendingJournalSlotFirstHalf] = useState(false);
+  const [pendingJournalSlotSecondHalf, setPendingJournalSlotSecondHalf] = useState(false);
+  const [journalSlotStatusFirstHalf, setJournalSlotStatusFirstHalf] = useState<BatchStatus>({
+    state: "idle",
+    text: ""
+  });
+  const [journalSlotStatusSecondHalf, setJournalSlotStatusSecondHalf] = useState<BatchStatus>({
     state: "idle",
     text: ""
   });
@@ -458,6 +475,47 @@ export function DailyCoveragePlanner({
     });
   };
 
+  const createJournalBroadcastSlot = (half: "first" | "second") => {
+    const journalId = half === "first" ? journalSlotIdFirstHalf : journalSlotIdSecondHalf;
+    if (!journalId) {
+      setMessage("Select a journal before creating a journal broadcast slot.");
+      return;
+    }
+    const setPending = half === "first" ? setPendingJournalSlotFirstHalf : setPendingJournalSlotSecondHalf;
+    const setStatus = half === "first" ? setJournalSlotStatusFirstHalf : setJournalSlotStatusSecondHalf;
+    const startsAt =
+      half === "first"
+        ? selectedStartsAt
+        : new Date(new Date(selectedStartsAt).getTime() + 30 * 60 * 1000).toISOString();
+    setMessage("");
+    setPending(true);
+    setStatus({ state: "creating", text: "Provisioning the 30-minute journal broadcast slot." });
+    startTransition(async () => {
+      try {
+        const response = await fetch("/api/admin/journal-broadcast-slots/create-broadcast", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ startsAt, journalId })
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) {
+          throw new Error(errorMessage(payload.error, "Could not create the journal broadcast slot."));
+        }
+        setStatus({
+          state: "done",
+          text: "Journal broadcast slot provisioned — the 30-minute show will build and go live automatically at its scheduled start."
+        });
+        router.refresh();
+      } catch (error) {
+        const text = errorMessage(error, "Could not create the journal broadcast slot.");
+        setStatus({ state: "error", text });
+        setMessage(text);
+      } finally {
+        setPending(false);
+      }
+    });
+  };
+
   const save = () => {
     setMessage("");
     startTransition(async () => {
@@ -581,6 +639,82 @@ export function DailyCoveragePlanner({
             <p className="mt-2 leading-6">{broadcastStatus.text}</p>
           </div>
         ) : null}
+        <div className="mt-4 border border-ink/10 bg-paper/60 p-3">
+          <div className="text-xs font-black uppercase text-ink/50">
+            Journal-only broadcasts for this hour
+          </div>
+          <p className="mt-1 text-xs font-semibold leading-5 text-ink/60">
+            Runs alongside the conference broadcast above, not instead of it — an
+            hour with an approved conference slot airs that instead. Each half
+            hour is its own independent 30-minute show, one journal, one voice.
+          </p>
+          <div className="mt-3 grid gap-3 lg:grid-cols-2">
+            {(
+              [
+                {
+                  half: "first" as const,
+                  startsAt: selectedStartsAt,
+                  selectedJournalId: journalSlotIdFirstHalf,
+                  setSelectedJournalId: setJournalSlotIdFirstHalf,
+                  pending: pendingJournalSlotFirstHalf,
+                  status: journalSlotStatusFirstHalf
+                },
+                {
+                  half: "second" as const,
+                  startsAt: new Date(new Date(selectedStartsAt).getTime() + 30 * 60 * 1000).toISOString(),
+                  selectedJournalId: journalSlotIdSecondHalf,
+                  setSelectedJournalId: setJournalSlotIdSecondHalf,
+                  pending: pendingJournalSlotSecondHalf,
+                  status: journalSlotStatusSecondHalf
+                }
+              ]
+            ).map((panel) => (
+              <div key={panel.half} className="border border-ink/10 bg-white p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-sm font-black text-ink">
+                    {new Intl.DateTimeFormat("en-US", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: false,
+                      timeZoneName: "short"
+                    }).format(new Date(panel.startsAt))}
+                  </div>
+                  <button
+                    type="button"
+                    disabled={pending || panel.pending || !panel.selectedJournalId}
+                    onClick={() => createJournalBroadcastSlot(panel.half)}
+                    className="inline-flex min-h-9 items-center justify-center gap-2 bg-broadcast px-3 text-xs font-black uppercase text-white disabled:opacity-50"
+                  >
+                    <Radio className="h-3.5 w-3.5" />
+                    {panel.pending ? "Creating" : "Create journal broadcast"}
+                  </button>
+                </div>
+                <div className="mt-3 max-h-72 overflow-y-auto">
+                  <SingleJournalPicker
+                    journals={journals}
+                    selectedJournalId={panel.selectedJournalId}
+                    onSelect={panel.setSelectedJournalId}
+                    journalCardDecks={journalCardDecks}
+                  />
+                </div>
+                {panel.status.state !== "idle" ? (
+                  <div
+                    className={`mt-3 border p-2 text-xs font-bold ${
+                      panel.status.state === "error"
+                        ? "border-red-400/50 bg-red-50 text-red-800"
+                        : panel.status.state === "done"
+                          ? "border-cyanline/40 bg-cyanline/10 text-ink"
+                          : "border-gold/50 bg-gold/10 text-ink"
+                    }`}
+                    aria-live="polite"
+                  >
+                    {panel.status.text}
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </div>
         {batchStatus.state !== "idle" ? (
           <div
             className={`mt-3 border p-3 text-sm font-bold ${
