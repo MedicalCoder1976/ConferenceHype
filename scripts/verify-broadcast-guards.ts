@@ -615,6 +615,30 @@ assert.match(renderHourSource, /durationSeconds = Math\.min\(Number\(process\.en
 assert.match(renderHourSource, /amix=inputs=\$\{totalStreams\}:duration=longest:normalize=0/);
 assert.doesNotMatch(renderHourSource, /amix=inputs=\$\{totalStreams\}:duration=first/);
 
+// Bug fixed 2026-07-12: scripts/create-youtube-broadcast.ts sets the
+// YouTube title/description from an independent, earlier snapshot of the
+// approved-segment pool -- taken minutes before render-hour-broadcast.ts
+// finishes selecting/framing/replacing the actual cards, so the two can
+// disagree. render-hour-broadcast.ts must push a corrected videos.update
+// using the real, final `cards` list as the single source of truth for
+// what actually aired -- confirmed missing on a real broadcast where the
+// description's chapter list didn't match the narrated cards and every
+// chapter was missing its journal name/date.
+assert.match(renderHourSource, /Updated YouTube title\/description from \$\{cards\.length\} actual rendered cards/);
+assert.match(renderHourSource, /buildBroadcastMetadata\(\{/);
+assert.match(renderHourSource, /videos\?part=snippet/);
+const streamWorkflowSource = readFileSync(
+  path.join(process.cwd(), ".github", "workflows", "youtube-stream.yml"),
+  "utf8"
+);
+const renderStepSource = streamWorkflowSource.slice(
+  streamWorkflowSource.indexOf("Render current presentation"),
+  streamWorkflowSource.indexOf("Verify public stream and writeout alignment")
+);
+assert.match(renderStepSource, /YOUTUBE_OAUTH_CLIENT_ID: \$\{\{ secrets\.YOUTUBE_OAUTH_CLIENT_ID \}\}/);
+assert.match(renderStepSource, /YOUTUBE_OAUTH_CLIENT_SECRET: \$\{\{ secrets\.YOUTUBE_OAUTH_CLIENT_SECRET \}\}/);
+assert.match(renderStepSource, /YOUTUBE_OAUTH_REFRESH_TOKEN: \$\{\{ secrets\.YOUTUBE_OAUTH_REFRESH_TOKEN \}\}/);
+
 // A narrative review with no Methods/Results structure in its abstract must
 // not be forced into the Background/Methods/Results/Discussion template --
 // it should just be called a good review on the topic, and the validator

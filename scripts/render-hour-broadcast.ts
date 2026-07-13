@@ -998,6 +998,100 @@ async function main() {
     });
   }
 
+  // Rebuild title/description/tags from the cards actually used in this
+  // render and push them over whatever scripts/create-youtube-broadcast.ts
+  // set minutes earlier. That earlier step reads its own independent
+  // snapshot of the approved-segment pool well before rendering finishes
+  // selecting/framing/replacing cards, so it can end up describing
+  // different content than what actually airs -- confirmed on a real
+  // broadcast (2026-07-12, video WZU4hNgqjcw) where the description's
+  // chapter list didn't match the narrated cards, every chapter was
+  // missing its journal name/date, and the title fell back to the
+  // coverage slot's linked conference ("ACC live programming") because
+  // that earlier snapshot happened to land on backlog cards that predate
+  // Citation.journalId. This block is the single source of truth for what
+  // actually aired, so it can't drift the same way.
+  if (process.env.YOUTUBE_VIDEO_ID && usedSegmentIds.length > 0) {
+    try {
+      const {
+        getSegmentsByIdsFromDb,
+        getOncologyJournalsFromDb,
+        getConferenceCoverageSlotsFromDb,
+        getMedicalConferencesFromDb
+      } = await import("@/lib/db");
+      const { buildBroadcastMetadata } = await import("@/lib/youtube/broadcastMetadata");
+      const [usedSegments, journals, coverageSlots, conferences] = await Promise.all([
+        getSegmentsByIdsFromDb(usedSegmentIds),
+        getOncologyJournalsFromDb(),
+        getConferenceCoverageSlotsFromDb(),
+        getMedicalConferencesFromDb()
+      ]);
+      const segmentsById = new Map(usedSegments.map((segment) => [segment.id, segment]));
+      const journalsById = new Map((journals ?? []).map((journal) => [journal.id, journal]));
+      const activeSlot = (coverageSlots ?? []).find((slot) => slot.id === process.env.COVERAGE_SLOT_ID);
+      const activeConference = activeSlot
+        ? (conferences ?? []).find((conference) => conference.id === activeSlot.conferenceId)
+        : undefined;
+      const hourStart = process.env.HOUR_BROADCAST_START
+        ? new Date(process.env.HOUR_BROADCAST_START)
+        : new Date();
+      let elapsedMs = 0;
+      const slots = cards.map((card) => {
+        const at = new Date(hourStart.getTime() + elapsedMs);
+        elapsedMs += card.duration * 1000;
+        return {
+          at,
+          kind: (card.isMusic ? "music" : "schedule") as "music" | "schedule",
+          durationMinutes: card.duration / 60,
+          durationSeconds: card.duration,
+          segment: card.segmentId ? segmentsById.get(card.segmentId) : undefined,
+          label: card.title ?? ""
+        };
+      });
+      const actualMetadata = buildBroadcastMetadata({
+        hourStart,
+        conferenceName: activeConference?.acronym ?? activeConference?.name,
+        slots,
+        journalsById
+      });
+
+      const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          client_id: process.env.YOUTUBE_OAUTH_CLIENT_ID ?? "",
+          client_secret: process.env.YOUTUBE_OAUTH_CLIENT_SECRET ?? "",
+          refresh_token: process.env.YOUTUBE_OAUTH_REFRESH_TOKEN ?? "",
+          grant_type: "refresh_token"
+        })
+      });
+      if (!tokenResponse.ok) {
+        throw new Error(`YouTube OAuth refresh failed: ${tokenResponse.status} ${await tokenResponse.text()}`);
+      }
+      const { access_token: accessToken } = (await tokenResponse.json()) as { access_token: string };
+
+      const updateResponse = await fetch("https://www.googleapis.com/youtube/v3/videos?part=snippet", {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: process.env.YOUTUBE_VIDEO_ID,
+          snippet: {
+            title: actualMetadata.title,
+            description: actualMetadata.description,
+            tags: actualMetadata.tags,
+            categoryId: actualMetadata.categoryId
+          }
+        })
+      });
+      if (!updateResponse.ok) {
+        throw new Error(`videos.update failed: ${updateResponse.status} ${await updateResponse.text()}`);
+      }
+      console.log(`Updated YouTube title/description from ${cards.length} actual rendered cards (tier=${actualMetadata.tier}).`);
+    } catch (error) {
+      console.log(`::warning::Could not update YouTube metadata from actual rendered cards: ${String(error)}`);
+    }
+  }
+
   await mkdir(renderDir, { recursive: true });
   await mkdir(path.dirname(outputPath), { recursive: true });
 

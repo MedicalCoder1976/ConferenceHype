@@ -519,6 +519,19 @@ export async function getSegmentByIdFromDb(segmentId: string) {
   return toSegment(data as SegmentRow);
 }
 
+export async function getSegmentsByIdsFromDb(segmentIds: string[]) {
+  if (!hasSupabase() || segmentIds.length === 0) {
+    return [];
+  }
+  const supabase = createAdminClient();
+  const { data, error } = await supabase.from("segments").select("*").in("id", segmentIds);
+
+  if (error) {
+    throw error;
+  }
+  return (data as SegmentRow[]).map(toSegment);
+}
+
 export async function getStreamStateFromDb() {
   if (!hasSupabase()) {
     return null;
