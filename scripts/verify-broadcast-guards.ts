@@ -3,7 +3,8 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { sanitizeBroadcastCopy } from "@/lib/broadcast/sanitizeCopy";
 import { formatVoiceSegment, SEGMENT_CLOSE } from "@/lib/broadcast/voiceSegment";
-import { buildBroadcastSlots } from "@/lib/rundown/slots";
+import { buildBroadcastSlots, buildJournalShowSlots } from "@/lib/rundown/slots";
+import { buildBroadcastMetadata } from "@/lib/youtube/broadcastMetadata";
 import { applySpokenPronunciations } from "@/lib/media/tts";
 import { getUnsafeGeneratedSourceErrors } from "@/lib/generation/sourceSafety";
 import { validateSegmentForApproval } from "@/lib/generation/validator";
@@ -144,6 +145,115 @@ const hourCheckIntroCount = hourCheckSlots.filter((slot) =>
   /This is .+ from ConferenceHype/.test(slot.segment?.script ?? "")
 ).length;
 assert.equal(hourCheckIntroCount, 4);
+
+// A 30-minute single-journal show must group cards 4-at-a-time with a music
+// break after every group, a disclaimer added after every 2nd group, one
+// persona throughout, and zero cross-journal leakage even when other
+// journals' segments are present in the input pool.
+const journalShowJournalId = "55555555-5555-4555-8555-555555555555";
+const journalShowOtherJournalId = "66666666-6666-4666-8666-666666666666";
+const journalShowSegments: Segment[] = [
+  ...Array.from({ length: 24 }, (_, index) => ({
+    ...sponsorBase,
+    id: `journal-show-${index}`,
+    title: `Journal show topic ${index}`,
+    summary: `Plain summary text for journal show item ${index}.`,
+    script: `Plain narrative body for journal show item ${index}.`,
+    contentType: "abstract_buzz" as const,
+    status: "approved" as const,
+    citations: [
+      {
+        label: `Test Journal: Journal show topic ${index}`,
+        url: `https://example.com/journal-show-${index}`,
+        sourceType: "official" as const,
+        journalId: journalShowJournalId
+      }
+    ],
+    riskFlags: []
+  })),
+  {
+    ...sponsorBase,
+    id: "journal-show-other-journal",
+    title: "Other journal topic",
+    summary: "Plain summary text for a different journal's item.",
+    script: "Plain narrative body for a different journal's item.",
+    contentType: "abstract_buzz" as const,
+    status: "approved" as const,
+    citations: [
+      {
+        label: "Other Journal: Other journal topic",
+        url: "https://example.com/other-journal",
+        sourceType: "official" as const,
+        journalId: journalShowOtherJournalId
+      }
+    ],
+    riskFlags: []
+  }
+];
+const journalShowSlots = buildJournalShowSlots({
+  segments: journalShowSegments,
+  journalId: journalShowJournalId,
+  baseTime: new Date("2026-07-13T16:00:00Z")
+});
+// 6 groups of (4 content + 1 music) = 30, plus a disclaimer after every 2nd
+// group (groups 2, 4, 6) = 3 more = 33 slots total.
+assert.equal(journalShowSlots.length, 33);
+for (let group = 0; group < 6; group += 1) {
+  const groupStart = group * 5 + Math.floor(group / 2);
+  for (let card = 0; card < 4; card += 1) {
+    assert.equal(journalShowSlots[groupStart + card].kind !== "music", true);
+  }
+  assert.equal(journalShowSlots[groupStart + 4].kind, "music");
+}
+const journalShowDisclaimerSlots = journalShowSlots.filter((slot) =>
+  slot.segment?.riskFlags.includes("journal_show_disclaimer")
+);
+assert.equal(journalShowDisclaimerSlots.length, 3);
+const journalShowPersonaNames = new Set(
+  journalShowSlots.filter((slot) => slot.segment).map((slot) => slot.segment?.personaName)
+);
+assert.equal(journalShowPersonaNames.size, 1);
+const journalShowContentJournalIds = new Set(
+  journalShowSlots
+    .filter((slot) => slot.kind !== "music" && !slot.segment?.riskFlags.includes("journal_show_disclaimer"))
+    .map((slot) => slot.segment?.citations?.[0]?.journalId)
+);
+assert.deepEqual([...journalShowContentJournalIds], [journalShowJournalId]);
+
+// buildBroadcastMetadata's titleDateOverride must be strictly additive:
+// omitted, it must produce byte-identical output to today's air-date
+// behavior; set, it must use the override's month/year instead.
+const journalShowTestJournal = {
+  id: journalShowJournalId,
+  name: "Test Journal",
+  abbreviation: "Test J",
+  rssUrl: "https://example.com/test-journal.rss",
+  officialUrl: "https://example.com/test-journal",
+  enabled: true,
+  specialty: "Internal Medicine"
+};
+const journalShowJournalsById = new Map([[journalShowJournalId, journalShowTestJournal]]);
+const metadataHourStart = new Date("2026-07-13T16:00:00Z");
+const metadataWithoutOverride = buildBroadcastMetadata({
+  hourStart: metadataHourStart,
+  slots: journalShowSlots,
+  journalsById: journalShowJournalsById
+});
+const metadataWithOverrideOmittedAgain = buildBroadcastMetadata({
+  hourStart: metadataHourStart,
+  slots: journalShowSlots,
+  journalsById: journalShowJournalsById
+});
+assert.deepEqual(metadataWithoutOverride, metadataWithOverrideOmittedAgain);
+assert.match(metadataWithoutOverride.title, /Jul 13, 2026/);
+const metadataWithOverride = buildBroadcastMetadata({
+  hourStart: metadataHourStart,
+  slots: journalShowSlots,
+  journalsById: journalShowJournalsById,
+  titleDateOverride: "2026-03-15"
+});
+assert.match(metadataWithOverride.title, /Mar 2026/);
+assert.doesNotMatch(metadataWithOverride.title, /Jul 13, 2026/);
 
 assert.ok(
   validateSegmentForApproval(sponsorBase).some((error) =>

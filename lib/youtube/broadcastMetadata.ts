@@ -9,6 +9,12 @@ export type BroadcastMetadataInput = {
   // actually airs.
   slots: BroadcastSlot[];
   journalsById: Map<string, OncologyJournal>;
+  // Optional. When set, the title's date label reflects this (a card
+  // citation's publishedAt) instead of the broadcast's own air date --
+  // used by the 30-minute single-journal show, whose title should show the
+  // journal issue's month/date, not when it aired. Existing callers omit
+  // this and get today's unchanged air-date behavior.
+  titleDateOverride?: string;
 };
 
 export type BroadcastMetadataTier = "dominant" | "roundup" | "generic";
@@ -232,7 +238,9 @@ export function buildBroadcastMetadata(input: BroadcastMetadataInput): Broadcast
   const cards = resolveContentCards(input.slots, input.journalsById);
   const { dominantJournal, dominantSpecialty, anyJournalResolved } = tallyDominant(cards);
   const resolved = resolveTier({ dominantJournal, dominantSpecialty, anyJournalResolved });
-  const label = dateLabel(input.hourStart);
+  const label = input.titleDateOverride
+    ? (monthYearLabel(input.titleDateOverride) ?? dateLabel(input.hourStart))
+    : dateLabel(input.hourStart);
 
   const title = buildTitle({ resolved, conferenceName: input.conferenceName, label });
   const tags = buildTags(cards);

@@ -23,7 +23,8 @@ import type {
   SpecialtyXVoice,
   SourceConfig,
   StreamState,
-  ConferenceCoverageSlot
+  ConferenceCoverageSlot,
+  JournalBroadcastSlot
 } from "@/lib/types";
 
 type SegmentRow = {
@@ -110,6 +111,26 @@ type ConferenceCoverageSlotRow = {
   approved_at?: string | null;
   approval_scope?: ConferenceCoverageSlot["approvalScope"] | null;
   youtube_status: ConferenceCoverageSlot["youtubeStatus"];
+  youtube_video_id?: string | null;
+  youtube_url?: string | null;
+  workflow_run_id?: string | null;
+  workflow_url?: string | null;
+  stream_started_at?: string | null;
+  stream_ended_at?: string | null;
+  delivery_error?: string | null;
+  updated_at?: string | null;
+};
+
+type JournalBroadcastSlotRow = {
+  id: string;
+  journal_id: string;
+  starts_at: string;
+  duration_minutes: number;
+  enabled: boolean;
+  approval_status: JournalBroadcastSlot["approvalStatus"];
+  approved_at?: string | null;
+  approval_scope?: JournalBroadcastSlot["approvalScope"] | null;
+  youtube_status: JournalBroadcastSlot["youtubeStatus"];
   youtube_video_id?: string | null;
   youtube_url?: string | null;
   workflow_run_id?: string | null;
@@ -283,6 +304,28 @@ function toConferenceCoverageSlot(row: ConferenceCoverageSlotRow): ConferenceCov
     conferenceId: row.conference_id,
     startsAt: row.starts_at,
     durationHours: row.duration_hours,
+    enabled: row.enabled,
+    approvalStatus: row.approval_status ?? "draft",
+    approvedAt: row.approved_at ?? undefined,
+    approvalScope: row.approval_scope ?? undefined,
+    youtubeStatus: row.youtube_status ?? "not_scheduled",
+    youtubeVideoId: row.youtube_video_id ?? undefined,
+    youtubeUrl: row.youtube_url ?? undefined,
+    workflowRunId: row.workflow_run_id ?? undefined,
+    workflowUrl: row.workflow_url ?? undefined,
+    streamStartedAt: row.stream_started_at ?? undefined,
+    streamEndedAt: row.stream_ended_at ?? undefined,
+    deliveryError: row.delivery_error ?? undefined,
+    updatedAt: row.updated_at ?? undefined
+  };
+}
+
+function toJournalBroadcastSlot(row: JournalBroadcastSlotRow): JournalBroadcastSlot {
+  return {
+    id: row.id,
+    journalId: row.journal_id,
+    startsAt: row.starts_at,
+    durationMinutes: row.duration_minutes,
     enabled: row.enabled,
     approvalStatus: row.approval_status ?? "draft",
     approvedAt: row.approved_at ?? undefined,
@@ -1113,6 +1156,181 @@ export async function deleteConferenceCoverageSlotInDb(slotId: string) {
   if (error) {
     throw error;
   }
+}
+
+export async function createJournalBroadcastSlotInDb({
+  startsAt,
+  journalId
+}: {
+  startsAt: string;
+  journalId: string;
+}): Promise<JournalBroadcastSlot> {
+  if (!hasSupabase()) {
+    throw new Error("Supabase not configured");
+  }
+  if (!journalId) {
+    throw new Error("journalId is required for a journal broadcast slot");
+  }
+  const supabase = createAdminClient();
+  // Idempotent: return any approved slot already scheduled within +/-7 min.
+  // Narrower than createGeneralCoverageSlotInDb's +/-15 min window because
+  // two journal slots now exist only 30 minutes apart -- a 15-minute window
+  // would overlap the neighboring half-hour slot.
+  const target = new Date(startsAt);
+  const windowStart = new Date(target.getTime() - 7 * 60 * 1000).toISOString();
+  const windowEnd = new Date(target.getTime() + 7 * 60 * 1000).toISOString();
+  const { data: existing } = await supabase
+    .from("journal_broadcast_slots")
+    .select("*")
+    .eq("approval_status", "approved")
+    .eq("enabled", true)
+    .gte("starts_at", windowStart)
+    .lte("starts_at", windowEnd)
+    .limit(1)
+    .maybeSingle();
+  if (existing) {
+    return toJournalBroadcastSlot(existing as JournalBroadcastSlotRow);
+  }
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("journal_broadcast_slots")
+    .insert({
+      journal_id: journalId,
+      starts_at: startsAt,
+      duration_minutes: 30,
+      enabled: true,
+      approval_status: "approved",
+      approved_at: now,
+      approval_scope: "slot",
+      youtube_status: "not_scheduled",
+      updated_at: now
+    })
+    .select("*")
+    .single();
+  if (error) {
+    throw error;
+  }
+  return toJournalBroadcastSlot(data as JournalBroadcastSlotRow);
+}
+
+export async function getJournalBroadcastSlotsFromDb(): Promise<JournalBroadcastSlot[] | null> {
+  if (!hasSupabase()) {
+    return null;
+  }
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("journal_broadcast_slots")
+    .select("*")
+    .order("starts_at", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+  return (data as JournalBroadcastSlotRow[]).map(toJournalBroadcastSlot);
+}
+
+export async function deleteJournalBroadcastSlotInDb(slotId: string) {
+  if (!hasSupabase()) {
+    return;
+  }
+  const { error } = await createAdminClient()
+    .from("journal_broadcast_slots")
+    .delete()
+    .eq("id", slotId);
+  if (error) {
+    throw error;
+  }
+}
+
+// Mirrors updateConferenceCoverageDeliveryInDb's stream_state handover-race
+// guard exactly (same shared singleton row, same video-id/live-status
+// comparisons) -- both slot types write to the one stream_state row, so this
+// must not diverge from that logic. Unlike the conference version, this
+// intentionally does NOT touch broadcast_writeouts: that table's
+// coverage_slot_id FK and duration_minutes=60 check can't accept a journal
+// slot, and nothing in the streaming path reads it, so journal shows simply
+// don't appear on the public writeout/transcript page for now.
+export async function updateJournalBroadcastDeliveryInDb(
+  slotId: string | undefined,
+  patch: {
+    youtubeStatus: JournalBroadcastSlot["youtubeStatus"];
+    youtubeVideoId?: string;
+    youtubeUrl?: string;
+    workflowRunId?: string;
+    workflowUrl?: string;
+    streamStartedAt?: string;
+    streamEndedAt?: string;
+    deliveryError?: string | null;
+  }
+) {
+  if (!hasSupabase()) {
+    return null;
+  }
+  const supabase = createAdminClient();
+  const now = new Date().toISOString();
+  const shouldClearStaleVideo =
+    patch.youtubeStatus === "failed" || patch.youtubeStatus === "rendering";
+  const streamStatePatch: Record<string, unknown> = {
+    mode: patch.youtubeStatus === "failed" ? "preview" : "youtube_primary",
+    youtube_status: patch.youtubeStatus,
+    updated_at: now
+  };
+  if (patch.youtubeVideoId !== undefined || shouldClearStaleVideo) {
+    streamStatePatch.youtube_video_id = patch.youtubeVideoId ?? null;
+  }
+  if (patch.youtubeUrl !== undefined || shouldClearStaleVideo) {
+    streamStatePatch.youtube_url = patch.youtubeUrl ?? null;
+  }
+  const isTerminalReport = patch.youtubeStatus === "failed" || patch.youtubeStatus === "completed";
+  let skipStreamStateWrite = false;
+  if (patch.youtubeVideoId) {
+    const { data: currentState } = await supabase
+      .from("stream_state")
+      .select("youtube_video_id, youtube_status")
+      .eq("id", 1)
+      .single();
+    const currentVideoDiffers = Boolean(
+      currentState?.youtube_video_id && currentState.youtube_video_id !== patch.youtubeVideoId
+    );
+    if (currentVideoDiffers) {
+      const currentIsLive = currentState?.youtube_status === "live";
+      if (isTerminalReport || (currentIsLive && patch.youtubeStatus !== "live")) {
+        skipStreamStateWrite = true;
+      }
+    }
+  }
+  if (!skipStreamStateWrite) {
+    const { error: streamStateError } = await supabase
+      .from("stream_state")
+      .update(streamStatePatch)
+      .eq("id", 1);
+    if (streamStateError) {
+      throw streamStateError;
+    }
+  }
+  if (!slotId) {
+    return null;
+  }
+  const { data, error } = await supabase
+    .from("journal_broadcast_slots")
+    .update({
+      youtube_status: patch.youtubeStatus,
+      youtube_video_id: patch.youtubeVideoId,
+      youtube_url: patch.youtubeUrl,
+      workflow_run_id: patch.workflowRunId,
+      workflow_url: patch.workflowUrl,
+      stream_started_at: patch.streamStartedAt,
+      stream_ended_at: patch.streamEndedAt,
+      delivery_error: patch.deliveryError,
+      updated_at: now
+    })
+    .eq("id", slotId)
+    .select("*")
+    .single();
+  if (error) {
+    throw error;
+  }
+  return toJournalBroadcastSlot(data as JournalBroadcastSlotRow);
 }
 
 export async function getOncologyJournalsFromDb(): Promise<OncologyJournal[] | null> {

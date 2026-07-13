@@ -176,6 +176,30 @@ create table public.oncology_journals (
   updated_at timestamptz not null default now()
 );
 
+create table public.journal_broadcast_slots (
+  id uuid primary key default gen_random_uuid(),
+  journal_id uuid not null references public.oncology_journals(id) on delete cascade,
+  starts_at timestamptz not null,
+  duration_minutes int not null default 30 check (duration_minutes = 30),
+  enabled boolean not null default true,
+  approval_status text not null default 'approved'
+    check (approval_status in ('draft', 'approved', 'rejected')),
+  approved_at timestamptz,
+  approval_scope text check (approval_scope is null or approval_scope in ('slot', 'day', 'week')),
+  youtube_status text not null default 'not_scheduled'
+    check (youtube_status in ('not_scheduled', 'queued', 'rendering', 'live', 'completed', 'failed')),
+  youtube_video_id text,
+  youtube_url text,
+  workflow_run_id text,
+  workflow_url text,
+  stream_started_at timestamptz,
+  stream_ended_at timestamptz,
+  delivery_error text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (journal_id, starts_at)
+);
+
 create table public.editorial_packages (
   id uuid primary key default gen_random_uuid(),
   category text not null check (category in ('journal_watch', 'meeting_watch')),

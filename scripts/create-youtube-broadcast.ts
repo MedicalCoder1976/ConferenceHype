@@ -73,43 +73,73 @@ let metadata:
     }
   | undefined;
 try {
-  const [
-    { filterBroadcastReadySegments },
-    { getNextBroadcastSegmentsFromDb, getOncologyJournalsFromDb, getConferenceCoverageSlotsFromDb, getMedicalConferencesFromDb },
-    { buildBroadcastSlots },
-    { buildBroadcastMetadata }
-  ] = await Promise.all([
-    import("@/lib/data"),
-    import("@/lib/db"),
-    import("@/lib/rundown/slots"),
-    import("@/lib/youtube/broadcastMetadata")
-  ]);
-  const [rawApproved, journals, coverageSlots, conferences] = await Promise.all([
-    getNextBroadcastSegmentsFromDb(120),
-    getOncologyJournalsFromDb(),
-    getConferenceCoverageSlotsFromDb(),
-    getMedicalConferencesFromDb()
-  ]);
-  const approved = filterBroadcastReadySegments(rawApproved ?? []);
-  // Title/description only need content + music slots, not the schedule
-  // spine (schedule-spine cards never carry journal citations anyway).
-  const slots = buildBroadcastSlots({
-    segments: approved,
-    scheduleSegments: [],
-    baseTime: scheduledStart,
-    hours: 1
-  });
-  const journalsById = new Map((journals ?? []).map((journal) => [journal.id, journal]));
-  const activeSlot = (coverageSlots ?? []).find((slot) => slot.id === process.env.COVERAGE_SLOT_ID);
-  const activeConference = activeSlot
-    ? (conferences ?? []).find((conference) => conference.id === activeSlot.conferenceId)
-    : undefined;
-  metadata = buildBroadcastMetadata({
-    hourStart: scheduledStart,
-    conferenceName: activeConference?.acronym ?? activeConference?.name,
-    slots,
-    journalsById
-  });
+  if (process.env.JOURNAL_ID) {
+    // 30-minute single-journal show: this placeholder always gets
+    // overwritten by render-hour-broadcast.ts's post-render metadata
+    // rebuild once the real cards are known (same "single source of truth"
+    // reasoning as the hourly path below), so a minimal, accurate-enough
+    // title built from just the journal record is sufficient here -- no
+    // need to run buildBroadcastSlots/buildJournalShowSlots against
+    // not-yet-selected segments just for a title that's about to be
+    // replaced anyway.
+    const { getOncologyJournalsFromDb } = await import("@/lib/db");
+    const journals = await getOncologyJournalsFromDb();
+    const journal = (journals ?? []).find((candidate) => candidate.id === process.env.JOURNAL_ID);
+    const label = new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      timeZone: "America/New_York"
+    }).format(scheduledStart);
+    metadata = {
+      title: journal ? `ConferenceHype: ${journal.name} - ${label}` : `ConferenceHype live programming - ${label}`,
+      description: "Source-attributed ConferenceHype medical-journal programming.",
+      tags: journal ? [journal.name, ...(journal.specialty ? [journal.specialty] : [])] : [],
+      categoryId: "27",
+      tier: journal ? "dominant" : "generic",
+      journalName: journal?.name,
+      specialty: journal?.specialty,
+      dateLabel: label
+    };
+  } else {
+    const [
+      { filterBroadcastReadySegments },
+      { getNextBroadcastSegmentsFromDb, getOncologyJournalsFromDb, getConferenceCoverageSlotsFromDb, getMedicalConferencesFromDb },
+      { buildBroadcastSlots },
+      { buildBroadcastMetadata }
+    ] = await Promise.all([
+      import("@/lib/data"),
+      import("@/lib/db"),
+      import("@/lib/rundown/slots"),
+      import("@/lib/youtube/broadcastMetadata")
+    ]);
+    const [rawApproved, journals, coverageSlots, conferences] = await Promise.all([
+      getNextBroadcastSegmentsFromDb(120),
+      getOncologyJournalsFromDb(),
+      getConferenceCoverageSlotsFromDb(),
+      getMedicalConferencesFromDb()
+    ]);
+    const approved = filterBroadcastReadySegments(rawApproved ?? []);
+    // Title/description only need content + music slots, not the schedule
+    // spine (schedule-spine cards never carry journal citations anyway).
+    const slots = buildBroadcastSlots({
+      segments: approved,
+      scheduleSegments: [],
+      baseTime: scheduledStart,
+      hours: 1
+    });
+    const journalsById = new Map((journals ?? []).map((journal) => [journal.id, journal]));
+    const activeSlot = (coverageSlots ?? []).find((slot) => slot.id === process.env.COVERAGE_SLOT_ID);
+    const activeConference = activeSlot
+      ? (conferences ?? []).find((conference) => conference.id === activeSlot.conferenceId)
+      : undefined;
+    metadata = buildBroadcastMetadata({
+      hourStart: scheduledStart,
+      conferenceName: activeConference?.acronym ?? activeConference?.name,
+      slots,
+      journalsById
+    });
+  }
 } catch (error) {
   console.log(
     `::warning::Could not build journal-aware YouTube metadata, falling back to generic title/description: ${String(error)}`

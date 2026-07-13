@@ -13,8 +13,11 @@ import {
   stripBroadcastDisclaimer
 } from "@/lib/broadcast/voiceSegment";
 import { MUSIC_SECONDS } from "@/lib/broadcast/hourSchedule";
-import { defaultDisclaimer } from "@/lib/generation/disclaimers";
+import { broadcastDisclaimer } from "@/lib/generation/disclaimers";
+import { JOURNAL_SHOW_SECONDS } from "@/lib/broadcast/journalShowSchedule";
+import { contentSignature } from "@/lib/segments/contentSignature";
 import type { BroadcastWriteoutCard, ContentType, Persona, Segment } from "@/lib/types";
+import type { BroadcastSlot } from "@/lib/rundown/slots";
 
 const durationSeconds = Math.min(Number(process.env.HOUR_BROADCAST_SECONDS ?? 3600), 3600);
 const renderDir = process.env.HOUR_BROADCAST_DIR ?? "public/rendered/hour-broadcast";
@@ -46,8 +49,7 @@ type Card = {
 };
 
 const DISCLAIMER_INTERVAL_SECONDS = 15 * 60;
-const BROADCAST_DISCLAIMER =
-  `${defaultDisclaimer} ConferenceHype is independent and is not affiliated with conference organizers, presenters, sponsors, or exhibitors.`;
+const BROADCAST_DISCLAIMER = broadcastDisclaimer;
 const GAP_CLIP_PATHS = [
   "public/music/gap-clips/conferencehype-gap-elevate-to-fenrir-20s.mp3",
   "public/music/gap-clips/conferencehype-gap-nightclub-to-rebecca-20s.mp3",
@@ -204,23 +206,6 @@ function wordCount(value: string) {
   return value.trim().split(/\s+/).filter(Boolean).length;
 }
 
-// Identifies a segment's real underlying content, independent of its
-// database row id. Found on 2026-07-08: an old ingestion run left 5
-// separate approved segment rows all citing the exact same tweet with
-// byte-identical script text ("X voice monitor: ... STAT ... $8 billion in
-// Medicaid funds..."), and the round-robin/bonus-fill fallback pools only
-// ever deduped by segment id, so multiple of those rows could -- and did --
-// get selected into the same broadcast hour, playing the same card 2-3
-// times. Prefer the citation URL (the strongest signal of "same source
-// item"); fall back to normalized script text for segments with no
-// citation (e.g. synthetic/schedule cards).
-function contentSignature(segment: Segment) {
-  const url = segment.citations[0]?.url?.trim().toLowerCase();
-  if (url) {
-    return `url:${url}`;
-  }
-  return `script:${segment.script.trim().toLowerCase().replace(/\s+/g, " ")}`;
-}
 
 // A card's real spoken length rarely matches its nominal scheduled duration
 // exactly. Longer-than-scheduled segments (the common case for a genuine
@@ -439,9 +424,17 @@ function enforceOneHourFrame(cards: Card[], frameSeconds = 3600) {
   return framedCards;
 }
 
-function applyPresentationPolicy(cards: Card[]) {
+// disclaimerIntervalSeconds defaults to the hourly format's 15-minute
+// cadence. The 30-minute journal show passes Infinity here -- it already
+// inserts its own disclaimer cards structurally at slot-build time (see
+// buildJournalShowSlots), so the time-based insertion below must never
+// fire for it -- but the stray-disclaimer-text-stripping and
+// music-transition-text-formatting side effects below still need to run on
+// every other card, which is why this stays a shared function with a
+// parameter rather than being skipped entirely for journal mode.
+function applyPresentationPolicy(cards: Card[], disclaimerIntervalSeconds = DISCLAIMER_INTERVAL_SECONDS) {
   let elapsedSeconds = 0;
-  let nextDisclaimerAt = DISCLAIMER_INTERVAL_SECONDS;
+  let nextDisclaimerAt = disclaimerIntervalSeconds;
 
   return cards.map((card) => {
     const startsAt = elapsedSeconds;
@@ -452,6 +445,15 @@ function applyPresentationPolicy(cards: Card[]) {
         ...card,
         text: formatTransitionCard()
       };
+    }
+
+    // The journal show's own structural disclaimer cards (tagged
+    // "journal_show_disclaimer") carry BROADCAST_DISCLAIMER as their
+    // intentional content -- stripBroadcastDisclaimer exists to remove that
+    // same text when it's leaked into a REAL content card, so it must not
+    // run over these cards or it would blank them out.
+    if (card.riskFlags?.includes("journal_show_disclaimer")) {
+      return card;
     }
 
     const cleanedScript = card.script
@@ -468,7 +470,7 @@ function applyPresentationPolicy(cards: Card[]) {
     }
 
     while (nextDisclaimerAt <= startsAt) {
-      nextDisclaimerAt += DISCLAIMER_INTERVAL_SECONDS;
+      nextDisclaimerAt += disclaimerIntervalSeconds;
     }
 
     return {
@@ -485,6 +487,39 @@ function applyPresentationPolicy(cards: Card[]) {
         title: "Independent AI commentary",
         body: BROADCAST_DISCLAIMER
       })
+    };
+  });
+}
+
+// Shared BroadcastSlot[] -> Card[] mapping, used by both the hourly format
+// (buildCards) and the 30-minute single-journal format (buildJournalCards)
+// -- identical BroadcastSlot shape, so this is a straight reuse, not a
+// duplicate implementation per format.
+function slotsToCards(slots: BroadcastSlot[]): Card[] {
+  let musicIndex = 0;
+  return slots.map((slot) => {
+    const isMusic = slot.kind === "music";
+    return {
+      duration: slot.durationSeconds,
+      isMusic,
+      gapClipPath: isMusic ? GAP_CLIP_PATHS[musicIndex++ % GAP_CLIP_PATHS.length] : undefined,
+      segmentId: !isMusic ? slot.segment?.id : undefined,
+      personaId: !isMusic ? (slot.segment?.personaId ?? "echo-sage") : undefined,
+      personaName: !isMusic ? slot.segment?.personaName : undefined,
+      contentType: !isMusic ? slot.segment?.contentType : undefined,
+      title: slot.segment?.title ?? slot.label,
+      sourceLabel: !isMusic ? slot.segment?.citations[0]?.label : undefined,
+      sourceUrl: !isMusic ? slot.segment?.citations[0]?.url : undefined,
+      script: !isMusic ? (slot.segment?.script || slot.segment?.summary || null) : null,
+      riskFlags: !isMusic ? (slot.segment?.riskFlags ?? []) : undefined,
+      text: isMusic
+        ? formatTransitionCard()
+        : formatCard({
+            eyebrow: `${slot.segment?.personaName ?? "ConferenceHype"} / ${slot.segment ? cardTypeEyebrow(slot.segment) : "CONTENT"}`,
+            title: slot.segment?.title ?? slot.label,
+            body: slot.segment?.script || slot.segment?.summary || slot.label,
+            source: slot.segment?.citations[0]?.url
+          })
     };
   });
 }
@@ -573,41 +608,7 @@ async function buildCards(): Promise<{ cards: Card[]; unusedApproved: Segment[] 
     hours
   }).filter((slot) => slot.at < new Date(baseTime.getTime() + durationSeconds * 1000));
 
-  // Rule 7: gap-clip rotation — 4 approved 20-second techno stingers in public/music/gap-clips/
-  const gapClipPaths = [
-    "public/music/gap-clips/conferencehype-gap-elevate-to-fenrir-20s.mp3",
-    "public/music/gap-clips/conferencehype-gap-nightclub-to-rebecca-20s.mp3",
-    "public/music/gap-clips/conferencehype-gap-subterranean-to-adam-20s.mp3",
-    "public/music/gap-clips/conferencehype-gap-skyline-to-aussieonc-20s.mp3",
-    "public/music/conferencehype-gap-music-20sec-preview-v4.mp3",
-    "public/music/conferencehype-gap-music-20sec-preview-v4.mp3"
-  ];
-  let musicIndex = 0;
-  const cards = slots.map((slot) => {
-    const isMusic = slot.kind === "music";
-    return {
-      duration: slot.durationSeconds,
-      isMusic,
-      gapClipPath: isMusic ? gapClipPaths[musicIndex++ % gapClipPaths.length] : undefined,
-      segmentId: !isMusic ? slot.segment?.id : undefined,
-      personaId: !isMusic ? (slot.segment?.personaId ?? "echo-sage") : undefined,
-      personaName: !isMusic ? slot.segment?.personaName : undefined,
-      contentType: !isMusic ? slot.segment?.contentType : undefined,
-      title: slot.segment?.title ?? slot.label,
-      sourceLabel: !isMusic ? slot.segment?.citations[0]?.label : undefined,
-      sourceUrl: !isMusic ? slot.segment?.citations[0]?.url : undefined,
-      script: !isMusic ? (slot.segment?.script || slot.segment?.summary || null) : null,
-      riskFlags: !isMusic ? (slot.segment?.riskFlags ?? []) : undefined,
-      text: isMusic
-        ? formatTransitionCard()
-        : formatCard({
-            eyebrow: `${slot.segment?.personaName ?? "ConferenceHype"} / ${slot.segment ? cardTypeEyebrow(slot.segment) : "CONTENT"}`,
-            title: slot.segment?.title ?? slot.label,
-            body: slot.segment?.script || slot.segment?.summary || slot.label,
-            source: slot.segment?.citations[0]?.url
-          })
-    };
-  });
+  const cards = slotsToCards(slots);
 
   // Segments approved for this render but never assigned to any of the
   // official slots above (buildBroadcastSlots' internal round-robin fallback
@@ -629,6 +630,60 @@ async function buildCards(): Promise<{ cards: Card[]; unusedApproved: Segment[] 
   );
   const unusedApproved: Segment[] = [];
   for (const segment of renderSegments) {
+    if (usedIds.has(segment.id)) {
+      continue;
+    }
+    const signature = contentSignature(segment);
+    if (usedSignatures.has(signature)) {
+      continue;
+    }
+    usedSignatures.add(signature);
+    unusedApproved.push(segment);
+  }
+
+  return { cards, unusedApproved };
+}
+
+// 30-minute single-journal show. No conference-opening card, schedule
+// segments, or social-voice fallback -- none of that applies to a
+// single-journal show, and per the product spec, content-volume fallback
+// (what to do if a journal doesn't have enough fresh content) is explicitly
+// out of scope for this first cut.
+async function buildJournalCards(): Promise<{ cards: Card[]; unusedApproved: Segment[] }> {
+  const [{ filterBroadcastReadySegments }, { getNextBroadcastSegmentsFromDb }, { buildJournalShowSlots }] =
+    await Promise.all([
+      import("@/lib/data"),
+      import("@/lib/db"),
+      import("@/lib/rundown/slots")
+    ]);
+  const baseTime = process.env.HOUR_BROADCAST_START
+    ? new Date(process.env.HOUR_BROADCAST_START)
+    : new Date();
+  const journalId = process.env.JOURNAL_ID;
+  if (!journalId) {
+    throw new Error("JOURNAL_ID is required when HOUR_BROADCAST_MODE=journal30");
+  }
+  const approved = await getNextBroadcastSegmentsFromDb(200);
+  const renderSegments = filterBroadcastReadySegments(approved ?? []);
+
+  const slots = buildJournalShowSlots({ segments: renderSegments, journalId, baseTime }).filter(
+    (slot) => slot.at < new Date(baseTime.getTime() + durationSeconds * 1000)
+  );
+  const cards = slotsToCards(slots);
+
+  // Bonus-gap filler (fillLeftoverGapsWithBonusCards) must stay journal-scoped
+  // too -- the single-journal rule is a hard constraint on the whole show,
+  // not just the primary content source, so a content gap must never get
+  // filled with a different journal's card.
+  const usedIds = new Set(slots.filter((slot) => slot.segment).map((slot) => slot.segment!.id));
+  const usedSignatures = new Set(
+    slots.filter((slot) => slot.segment).map((slot) => contentSignature(slot.segment!))
+  );
+  const unusedApproved: Segment[] = [];
+  for (const segment of renderSegments) {
+    if (segment.status !== "approved" || segment.citations?.[0]?.journalId !== journalId) {
+      continue;
+    }
     if (usedIds.has(segment.id)) {
       continue;
     }
@@ -931,23 +986,28 @@ async function saveBroadcastWriteout(cards: Card[]) {
 async function main() {
   const ffmpeg = process.env.FFMPEG_PATH ?? ffmpegPath ?? "ffmpeg";
   const useBlockMode = process.env.HOUR_BROADCAST_MODE === "blocks";
+  const isJournalMode = process.env.HOUR_BROADCAST_MODE === "journal30";
   const { applySpokenPronunciations } = await import("@/lib/media/tts");
   const { getPersona } = await import("@/lib/generation/personas");
   const { cards: rawCards, unusedApproved } = useBlockMode
     ? { cards: await buildBlockCards(), unusedApproved: [] as Segment[] }
-    : await buildCards();
+    : isJournalMode
+      ? await buildJournalCards()
+      : await buildCards();
   const cards = enforceOneHourFrame(
     await fillLeftoverGapsWithBonusCards(
       expandContentDurations(
         replaceEmptyContentCardsWithMusic(
-          replaceMissingIntakeCardsWithMusic(applyPresentationPolicy(rawCards))
+          replaceMissingIntakeCardsWithMusic(
+            applyPresentationPolicy(rawCards, isJournalMode ? Infinity : DISCLAIMER_INTERVAL_SECONDS)
+          )
         )
       ),
       unusedApproved,
       applySpokenPronunciations,
       getPersona
     ),
-    3600
+    isJournalMode ? JOURNAL_SHOW_SECONDS : 3600
   );
 
   // Opt-in, no-op-by-default escape hatch for sanity-checking the full card
@@ -976,7 +1036,14 @@ async function main() {
     return;
   }
 
-  await saveBroadcastWriteout(cards);
+  // broadcast_writeouts.coverage_slot_id is a strict FK to
+  // conference_coverage_slots and duration_minutes has a check(=60)
+  // constraint -- a 30-minute journal show can't satisfy either. Nothing in
+  // the streaming path reads this table (it's a separate public
+  // writeout/transcript page), so skipping it for journal mode is zero-risk.
+  if (!isJournalMode) {
+    await saveBroadcastWriteout(cards);
+  }
 
   // Mark every real, DB-backed segment used in this hour's card list as
   // aired, so it stops being pulled into a future hour's approved-segment
@@ -1048,11 +1115,31 @@ async function main() {
           label: card.title ?? ""
         };
       });
+      // For the 30-minute single-journal show, the title should show the
+      // journal issue's own month/date, not the broadcast's air date --
+      // pick the most common publishedAt month among the actually-used
+      // segments' citations (usually trivial since the show is
+      // single-journal by construction, but computed properly rather than
+      // just taking the first card's date in case of a manually-curated
+      // multi-issue show).
+      let titleDateOverride: string | undefined;
+      if (isJournalMode) {
+        const monthCounts = new Map<string, { count: number; sample: string }>();
+        for (const segment of usedSegments) {
+          const publishedAt = segment.citations?.[0]?.publishedAt;
+          if (!publishedAt) continue;
+          const monthKey = publishedAt.slice(0, 7);
+          const existing = monthCounts.get(monthKey);
+          monthCounts.set(monthKey, { count: (existing?.count ?? 0) + 1, sample: existing?.sample ?? publishedAt });
+        }
+        titleDateOverride = [...monthCounts.values()].sort((a, b) => b.count - a.count)[0]?.sample;
+      }
       const actualMetadata = buildBroadcastMetadata({
         hourStart,
         conferenceName: activeConference?.acronym ?? activeConference?.name,
         slots,
-        journalsById
+        journalsById,
+        titleDateOverride
       });
 
       const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {

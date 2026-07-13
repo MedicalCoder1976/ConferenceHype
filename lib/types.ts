@@ -166,6 +166,26 @@ export type ConferenceCoverageSlot = {
   updatedAt?: string;
 };
 
+export type JournalBroadcastSlot = {
+  id: string;
+  journalId: string;
+  startsAt: string;
+  durationMinutes: number;
+  enabled: boolean;
+  approvalStatus: "draft" | "approved" | "rejected";
+  approvedAt?: string;
+  approvalScope?: "slot" | "day" | "week";
+  youtubeStatus: ConferenceCoverageSlot["youtubeStatus"];
+  youtubeVideoId?: string;
+  youtubeUrl?: string;
+  workflowRunId?: string;
+  workflowUrl?: string;
+  streamStartedAt?: string;
+  streamEndedAt?: string;
+  deliveryError?: string;
+  updatedAt?: string;
+};
+
 export type BroadcastWriteoutCard = {
   position: number;
   startsAt: string;

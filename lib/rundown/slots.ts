@@ -8,6 +8,16 @@ import {
   MUSIC_SECONDS,
   addSeconds
 } from "@/lib/broadcast/hourSchedule";
+import {
+  JOURNAL_CARDS_PER_GROUP,
+  JOURNAL_CONTENT_SECONDS,
+  JOURNAL_DISCLAIMER_EVERY_N_GROUPS,
+  JOURNAL_DISCLAIMER_SECONDS,
+  JOURNAL_GROUPS_PER_SHOW,
+  JOURNAL_MUSIC_SECONDS
+} from "@/lib/broadcast/journalShowSchedule";
+import { broadcastDisclaimer } from "@/lib/generation/disclaimers";
+import { contentSignature } from "@/lib/segments/contentSignature";
 import { hasMissingIntakeFailureLanguage } from "@/lib/broadcast/sanitizeCopy";
 import type { Persona, Segment } from "@/lib/types";
 
@@ -55,6 +65,19 @@ function personasForHour(hourStart: Date): Persona[] {
     pool.splice(pickIndex, 1);
   }
   return picked;
+}
+
+// Picks exactly 1 persona for a 30-minute single-journal show, deterministic
+// on the half-hour start time + journal id so the same half-hour+journal
+// combo always gets the same voice, but different journals (or the same
+// journal at a different half-hour) vary. Separate from personasForHour
+// because the journal show has no voice-section concept at all -- one
+// persona narrates the entire show, including the disclaimer.
+export function personaForJournalShow(baseTime: Date, journalId: string): Persona {
+  const pool = [...personas];
+  const seed = hashValue(`${baseTime.toISOString()}|${journalId}`);
+  const pickIndex = seed % pool.length;
+  return pool[pickIndex];
 }
 
 function stripIntro(value: string) {
@@ -298,6 +321,140 @@ export function buildBroadcastSlots({
   }
 
   return slots.sort((a, b) => a.at.getTime() - b.at.getTime());
+}
+
+function journalDisclaimerSegment(persona: Persona, at: Date): Segment {
+  const createdAt = at.toISOString();
+  return {
+    id: `journal-show-disclaimer-${createdAt}`,
+    title: "Important ConferenceHype notice",
+    summary: broadcastDisclaimer,
+    script: broadcastDisclaimer,
+    contentType: "media_roundup",
+    personaId: persona.id,
+    personaName: persona.name,
+    hypeLevel: "restrained",
+    language: "English",
+    status: "approved",
+    citations: [],
+    socialBuzzItems: [],
+    // Distinguishes this synthetic card from a real content card so
+    // render-hour-broadcast.ts's stray-disclaimer-text stripping pass (which
+    // would otherwise blank this exact text out, since that pass exists to
+    // remove disclaimer text that leaked into a REAL content card) can
+    // exempt it instead.
+    riskFlags: ["journal_show_disclaimer"],
+    confidenceScore: 100,
+    createdAt
+  };
+}
+
+// Builds the slot timeline for a 30-minute single-journal show: cards drawn
+// only from the given journal's approved segments, narrated by exactly one
+// persona for the whole show, in groups of JOURNAL_CARDS_PER_GROUP with a
+// music break after every group and a disclaimer added after every
+// JOURNAL_DISCLAIMER_EVERY_N_GROUPS-th group. See
+// lib/broadcast/journalShowSchedule.ts for why this is a separate constants
+// module and separate function from buildBroadcastSlots rather than a
+// parameterized variant of it -- music-after-every-group (not
+// music-after-every-card) is a structurally different slot pattern, and the
+// disclaimer's card-count-based trigger is known entirely at slot-build
+// time, unlike the hourly format's elapsed-time-based one.
+export function buildJournalShowSlots({
+  segments,
+  journalId,
+  baseTime
+}: {
+  segments: Segment[];
+  journalId: string;
+  baseTime: Date;
+}): BroadcastSlot[] {
+  // Dedupe by content signature, not just segment id -- the same underlying
+  // article can have more than one approved segment row (e.g. one from a
+  // weekly sweep, one from an on-demand batch pick), and a single-journal
+  // show must never narrate the same article twice. Confirmed via a real
+  // dry-run: two PLOS Medicine articles each appeared as both a "Weekly
+  // update" row and a separate "One-hour batch" row citing the same URL.
+  const seenSignatures = new Set<string>();
+  const journalSegments = uniqueSegments(
+    segments.filter(
+      (segment) => segment.status === "approved" && segment.citations?.[0]?.journalId === journalId
+    )
+  ).filter((segment) => {
+    const signature = contentSignature(segment);
+    if (seenSignatures.has(signature)) {
+      return false;
+    }
+    seenSignatures.add(signature);
+    return true;
+  });
+  const persona = personaForJournalShow(baseTime, journalId);
+  const slots: BroadcastSlot[] = [];
+  let at = baseTime;
+  let contentIndex = 0;
+  let segmentCursor = 0;
+
+  for (
+    let groupIndex = 0;
+    groupIndex < JOURNAL_GROUPS_PER_SHOW && segmentCursor < journalSegments.length;
+    groupIndex += 1
+  ) {
+    for (
+      let cardInGroup = 0;
+      cardInGroup < JOURNAL_CARDS_PER_GROUP && segmentCursor < journalSegments.length;
+      cardInGroup += 1
+    ) {
+      const sourceSegment = journalSegments[segmentCursor];
+      segmentCursor += 1;
+      if (
+        hasMissingIntakeFailureLanguage(
+          `${sourceSegment.title} ${sourceSegment.summary} ${sourceSegment.script}`
+        )
+      ) {
+        continue;
+      }
+      const includeIntro = contentIndex === 0;
+      const segment = withAssignedVoice(sourceSegment, persona, contentIndex, includeIntro, at);
+      slots.push({
+        at,
+        kind: segmentKind(segment),
+        durationMinutes: JOURNAL_CONTENT_SECONDS / 60,
+        durationSeconds: JOURNAL_CONTENT_SECONDS,
+        label: `${segment.personaName} content card`,
+        segment,
+        replaceable: true
+      });
+      at = addSeconds(at, JOURNAL_CONTENT_SECONDS);
+      contentIndex += 1;
+    }
+
+    slots.push({
+      at,
+      kind: "music",
+      durationMinutes: JOURNAL_MUSIC_SECONDS / 60,
+      durationSeconds: JOURNAL_MUSIC_SECONDS,
+      label: "music transition",
+      replaceable: false
+    });
+    at = addSeconds(at, JOURNAL_MUSIC_SECONDS);
+
+    const groupNumber = groupIndex + 1;
+    if (groupNumber % JOURNAL_DISCLAIMER_EVERY_N_GROUPS === 0) {
+      const disclaimerSegment = journalDisclaimerSegment(persona, at);
+      slots.push({
+        at,
+        kind: "statement",
+        durationMinutes: JOURNAL_DISCLAIMER_SECONDS / 60,
+        durationSeconds: JOURNAL_DISCLAIMER_SECONDS,
+        label: "disclaimer",
+        segment: disclaimerSegment,
+        replaceable: false
+      });
+      at = addSeconds(at, JOURNAL_DISCLAIMER_SECONDS);
+    }
+  }
+
+  return slots;
 }
 
 export function buildBroadcastHourBuckets(slots: BroadcastSlot[], baseTime: Date, hours = 1) {
