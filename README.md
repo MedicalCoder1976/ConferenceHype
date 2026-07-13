@@ -732,7 +732,7 @@ mode branch, `components/SingleJournalPicker.tsx` +
 `components/DailyCoveragePlanner.tsx`'s "Journal-only broadcasts for this
 hour" panels.
 
-Two real bugs were found and fixed while running the first manual test
+Three real bugs were found and fixed while running the first manual test
 broadcasts through this new path:
 
 - **Duplicate-article cards.** `buildJournalShowSlots` could schedule the
@@ -759,6 +759,21 @@ broadcasts through this new path:
   format. Other `broadcast_writeouts` consumers (`lib/data.ts`'s
   `findMatchingWriteout`, the admin writeout archive display) were checked
   and already degrade gracefully with no row present, so needed no changes.
+- **Silent post-render write failures with useless error logs.** The first
+  fully clean end-to-end journal30 test (video `xh77Aljha6o`) still shipped
+  with two gaps: the post-render title/description rebuild never landed
+  (video stayed on its `create-youtube-broadcast.ts` placeholder title), and
+  the segments used in the show never got flipped to `rendered`, leaving
+  them eligible for reuse in a future broadcast. Both writes failed within
+  the same ~2-second window in `scripts/render-hour-broadcast.ts` while
+  every other network call in the same job succeeded — consistent with a
+  transient runner network blip, not a deterministic bug. Root-causing this
+  was slower than it should have been because both catch blocks logged
+  `${error}`/`String(error)` on plain Supabase/fetch error objects, which
+  stringify to `"[object Object]"` instead of anything useful. Fixed by
+  adding a `describeError()` helper that extracts the error's actual
+  fields, and wrapping both writes (both idempotent — safe to repeat) in a
+  short retry via a new `withRetry()` helper.
 
 ## Automation Cadence
 
