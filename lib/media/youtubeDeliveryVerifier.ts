@@ -13,6 +13,12 @@ type VerifyOptions = {
   expectedPrivacyStatus?: "public" | "unlisted" | "private";
   timeoutSeconds?: number;
   intervalSeconds?: number;
+  // broadcast_writeouts has a strict FK to conference_coverage_slots and a
+  // duration_minutes=60 check, so a 30-minute journal show never writes one
+  // (see render-hour-broadcast.ts's isJournalMode guard) -- set this to skip
+  // the writeout-alignment check for those runs rather than polling for a
+  // table row that structurally can't exist until the timeout is exhausted.
+  skipWriteoutCheck?: boolean;
 };
 
 type YoutubeBroadcastStatus = {
@@ -208,6 +214,10 @@ async function assertPublicState(options: VerifyOptions) {
   }
   if (streamState?.youtube_status !== options.phase) {
     throw new Error(`Public stream_state is ${streamState?.youtube_status}; expected ${options.phase}.`);
+  }
+
+  if (options.skipWriteoutCheck) {
+    return;
   }
 
   const { data: writeout, error: writeoutError } = await supabase

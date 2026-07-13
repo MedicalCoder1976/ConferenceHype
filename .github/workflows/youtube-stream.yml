@@ -266,6 +266,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           YOUTUBE_VIDEO_ID: ${{ steps.youtube.outputs.youtube_video_id }}
+          JOURNAL_SLOT_ID: ${{ steps.block.outputs.journal_slot_id }}
 
       - name: Wait for requested start time
         if: ${{ steps.block.outputs.block_start != '' }}
@@ -331,6 +332,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           YOUTUBE_VIDEO_ID: ${{ steps.youtube.outputs.youtube_video_id }}
           YOUTUBE_VIDEO_URL: ${{ steps.youtube.outputs.youtube_url }}
+          JOURNAL_SLOT_ID: ${{ steps.block.outputs.journal_slot_id }}
           YOUTUBE_VERIFY_PHASE: completed
           YOUTUBE_EXPECT_PRIVACY_STATUS: public
           YOUTUBE_VERIFY_TIMEOUT_SECONDS: 900

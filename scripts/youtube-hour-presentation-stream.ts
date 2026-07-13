@@ -255,7 +255,8 @@ async function main() {
           youtubeUrl: process.env.YOUTUBE_VIDEO_URL,
           mediaPath: videoPath,
           timeoutSeconds: Number(process.env.YOUTUBE_LIVE_VERIFY_TIMEOUT_SECONDS ?? "180"),
-          intervalSeconds: Number(process.env.YOUTUBE_LIVE_VERIFY_INTERVAL_SECONDS ?? "15")
+          intervalSeconds: Number(process.env.YOUTUBE_LIVE_VERIFY_INTERVAL_SECONDS ?? "15"),
+          skipWriteoutCheck: Boolean(journalSlotId)
         });
         console.log("YOUTUBE_LIVE_DELIVERY_VERIFIED: rendered video, YouTube, public state, and conferencehype.com match.");
       } catch (error) {

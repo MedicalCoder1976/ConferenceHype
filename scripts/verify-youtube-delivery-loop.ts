@@ -27,7 +27,8 @@ verifyYoutubeDeliveryLoop({
     : undefined,
   intervalSeconds: process.env.YOUTUBE_VERIFY_INTERVAL_SECONDS
     ? Number(process.env.YOUTUBE_VERIFY_INTERVAL_SECONDS)
-    : undefined
+    : undefined,
+  skipWriteoutCheck: Boolean(process.env.JOURNAL_SLOT_ID)
 }).catch((error) => {
   console.error(error);
   process.exit(1);

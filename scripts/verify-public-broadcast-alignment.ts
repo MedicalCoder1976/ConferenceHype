@@ -41,6 +41,29 @@ async function main() {
     );
   }
 
+  // broadcast_writeouts has a strict FK to conference_coverage_slots and a
+  // duration_minutes=60 check, so a 30-minute journal show never writes one
+  // (see render-hour-broadcast.ts's isJournalMode guard around
+  // saveBroadcastWriteout) -- skip the writeout-alignment check for those
+  // runs rather than requiring a table row that structurally can't exist.
+  // The stream_state check above still confirms the right video is public.
+  if (process.env.JOURNAL_SLOT_ID) {
+    console.log(
+      JSON.stringify(
+        {
+          ok: true,
+          publicVideoId,
+          streamStatus: streamState?.youtube_status,
+          journalSlotId: process.env.JOURNAL_SLOT_ID,
+          note: "Journal-show run: broadcast_writeouts alignment check skipped by design."
+        },
+        null,
+        2
+      )
+    );
+    return;
+  }
+
   const { data: writeout, error: writeoutError } = await supabase
     .from("broadcast_writeouts")
     .select("id,title,status,youtube_video_id,cards,updated_at")
