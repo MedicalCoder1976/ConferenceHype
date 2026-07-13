@@ -560,6 +560,9 @@ migrations include:
   `npm run backfill:journal-specialty` once to stamp the specialty value onto
   journal rows that already existed in the database (the catalog seed upsert
   uses `ignoreDuplicates: true`, so it won't update pre-existing rows).
+- `20260713000000_journal_broadcast_slots.sql`: adds the `journal_broadcast_slots`
+  table backing 30-minute single-journal broadcasts (see below). Independent
+  of `conference_coverage_slots` — no backfill needed.
 
 `https://conferencehype.com/api/stream/status` is the fastest production check
 for the current `youtubeVideoId`, URL, and delivery status.
@@ -700,6 +703,62 @@ disabled by the video owner
 
 For a targeted repair, manually run the **Enable YouTube embedding** workflow
 and provide the affected YouTube video ID.
+
+## 30-Minute Single-Journal Broadcasts
+
+A second broadcast format, additive to the existing 60-minute mixed-content
+hourly show: a `journal_broadcast_slots` row picks one journal for a
+30-minute, single-persona show that narrates only that journal's approved
+cards, in groups of 4 with a music break after every group and the
+disclaimer after every 2nd group — fewer, denser silent gaps than the hourly
+format. It runs alongside conference-coverage hours, never replacing them.
+
+Status as of 2026-07-13: Phases A-D (data model, scheduling, render
+integration, admin UI) are built, committed, and verified — including a real
+render exercised via `HOUR_BROADCAST_DRY_RUN=1` and a live admin-UI slot
+creation. Phase E's manual `workflow_dispatch` path (create real broadcast,
+render, stream, verify) is wired and has been exercised via real
+`youtube-stream.yml` dispatches. **The `schedule:` cron has deliberately not
+been switched over to run this format automatically** — it still only fires
+the existing hourly/conference format. Cutting the cron over to
+`15,45 * * * *` and teaching the "Resolve block start time" step to pick up
+`journal_broadcast_slots` is the last remaining step, intentionally deferred
+until a manual test broadcast completes cleanly end-to-end.
+
+Key files: `lib/broadcast/journalShowSchedule.ts` (group/music/disclaimer
+constants), `lib/rundown/slots.ts`'s `buildJournalShowSlots` /
+`personaForJournalShow`, `scripts/render-hour-broadcast.ts`'s `journal30`
+mode branch, `components/SingleJournalPicker.tsx` +
+`components/DailyCoveragePlanner.tsx`'s "Journal-only broadcasts for this
+hour" panels.
+
+Two real bugs were found and fixed while running the first manual test
+broadcasts through this new path:
+
+- **Duplicate-article cards.** `buildJournalShowSlots` could schedule the
+  same underlying article twice in one show when it existed as two separate
+  approved segment rows (e.g. a weekly-digest card and a same-week
+  one-hour-batch card both citing the same URL). Fixed by deduping on
+  `contentSignature` (extracted into a shared `lib/segments/contentSignature.ts`,
+  reused from the hourly format's existing dedup logic) before grouping
+  segments into cards.
+- **`broadcast_writeouts` alignment check has no row to check for a
+  30-minute show.** `broadcast_writeouts` has a hard `duration_minutes = 60`
+  check and a FK to `conference_coverage_slots`, so a journal show
+  correctly never writes one (`render-hour-broadcast.ts` already guarded
+  `saveBroadcastWriteout` behind `!isJournalMode`). What was missed: **two
+  separate verification scripts** — `scripts/verify-public-broadcast-alignment.ts`
+  and `lib/media/youtubeDeliveryVerifier.ts`'s `assertPublicState` (used both
+  mid-stream and at stream completion) — unconditionally required a matching
+  writeout row and threw/timed out without one. A real test dispatch got all
+  the way through rendering and streaming before failing at this check. Fixed
+  by threading a `JOURNAL_SLOT_ID` env var through both scripts and both
+  `youtube-stream.yml` verification steps; when set, they confirm the right
+  video is public via `stream_state` and skip the writeout lookup entirely,
+  rather than requiring a table row that can't structurally exist for this
+  format. Other `broadcast_writeouts` consumers (`lib/data.ts`'s
+  `findMatchingWriteout`, the admin writeout archive display) were checked
+  and already degrade gracefully with no row present, so needed no changes.
 
 ## Automation Cadence
 
