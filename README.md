@@ -317,6 +317,22 @@ embedder.
   hour (mixed in at all times, not just during gap-clip transitions), that
   read on the live broadcast as a constant background buzz for the full hour,
   not an occasional percussion hit. Removed entirely in v5/v3 (2026-07-04).
+- The hour's final audio mix (`scripts/render-hour-broadcast.ts`, the
+  `amix` filter combining the music bed, every voice clip, and every gap
+  stinger) must use `duration=longest`, never `duration=first` or
+  `duration=shortest`. `amix`'s `duration=` setting picks output length
+  from whichever stream is in that position, not from the overall content —
+  when the bed became one short, finite clip per music slot (still first in
+  the input list) instead of one continuous hour-long loop, `duration=first`
+  made the *entire* mixed output end the instant that first, early, short
+  bed clip finished, silencing almost the whole hour even though the video
+  kept rendering and ffmpeg reported success. Confirmed on a real broadcast:
+  only the opening few minutes were audible. Fixed 2026-07-12 by switching
+  to `duration=longest` (runs until the latest-ending scheduled stream,
+  always near the end of the hour); reconfirmed clean on the next real
+  broadcast — ffmpeg's own progress log reached `time=00:59:59.99` of the
+  60:00 target with zero dropped frames, versus the broken run's audio
+  stalling at `time=00:57:39.90` for over 2 minutes before erroring.
   Kick/sub/bassline layers gated at `mod(t\,0.5)`/`mod(t\,2)` are fine — they
   sit under 250 Hz and read as bass pulse, not buzz — but do not add a new
   gated layer in the 900 Hz+ range without listening to a full-hour render
@@ -620,6 +636,33 @@ journals or specialties, instead of a generic always-identical title.
   never be satisfied immediately before it, making the alternative
   unreachable in any context even though real social cards commonly carry a
   bare `@handle` as their only attribution marker.
+- **Title/description can drift from what actually aired, and did (fixed
+  2026-07-12).** `scripts/create-youtube-broadcast.ts` sets the initial
+  title/description from `getNextBroadcastSegmentsFromDb()` at broadcast-
+  creation time — minutes before `scripts/render-hour-broadcast.ts` finishes
+  selecting, framing, and replacing the actual cards for the hour. If the
+  approved-segment pool changes in between (a new approval, a resend, plain
+  churn), the two reads can disagree. Confirmed on a real broadcast: the
+  description's chapter list didn't match the narrated cards, every chapter
+  was missing its journal name/date, and the title fell back to the
+  coverage slot's linked conference ("ACC live programming") because that
+  earlier snapshot happened to land on backlog cards predating
+  `Citation.journalId`. Fixed by having `render-hour-broadcast.ts` rebuild
+  title/description/tags from the real, final `cards` list right after it's
+  known (fetching only those segments' citations, not a second independent
+  pool read) and push the correction via `videos.update` — the same
+  non-blocking, best-effort pattern already used for `categoryId`/`tags`.
+  This is now the single source of truth for what actually aired; the
+  broadcast-creation-time title/description are just an initial placeholder
+  that gets overwritten once rendering finishes, typically ~15-20 minutes
+  before airtime.
+- `scripts/backfill-citation-journal-ids.ts` is a one-time backfill for
+  citations that predate `Citation.journalId` (or predate the
+  `isJournalItem()` bare-id fix above) but whose citation label's
+  `"<Journal Name>: <article title>"` prefix unambiguously names a real
+  catalog journal — exact case-insensitive match only, no fuzzy matching, so
+  a miss just leaves `journalId` unset (safe) rather than risking a wrong
+  attribution. A dry run against production found ~545 affected citations.
 
 ## YouTube Custom Thumbnails
 
