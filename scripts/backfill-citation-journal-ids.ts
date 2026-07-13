@@ -20,15 +20,25 @@ async function main() {
   const journals = (await getOncologyJournalsFromDb()) ?? [];
   const journalByLowerName = new Map(journals.map((j) => [j.name.toLowerCase(), j]));
 
-  const { data, error } = await supabase
-    .from("segments")
-    .select("id,citations")
-    .not("citations", "is", null);
-  if (error) throw error;
+  // Paginate explicitly -- Supabase caps an unranged select at 1000 rows,
+  // which silently truncated the first run of this script well short of
+  // the real ~1678-row total.
+  const pageSize = 1000;
+  const rows: any[] = [];
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from("segments")
+      .select("id,citations")
+      .not("citations", "is", null)
+      .range(from, from + pageSize - 1);
+    if (error) throw error;
+    rows.push(...data);
+    if (data.length < pageSize) break;
+  }
 
   let checked = 0;
   let updated = 0;
-  for (const row of data as any[]) {
+  for (const row of rows) {
     const citations = row.citations ?? [];
     if (citations.length === 0) continue;
     checked++;
