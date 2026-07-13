@@ -23,6 +23,14 @@ on:
         description: "Optional conference coverage slot UUID for delivery tracking"
         required: false
         default: ""
+      journal_broadcast_slot_id:
+        description: "Optional journal_broadcast_slots UUID for a 30-minute single-journal test (also requires journal_id)"
+        required: false
+        default: ""
+      journal_id:
+        description: "Journal UUID -- when set, this run builds a 30-minute single-journal show (HOUR_BROADCAST_MODE=journal30) instead of the default hourly format"
+        required: false
+        default: ""
   schedule:
     # Poll the approved admin programming plan. Rendering starts far enough
     # ahead of each one-hour slot to finish before its scheduled airtime.
@@ -91,11 +99,19 @@ jobs:
             BLOCK_START="${{ inputs.stream_start_time }}"
             CONFERENCE_NAME="ConferenceHype"
             DURATION_SECONDS=$(( ${{ inputs.duration_minutes || 60 }} * 60 ))
+            JOURNAL_SLOT_ID="${{ inputs.journal_broadcast_slot_id }}"
+            JOURNAL_ID="${{ inputs.journal_id }}"
+            if [ -n "${JOURNAL_ID}" ]; then
+              BROADCAST_MODE="journal30"
+            fi
           fi
           if [ -z "${BLOCK_START}" ]; then
             echo "::notice::No approved programming block is ready for publishing."
           fi
           echo "slot_id=${SLOT_ID}" >> $GITHUB_OUTPUT
+          echo "journal_slot_id=${JOURNAL_SLOT_ID}" >> $GITHUB_OUTPUT
+          echo "journal_id=${JOURNAL_ID}" >> $GITHUB_OUTPUT
+          echo "broadcast_mode=${BROADCAST_MODE}" >> $GITHUB_OUTPUT
           echo "block_start=${BLOCK_START}" >> $GITHUB_OUTPUT
           echo "duration_seconds=${DURATION_SECONDS}" >> $GITHUB_OUTPUT
           # Never set an explicit title here, on either the scheduled/cron
@@ -118,13 +134,14 @@ jobs:
         run: pip install kokoro numpy soundfile
 
       - name: Mark programming block as rendering
-        if: ${{ steps.block.outputs.slot_id != '' }}
+        if: ${{ steps.block.outputs.slot_id != '' || steps.block.outputs.journal_slot_id != '' }}
         run: npx tsx scripts/update-youtube-delivery.ts
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           COVERAGE_SLOT_ID: ${{ steps.block.outputs.slot_id }}
+          JOURNAL_SLOT_ID: ${{ steps.block.outputs.journal_slot_id }}
           YOUTUBE_DELIVERY_STATUS: rendering
 
       - name: Validate YouTube broadcast automation
@@ -161,6 +178,7 @@ jobs:
           BROADCAST_DURATION_SECONDS: ${{ steps.block.outputs.duration_seconds }}
           BROADCAST_TITLE: ${{ steps.block.outputs.broadcast_title }}
           COVERAGE_SLOT_ID: ${{ steps.block.outputs.slot_id }}
+          JOURNAL_ID: ${{ steps.block.outputs.journal_id }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -193,6 +211,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           COVERAGE_SLOT_ID: ${{ steps.block.outputs.slot_id }}
+          JOURNAL_SLOT_ID: ${{ steps.block.outputs.journal_slot_id }}
           YOUTUBE_DELIVERY_STATUS: queued
           YOUTUBE_VIDEO_ID: ${{ steps.youtube.outputs.youtube_video_id }}
           YOUTUBE_VIDEO_URL: ${{ steps.youtube.outputs.youtube_url }}
@@ -209,7 +228,8 @@ jobs:
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
           LLM_MODEL: ${{ secrets.LLM_MODEL }}
-          HOUR_BROADCAST_MODE: presentation
+          HOUR_BROADCAST_MODE: ${{ steps.block.outputs.broadcast_mode || 'presentation' }}
+          JOURNAL_ID: ${{ steps.block.outputs.journal_id }}
           FFMPEG_PATH: /usr/bin/ffmpeg
           HOUR_BROADCAST_START: ${{ steps.block.outputs.block_start }}
           BROADCAST_TITLE: ${{ steps.block.outputs.broadcast_title }}
@@ -292,6 +312,7 @@ jobs:
           FFMPEG_PATH: /usr/bin/ffmpeg
           STREAM_VIDEO_PATH: public/rendered/conferencehype-hour-broadcast.mp4
           COVERAGE_SLOT_ID: ${{ steps.block.outputs.slot_id }}
+          JOURNAL_SLOT_ID: ${{ steps.block.outputs.journal_slot_id }}
           YOUTUBE_VIDEO_ID: ${{ steps.youtube.outputs.youtube_video_id }}
           YOUTUBE_VIDEO_URL: ${{ steps.youtube.outputs.youtube_url }}
           YOUTUBE_EXPECT_PRIVACY_STATUS: public
@@ -336,6 +357,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           COVERAGE_SLOT_ID: ${{ steps.block.outputs.slot_id }}
+          JOURNAL_SLOT_ID: ${{ steps.block.outputs.journal_slot_id }}
           YOUTUBE_DELIVERY_STATUS: failed
           YOUTUBE_VIDEO_ID: ${{ steps.youtube.outputs.youtube_video_id }}
           YOUTUBE_VIDEO_URL: ${{ steps.youtube.outputs.youtube_url }}

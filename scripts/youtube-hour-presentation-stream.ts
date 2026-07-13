@@ -2,7 +2,7 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import ffmpegPath from "ffmpeg-static";
 import { loadEnvConfig } from "@next/env";
-import { updateConferenceCoverageDeliveryInDb } from "@/lib/db";
+import { updateConferenceCoverageDeliveryInDb, updateJournalBroadcastDeliveryInDb } from "@/lib/db";
 import {
   HYPE_LINE_BACKGROUND_COLOR,
   HYPE_LINE_FRAME_HEIGHT,
@@ -20,6 +20,7 @@ const musicPath =
 const voicePath = process.env.STREAM_VOICE_PATH;
 const durationSeconds = process.env.STREAM_DURATION_SECONDS ?? "3600";
 const coverageSlotId = process.env.COVERAGE_SLOT_ID;
+const journalSlotId = process.env.JOURNAL_SLOT_ID;
 
 async function getYoutubeAccessToken() {
   const clientId = process.env.YOUTUBE_OAUTH_CLIENT_ID;
@@ -82,7 +83,7 @@ async function updateDelivery(
   deliveryError?: string
 ) {
   try {
-    await updateConferenceCoverageDeliveryInDb(coverageSlotId, {
+    const patch = {
       youtubeStatus,
       youtubeVideoId: process.env.YOUTUBE_VIDEO_ID,
       youtubeUrl: process.env.YOUTUBE_VIDEO_URL,
@@ -99,7 +100,12 @@ async function updateDelivery(
           ? new Date().toISOString()
           : undefined,
       deliveryError: deliveryError ?? null
-    });
+    };
+    if (journalSlotId) {
+      await updateJournalBroadcastDeliveryInDb(journalSlotId, patch);
+    } else {
+      await updateConferenceCoverageDeliveryInDb(coverageSlotId, patch);
+    }
   } catch (error) {
     console.error(`YOUTUBE_DELIVERY_UPDATE_ERROR: ${String(error)}`);
   }
