@@ -956,6 +956,47 @@ function buildWriteoutMarkdown(title: string, cards: BroadcastWriteoutCard[]) {
   return `${lines.join("\n").trim()}\n`;
 }
 
+// Supabase/fetch failures often surface as plain objects (PostgrestError,
+// parsed JSON error bodies) rather than Error instances, so template-literal
+// interpolation silently collapses them to "[object Object]" -- confirmed on
+// a real journal-show test run where this made two real failures
+// undiagnosable. Pull out whatever fields exist instead of trusting toString.
+function describeError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (error && typeof error === "object") {
+    try {
+      return JSON.stringify(error);
+    } catch {
+      // falls through to String(error) below
+    }
+  }
+  return String(error);
+}
+
+// The post-render segment/metadata writes run once, right after rendering
+// finishes, over a plain HTTPS connection from the GH Actions runner -- a
+// single dropped connection there silently loses work that already aired
+// (confirmed on a real journal-show test: both this and the metadata push
+// failed in the same ~2s window while every other network call in the same
+// job succeeded). Both operations are idempotent re-reads/re-writes, so a
+// short retry is a safe way to ride out a transient blip.
+async function withRetry<T>(fn: () => Promise<T>, attempts = 3, delayMs = 1000): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs * attempt));
+      }
+    }
+  }
+  throw lastError;
+}
+
 async function saveBroadcastWriteout(cards: Card[]) {
   const { upsertBroadcastWriteoutInDb } = await import("@/lib/db");
   const startsAt = process.env.HOUR_BROADCAST_START
@@ -1060,8 +1101,8 @@ async function main() {
   ];
   if (usedSegmentIds.length > 0) {
     const { markSegmentsRenderedInDb } = await import("@/lib/db");
-    await markSegmentsRenderedInDb(usedSegmentIds).catch((error) => {
-      console.warn(`Failed to mark segments as rendered — the broadcast still airs normally: ${error}`);
+    await withRetry(() => markSegmentsRenderedInDb(usedSegmentIds)).catch((error) => {
+      console.warn(`Failed to mark segments as rendered — the broadcast still airs normally: ${describeError(error)}`);
     });
   }
 
@@ -1080,102 +1121,104 @@ async function main() {
   // actually aired, so it can't drift the same way.
   if (process.env.YOUTUBE_VIDEO_ID && usedSegmentIds.length > 0) {
     try {
-      const {
-        getSegmentsByIdsFromDb,
-        getOncologyJournalsFromDb,
-        getConferenceCoverageSlotsFromDb,
-        getMedicalConferencesFromDb
-      } = await import("@/lib/db");
-      const { buildBroadcastMetadata } = await import("@/lib/youtube/broadcastMetadata");
-      const [usedSegments, journals, coverageSlots, conferences] = await Promise.all([
-        getSegmentsByIdsFromDb(usedSegmentIds),
-        getOncologyJournalsFromDb(),
-        getConferenceCoverageSlotsFromDb(),
-        getMedicalConferencesFromDb()
-      ]);
-      const segmentsById = new Map(usedSegments.map((segment) => [segment.id, segment]));
-      const journalsById = new Map((journals ?? []).map((journal) => [journal.id, journal]));
-      const activeSlot = (coverageSlots ?? []).find((slot) => slot.id === process.env.COVERAGE_SLOT_ID);
-      const activeConference = activeSlot
-        ? (conferences ?? []).find((conference) => conference.id === activeSlot.conferenceId)
-        : undefined;
-      const hourStart = process.env.HOUR_BROADCAST_START
-        ? new Date(process.env.HOUR_BROADCAST_START)
-        : new Date();
-      let elapsedMs = 0;
-      const slots = cards.map((card) => {
-        const at = new Date(hourStart.getTime() + elapsedMs);
-        elapsedMs += card.duration * 1000;
-        return {
-          at,
-          kind: (card.isMusic ? "music" : "schedule") as "music" | "schedule",
-          durationMinutes: card.duration / 60,
-          durationSeconds: card.duration,
-          segment: card.segmentId ? segmentsById.get(card.segmentId) : undefined,
-          label: card.title ?? ""
-        };
-      });
-      // For the 30-minute single-journal show, the title should show the
-      // journal issue's own month/date, not the broadcast's air date --
-      // pick the most common publishedAt month among the actually-used
-      // segments' citations (usually trivial since the show is
-      // single-journal by construction, but computed properly rather than
-      // just taking the first card's date in case of a manually-curated
-      // multi-issue show).
-      let titleDateOverride: string | undefined;
-      if (isJournalMode) {
-        const monthCounts = new Map<string, { count: number; sample: string }>();
-        for (const segment of usedSegments) {
-          const publishedAt = segment.citations?.[0]?.publishedAt;
-          if (!publishedAt) continue;
-          const monthKey = publishedAt.slice(0, 7);
-          const existing = monthCounts.get(monthKey);
-          monthCounts.set(monthKey, { count: (existing?.count ?? 0) + 1, sample: existing?.sample ?? publishedAt });
-        }
-        titleDateOverride = [...monthCounts.values()].sort((a, b) => b.count - a.count)[0]?.sample;
-      }
-      const actualMetadata = buildBroadcastMetadata({
-        hourStart,
-        conferenceName: activeConference?.acronym ?? activeConference?.name,
-        slots,
-        journalsById,
-        titleDateOverride
-      });
-
-      const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          client_id: process.env.YOUTUBE_OAUTH_CLIENT_ID ?? "",
-          client_secret: process.env.YOUTUBE_OAUTH_CLIENT_SECRET ?? "",
-          refresh_token: process.env.YOUTUBE_OAUTH_REFRESH_TOKEN ?? "",
-          grant_type: "refresh_token"
-        })
-      });
-      if (!tokenResponse.ok) {
-        throw new Error(`YouTube OAuth refresh failed: ${tokenResponse.status} ${await tokenResponse.text()}`);
-      }
-      const { access_token: accessToken } = (await tokenResponse.json()) as { access_token: string };
-
-      const updateResponse = await fetch("https://www.googleapis.com/youtube/v3/videos?part=snippet", {
-        method: "PUT",
-        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: process.env.YOUTUBE_VIDEO_ID,
-          snippet: {
-            title: actualMetadata.title,
-            description: actualMetadata.description,
-            tags: actualMetadata.tags,
-            categoryId: actualMetadata.categoryId
+      await withRetry(async () => {
+        const {
+          getSegmentsByIdsFromDb,
+          getOncologyJournalsFromDb,
+          getConferenceCoverageSlotsFromDb,
+          getMedicalConferencesFromDb
+        } = await import("@/lib/db");
+        const { buildBroadcastMetadata } = await import("@/lib/youtube/broadcastMetadata");
+        const [usedSegments, journals, coverageSlots, conferences] = await Promise.all([
+          getSegmentsByIdsFromDb(usedSegmentIds),
+          getOncologyJournalsFromDb(),
+          getConferenceCoverageSlotsFromDb(),
+          getMedicalConferencesFromDb()
+        ]);
+        const segmentsById = new Map(usedSegments.map((segment) => [segment.id, segment]));
+        const journalsById = new Map((journals ?? []).map((journal) => [journal.id, journal]));
+        const activeSlot = (coverageSlots ?? []).find((slot) => slot.id === process.env.COVERAGE_SLOT_ID);
+        const activeConference = activeSlot
+          ? (conferences ?? []).find((conference) => conference.id === activeSlot.conferenceId)
+          : undefined;
+        const hourStart = process.env.HOUR_BROADCAST_START
+          ? new Date(process.env.HOUR_BROADCAST_START)
+          : new Date();
+        let elapsedMs = 0;
+        const slots = cards.map((card) => {
+          const at = new Date(hourStart.getTime() + elapsedMs);
+          elapsedMs += card.duration * 1000;
+          return {
+            at,
+            kind: (card.isMusic ? "music" : "schedule") as "music" | "schedule",
+            durationMinutes: card.duration / 60,
+            durationSeconds: card.duration,
+            segment: card.segmentId ? segmentsById.get(card.segmentId) : undefined,
+            label: card.title ?? ""
+          };
+        });
+        // For the 30-minute single-journal show, the title should show the
+        // journal issue's own month/date, not the broadcast's air date --
+        // pick the most common publishedAt month among the actually-used
+        // segments' citations (usually trivial since the show is
+        // single-journal by construction, but computed properly rather than
+        // just taking the first card's date in case of a manually-curated
+        // multi-issue show).
+        let titleDateOverride: string | undefined;
+        if (isJournalMode) {
+          const monthCounts = new Map<string, { count: number; sample: string }>();
+          for (const segment of usedSegments) {
+            const publishedAt = segment.citations?.[0]?.publishedAt;
+            if (!publishedAt) continue;
+            const monthKey = publishedAt.slice(0, 7);
+            const existing = monthCounts.get(monthKey);
+            monthCounts.set(monthKey, { count: (existing?.count ?? 0) + 1, sample: existing?.sample ?? publishedAt });
           }
-        })
+          titleDateOverride = [...monthCounts.values()].sort((a, b) => b.count - a.count)[0]?.sample;
+        }
+        const actualMetadata = buildBroadcastMetadata({
+          hourStart,
+          conferenceName: activeConference?.acronym ?? activeConference?.name,
+          slots,
+          journalsById,
+          titleDateOverride
+        });
+
+        const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            client_id: process.env.YOUTUBE_OAUTH_CLIENT_ID ?? "",
+            client_secret: process.env.YOUTUBE_OAUTH_CLIENT_SECRET ?? "",
+            refresh_token: process.env.YOUTUBE_OAUTH_REFRESH_TOKEN ?? "",
+            grant_type: "refresh_token"
+          })
+        });
+        if (!tokenResponse.ok) {
+          throw new Error(`YouTube OAuth refresh failed: ${tokenResponse.status} ${await tokenResponse.text()}`);
+        }
+        const { access_token: accessToken } = (await tokenResponse.json()) as { access_token: string };
+
+        const updateResponse = await fetch("https://www.googleapis.com/youtube/v3/videos?part=snippet", {
+          method: "PUT",
+          headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: process.env.YOUTUBE_VIDEO_ID,
+            snippet: {
+              title: actualMetadata.title,
+              description: actualMetadata.description,
+              tags: actualMetadata.tags,
+              categoryId: actualMetadata.categoryId
+            }
+          })
+        });
+        if (!updateResponse.ok) {
+          throw new Error(`videos.update failed: ${updateResponse.status} ${await updateResponse.text()}`);
+        }
+        console.log(`Updated YouTube title/description from ${cards.length} actual rendered cards (tier=${actualMetadata.tier}).`);
       });
-      if (!updateResponse.ok) {
-        throw new Error(`videos.update failed: ${updateResponse.status} ${await updateResponse.text()}`);
-      }
-      console.log(`Updated YouTube title/description from ${cards.length} actual rendered cards (tier=${actualMetadata.tier}).`);
     } catch (error) {
-      console.log(`::warning::Could not update YouTube metadata from actual rendered cards: ${String(error)}`);
+      console.log(`::warning::Could not update YouTube metadata from actual rendered cards: ${describeError(error)}`);
     }
   }
 
