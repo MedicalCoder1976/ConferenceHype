@@ -13,6 +13,7 @@ import {
   getCurrentYoutubeDeliveryFromDb,
   getDailyCoveragePlanFromDb,
   getEditorialPackagesFromDb,
+  getJournalBroadcastSlotsFromDb,
   getMedicalConferencesFromDb,
   getOncologyJournalsFromDb,
   getNextBroadcastSegmentsFromDb,
@@ -331,6 +332,7 @@ export async function getAdminSnapshot(baseTime = new Date(), planningHours = 1)
   const specialtyXVoices = (await getSpecialtyXVoicesFromDb()) ?? [];
   const medicalConferences = (await getMedicalConferencesFromDb()) ?? [];
   const conferenceCoverageSlots = (await getConferenceCoverageSlotsFromDb()) ?? [];
+  const journalBroadcastSlots = (await getJournalBroadcastSlotsFromDb()) ?? [];
   const oncologyJournals = (await getOncologyJournalsFromDb()) ?? [];
   const editorialPackages = (await getEditorialPackagesFromDb()) ?? [];
   const platformSmokeRuns = (await getPlatformSmokeRunsFromDb(30)) ?? [];
@@ -374,6 +376,7 @@ export async function getAdminSnapshot(baseTime = new Date(), planningHours = 1)
     specialtyXVoices,
     medicalConferences,
     conferenceCoverageSlots,
+    journalBroadcastSlots,
     oncologyJournals,
     editorialPackages,
     dailyCoveragePlan,

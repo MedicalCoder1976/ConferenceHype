@@ -317,6 +317,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               initialPlan={snapshot.dailyCoveragePlan}
               conferences={snapshot.medicalConferences}
               journals={snapshot.oncologyJournals}
+              journalBroadcastSlots={snapshot.journalBroadcastSlots}
               sources={snapshot.sources}
               planningDays={planningDays}
               activePlanningKey={activePlanningKey}
