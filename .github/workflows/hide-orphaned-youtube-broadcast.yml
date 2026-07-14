@@ -1,0 +1,35 @@
+name: Hide orphaned YouTube broadcast
+
+on:
+  workflow_dispatch:
+    inputs:
+      video_id:
+        description: "YouTube video ID to hide (set private) if it never actually streamed"
+        required: true
+      coverage_slot_id:
+        description: "conference_coverage_slots id this video belongs to (optional)"
+        required: false
+      journal_slot_id:
+        description: "journal_broadcast_slots id this video belongs to (optional)"
+        required: false
+
+jobs:
+  hide:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: Hide orphaned broadcast
+        run: npx tsx scripts/hide-orphaned-youtube-broadcast.ts
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
+          YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
+          YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
+          YOUTUBE_VIDEO_ID: ${{ inputs.video_id }}
+          COVERAGE_SLOT_ID: ${{ inputs.coverage_slot_id }}
+          JOURNAL_SLOT_ID: ${{ inputs.journal_slot_id }}

@@ -364,3 +364,16 @@ jobs:
           YOUTUBE_VIDEO_ID: ${{ steps.youtube.outputs.youtube_video_id }}
           YOUTUBE_VIDEO_URL: ${{ steps.youtube.outputs.youtube_url }}
           YOUTUBE_DELIVERY_ERROR: GitHub Actions failed before the YouTube delivery completed. Open the workflow run for the exact failing step.
+
+      - name: Hide orphaned YouTube broadcast on failure
+        if: ${{ always() && steps.block.outputs.block_start != '' && job.status == 'failure' && steps.youtube.outputs.youtube_video_id != '' }}
+        run: npx tsx scripts/hide-orphaned-youtube-broadcast.ts
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
+          YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
+          YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
+          YOUTUBE_VIDEO_ID: ${{ steps.youtube.outputs.youtube_video_id }}
+          COVERAGE_SLOT_ID: ${{ steps.block.outputs.slot_id }}
+          JOURNAL_SLOT_ID: ${{ steps.block.outputs.journal_slot_id }}
