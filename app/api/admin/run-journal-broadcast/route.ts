@@ -6,7 +6,11 @@ import { env } from "@/lib/env";
 const bodySchema = z.object({
   slotId: z.string().min(1),
   journalId: z.string().min(1),
-  startAt: z.string().datetime()
+  // Comes straight from the slot's `starts_at` column, which Supabase
+  // returns with a "+00:00" offset rather than a "Z" suffix -- z.string()
+  // .datetime() rejects that by default, so accept any string and validate
+  // it parses instead of constraining the exact ISO format.
+  startAt: z.string().min(1)
 });
 
 export async function POST(request: NextRequest) {
@@ -24,6 +28,13 @@ export async function POST(request: NextRequest) {
     }
 
     const body = bodySchema.parse(await request.json());
+    const startAt = new Date(body.startAt);
+    if (Number.isNaN(startAt.getTime())) {
+      return NextResponse.json(
+        { ok: false, error: "Slot start time is invalid." },
+        { status: 422 }
+      );
+    }
 
     const response = await fetch(
       `https://api.github.com/repos/${env.GITHUB_DISPATCH_REPO}/actions/workflows/youtube-stream.yml/dispatches`,
@@ -40,7 +51,7 @@ export async function POST(request: NextRequest) {
           inputs: {
             duration_minutes: "60",
             stream_input_path: "public/rendered/fallback-loop.mp4",
-            stream_start_time: body.startAt,
+            stream_start_time: startAt.toISOString(),
             journal_broadcast_slot_id: body.slotId,
             journal_id: body.journalId
           }
