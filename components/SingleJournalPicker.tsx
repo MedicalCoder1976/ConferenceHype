@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { CardDeckSummary } from "@/components/CardDeckSummary";
 import { EMPTY_CARD_DECK, type EntityCardDeck } from "@/lib/cardDeck";
 import {
@@ -26,6 +26,7 @@ export function SingleJournalPicker({
   onSelect: (id: string) => void;
   journalCardDecks: Record<string, EntityCardDeck>;
 }) {
+  const radioGroupName = useId();
   const [activeTab, setActiveTab] = useState<JournalWatchSpecialty>(journalWatchSpecialties[0]);
   const groups = groupJournalsBySpecialty(journals);
   const activeJournals = groups.get(activeTab) ?? [];
@@ -68,7 +69,7 @@ export function SingleJournalPicker({
             <label key={journal.id} className="flex gap-3 border border-ink/10 bg-white p-3">
               <input
                 type="radio"
-                name="single-journal-picker"
+                name={radioGroupName}
                 checked={selectedJournalId === journal.id}
                 onChange={() => onSelect(journal.id)}
               />
