@@ -240,6 +240,29 @@ async function main() {
   const child = spawn(ffmpeg, args, { stdio: ["inherit", "inherit", "pipe"] });
   let stderr = "";
   let stable = false;
+
+  // FFmpeg writes progress stats to stderr roughly every second under
+  // normal operation. If the RTMP socket write blocks on a silently dead
+  // connection (network drop with no TCP RST reaching this side), FFmpeg
+  // can hang indefinitely instead of erroring out -- observed live
+  // 2026-07-14: YouTube flagged "No data" and auto-ended the broadcast
+  // minutes before this process's own exit handler ever ran, leaving the
+  // DB status stuck on "live" and the job occupying the runner for up to
+  // its full 180-minute timeout. A stall watchdog forces an exit so the
+  // existing exit handler below can mark delivery failed promptly.
+  let lastOutputAt = Date.now();
+  const stallTimeoutMs =
+    Number(process.env.YOUTUBE_RTMP_STALL_TIMEOUT_SECONDS ?? "90") * 1000;
+  const stallWatchdog = setInterval(() => {
+    if (Date.now() - lastOutputAt > stallTimeoutMs) {
+      console.error(
+        `YOUTUBE_RTMP_STALLED: No FFmpeg output for ${stallTimeoutMs / 1000}s; killing a hung connection.`
+      );
+      clearInterval(stallWatchdog);
+      child.kill("SIGKILL");
+    }
+  }, 15_000);
+
   const stabilityTimer = setTimeout(() => {
     stable = true;
     void (async () => {
@@ -268,17 +291,20 @@ async function main() {
     })();
   }, 30_000);
   child.stderr?.on("data", (chunk: Buffer) => {
+    lastOutputAt = Date.now();
     const text = chunk.toString("utf8");
     stderr = `${stderr}${text}`.slice(-32_000);
     process.stderr.write(chunk);
   });
   child.on("error", (error) => {
     clearTimeout(stabilityTimer);
+    clearInterval(stallWatchdog);
     console.error(`YOUTUBE_RTMP_SPAWN_ERROR: ${error.message}`);
     void updateDelivery("failed", error.message);
   });
   child.on("exit", async (code) => {
     clearTimeout(stabilityTimer);
+    clearInterval(stallWatchdog);
     const elapsedSeconds = (Date.now() - startedAt) / 1000;
     if (
       process.env.STREAM_DRY_RUN !== "1" &&
