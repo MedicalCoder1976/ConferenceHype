@@ -2193,6 +2193,9 @@ export async function updateSegmentScheduleInDb({
 }
 
 // Marks segments as aired once a broadcast that used them has been rendered.
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // Only ever moves approved -> rendered (never touches pending_review or
 // rejected), and only for the exact ids passed in, so this is safe to call
 // with ids that don't exist or aren't currently approved -- they're simply
@@ -2200,14 +2203,23 @@ export async function updateSegmentScheduleInDb({
 // selects status="approved", so this is what keeps an already-aired segment
 // from being pulled into a future hour again.
 export async function markSegmentsRenderedInDb(segmentIds: string[]) {
-  if (!hasSupabase() || segmentIds.length === 0) {
+  // Some rundown slots carry synthetic, non-DB segments with string ids like
+  // "journal-show-disclaimer-<timestamp>" or "schedule-spine-<uuid>" (see
+  // lib/rundown/slots.ts, lib/jobs/upcomingEvents.ts). Postgres rejects an
+  // entire .in("id", ...) list if even one value isn't a valid uuid for this
+  // uuid column, so one synthetic id silently failed this call for every
+  // real segment in the same batch too -- confirmed live 2026-07-14 via a
+  // journal30 show whose disclaimer card poisoned the whole batch, leaving
+  // every segment it aired reusable as if nothing had ever been rendered.
+  const realSegmentIds = segmentIds.filter((id) => UUID_PATTERN.test(id));
+  if (!hasSupabase() || realSegmentIds.length === 0) {
     return;
   }
   const supabase = createAdminClient();
   const { error } = await supabase
     .from("segments")
     .update({ status: "rendered", updated_at: new Date().toISOString() })
-    .in("id", segmentIds)
+    .in("id", realSegmentIds)
     .eq("status", "approved");
 
   if (error) {
