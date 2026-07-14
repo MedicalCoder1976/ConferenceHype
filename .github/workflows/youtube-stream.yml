@@ -103,6 +103,12 @@ jobs:
             JOURNAL_ID="${{ inputs.journal_id }}"
             if [ -n "${JOURNAL_ID}" ]; then
               BROADCAST_MODE="journal30"
+              # The dispatch duration_minutes choice only offers 10/60 and
+              # has no 30-minute option -- render-hour-broadcast.ts already
+              # hardcodes JOURNAL_SHOW_SECONDS (1800) for this mode, so the
+              # stream timer must match or ffmpeg's -stream_loop would repeat
+              # the 30-minute video to fill a mismatched 60-minute window.
+              DURATION_SECONDS=1800
             fi
           fi
           if [ -z "${BLOCK_START}" ]; then

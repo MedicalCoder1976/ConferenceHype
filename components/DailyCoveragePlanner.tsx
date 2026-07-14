@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { CardDeckSummary } from "@/components/CardDeckSummary";
+import { RunJournalBroadcastButton } from "@/components/RunJournalBroadcastButton";
 import { SpecialtyJournalTabs } from "@/components/SpecialtyJournalTabs";
 import { SingleJournalPicker } from "@/components/SingleJournalPicker";
 import {
@@ -794,11 +795,24 @@ export function DailyCoveragePlanner({
                           Run <ExternalLink className="h-3 w-3" />
                         </a>
                       ) : null}
+                      {["not_scheduled", "failed"].includes(slot.youtubeStatus) ? (
+                        <RunJournalBroadcastButton
+                          slotId={slot.id}
+                          journalId={slot.journalId}
+                          startsAt={slot.startsAt}
+                        />
+                      ) : null}
                     </div>
                   </div>
                 ))}
               </div>
             )}
+            <p className="mt-2 text-[11px] font-semibold text-ink/45">
+              Journal slots are not on the hourly cron yet -- each one needs
+              &quot;Run now&quot; clicked (or a scheduled slot will sit at
+              &quot;not scheduled&quot; forever). It renders now and holds the
+              live stream until the slot&apos;s start time.
+            </p>
           </div>
         </div>
         {batchStatus.state !== "idle" ? (
