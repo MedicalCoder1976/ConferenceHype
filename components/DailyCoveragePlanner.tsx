@@ -99,14 +99,16 @@ function revealPresentationSequence() {
 function SelectionGroup({
   title,
   count,
-  children
+  children,
+  defaultOpen = true
 }: {
   title: string;
   count: number;
   children: React.ReactNode;
+  defaultOpen?: boolean;
 }) {
   return (
-    <details open className="border border-ink/10 bg-paper/50">
+    <details open={defaultOpen} className="border border-ink/10 bg-paper/50">
       <summary className="cursor-pointer list-none p-3 text-sm font-black uppercase text-ink">
         {title} <span className="text-broadcast">({count} selected)</span>
       </summary>
@@ -377,7 +379,7 @@ export function DailyCoveragePlanner({
           );
         }
         setMessage(
-          `"${title}" added to the presentation sequence. Use "Create broadcast" when ready to air this hour.`
+          `"${title}" added to the presentation sequence. Use "Create one-hour broadcast" to schedule this hour if it isn't already.`
         );
         router.refresh();
         window.setTimeout(revealPresentationSequence, 150);
@@ -457,7 +459,6 @@ export function DailyCoveragePlanner({
               .filter(Boolean)
               .slice(0, 4)
           : [];
-        const slotNote = " Cards are queued only — use \"Create broadcast\" when ready to air them.";
         const sourceModeText =
             batchPayload.sourceMode === "weekly_ready_pool"
               ? `Batch complete with ${batchPayload.reusedCount ?? 0} unused weekly ready cards first. ${batchPayload.scheduledCount ?? 0} cards moved into the selected hour; overflow remains in Brand New Ready Cards.`
@@ -468,38 +469,16 @@ export function DailyCoveragePlanner({
                   : `Batch complete from stored prior-day intake. ${batchPayload.scheduledCount ?? 0} cards moved into the selected hour; overflow remains in Brand New Ready Cards.`;
         setBatchStatus({
           state: "done",
-          text: sourceModeText + slotNote,
+          text: sourceModeText,
           count: batchPayload.count,
           titles: createdTitles,
           scheduledCount: batchPayload.scheduledCount,
           overflowCount: batchPayload.overflowCount
         });
-        setMessage(
-          `${batchPayload.scheduledCount ?? 0} cards queued into the selected one-hour presentation sequence. ${batchPayload.overflowCount ?? 0} remaining cards are in Brand New Ready Cards. Use "Create broadcast" when ready to air this hour.`
-        );
-        router.refresh();
-        window.setTimeout(revealPresentationSequence, 150);
-      } catch (error) {
-        const text =
-          errorMessage(error, "Could not create one-hour ready cards.");
-        setBatchStatus({
-          state: "error",
-          text
-        });
-        setMessage(text);
-      } finally {
-        setPendingBatch(false);
-      }
-    });
-  };
 
-  const createBroadcastSlot = () => {
-    setMessage("");
-    setPendingBroadcast(true);
-    setBroadcastStatus({ state: "creating", text: "Provisioning the broadcast slot for the selected hour." });
-    startTransition(async () => {
-      try {
-        const response = await fetch("/api/admin/coverage-slots/create-broadcast", {
+        setPendingBroadcast(true);
+        setBroadcastStatus({ state: "creating", text: "Cards created — scheduling the broadcast now." });
+        const broadcastResponse = await fetch("/api/admin/coverage-slots/create-broadcast", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -507,21 +486,27 @@ export function DailyCoveragePlanner({
             conferenceId: plan.conferenceIds[0]
           })
         });
-        const payload = await response.json();
-        if (!response.ok || !payload.ok) {
-          throw new Error(errorMessage(payload.error, "Could not create the broadcast slot."));
+        const broadcastPayload = await broadcastResponse.json();
+        if (!broadcastResponse.ok || !broadcastPayload.ok) {
+          throw new Error(errorMessage(broadcastPayload.error, "Cards were created, but could not schedule the broadcast."));
         }
         setBroadcastStatus({
           state: "done",
-          text: "Broadcast slot provisioned — the stream will build and go live automatically at the selected hour."
+          text: "Broadcast scheduled — it will build and go live automatically at the selected hour."
         });
-        setMessage("Broadcast slot provisioned — the stream will build and go live automatically at the selected hour.");
+        setMessage(
+          `${batchPayload.scheduledCount ?? 0} cards queued and the broadcast is scheduled for ${new Intl.DateTimeFormat("en-US", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false, timeZoneName: "short" }).format(new Date(selectedStartsAt))}. ${batchPayload.overflowCount ?? 0} remaining cards are in Brand New Ready Cards.`
+        );
         router.refresh();
+        window.setTimeout(revealPresentationSequence, 150);
       } catch (error) {
-        const text = errorMessage(error, "Could not create the broadcast slot.");
-        setBroadcastStatus({ state: "error", text });
+        const text =
+          errorMessage(error, "Could not create the one-hour broadcast.");
+        setBatchStatus((current) => (current.state === "done" ? current : { state: "error", text }));
+        setBroadcastStatus((current) => (current.state === "done" ? current : { state: "error", text }));
         setMessage(text);
       } finally {
+        setPendingBatch(false);
         setPendingBroadcast(false);
       }
     });
@@ -730,21 +715,12 @@ export function DailyCoveragePlanner({
           </div>
           <button
             type="button"
-            disabled={pending || pendingBatch}
+            disabled={pending || pendingBatch || pendingBroadcast}
             onClick={createHourBatch}
-            className="inline-flex min-h-11 items-center justify-center gap-2 bg-ink px-4 text-xs font-black uppercase text-white disabled:opacity-50"
-          >
-            <Send className="h-4 w-4" />
-            {pendingBatch ? "Creating batch" : "Create one-hour batch cards"}
-          </button>
-          <button
-            type="button"
-            disabled={pending || pendingBroadcast}
-            onClick={createBroadcastSlot}
             className="inline-flex min-h-11 items-center justify-center gap-2 bg-broadcast px-4 text-xs font-black uppercase text-white disabled:opacity-50"
           >
             <Radio className="h-4 w-4" />
-            {pendingBroadcast ? "Creating broadcast" : "Create broadcast"}
+            {pendingBroadcast ? "Scheduling broadcast" : pendingBatch ? "Creating cards" : "Create one-hour broadcast"}
           </button>
         </div>
         {broadcastStatus.state !== "idle" ? (
@@ -975,7 +951,7 @@ export function DailyCoveragePlanner({
       </div>
 
       <div className="grid gap-4 p-5">
-        <SelectionGroup title="Conferences and meetings" count={plan.conferenceIds.length}>
+        <SelectionGroup title="Conferences and meetings" count={plan.conferenceIds.length} defaultOpen={false}>
           {conferences.map((conference) => {
             const ongoing = isOngoing(conference, plan.coverageDate);
             return (
@@ -1012,7 +988,7 @@ export function DailyCoveragePlanner({
           />
         </SelectionGroup>
 
-        <SelectionGroup title="Clinical news and newspapers" count={plan.sourceIds.length}>
+        <SelectionGroup title="Clinical news and newspapers" count={plan.sourceIds.length} defaultOpen={false}>
           {sources
             .filter((source) => source.type !== "general_social" && source.type !== "manual")
             .filter((source) => !conferenceLinkedSourceIdSet.has(source.id))
@@ -1044,7 +1020,7 @@ export function DailyCoveragePlanner({
             <div>
               <h3 className="text-lg font-black text-ink">Weekly ready-card pool</h3>
               <p className="mt-1 text-sm font-semibold leading-6 text-ink/60">
-                Unused weekly cards for the selected conference, journal, or news source appear here first. Create one-hour batch cards will reuse these before creating new cards.
+                Unused weekly cards for the selected conference, journal, or news source appear here first. Create one-hour broadcast will reuse these before creating new cards.
               </p>
             </div>
             <span className="border border-ink/10 bg-white px-3 py-2 text-xs font-black uppercase text-ink/60">
