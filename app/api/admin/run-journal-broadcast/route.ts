@@ -49,7 +49,13 @@ export async function POST(request: NextRequest) {
         body: JSON.stringify({
           ref: "main",
           inputs: {
-            duration_minutes: "60",
+            // The workflow forces DURATION_SECONDS=1800 whenever journal_id is
+            // set, regardless of this input -- but sending "60" here anyway
+            // made every journal-broadcast GitHub Actions run *look* like a
+            // 60-minute dispatch when inspected, which is exactly what caused
+            // "did the shows go back to 60 minutes?" confusion. Send the
+            // honest value instead.
+            duration_minutes: "30",
             stream_input_path: "public/rendered/fallback-loop.mp4",
             stream_start_time: startAt.toISOString(),
             journal_broadcast_slot_id: body.slotId,

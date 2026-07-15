@@ -1,6 +1,16 @@
 "use client";
 
-import { CalendarCheck, ExternalLink, Plus, Radio, Save, Send, X, Youtube } from "lucide-react";
+import {
+  CalendarCheck,
+  ChevronDown,
+  ExternalLink,
+  Plus,
+  Radio,
+  Save,
+  Send,
+  X,
+  Youtube
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
@@ -168,6 +178,7 @@ export function DailyCoveragePlanner({
     state: "idle",
     text: ""
   });
+  const [journalScheduleExpanded, setJournalScheduleExpanded] = useState(true);
   const [pending, startTransition] = useTransition();
   const [customLabel, setCustomLabel] = useState("");
   const [customUrl, setCustomUrl] = useState("");
@@ -241,6 +252,28 @@ export function DailyCoveragePlanner({
         (a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime()
       ),
     [journalBroadcastSlots]
+  );
+  // "Archived" = the slot reached a terminal state (aired or gave up
+  // retrying isn't forced -- failed slots still keep their Run now retry
+  // button, just moved out of the active list) OR it's a not_scheduled slot
+  // whose start time has already passed -- nobody dispatched it in time, so
+  // it's dead weight rather than something still worth acting on today.
+  // Non-destructive on purpose: nothing gets deleted, so the row (and its
+  // Run now retry button, if someone really wants to fire it late) is still
+  // there in the archive, just out of the way of the active list.
+  const isJournalSlotArchived = (slot: JournalBroadcastSlot) =>
+    ["completed", "failed"].includes(slot.youtubeStatus) ||
+    (slot.youtubeStatus === "not_scheduled" && new Date(slot.startsAt).getTime() < Date.now());
+  const activeJournalBroadcastSlots = useMemo(
+    () => sortedJournalBroadcastSlots.filter((slot) => !isJournalSlotArchived(slot)),
+    [sortedJournalBroadcastSlots]
+  );
+  const archivedJournalBroadcastSlots = useMemo(
+    () =>
+      [...sortedJournalBroadcastSlots]
+        .filter((slot) => isJournalSlotArchived(slot))
+        .reverse(),
+    [sortedJournalBroadcastSlots]
   );
   const realSourceIds = useMemo(
     () => selectedRealSourceIds(plan.sourceIds),
@@ -594,6 +627,67 @@ export function DailyCoveragePlanner({
     setCustomNotes("");
   };
 
+  const renderJournalSlotRow = (slot: JournalBroadcastSlot) => (
+    <div
+      key={slot.id}
+      className={`grid gap-2 px-3 py-2 md:grid-cols-[190px_1fr_130px_auto] md:items-center ${
+        slot.enabled ? "" : "opacity-50"
+      }`}
+    >
+      <div className="text-xs font-black">
+        {new Intl.DateTimeFormat("en-US", {
+          month: "short",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+          timeZoneName: "short"
+        }).format(new Date(slot.startsAt))}
+      </div>
+      <div className="truncate text-xs font-bold text-ink/80">
+        {journalsById.get(slot.journalId)?.name ?? "Unknown journal"}
+      </div>
+      <div>
+        <div className="flex items-center gap-1.5 text-xs font-black uppercase">
+          <Youtube className="h-3.5 w-3.5 text-red-600" />
+          {journalSlotDeliveryLabel(slot.youtubeStatus)}
+        </div>
+        {slot.deliveryError ? (
+          <div className="mt-1 text-xs font-semibold text-red-700">{slot.deliveryError}</div>
+        ) : null}
+      </div>
+      <div className="flex gap-2">
+        {slot.youtubeUrl ? (
+          <a
+            href={slot.youtubeUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 border border-red-200 px-2 py-1 text-xs font-black uppercase text-red-700"
+          >
+            Video <ExternalLink className="h-3 w-3" />
+          </a>
+        ) : null}
+        {slot.workflowUrl ? (
+          <a
+            href={slot.workflowUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 border border-ink/20 px-2 py-1 text-xs font-black uppercase"
+          >
+            Run <ExternalLink className="h-3 w-3" />
+          </a>
+        ) : null}
+        {["not_scheduled", "failed"].includes(slot.youtubeStatus) ? (
+          <RunJournalBroadcastButton
+            slotId={slot.id}
+            journalId={slot.journalId}
+            startsAt={slot.startsAt}
+          />
+        ) : null}
+      </div>
+    </div>
+  );
+
   return (
     <section className="border border-ink/10 bg-white shadow-panel">
       <div className="border-b border-ink/10 p-5">
@@ -749,85 +843,64 @@ export function DailyCoveragePlanner({
             ))}
           </div>
           <div className="mt-4 border-t border-ink/10 pt-3">
-            <div className="text-xs font-black uppercase text-ink/50">
-              Journal broadcasts on the schedule
-            </div>
-            {sortedJournalBroadcastSlots.length === 0 ? (
-              <p className="mt-2 text-xs font-semibold text-ink/50">
-                None provisioned yet.
-              </p>
-            ) : (
-              <div className="mt-2 divide-y divide-ink/10 border border-ink/10 bg-white">
-                {sortedJournalBroadcastSlots.map((slot) => (
-                  <div
-                    key={slot.id}
-                    className={`grid gap-2 px-3 py-2 md:grid-cols-[190px_1fr_130px_auto] md:items-center ${
-                      slot.enabled ? "" : "opacity-50"
-                    }`}
-                  >
-                    <div className="text-xs font-black">
-                      {new Intl.DateTimeFormat("en-US", {
-                        month: "short",
-                        day: "2-digit",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: false,
-                        timeZoneName: "short"
-                      }).format(new Date(slot.startsAt))}
-                    </div>
-                    <div className="truncate text-xs font-bold text-ink/80">
-                      {journalsById.get(slot.journalId)?.name ?? "Unknown journal"}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-1.5 text-xs font-black uppercase">
-                        <Youtube className="h-3.5 w-3.5 text-red-600" />
-                        {journalSlotDeliveryLabel(slot.youtubeStatus)}
-                      </div>
-                      {slot.deliveryError ? (
-                        <div className="mt-1 text-xs font-semibold text-red-700">
-                          {slot.deliveryError}
-                        </div>
-                      ) : null}
-                    </div>
-                    <div className="flex gap-2">
-                      {slot.youtubeUrl ? (
-                        <a
-                          href={slot.youtubeUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 border border-red-200 px-2 py-1 text-xs font-black uppercase text-red-700"
-                        >
-                          Video <ExternalLink className="h-3 w-3" />
-                        </a>
-                      ) : null}
-                      {slot.workflowUrl ? (
-                        <a
-                          href={slot.workflowUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 border border-ink/20 px-2 py-1 text-xs font-black uppercase"
-                        >
-                          Run <ExternalLink className="h-3 w-3" />
-                        </a>
-                      ) : null}
-                      {["not_scheduled", "failed"].includes(slot.youtubeStatus) ? (
-                        <RunJournalBroadcastButton
-                          slotId={slot.id}
-                          journalId={slot.journalId}
-                          startsAt={slot.startsAt}
-                        />
-                      ) : null}
-                    </div>
+            <button
+              type="button"
+              onClick={() => setJournalScheduleExpanded((current) => !current)}
+              className="flex w-full items-center justify-between gap-2 text-left"
+            >
+              <span className="text-xs font-black uppercase text-ink/50">
+                Journal broadcasts on the schedule
+                {activeJournalBroadcastSlots.length > 0
+                  ? ` (${activeJournalBroadcastSlots.length})`
+                  : ""}
+              </span>
+              <ChevronDown
+                className={`h-4 w-4 shrink-0 text-ink/40 transition-transform ${
+                  journalScheduleExpanded ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+            {journalScheduleExpanded ? (
+              <>
+                {activeJournalBroadcastSlots.length === 0 ? (
+                  <p className="mt-2 text-xs font-semibold text-ink/50">
+                    None provisioned yet.
+                  </p>
+                ) : (
+                  <div className="mt-2 divide-y divide-ink/10 border border-ink/10 bg-white">
+                    {activeJournalBroadcastSlots.map(renderJournalSlotRow)}
                   </div>
-                ))}
-              </div>
-            )}
-            <p className="mt-2 text-[11px] font-semibold text-ink/45">
-              Journal slots are not on the hourly cron yet -- each one needs
-              &quot;Run now&quot; clicked (or a scheduled slot will sit at
-              &quot;not scheduled&quot; forever). It renders now and holds the
-              live stream until the slot&apos;s start time.
-            </p>
+                )}
+                <p className="mt-2 text-[11px] font-semibold text-ink/45">
+                  Journal slots are not on the hourly cron yet -- each one needs
+                  &quot;Run now&quot; clicked (or a scheduled slot will sit at
+                  &quot;not scheduled&quot; forever). It renders now and holds the
+                  live stream until the slot&apos;s start time.
+                </p>
+                <div className="mt-4 border-t border-ink/10 pt-3">
+                  <div className="text-xs font-black uppercase text-ink/50">
+                    Journal broadcast archive
+                    {archivedJournalBroadcastSlots.length > 0
+                      ? ` (${archivedJournalBroadcastSlots.length})`
+                      : ""}
+                  </div>
+                  {archivedJournalBroadcastSlots.length === 0 ? (
+                    <p className="mt-2 text-xs font-semibold text-ink/50">
+                      Nothing has aired or failed yet.
+                    </p>
+                  ) : (
+                    <div className="mt-2 divide-y divide-ink/10 border border-ink/10 bg-white">
+                      {archivedJournalBroadcastSlots.map(renderJournalSlotRow)}
+                    </div>
+                  )}
+                  <p className="mt-2 text-[11px] font-semibold text-ink/45">
+                    Completed and failed shows move here automatically. A failed
+                    show keeps its &quot;Run now&quot; button so it can be
+                    retried without re-provisioning the slot.
+                  </p>
+                </div>
+              </>
+            ) : null}
           </div>
         </div>
         {batchStatus.state !== "idle" ? (
