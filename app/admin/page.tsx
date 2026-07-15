@@ -314,6 +314,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         broadcast={
           <div className="grid gap-6">
             <DailyCoveragePlanner
+              key={activePlanningKey}
               initialPlan={snapshot.dailyCoveragePlan}
               conferences={snapshot.medicalConferences}
               journals={snapshot.oncologyJournals}

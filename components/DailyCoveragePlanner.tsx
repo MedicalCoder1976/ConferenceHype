@@ -18,10 +18,6 @@ import { CardDeckSummary } from "@/components/CardDeckSummary";
 import { RunJournalBroadcastButton } from "@/components/RunJournalBroadcastButton";
 import { SpecialtyJournalTabs } from "@/components/SpecialtyJournalTabs";
 import { SingleJournalPicker } from "@/components/SingleJournalPicker";
-import {
-  createDefaultDailyCoveragePlan,
-  normalizeLegacyDailyCoverageDefaults
-} from "@/lib/dailyCoverage";
 import { EMPTY_CARD_DECK, type EntityCardDeck } from "@/lib/cardDeck";
 import { errorMessage } from "@/lib/errors";
 import { isGenericConferenceLandingItem } from "@/lib/intakeSelection";
@@ -198,42 +194,6 @@ export function DailyCoveragePlanner({
         ? current[field].filter((item) => item !== id)
         : [...current[field], id]
     }));
-  };
-
-  const loadDate = (coverageDate: string) => {
-    setMessage("");
-    startTransition(async () => {
-      try {
-        const [coverageResponse, intakeResponse] = await Promise.all([
-          fetch(`/api/admin/daily-coverage?date=${encodeURIComponent(coverageDate)}`),
-          fetch(`/api/admin/intake-cards?date=${encodeURIComponent(coverageDate)}`)
-        ]);
-        const payload = await coverageResponse.json();
-        const intakePayload = await intakeResponse.json();
-        if (!coverageResponse.ok || !payload.ok) {
-          throw new Error(payload.error ?? "Could not load coverage plan.");
-        }
-        if (!intakeResponse.ok || !intakePayload.ok) {
-          throw new Error(intakePayload.error ?? "Could not load batch intake cards.");
-        }
-        const nextPlan = normalizeLegacyDailyCoverageDefaults({
-          plan:
-            payload.plan ??
-            createDefaultDailyCoveragePlan({
-              coverageDate,
-              conferences
-            }),
-          journals,
-          sources
-        });
-        setPlan(nextPlan);
-        setBatchItems(intakePayload.items ?? []);
-        setPriorityText(nextPlan.priorityTopics.join("\n"));
-        setExclusionsText(nextPlan.exclusions.join("\n"));
-      } catch (error) {
-        setMessage(error instanceof Error ? error.message : "Could not load coverage plan.");
-      }
-    });
   };
 
   const selectedConferences = useMemo(
@@ -676,6 +636,39 @@ export function DailyCoveragePlanner({
   return (
     <section className="border border-ink/10 bg-white shadow-panel">
       <div className="border-b border-ink/10 p-5">
+        <div className="mb-2 text-xs font-black uppercase text-ink/50">
+          One-hour planning slots - 24 h back through next week
+        </div>
+        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+          {planningDays.map((day) => (
+            <details
+              key={day.key}
+              open={day.key === activePlanningKey}
+              className="border border-ink/10 bg-paper/60"
+            >
+              <summary className="cursor-pointer list-none px-3 py-2 text-xs font-black uppercase text-ink/70">
+                {day.label} <span className="text-broadcast">({day.slots.length})</span>
+              </summary>
+              <div className="grid grid-cols-2 gap-2 border-t border-ink/10 p-2 sm:grid-cols-3">
+                {day.slots.map((item) => (
+                  <Link
+                    key={item.href}
+                    className={`min-h-9 border px-2 py-2 text-center text-xs font-black uppercase ${
+                      item.selected
+                        ? "border-ink bg-ink text-white"
+                        : "border-ink/10 bg-white text-ink/70 hover:border-broadcast"
+                    }`}
+                    href={item.href}
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+            </details>
+          ))}
+        </div>
+      </div>
+      <div className="border-b border-ink/10 p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
@@ -687,15 +680,6 @@ export function DailyCoveragePlanner({
               clinical news outlets, and operator priorities enter today&apos;s intake.
             </p>
           </div>
-          <label className="text-xs font-black uppercase text-ink/60">
-            Coverage date
-            <input
-              type="date"
-              value={plan.coverageDate}
-              onChange={(event) => loadDate(event.target.value)}
-              className="ml-3 border border-ink/20 px-3 py-2 text-sm font-semibold normal-case"
-            />
-          </label>
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-3 border border-ink/10 bg-paper/60 p-3">
           <div className="min-w-0 flex-1">
@@ -910,39 +894,6 @@ export function DailyCoveragePlanner({
             ) : null}
           </div>
         ) : null}
-        <div className="mt-4">
-          <div className="mb-2 text-xs font-black uppercase text-ink/50">
-            One-hour planning slots - 24 h back through next week
-          </div>
-          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-            {planningDays.map((day) => (
-              <details
-                key={day.key}
-                open={day.key === activePlanningKey}
-                className="border border-ink/10 bg-paper/60"
-              >
-                <summary className="cursor-pointer list-none px-3 py-2 text-xs font-black uppercase text-ink/70">
-                  {day.label} <span className="text-broadcast">({day.slots.length})</span>
-                </summary>
-                <div className="grid grid-cols-2 gap-2 border-t border-ink/10 p-2 sm:grid-cols-3">
-                  {day.slots.map((item) => (
-                    <Link
-                      key={item.href}
-                      className={`min-h-9 border px-2 py-2 text-center text-xs font-black uppercase ${
-                        item.selected
-                          ? "border-ink bg-ink text-white"
-                          : "border-ink/10 bg-white text-ink/70 hover:border-broadcast"
-                      }`}
-                      href={item.href}
-                    >
-                      {item.label}
-                    </Link>
-                  ))}
-                </div>
-              </details>
-            ))}
-          </div>
-        </div>
         {message ? (
           <div className="mt-3 border border-cyanline/30 bg-cyanline/10 p-3 text-sm font-bold">
             {message}
