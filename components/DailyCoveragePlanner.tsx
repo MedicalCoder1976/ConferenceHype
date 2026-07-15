@@ -511,22 +511,37 @@ export function DailyCoveragePlanner({
     setStatus({ state: "creating", text: "Provisioning the 30-minute journal broadcast slot." });
     startTransition(async () => {
       try {
-        const response = await fetch("/api/admin/journal-broadcast-slots/create-broadcast", {
+        const createResponse = await fetch("/api/admin/journal-broadcast-slots/create-broadcast", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ startsAt, journalId })
         });
-        const payload = await response.json();
-        if (!response.ok || !payload.ok) {
-          throw new Error(errorMessage(payload.error, "Could not create the journal broadcast slot."));
+        const createPayload = await createResponse.json();
+        if (!createResponse.ok || !createPayload.ok) {
+          throw new Error(errorMessage(createPayload.error, "Could not create the journal broadcast slot."));
+        }
+        setStatus({ state: "creating", text: "Slot created — starting the broadcast now." });
+
+        const runResponse = await fetch("/api/admin/run-journal-broadcast", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            slotId: createPayload.journalBroadcastSlotId,
+            journalId,
+            startAt: startsAt
+          })
+        });
+        const runPayload = await runResponse.json();
+        if (!runResponse.ok || !runPayload.ok) {
+          throw new Error(errorMessage(runPayload.error, "Slot was created, but could not start the broadcast."));
         }
         setStatus({
           state: "done",
-          text: "Journal broadcast slot provisioned — the 30-minute show will build and go live automatically at its scheduled start."
+          text: "Broadcast starting now — rendering, then it will go live automatically at its scheduled time."
         });
         router.refresh();
       } catch (error) {
-        const text = errorMessage(error, "Could not create the journal broadcast slot.");
+        const text = errorMessage(error, "Could not start the journal broadcast.");
         setStatus({ state: "error", text });
         setMessage(text);
       } finally {
@@ -705,7 +720,7 @@ export function DailyCoveragePlanner({
                     className="inline-flex min-h-9 items-center justify-center gap-2 bg-broadcast px-3 text-xs font-black uppercase text-white disabled:opacity-50"
                   >
                     <Radio className="h-3.5 w-3.5" />
-                    {panel.pending ? "Creating" : "Create journal broadcast"}
+                    {panel.pending ? "Starting" : "Start journal broadcast"}
                   </button>
                 </div>
                 <div className="mt-3 max-h-72 overflow-y-auto">
