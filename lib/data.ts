@@ -225,27 +225,35 @@ function currentWriteoutCard(cards: PublicBroadcastCard[], now = new Date()) {
 // instead of read from a stored status. currentWriteoutCard() below already
 // works this same way for individual cards; this does the same at the
 // whole-show level.
-function deriveDisplayYoutubeStatus(
+function deriveDisplayYoutubeStatusFromWindow(
   storedStatus: StreamState["youtubeStatus"],
-  cards: PublicBroadcastCard[],
+  window: { startMs: number; durationMs: number },
   now = new Date()
 ): StreamState["youtubeStatus"] {
   if (storedStatus !== "queued") {
     return storedStatus;
   }
+  const nowMs = now.getTime();
+  if (nowMs < window.startMs) {
+    return storedStatus;
+  }
+  return nowMs < window.startMs + window.durationMs ? "live" : "completed";
+}
+
+function deriveDisplayYoutubeStatus(
+  storedStatus: StreamState["youtubeStatus"],
+  cards: PublicBroadcastCard[],
+  now = new Date()
+): StreamState["youtubeStatus"] {
   const timedCards = cards.filter((card) => card.startsAt && card.durationSeconds);
   if (timedCards.length === 0) {
     return storedStatus;
   }
-  const showStart = Math.min(...timedCards.map((card) => new Date(card.startsAt!).getTime()));
-  const showEnd = Math.max(
+  const startMs = Math.min(...timedCards.map((card) => new Date(card.startsAt!).getTime()));
+  const endMs = Math.max(
     ...timedCards.map((card) => new Date(card.startsAt!).getTime() + (card.durationSeconds ?? 0) * 1000)
   );
-  const nowMs = now.getTime();
-  if (nowMs < showStart) {
-    return storedStatus;
-  }
-  return nowMs < showEnd ? "live" : "completed";
+  return deriveDisplayYoutubeStatusFromWindow(storedStatus, { startMs, durationMs: endMs - startMs }, now);
 }
 
 export async function getPublicBroadcastContext(): Promise<PublicBroadcastContext> {
@@ -288,8 +296,40 @@ export async function getPublicBroadcastContext(): Promise<PublicBroadcastContex
   }
 
   if (streamState.youtubeVideoId) {
+    // Journal-mode broadcasts never write a broadcast_writeouts row (see
+    // render-hour-broadcast.ts's isJournalMode guard), so they always land
+    // here rather than the "writeout" branch above -- meaning they'd never
+    // get the same wall-clock-derived live/completed status. Look the video
+    // up directly in whichever slot table has it and derive the same way,
+    // using the slot's own scheduled window instead of card timings.
+    const [conferenceSlots, journalSlots] = await Promise.all([
+      getConferenceCoverageSlotsFromDb(),
+      getJournalBroadcastSlotsFromDb()
+    ]);
+    const matchingConferenceSlot = (conferenceSlots ?? []).find(
+      (slot) => slot.youtubeVideoId === streamState.youtubeVideoId
+    );
+    const matchingJournalSlot = (journalSlots ?? []).find(
+      (slot) => slot.youtubeVideoId === streamState.youtubeVideoId
+    );
+    const scheduledWindow = matchingJournalSlot
+      ? {
+          startMs: new Date(matchingJournalSlot.startsAt).getTime(),
+          durationMs: matchingJournalSlot.durationMinutes * 60_000
+        }
+      : matchingConferenceSlot
+        ? {
+            startMs: new Date(matchingConferenceSlot.startsAt).getTime(),
+            durationMs: matchingConferenceSlot.durationHours * 3_600_000
+          }
+        : undefined;
     return {
-      streamState,
+      streamState: {
+        ...streamState,
+        youtubeStatus: scheduledWindow
+          ? deriveDisplayYoutubeStatusFromWindow(streamState.youtubeStatus, scheduledWindow)
+          : streamState.youtubeStatus
+      },
       cards: [],
       currentCard: undefined,
       source: "stream_without_writeout"
