@@ -16,7 +16,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { CardDeckSummary } from "@/components/CardDeckSummary";
 import { RunJournalBroadcastButton } from "@/components/RunJournalBroadcastButton";
-import { SpecialtyJournalTabs } from "@/components/SpecialtyJournalTabs";
 import { SingleJournalPicker } from "@/components/SingleJournalPicker";
 import { EMPTY_CARD_DECK, type EntityCardDeck } from "@/lib/cardDeck";
 import { errorMessage } from "@/lib/errors";
@@ -63,15 +62,6 @@ function listFromText(value: string) {
     .filter(Boolean);
 }
 
-function isOngoing(conference: MedicalConference, date: string) {
-  return Boolean(
-    conference.startDate &&
-      conference.endDate &&
-      date >= conference.startDate &&
-      date <= conference.endDate
-  );
-}
-
 const DAILY_COVERAGE_SELECTION_EVENT = "conferencehype:daily-coverage-selection";
 
 function selectedRealSourceIds(sourceIds: string[]) {
@@ -90,29 +80,6 @@ function revealPresentationSequence() {
   if (target instanceof HTMLElement) {
     target.focus({ preventScroll: true });
   }
-}
-
-function SelectionGroup({
-  title,
-  count,
-  children,
-  defaultOpen = true
-}: {
-  title: string;
-  count: number;
-  children: React.ReactNode;
-  defaultOpen?: boolean;
-}) {
-  return (
-    <details open={defaultOpen} className="border border-ink/10 bg-paper/50">
-      <summary className="cursor-pointer list-none p-3 text-sm font-black uppercase text-ink">
-        {title} <span className="text-broadcast">({count} selected)</span>
-      </summary>
-      <div className="grid gap-2 border-t border-ink/10 p-3 sm:grid-cols-2 xl:grid-cols-3">
-        {children}
-      </div>
-    </details>
-  );
 }
 
 export function DailyCoveragePlanner({
@@ -184,25 +151,18 @@ export function DailyCoveragePlanner({
   const [priorityText, setPriorityText] = useState(initialPlan.priorityTopics.join("\n"));
   const [exclusionsText, setExclusionsText] = useState(initialPlan.exclusions.join("\n"));
 
-  const toggle = (
-    field: "conferenceIds" | "journalIds" | "sourceIds",
-    id: string
-  ) => {
-    setPlan((current) => ({
-      ...current,
-      [field]: current[field].includes(id)
-        ? current[field].filter((item) => item !== id)
-        : [...current[field], id]
-    }));
-  };
-
+  // There is no more manual conference/journal/source picker -- every
+  // enabled entry in the catalog feeds the hourly broadcast automatically
+  // (mirrors buildAllCatalogCoveragePlan's own filters in
+  // lib/weeklySourceCards.ts, which the weekly "scope: all" batch already
+  // uses for the same "everything enabled, no manual picking" behavior).
   const selectedConferences = useMemo(
-    () => conferences.filter((conference) => plan.conferenceIds.includes(conference.id)),
-    [conferences, plan.conferenceIds]
+    () => conferences.filter((conference) => conference.enabled),
+    [conferences]
   );
   const selectedJournals = useMemo(
-    () => journals.filter((journal) => plan.journalIds.includes(journal.id)),
-    [journals, plan.journalIds]
+    () => journals.filter((journal) => journal.enabled),
+    [journals]
   );
   const journalsById = useMemo(
     () => new Map(journals.map((journal) => [journal.id, journal])),
@@ -237,13 +197,9 @@ export function DailyCoveragePlanner({
         .reverse(),
     [sortedJournalBroadcastSlots]
   );
-  const realSourceIds = useMemo(
-    () => selectedRealSourceIds(plan.sourceIds),
-    [plan.sourceIds]
-  );
   // A conference's official sub-pages (program, abstract library, etc.) are
   // covered automatically once the conference itself is selected, so they
-  // should never appear as independently-selectable newspaper tiles.
+  // should never be double-counted as independent newspaper/source ids.
   const conferenceLinkedSourceIdSet = useMemo(() => {
     const ids = new Set<string>();
     for (const conference of conferences) {
@@ -253,6 +209,16 @@ export function DailyCoveragePlanner({
     }
     return ids;
   }, [conferences, sources]);
+  const realSourceIds = useMemo(
+    () =>
+      selectedRealSourceIds(
+        sources
+          .filter((source) => source.enabled && source.type !== "manual")
+          .filter((source) => !conferenceLinkedSourceIdSet.has(source.id))
+          .map((source) => source.id)
+      ),
+    [sources, conferenceLinkedSourceIdSet]
+  );
   const hasAnySelection =
     selectedConferences.length > 0 || selectedJournals.length > 0 || realSourceIds.length > 0;
 
@@ -294,7 +260,7 @@ export function DailyCoveragePlanner({
       item.sourceId === journal.id ||
       item.sourceId === `daily-journal-${journal.id}`
     );
-    const sourceMatch = Boolean(item.sourceId && plan.sourceIds.includes(item.sourceId));
+    const sourceMatch = Boolean(item.sourceId && realSourceIds.includes(item.sourceId));
     return conferenceMatch || journalMatch || sourceMatch;
   }).slice(0, 24);
 
@@ -355,15 +321,21 @@ export function DailyCoveragePlanner({
     setMessage("");
     setBatchStatus({
       state: "saving",
-      text: "Saving the selected conference, journal, and source choices before card creation."
+      text: "Saving today's priorities before card creation."
     });
     setPendingBatch(true);
     startTransition(async () => {
       try {
         const priorityTopics = listFromText(priorityText);
         const exclusions = listFromText(exclusionsText);
+        // No manual conference/journal/source picker anymore -- every
+        // enabled entry in the catalog (selectedConferences/selectedJournals/
+        // realSourceIds, computed above) feeds this hour automatically.
         const planToSave = {
           ...plan,
+          conferenceIds: selectedConferences.map((conference) => conference.id),
+          journalIds: selectedJournals.map((journal) => journal.id),
+          sourceIds: realSourceIds,
           priorityTopics,
           exclusions
         };
@@ -442,8 +414,7 @@ export function DailyCoveragePlanner({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            startsAt: selectedStartsAt,
-            conferenceId: plan.conferenceIds[0]
+            startsAt: selectedStartsAt
           })
         });
         const broadcastPayload = await broadcastResponse.json();
@@ -902,70 +873,6 @@ export function DailyCoveragePlanner({
       </div>
 
       <div className="grid gap-4 p-5">
-        <SelectionGroup title="Conferences and meetings" count={plan.conferenceIds.length} defaultOpen={false}>
-          {conferences.map((conference) => {
-            const ongoing = isOngoing(conference, plan.coverageDate);
-            return (
-              <label key={conference.id} className="flex gap-3 border border-ink/10 bg-white p-3">
-                <input
-                  type="checkbox"
-                  checked={plan.conferenceIds.includes(conference.id)}
-                  onChange={() => toggle("conferenceIds", conference.id)}
-                />
-                <span className="min-w-0">
-                  <span className="block text-sm font-black">{conference.name}</span>
-                  <span className="block text-xs font-semibold text-ink/50">
-                    {conference.startDate ?? `${conference.year}-${String(conference.month).padStart(2, "0")}`}
-                    {ongoing ? " - ongoing today" : ""}
-                  </span>
-                  <CardDeckSummary
-                    deck={conferenceCardDecks[conference.id] ?? EMPTY_CARD_DECK}
-                    autoExpand={plan.conferenceIds.includes(conference.id)}
-                    entityType="conference"
-                    entityId={conference.id}
-                  />
-                </span>
-              </label>
-            );
-          })}
-        </SelectionGroup>
-
-        <SelectionGroup title="Journal RSS feeds" count={plan.journalIds.length}>
-          <SpecialtyJournalTabs
-            journals={journals}
-            journalIds={plan.journalIds}
-            toggle={toggle}
-            journalCardDecks={journalCardDecks}
-          />
-        </SelectionGroup>
-
-        <SelectionGroup title="Clinical news and newspapers" count={plan.sourceIds.length} defaultOpen={false}>
-          {sources
-            .filter((source) => source.type !== "general_social" && source.type !== "manual")
-            .filter((source) => !conferenceLinkedSourceIdSet.has(source.id))
-            .map((source) => (
-              <label key={source.id} className="flex gap-3 border border-ink/10 bg-white p-3">
-                <input
-                  type="checkbox"
-                  checked={plan.sourceIds.includes(source.id)}
-                  onChange={() => toggle("sourceIds", source.id)}
-                />
-                <span className="min-w-0">
-                  <span className="block text-sm font-black">{source.name}</span>
-                  <span className="block truncate text-xs font-semibold text-ink/50">
-                    {source.url}
-                  </span>
-                  <CardDeckSummary
-                    deck={sourceCardDecks[source.id] ?? EMPTY_CARD_DECK}
-                    autoExpand={plan.sourceIds.includes(source.id)}
-                    entityType="source"
-                    entityId={source.id}
-                  />
-                </span>
-              </label>
-            ))}
-        </SelectionGroup>
-
         <section className="border border-ink/10 bg-paper/50 p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
