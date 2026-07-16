@@ -27,6 +27,15 @@ import type {
   JournalBroadcastSlot
 } from "@/lib/types";
 
+// Some rundown slots carry synthetic, non-DB segment ids (a disclaimer or
+// schedule-spine fallback card, e.g. "journal-show-disclaimer-<timestamp>")
+// that aren't valid Postgres uuids -- a single one of these in an
+// .in("id", ...) list makes Postgres reject the whole query, silently
+// breaking every real id in the same batch too. Used to filter both
+// segment lookups and the rendered-status write below.
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 type SegmentRow = {
   id: string;
   title: string;
@@ -563,11 +572,16 @@ export async function getSegmentByIdFromDb(segmentId: string) {
 }
 
 export async function getSegmentsByIdsFromDb(segmentIds: string[]) {
-  if (!hasSupabase() || segmentIds.length === 0) {
+  // Same fix as markSegmentsRenderedInDb below: a synthetic, non-DB card id
+  // (a disclaimer or schedule-spine card) in this list makes Postgres reject
+  // the whole .in("id", ...) query, which broke this exact call when it was
+  // used to look up real segments for post-render YouTube metadata.
+  const realSegmentIds = segmentIds.filter((id) => UUID_PATTERN.test(id));
+  if (!hasSupabase() || realSegmentIds.length === 0) {
     return [];
   }
   const supabase = createAdminClient();
-  const { data, error } = await supabase.from("segments").select("*").in("id", segmentIds);
+  const { data, error } = await supabase.from("segments").select("*").in("id", realSegmentIds);
 
   if (error) {
     throw error;
@@ -2212,9 +2226,6 @@ export async function updateSegmentScheduleInDb({
 }
 
 // Marks segments as aired once a broadcast that used them has been rendered.
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 // Only ever moves approved -> rendered (never touches pending_review or
 // rejected), and only for the exact ids passed in, so this is safe to call
 // with ids that don't exist or aren't currently approved -- they're simply

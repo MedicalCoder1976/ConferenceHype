@@ -997,31 +997,220 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 3, delayMs = 1000):
   throw lastError;
 }
 
-async function saveBroadcastWriteout(cards: Card[]) {
+async function saveBroadcastWriteout(
+  cards: Card[],
+  youtubeVideoId?: string,
+  youtubeUrl?: string,
+  title?: string
+) {
   const { upsertBroadcastWriteoutInDb } = await import("@/lib/db");
   const startsAt = process.env.HOUR_BROADCAST_START
     ? new Date(process.env.HOUR_BROADCAST_START)
     : new Date();
-  const title =
-    process.env.BROADCAST_TITLE ??
-    `ConferenceHype programming - ${startsAt.toISOString()}`;
+  const resolvedTitle =
+    title ?? process.env.BROADCAST_TITLE ?? `ConferenceHype programming - ${startsAt.toISOString()}`;
   const writeoutCards = buildWriteoutCards(cards, startsAt);
   await upsertBroadcastWriteoutInDb({
     coverageSlotId: process.env.COVERAGE_SLOT_ID || undefined,
     startsAt: startsAt.toISOString(),
     durationMinutes: 60,
-    title,
-    status: "rendering",
-    youtubeVideoId: process.env.YOUTUBE_VIDEO_ID || undefined,
-    youtubeUrl: process.env.YOUTUBE_VIDEO_URL || undefined,
+    title: resolvedTitle,
+    status: youtubeVideoId ? "queued" : "rendering",
+    youtubeVideoId,
+    youtubeUrl,
     workflowRunId: process.env.GITHUB_RUN_ID || undefined,
     workflowUrl:
       process.env.GITHUB_SERVER_URL && process.env.GITHUB_REPOSITORY && process.env.GITHUB_RUN_ID
         ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
         : undefined,
     cards: writeoutCards,
-    writeoutMarkdown: buildWriteoutMarkdown(title, writeoutCards)
+    writeoutMarkdown: buildWriteoutMarkdown(resolvedTitle, writeoutCards)
   });
+}
+
+// Renders are now uploaded to YouTube directly instead of streamed live (no
+// more RTMP/live-broadcast layer -- see uploadBroadcastVideo.ts), so the
+// video doesn't exist yet at this point in the script the way it used to
+// (create-youtube-broadcast.ts ran *before* render and bound an empty live
+// broadcast shell). This resolves title/description/tags from the cards
+// that actually rendered, uploads the finished file with those as the
+// video's real metadata from the start, uploads a matching thumbnail, then
+// writes the resulting video id to both the writeout and the slot's
+// delivery status. Falls back to a generic title (mirroring the old
+// pre-render placeholder) if metadata resolution has nothing to work with
+// -- a broadcast should still go out even when it's mostly fallback/music
+// content.
+async function uploadRenderedBroadcast(cards: Card[], usedSegmentIds: string[], isJournalMode: boolean) {
+  const hourStart = process.env.HOUR_BROADCAST_START
+    ? new Date(process.env.HOUR_BROADCAST_START)
+    : new Date();
+
+  let actualMetadata:
+    | Awaited<ReturnType<typeof import("@/lib/youtube/broadcastMetadata").buildBroadcastMetadata>>
+    | undefined;
+  if (usedSegmentIds.length > 0) {
+    try {
+      actualMetadata = await withRetry(async () => {
+        const {
+          getSegmentsByIdsFromDb,
+          getOncologyJournalsFromDb,
+          getConferenceCoverageSlotsFromDb,
+          getMedicalConferencesFromDb
+        } = await import("@/lib/db");
+        const { buildBroadcastMetadata } = await import("@/lib/youtube/broadcastMetadata");
+        const [usedSegments, journals, coverageSlots, conferences] = await Promise.all([
+          getSegmentsByIdsFromDb(usedSegmentIds),
+          getOncologyJournalsFromDb(),
+          getConferenceCoverageSlotsFromDb(),
+          getMedicalConferencesFromDb()
+        ]);
+        const segmentsById = new Map(usedSegments.map((segment) => [segment.id, segment]));
+        const journalsById = new Map((journals ?? []).map((journal) => [journal.id, journal]));
+        const activeSlot = (coverageSlots ?? []).find((slot) => slot.id === process.env.COVERAGE_SLOT_ID);
+        const activeConference = activeSlot
+          ? (conferences ?? []).find((conference) => conference.id === activeSlot.conferenceId)
+          : undefined;
+        let elapsedMs = 0;
+        const slots = cards.map((card) => {
+          const at = new Date(hourStart.getTime() + elapsedMs);
+          elapsedMs += card.duration * 1000;
+          return {
+            at,
+            kind: (card.isMusic ? "music" : "schedule") as "music" | "schedule",
+            durationMinutes: card.duration / 60,
+            durationSeconds: card.duration,
+            segment: card.segmentId ? segmentsById.get(card.segmentId) : undefined,
+            label: card.title ?? ""
+          };
+        });
+        // For the 30-minute single-journal show, the title should show the
+        // journal issue's own month/date, not the broadcast's air date --
+        // pick the most common publishedAt month among the actually-used
+        // segments' citations.
+        let titleDateOverride: string | undefined;
+        if (isJournalMode) {
+          const monthCounts = new Map<string, { count: number; sample: string }>();
+          for (const segment of usedSegments) {
+            const publishedAt = segment.citations?.[0]?.publishedAt;
+            if (!publishedAt) continue;
+            const monthKey = publishedAt.slice(0, 7);
+            const existing = monthCounts.get(monthKey);
+            monthCounts.set(monthKey, { count: (existing?.count ?? 0) + 1, sample: existing?.sample ?? publishedAt });
+          }
+          titleDateOverride = [...monthCounts.values()].sort((a, b) => b.count - a.count)[0]?.sample;
+        }
+        return buildBroadcastMetadata({
+          hourStart,
+          conferenceName: activeConference?.acronym ?? activeConference?.name,
+          slots,
+          journalsById,
+          titleDateOverride
+        });
+      });
+    } catch (error) {
+      console.log(
+        `::warning::Could not build YouTube metadata from actual rendered cards, falling back to generic: ${describeError(error)}`
+      );
+    }
+  }
+
+  const fallbackLabel = new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "America/New_York"
+  }).format(hourStart);
+  const title =
+    process.env.BROADCAST_TITLE ||
+    actualMetadata?.title ||
+    `ConferenceHype live programming - ${fallbackLabel}`;
+  const description =
+    actualMetadata?.description ||
+    "Source-attributed ConferenceHype medical-conference programming.";
+  const tags = actualMetadata?.tags ?? [];
+  const categoryId = actualMetadata?.categoryId ?? "27";
+
+  const { assertMediaGenerated } = await import("@/lib/media/youtubeDeliveryVerifier");
+  await assertMediaGenerated(outputPath);
+
+  const { getYoutubeAccessToken, uploadVideoToYoutube, uploadYoutubeThumbnail } = await import(
+    "@/lib/youtube/uploadBroadcastVideo"
+  );
+  const accessToken = await getYoutubeAccessToken();
+  const uploaded = await withRetry(() =>
+    uploadVideoToYoutube({
+      filePath: outputPath,
+      accessToken,
+      title,
+      description,
+      tags,
+      categoryId,
+      publishAt: hourStart.toISOString()
+    })
+  );
+  const youtubeVideoId = uploaded.id;
+  const youtubeUrl = `https://www.youtube.com/watch?v=${youtubeVideoId}`;
+  console.log(`Uploaded ${youtubeUrl}, scheduled public at ${hourStart.toISOString()}.`);
+
+  if (process.env.GITHUB_OUTPUT) {
+    const { appendFile } = await import("node:fs/promises");
+    await appendFile(
+      process.env.GITHUB_OUTPUT,
+      `youtube_video_id=${youtubeVideoId}\nyoutube_url=${youtubeUrl}\n`
+    );
+  }
+
+  if (actualMetadata) {
+    try {
+      await uploadYoutubeThumbnail({
+        videoId: youtubeVideoId,
+        accessToken,
+        tier: actualMetadata.tier,
+        journalName: actualMetadata.journalName,
+        specialty: actualMetadata.specialty,
+        dateLabel: actualMetadata.dateLabel,
+        siteUrl: process.env.PUBLIC_SITE_URL
+      });
+    } catch (error) {
+      console.log(
+        `::warning::Could not set a custom YouTube thumbnail (channel may not be phone-verified yet): ${describeError(error)}`
+      );
+    }
+  }
+
+  if (!isJournalMode) {
+    await withRetry(() => saveBroadcastWriteout(cards, youtubeVideoId, youtubeUrl, title));
+  }
+
+  // Mark every real, DB-backed segment used in this hour's card list as
+  // aired, so it stops being pulled into a future hour's approved-segment
+  // pool (getNextBroadcastSegmentsFromDb only selects status="approved").
+  // Deliberately only runs after a successful upload -- if the upload
+  // fails, these segments stay "approved" and can be reused on a retry.
+  if (usedSegmentIds.length > 0) {
+    const { markSegmentsRenderedInDb } = await import("@/lib/db");
+    await withRetry(() => markSegmentsRenderedInDb(usedSegmentIds)).catch((error) => {
+      console.warn(`Failed to mark segments as rendered — the broadcast still airs normally: ${describeError(error)}`);
+    });
+  }
+
+  const { updateConferenceCoverageDeliveryInDb, updateJournalBroadcastDeliveryInDb } = await import("@/lib/db");
+  const workflowUrl =
+    process.env.GITHUB_SERVER_URL && process.env.GITHUB_REPOSITORY && process.env.GITHUB_RUN_ID
+      ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
+      : undefined;
+  const deliveryPatch = {
+    youtubeStatus: "queued" as const,
+    youtubeVideoId,
+    youtubeUrl,
+    workflowRunId: process.env.GITHUB_RUN_ID,
+    workflowUrl
+  };
+  if (process.env.JOURNAL_SLOT_ID) {
+    await withRetry(() => updateJournalBroadcastDeliveryInDb(process.env.JOURNAL_SLOT_ID, deliveryPatch));
+  } else {
+    await withRetry(() => updateConferenceCoverageDeliveryInDb(process.env.COVERAGE_SLOT_ID, deliveryPatch));
+  }
 }
 
 async function main() {
@@ -1077,21 +1266,12 @@ async function main() {
     return;
   }
 
-  // broadcast_writeouts.coverage_slot_id is a strict FK to
-  // conference_coverage_slots and duration_minutes has a check(=60)
-  // constraint -- a 30-minute journal show can't satisfy either. Nothing in
-  // the streaming path reads this table (it's a separate public
-  // writeout/transcript page), so skipping it for journal mode is zero-risk.
-  if (!isJournalMode) {
-    await saveBroadcastWriteout(cards);
-  }
-
-  // Mark every real, DB-backed segment used in this hour's card list as
-  // aired, so it stops being pulled into a future hour's approved-segment
-  // pool (getNextBroadcastSegmentsFromDb only selects status="approved").
-  // Synthetic, non-DB segment ids (the conference-opening card, schedule/
-  // social fallback segments) simply don't match any row and are silently
-  // skipped by the .eq("status","approved") guard inside the update.
+  // Every real, DB-backed segment used in this hour's card list -- marked
+  // rendered (and the writeout/delivery-status written with the real
+  // YouTube video id) only after a successful upload, in
+  // uploadRenderedBroadcast() below. If the upload never happens, these
+  // segments stay "approved" and are eligible for a retry instead of being
+  // silently consumed by a broadcast that never actually delivered.
   const usedSegmentIds = [
     ...new Set(
       cards
@@ -1099,128 +1279,6 @@ async function main() {
         .map((card) => card.segmentId!)
     )
   ];
-  if (usedSegmentIds.length > 0) {
-    const { markSegmentsRenderedInDb } = await import("@/lib/db");
-    await withRetry(() => markSegmentsRenderedInDb(usedSegmentIds)).catch((error) => {
-      console.warn(`Failed to mark segments as rendered — the broadcast still airs normally: ${describeError(error)}`);
-    });
-  }
-
-  // Rebuild title/description/tags from the cards actually used in this
-  // render and push them over whatever scripts/create-youtube-broadcast.ts
-  // set minutes earlier. That earlier step reads its own independent
-  // snapshot of the approved-segment pool well before rendering finishes
-  // selecting/framing/replacing cards, so it can end up describing
-  // different content than what actually airs -- confirmed on a real
-  // broadcast (2026-07-12, video WZU4hNgqjcw) where the description's
-  // chapter list didn't match the narrated cards, every chapter was
-  // missing its journal name/date, and the title fell back to the
-  // coverage slot's linked conference ("ACC live programming") because
-  // that earlier snapshot happened to land on backlog cards that predate
-  // Citation.journalId. This block is the single source of truth for what
-  // actually aired, so it can't drift the same way.
-  if (process.env.YOUTUBE_VIDEO_ID && usedSegmentIds.length > 0) {
-    try {
-      await withRetry(async () => {
-        const {
-          getSegmentsByIdsFromDb,
-          getOncologyJournalsFromDb,
-          getConferenceCoverageSlotsFromDb,
-          getMedicalConferencesFromDb
-        } = await import("@/lib/db");
-        const { buildBroadcastMetadata } = await import("@/lib/youtube/broadcastMetadata");
-        const [usedSegments, journals, coverageSlots, conferences] = await Promise.all([
-          getSegmentsByIdsFromDb(usedSegmentIds),
-          getOncologyJournalsFromDb(),
-          getConferenceCoverageSlotsFromDb(),
-          getMedicalConferencesFromDb()
-        ]);
-        const segmentsById = new Map(usedSegments.map((segment) => [segment.id, segment]));
-        const journalsById = new Map((journals ?? []).map((journal) => [journal.id, journal]));
-        const activeSlot = (coverageSlots ?? []).find((slot) => slot.id === process.env.COVERAGE_SLOT_ID);
-        const activeConference = activeSlot
-          ? (conferences ?? []).find((conference) => conference.id === activeSlot.conferenceId)
-          : undefined;
-        const hourStart = process.env.HOUR_BROADCAST_START
-          ? new Date(process.env.HOUR_BROADCAST_START)
-          : new Date();
-        let elapsedMs = 0;
-        const slots = cards.map((card) => {
-          const at = new Date(hourStart.getTime() + elapsedMs);
-          elapsedMs += card.duration * 1000;
-          return {
-            at,
-            kind: (card.isMusic ? "music" : "schedule") as "music" | "schedule",
-            durationMinutes: card.duration / 60,
-            durationSeconds: card.duration,
-            segment: card.segmentId ? segmentsById.get(card.segmentId) : undefined,
-            label: card.title ?? ""
-          };
-        });
-        // For the 30-minute single-journal show, the title should show the
-        // journal issue's own month/date, not the broadcast's air date --
-        // pick the most common publishedAt month among the actually-used
-        // segments' citations (usually trivial since the show is
-        // single-journal by construction, but computed properly rather than
-        // just taking the first card's date in case of a manually-curated
-        // multi-issue show).
-        let titleDateOverride: string | undefined;
-        if (isJournalMode) {
-          const monthCounts = new Map<string, { count: number; sample: string }>();
-          for (const segment of usedSegments) {
-            const publishedAt = segment.citations?.[0]?.publishedAt;
-            if (!publishedAt) continue;
-            const monthKey = publishedAt.slice(0, 7);
-            const existing = monthCounts.get(monthKey);
-            monthCounts.set(monthKey, { count: (existing?.count ?? 0) + 1, sample: existing?.sample ?? publishedAt });
-          }
-          titleDateOverride = [...monthCounts.values()].sort((a, b) => b.count - a.count)[0]?.sample;
-        }
-        const actualMetadata = buildBroadcastMetadata({
-          hourStart,
-          conferenceName: activeConference?.acronym ?? activeConference?.name,
-          slots,
-          journalsById,
-          titleDateOverride
-        });
-
-        const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams({
-            client_id: process.env.YOUTUBE_OAUTH_CLIENT_ID ?? "",
-            client_secret: process.env.YOUTUBE_OAUTH_CLIENT_SECRET ?? "",
-            refresh_token: process.env.YOUTUBE_OAUTH_REFRESH_TOKEN ?? "",
-            grant_type: "refresh_token"
-          })
-        });
-        if (!tokenResponse.ok) {
-          throw new Error(`YouTube OAuth refresh failed: ${tokenResponse.status} ${await tokenResponse.text()}`);
-        }
-        const { access_token: accessToken } = (await tokenResponse.json()) as { access_token: string };
-
-        const updateResponse = await fetch("https://www.googleapis.com/youtube/v3/videos?part=snippet", {
-          method: "PUT",
-          headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            id: process.env.YOUTUBE_VIDEO_ID,
-            snippet: {
-              title: actualMetadata.title,
-              description: actualMetadata.description,
-              tags: actualMetadata.tags,
-              categoryId: actualMetadata.categoryId
-            }
-          })
-        });
-        if (!updateResponse.ok) {
-          throw new Error(`videos.update failed: ${updateResponse.status} ${await updateResponse.text()}`);
-        }
-        console.log(`Updated YouTube title/description from ${cards.length} actual rendered cards (tier=${actualMetadata.tier}).`);
-      });
-    } catch (error) {
-      console.log(`::warning::Could not update YouTube metadata from actual rendered cards: ${describeError(error)}`);
-    }
-  }
 
   await mkdir(renderDir, { recursive: true });
   await mkdir(path.dirname(outputPath), { recursive: true });
@@ -1577,6 +1635,8 @@ async function main() {
     )
   );
   await run(ffmpeg, args);
+
+  await uploadRenderedBroadcast(cards, usedSegmentIds, isJournalMode);
 }
 
 main().catch((error) => {

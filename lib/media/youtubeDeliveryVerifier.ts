@@ -2,15 +2,12 @@ import { access } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { createClient } from "@supabase/supabase-js";
 
-type Phase = "live" | "completed";
-
 type VerifyOptions = {
-  phase: Phase;
   youtubeVideoId: string;
   youtubeUrl?: string;
   mediaPath?: string;
   siteUrl?: string;
-  expectedPrivacyStatus?: "public" | "unlisted" | "private";
+  publishAt?: string;
   timeoutSeconds?: number;
   intervalSeconds?: number;
   // broadcast_writeouts has a strict FK to conference_coverage_slots and a
@@ -21,15 +18,12 @@ type VerifyOptions = {
   skipWriteoutCheck?: boolean;
 };
 
-type YoutubeBroadcastStatus = {
+type YoutubeVideoStatus = {
   foundOnYoutube: boolean;
   watchPageReachable: boolean;
-  lifeCycleStatus?: string;
-  privacyStatus?: string;
-  recordingStatus?: string;
   uploadStatus?: string;
-  actualStartTime?: string;
-  actualEndTime?: string;
+  privacyStatus?: string;
+  publishAt?: string;
   embeddable?: boolean;
 };
 
@@ -58,7 +52,7 @@ function run(command: string, args: string[]) {
   });
 }
 
-async function assertMediaGenerated(mediaPath?: string) {
+export async function assertMediaGenerated(mediaPath?: string) {
   if (!mediaPath) {
     return;
   }
@@ -119,61 +113,48 @@ async function getYoutubeAccessToken() {
   return tokenPayload.access_token;
 }
 
-async function getYoutubeStatus(videoId: string): Promise<YoutubeBroadcastStatus> {
+async function getYoutubeStatus(videoId: string): Promise<YoutubeVideoStatus> {
   const accessToken = await getYoutubeAccessToken();
   if (!accessToken) {
     await assertYoutubeWatchPage(videoId);
     return { foundOnYoutube: true, watchPageReachable: true };
   }
 
-  const [broadcastResponse, videoResponse] = await Promise.all([
-    fetch(
-      `https://www.googleapis.com/youtube/v3/liveBroadcasts?part=status,contentDetails&id=${encodeURIComponent(videoId)}`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    ),
-    fetch(
-      `https://www.googleapis.com/youtube/v3/videos?part=status,liveStreamingDetails&id=${encodeURIComponent(videoId)}`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    )
-  ]);
-  if (!broadcastResponse.ok) {
-    throw new Error(`YouTube broadcast lookup failed: ${broadcastResponse.status} ${await broadcastResponse.text()}`);
-  }
+  const videoResponse = await fetch(
+    `https://www.googleapis.com/youtube/v3/videos?part=status&id=${encodeURIComponent(videoId)}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
   if (!videoResponse.ok) {
     throw new Error(`YouTube video lookup failed: ${videoResponse.status} ${await videoResponse.text()}`);
   }
-  const broadcastPayload = (await broadcastResponse.json()) as {
-    items?: Array<{
-      status?: {
-        lifeCycleStatus?: string;
-        privacyStatus?: string;
-        recordingStatus?: string;
-      };
-      contentDetails?: { enableEmbed?: boolean };
-    }>;
-  };
   const videoPayload = (await videoResponse.json()) as {
     items?: Array<{
-      status?: { uploadStatus?: string; embeddable?: boolean };
-      liveStreamingDetails?: { actualStartTime?: string; actualEndTime?: string };
+      status?: {
+        uploadStatus?: string;
+        privacyStatus?: string;
+        publishAt?: string;
+        embeddable?: boolean;
+      };
     }>;
   };
-  const broadcast = broadcastPayload.items?.[0];
   const video = videoPayload.items?.[0];
   if (!video) {
     throw new Error(`YouTube video ${videoId} was not found.`);
   }
-  await assertYoutubeWatchPage(videoId);
+  // A newly uploaded video isn't always reachable on the public watch page
+  // immediately (YouTube indexing lag), so this is a soft check -- don't
+  // fail the whole verification over it.
+  const watchPageReachable = await assertYoutubeWatchPage(videoId).then(
+    () => true,
+    () => false
+  );
   return {
     foundOnYoutube: true,
-    watchPageReachable: true,
-    lifeCycleStatus: broadcast?.status?.lifeCycleStatus,
-    privacyStatus: broadcast?.status?.privacyStatus,
-    recordingStatus: broadcast?.status?.recordingStatus,
+    watchPageReachable,
     uploadStatus: video.status?.uploadStatus,
-    actualStartTime: video.liveStreamingDetails?.actualStartTime,
-    actualEndTime: video.liveStreamingDetails?.actualEndTime,
-    embeddable: video.status?.embeddable ?? broadcast?.contentDetails?.enableEmbed
+    privacyStatus: video.status?.privacyStatus,
+    publishAt: video.status?.publishAt,
+    embeddable: video.status?.embeddable
   };
 }
 
@@ -212,8 +193,8 @@ async function assertPublicState(options: VerifyOptions) {
       `Public stream_state has video ${streamState?.youtube_video_id ?? "none"}; expected ${options.youtubeVideoId}.`
     );
   }
-  if (streamState?.youtube_status !== options.phase) {
-    throw new Error(`Public stream_state is ${streamState?.youtube_status}; expected ${options.phase}.`);
+  if (streamState?.youtube_status !== "queued") {
+    throw new Error(`Public stream_state is ${streamState?.youtube_status}; expected queued.`);
   }
 
   if (options.skipWriteoutCheck) {
@@ -253,52 +234,39 @@ async function assertPublicPage(options: VerifyOptions) {
   }
 }
 
-function assertYoutubePhase(phase: Phase, status: YoutubeBroadcastStatus) {
-  if (!status.foundOnYoutube || !status.watchPageReachable) {
-    throw new Error("YouTube did not return a saved/reachable video record for this ID.");
-  }
-
-  if (phase === "live") {
-    if (status.lifeCycleStatus && !["live", "testing"].includes(status.lifeCycleStatus)) {
-      throw new Error(`YouTube broadcast is ${status.lifeCycleStatus}; expected live/testing.`);
-    }
-    if (status.actualEndTime) {
-      throw new Error("YouTube video already has an end time while live verification is running.");
-    }
-    return;
-  }
-
-  if (status.lifeCycleStatus && status.lifeCycleStatus !== "complete") {
-    throw new Error(`YouTube broadcast is ${status.lifeCycleStatus}; expected complete.`);
-  }
-  if (
-    status.uploadStatus &&
-    !["processed", "uploaded"].includes(status.uploadStatus)
-  ) {
-    throw new Error(
-      `YouTube saved video uploadStatus is ${status.uploadStatus}; expected processed/uploaded.`
-    );
+function assertYoutubeUploadState(options: VerifyOptions, status: YoutubeVideoStatus) {
+  if (!status.foundOnYoutube) {
+    throw new Error("YouTube did not return a saved video record for this ID.");
   }
   if (status.uploadStatus && ["deleted", "failed", "rejected"].includes(status.uploadStatus)) {
     throw new Error(`YouTube did not save the video successfully; uploadStatus is ${status.uploadStatus}.`);
   }
-}
-
-function assertYoutubePrivacy(expectedPrivacyStatus: VerifyOptions["expectedPrivacyStatus"], status: YoutubeBroadcastStatus) {
-  if (!expectedPrivacyStatus || !status.privacyStatus) {
-    return;
-  }
-  if (status.privacyStatus !== expectedPrivacyStatus) {
+  if (status.uploadStatus && !["processed", "uploaded"].includes(status.uploadStatus)) {
     throw new Error(
-      `YouTube video privacyStatus is ${status.privacyStatus}; expected ${expectedPrivacyStatus}.`
+      `YouTube saved video uploadStatus is ${status.uploadStatus}; expected processed/uploaded.`
+    );
+  }
+  // privacyStatus stays "private" until YouTube's own scheduler flips it
+  // public at publishAt -- that's expected and not a failure on our end,
+  // just confirm publishAt is actually the value we asked for.
+  if (options.publishAt && status.publishAt && status.publishAt !== options.publishAt) {
+    throw new Error(
+      `YouTube video publishAt is ${status.publishAt}; expected ${options.publishAt}.`
     );
   }
 }
 
-export async function verifyYoutubeDeliveryLoop(options: VerifyOptions) {
+// Single-pass verification that an upload actually landed correctly: the
+// rendered file is a real video, the video exists on YouTube with a healthy
+// upload status and the right scheduled publish time, and the database/
+// public site agree on which video is queued. Replaces the old live-phase
+// polling loop -- there's nothing to wait for anymore (no RTMP connection
+// to stabilize), just a one-shot confirmation with a short retry for
+// transient YouTube API/indexing lag right after upload.
+export async function verifyYoutubeUpload(options: VerifyOptions) {
   const startedAt = Date.now();
-  const timeoutSeconds = options.timeoutSeconds ?? (options.phase === "completed" ? 900 : 180);
-  const intervalSeconds = options.intervalSeconds ?? 15;
+  const timeoutSeconds = options.timeoutSeconds ?? 120;
+  const intervalSeconds = options.intervalSeconds ?? 10;
   let lastError: unknown;
 
   while (Date.now() - startedAt < timeoutSeconds * 1000) {
@@ -307,13 +275,11 @@ export async function verifyYoutubeDeliveryLoop(options: VerifyOptions) {
       await assertPublicState(options);
       await assertPublicPage(options);
       const youtubeStatus = await getYoutubeStatus(options.youtubeVideoId);
-      assertYoutubePhase(options.phase, youtubeStatus);
-      assertYoutubePrivacy(options.expectedPrivacyStatus, youtubeStatus);
+      assertYoutubeUploadState(options, youtubeStatus);
       console.log(
         JSON.stringify(
           {
             ok: true,
-            phase: options.phase,
             youtubeVideoId: options.youtubeVideoId,
             youtubeUrl: options.youtubeUrl ?? `https://www.youtube.com/watch?v=${options.youtubeVideoId}`,
             youtubeStatus
@@ -326,9 +292,7 @@ export async function verifyYoutubeDeliveryLoop(options: VerifyOptions) {
     } catch (error) {
       lastError = error;
       console.log(
-        `Delivery verification waiting for ${options.phase}: ${
-          error instanceof Error ? error.message : String(error)
-        }`
+        `Delivery verification waiting: ${error instanceof Error ? error.message : String(error)}`
       );
       await sleep(intervalSeconds * 1000);
     }
@@ -336,5 +300,5 @@ export async function verifyYoutubeDeliveryLoop(options: VerifyOptions) {
 
   throw lastError instanceof Error
     ? lastError
-    : new Error(`Timed out waiting for ${options.phase} YouTube delivery verification.`);
+    : new Error("Timed out waiting for YouTube upload delivery verification.");
 }

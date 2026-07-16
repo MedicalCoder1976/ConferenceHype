@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       duration_minutes:
-        description: "Maximum stream duration before GitHub stops the job"
+        description: "Fallback render duration when a mode-specific override doesn't apply"
         required: true
         default: "60"
         type: choice
@@ -13,11 +13,11 @@ on:
           - "30"
           - "60"
       stream_input_path:
-        description: "Video file to loop into YouTube"
-        required: true
+        description: "Unused (kept for compatibility with older dispatch callers)"
+        required: false
         default: "public/rendered/fallback-loop.mp4"
       stream_start_time:
-        description: "ISO start time for rendering the correct rundown cards (leave blank for fallback loop)"
+        description: "ISO start time for rendering the correct rundown cards and scheduling the YouTube publish time"
         required: false
         default: ""
       coverage_slot_id:
@@ -33,17 +33,18 @@ on:
         required: false
         default: ""
   schedule:
-    # Poll the approved admin programming plan. Rendering starts far enough
-    # ahead of each one-hour slot to finish before its scheduled airtime.
+    # Poll the approved admin programming plan. Rendering + upload only take
+    # a few minutes now (no live stream to hold open), so this just needs to
+    # run comfortably before each slot's scheduled airtime -- YouTube's own
+    # publishAt scheduling handles exactly when the video goes public.
     - cron: "15 * * * *"
 
 jobs:
   stream:
     runs-on: ubuntu-latest
-    # Schedule: setup + render + one-hour stream + buffer.
-    # Rendering for the next hour may overlap the current live hour, so the
-    # workflow must not use a job-wide concurrency lock.
-    timeout-minutes: 180
+    # Render + upload typically finish in single-digit minutes; this is a
+    # generous ceiling, not an expected duration.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -81,20 +82,6 @@ jobs:
             DURATION_HOURS=$(jq -r '.duration_hours // 1' <<< "${RECORD}")
             CONFERENCE_NAME=$(jq -r '.medical_conferences.acronym // .medical_conferences.name // "ConferenceHype"' <<< "${RECORD}")
             DURATION_SECONDS=$((DURATION_HOURS * 3600))
-            if [ -z "${BLOCK_START}" ]; then
-              CONTINUOUS=$(curl --fail --silent --show-error \
-                --get "${NEXT_PUBLIC_SUPABASE_URL}/rest/v1/stream_state" \
-                -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
-                -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
-                --data-urlencode "select=continuous_enabled" \
-                --data-urlencode "id=eq.1" \
-                --data-urlencode "limit=1" | jq -r '.[0].continuous_enabled // false')
-              if [ "${CONTINUOUS}" = "true" ]; then
-                BLOCK_START=$(date -u -d "+45 minutes" +"%Y-%m-%dT%H:00:00Z")
-                CONFERENCE_NAME="ConferenceHype"
-                DURATION_SECONDS=3600
-              fi
-            fi
           else
             SLOT_ID="${{ inputs.coverage_slot_id }}"
             BLOCK_START="${{ inputs.stream_start_time }}"
@@ -104,11 +91,9 @@ jobs:
             JOURNAL_ID="${{ inputs.journal_id }}"
             if [ -n "${JOURNAL_ID}" ]; then
               BROADCAST_MODE="journal30"
-              # The dispatch duration_minutes choice only offers 10/60 and
-              # has no 30-minute option -- render-hour-broadcast.ts already
-              # hardcodes JOURNAL_SHOW_SECONDS (1800) for this mode, so the
-              # stream timer must match or ffmpeg's -stream_loop would repeat
-              # the 30-minute video to fill a mismatched 60-minute window.
+              # render-hour-broadcast.ts hardcodes JOURNAL_SHOW_SECONDS (1800)
+              # for this mode regardless of this input -- kept in sync here
+              # only so duration_seconds is honest if anything else reads it.
               DURATION_SECONDS=1800
             fi
           fi
@@ -121,20 +106,26 @@ jobs:
           echo "broadcast_mode=${BROADCAST_MODE}" >> $GITHUB_OUTPUT
           echo "block_start=${BLOCK_START}" >> $GITHUB_OUTPUT
           echo "duration_seconds=${DURATION_SECONDS}" >> $GITHUB_OUTPUT
-          # Never set an explicit title here, on either the scheduled/cron
-          # path or a manual workflow_dispatch -- there is no operator input
-          # for a real custom title on the dispatch path either, so this was
-          # only ever generating an unhelpful generic filler
-          # ("ConferenceHype: ConferenceHype live programming - ...") that
-          # shadowed create-youtube-broadcast.ts's journal-aware title
-          # builder on every manual/test run. Leaving broadcast_title unset
-          # on every path lets that builder always be the effective title,
-          # confirmed as a real gap via a live test dispatch on 2026-07-11.
-          # BROADCAST_TITLE remains a valid manual override if a future
-          # workflow_dispatch input for it is ever added.
+          # Never set an explicit title here -- leaving broadcast_title unset
+          # lets render-hour-broadcast.ts's journal-aware title builder
+          # (working from the actual rendered cards) always be the effective
+          # title. BROADCAST_TITLE remains a valid manual override if a
+          # future workflow_dispatch input for it is ever added.
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Validate YouTube OAuth is configured
+        if: ${{ steps.block.outputs.block_start != '' }}
+        run: |
+          if [ -z "${YOUTUBE_OAUTH_CLIENT_ID}" ] || [ -z "${YOUTUBE_OAUTH_CLIENT_SECRET}" ] || [ -z "${YOUTUBE_OAUTH_REFRESH_TOKEN}" ]; then
+            echo "::error::YouTube OAuth is not fully configured -- uploads require it (there is no upload equivalent of a raw RTMP stream key)."
+            exit 1
+          fi
+        env:
+          YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
+          YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
+          YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
 
       - name: Install Kokoro TTS dependencies
         if: ${{ steps.block.outputs.block_start != '' }}
@@ -151,79 +142,12 @@ jobs:
           JOURNAL_SLOT_ID: ${{ steps.block.outputs.journal_slot_id }}
           YOUTUBE_DELIVERY_STATUS: rendering
 
-      - name: Validate YouTube broadcast automation
-        if: ${{ steps.block.outputs.block_start != '' }}
-        run: |
-          if [ -n "${YOUTUBE_OAUTH_CLIENT_ID}" ] && [ -n "${YOUTUBE_OAUTH_CLIENT_SECRET}" ] && [ -n "${YOUTUBE_OAUTH_REFRESH_TOKEN}" ]; then
-            echo "YouTube OAuth configuration is present; a fresh video will be created."
-          elif [ -n "${YOUTUBE_RTMP_URL}" ] && [ -n "${YOUTUBE_STREAM_KEY}" ]; then
-            echo "::warning::OAuth is missing; this run will reuse the legacy YouTube broadcast."
-          else
-            echo "::error::Neither YouTube OAuth nor legacy RTMP publishing is fully configured."
-            exit 1
-          fi
-        env:
-          YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
-          YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
-          YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
-          YOUTUBE_RTMP_URL: ${{ secrets.YOUTUBE_RTMP_URL }}
-          YOUTUBE_STREAM_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
-
-      - name: Create and bind fresh YouTube broadcast
-        id: youtube
-        if: ${{ steps.block.outputs.block_start != '' }}
-        run: npx tsx scripts/create-youtube-broadcast.ts
-        env:
-          YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
-          YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
-          YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
-          YOUTUBE_RTMP_URL: ${{ secrets.YOUTUBE_RTMP_URL }}
-          YOUTUBE_STREAM_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
-          YOUTUBE_LEGACY_VIDEO_ID: ${{ secrets.NEXT_PUBLIC_YOUTUBE_VIDEO_ID }}
-          YOUTUBE_PRIVACY_STATUS: ${{ vars.YOUTUBE_PRIVACY_STATUS || 'unlisted' }}
-          BROADCAST_START_AT: ${{ steps.block.outputs.block_start }}
-          BROADCAST_DURATION_SECONDS: ${{ steps.block.outputs.duration_seconds }}
-          BROADCAST_TITLE: ${{ steps.block.outputs.broadcast_title }}
-          COVERAGE_SLOT_ID: ${{ steps.block.outputs.slot_id }}
-          JOURNAL_ID: ${{ steps.block.outputs.journal_id }}
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-
-      - name: Enable and verify YouTube embedding
-        if: ${{ steps.block.outputs.block_start != '' }}
-        run: |
-          npx tsx scripts/enable-youtube-embed.ts
-          EMBED_URL="https://www.youtube.com/embed/${YOUTUBE_VIDEO_ID}?origin=https%3A%2F%2Fconferencehype.com&widget_referrer=https%3A%2F%2Fconferencehype.com"
-          EMBED_HTML=$(curl --fail --silent --show-error \
-            -H "Referer: https://conferencehype.com/" \
-            "${EMBED_URL}")
-          if grep -Eq "EMBEDDER_IDENTITY_MISSING_REFERRER|Playback on other websites has been disabled|disabled by the video owner" <<< "${EMBED_HTML}"; then
-            echo "::warning::YouTube rejected embedded playback on conferencehype.com; continuing so the direct YouTube broadcast can still run."
-            echo "Embed repair can be handled separately from the YouTube stream."
-            exit 0
-          fi
-          echo "YouTube embedding preflight passed for ${YOUTUBE_VIDEO_ID}."
-        env:
-          YOUTUBE_VIDEO_ID: ${{ steps.youtube.outputs.youtube_video_id }}
-          YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
-          YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
-          YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
-
-      - name: Save YouTube video link
-        if: ${{ steps.block.outputs.block_start != '' }}
-        run: npx tsx scripts/update-youtube-delivery.ts
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          COVERAGE_SLOT_ID: ${{ steps.block.outputs.slot_id }}
-          JOURNAL_SLOT_ID: ${{ steps.block.outputs.journal_slot_id }}
-          YOUTUBE_DELIVERY_STATUS: queued
-          YOUTUBE_VIDEO_ID: ${{ steps.youtube.outputs.youtube_video_id }}
-          YOUTUBE_VIDEO_URL: ${{ steps.youtube.outputs.youtube_url }}
-
-      - name: Render current presentation
+      # Render, then upload the finished file to YouTube (private + publishAt
+      # scheduled), then mark segments rendered and write youtube_status=queued
+      # -- all in one process now that there's no live broadcast to create
+      # before rendering and no RTMP connection to hand off to afterward.
+      - name: Render and upload presentation
+        id: render
         if: ${{ steps.block.outputs.block_start != '' }}
         run: |
           export HOUR_BROADCAST_SECONDS=${{ steps.block.outputs.duration_seconds }}
@@ -237,12 +161,12 @@ jobs:
           LLM_MODEL: ${{ secrets.LLM_MODEL }}
           HOUR_BROADCAST_MODE: ${{ steps.block.outputs.broadcast_mode || 'presentation' }}
           JOURNAL_ID: ${{ steps.block.outputs.journal_id }}
+          JOURNAL_SLOT_ID: ${{ steps.block.outputs.journal_slot_id }}
           FFMPEG_PATH: /usr/bin/ffmpeg
           HOUR_BROADCAST_START: ${{ steps.block.outputs.block_start }}
           BROADCAST_TITLE: ${{ steps.block.outputs.broadcast_title }}
           COVERAGE_SLOT_ID: ${{ steps.block.outputs.slot_id }}
-          YOUTUBE_VIDEO_ID: ${{ steps.youtube.outputs.youtube_video_id }}
-          YOUTUBE_VIDEO_URL: ${{ steps.youtube.outputs.youtube_url }}
+          PUBLIC_SITE_URL: https://conferencehype.com
           YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
           YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
           YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
@@ -272,91 +196,24 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          YOUTUBE_VIDEO_ID: ${{ steps.youtube.outputs.youtube_video_id }}
           JOURNAL_SLOT_ID: ${{ steps.block.outputs.journal_slot_id }}
 
-      - name: Wait for requested start time
-        if: ${{ steps.block.outputs.block_start != '' }}
-        run: |
-          START_EPOCH=$(date -d "${{ steps.block.outputs.block_start }}" +%s)
-          NOW_EPOCH=$(date -u +%s)
-          WAIT_SECONDS=$((START_EPOCH - NOW_EPOCH))
-          if [ "$WAIT_SECONDS" -gt 0 ]; then
-            echo "Render is ready. Waiting ${WAIT_SECONDS}s for the selected start time."
-            sleep "$WAIT_SECONDS"
-          fi
-
-      - name: Validate rendered broadcast media
-        if: ${{ steps.block.outputs.block_start != '' }}
-        run: |
-          test -s public/rendered/conferencehype-hour-broadcast.mp4 || {
-            echo "::error::Rendered broadcast is missing or empty"
-            exit 1
-          }
-          VIDEO_STREAMS=$(ffprobe -v error -select_streams v:0 \
-            -show_entries stream=codec_type -of csv=p=0 \
-            public/rendered/conferencehype-hour-broadcast.mp4 | wc -l)
-          AUDIO_STREAMS=$(ffprobe -v error -select_streams a:0 \
-            -show_entries stream=codec_type -of csv=p=0 \
-            public/rendered/conferencehype-hour-broadcast.mp4 | wc -l)
-          test "${VIDEO_STREAMS}" -ge 1 || {
-            echo "::error::Rendered broadcast has no video stream"
-            exit 1
-          }
-          test "${AUDIO_STREAMS}" -ge 1 || {
-            echo "::error::Rendered broadcast has no audio stream"
-            exit 1
-          }
-          echo "Rendered broadcast contains video and audio."
-
-      - name: Start rendered YouTube stream
-        if: ${{ steps.block.outputs.block_start != '' }}
-        run: |
-          export STREAM_DURATION_SECONDS=${{ steps.block.outputs.duration_seconds }}
-          npx tsx scripts/youtube-hour-presentation-stream.ts
-        env:
-          YOUTUBE_RTMP_URL: ${{ steps.youtube.outputs.rtmp_url }}
-          YOUTUBE_STREAM_KEY: ${{ steps.youtube.outputs.stream_key }}
-          FFMPEG_PATH: /usr/bin/ffmpeg
-          STREAM_VIDEO_PATH: public/rendered/conferencehype-hour-broadcast.mp4
-          COVERAGE_SLOT_ID: ${{ steps.block.outputs.slot_id }}
-          JOURNAL_SLOT_ID: ${{ steps.block.outputs.journal_slot_id }}
-          YOUTUBE_VIDEO_ID: ${{ steps.youtube.outputs.youtube_video_id }}
-          YOUTUBE_VIDEO_URL: ${{ steps.youtube.outputs.youtube_url }}
-          YOUTUBE_EXPECT_PRIVACY_STATUS: public
-          YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
-          YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
-          YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-
-      - name: Verify completed YouTube handoff
+      - name: Verify YouTube upload
         if: ${{ steps.block.outputs.block_start != '' }}
         run: npx tsx scripts/verify-youtube-delivery-loop.ts
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          YOUTUBE_VIDEO_ID: ${{ steps.youtube.outputs.youtube_video_id }}
-          YOUTUBE_VIDEO_URL: ${{ steps.youtube.outputs.youtube_url }}
+          YOUTUBE_VIDEO_ID: ${{ steps.render.outputs.youtube_video_id }}
+          YOUTUBE_VIDEO_URL: ${{ steps.render.outputs.youtube_url }}
+          YOUTUBE_PUBLISH_AT: ${{ steps.block.outputs.block_start }}
           JOURNAL_SLOT_ID: ${{ steps.block.outputs.journal_slot_id }}
-          YOUTUBE_VERIFY_PHASE: completed
-          YOUTUBE_EXPECT_PRIVACY_STATUS: public
-          YOUTUBE_VERIFY_TIMEOUT_SECONDS: 900
-          YOUTUBE_VERIFY_INTERVAL_SECONDS: 20
+          YOUTUBE_VERIFY_TIMEOUT_SECONDS: 120
+          YOUTUBE_VERIFY_INTERVAL_SECONDS: 10
           STREAM_VIDEO_PATH: public/rendered/conferencehype-hour-broadcast.mp4
           YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
           YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
           YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
-
-      - name: Start fallback YouTube RTMP loop
-        if: ${{ github.event_name == 'workflow_dispatch' && steps.block.outputs.block_start == '' }}
-        run: npm run job:stream
-        env:
-          YOUTUBE_RTMP_URL: ${{ secrets.YOUTUBE_RTMP_URL }}
-          YOUTUBE_STREAM_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
-          STREAM_INPUT_PATH: ${{ inputs.stream_input_path || 'public/rendered/fallback-loop.mp4' }}
-          STREAM_DURATION_SECONDS: ""
 
       - name: Record failed YouTube delivery
         if: ${{ always() && steps.block.outputs.block_start != '' && job.status == 'failure' }}
@@ -368,19 +225,4 @@ jobs:
           COVERAGE_SLOT_ID: ${{ steps.block.outputs.slot_id }}
           JOURNAL_SLOT_ID: ${{ steps.block.outputs.journal_slot_id }}
           YOUTUBE_DELIVERY_STATUS: failed
-          YOUTUBE_VIDEO_ID: ${{ steps.youtube.outputs.youtube_video_id }}
-          YOUTUBE_VIDEO_URL: ${{ steps.youtube.outputs.youtube_url }}
-          YOUTUBE_DELIVERY_ERROR: GitHub Actions failed before the YouTube delivery completed. Open the workflow run for the exact failing step.
-
-      - name: Hide orphaned YouTube broadcast on failure
-        if: ${{ always() && steps.block.outputs.block_start != '' && job.status == 'failure' && steps.youtube.outputs.youtube_video_id != '' }}
-        run: npx tsx scripts/hide-orphaned-youtube-broadcast.ts
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
-          YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
-          YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
-          YOUTUBE_VIDEO_ID: ${{ steps.youtube.outputs.youtube_video_id }}
-          COVERAGE_SLOT_ID: ${{ steps.block.outputs.slot_id }}
-          JOURNAL_SLOT_ID: ${{ steps.block.outputs.journal_slot_id }}
+          YOUTUBE_DELIVERY_ERROR: GitHub Actions failed before the YouTube upload completed. Open the workflow run for the exact failing step.

@@ -215,6 +215,39 @@ function currentWriteoutCard(cards: PublicBroadcastCard[], now = new Date()) {
   return mostRecentlyStarted ?? cards[0];
 }
 
+// Delivery switched from a live RTMP stream to render-then-upload: nothing
+// writes youtube_status="live"/"completed" to the database anymore (the
+// terminal success status is "queued" -- rendered, uploaded, and scheduled
+// via YouTube's own publishAt). The public site's "Live now" / "Current
+// topic" experience is unchanged from a viewer's perspective, but the
+// underlying "is it live right now" fact has to be derived from wall-clock
+// time against the card schedule baked into the writeout at render time,
+// instead of read from a stored status. currentWriteoutCard() below already
+// works this same way for individual cards; this does the same at the
+// whole-show level.
+function deriveDisplayYoutubeStatus(
+  storedStatus: StreamState["youtubeStatus"],
+  cards: PublicBroadcastCard[],
+  now = new Date()
+): StreamState["youtubeStatus"] {
+  if (storedStatus !== "queued") {
+    return storedStatus;
+  }
+  const timedCards = cards.filter((card) => card.startsAt && card.durationSeconds);
+  if (timedCards.length === 0) {
+    return storedStatus;
+  }
+  const showStart = Math.min(...timedCards.map((card) => new Date(card.startsAt!).getTime()));
+  const showEnd = Math.max(
+    ...timedCards.map((card) => new Date(card.startsAt!).getTime() + (card.durationSeconds ?? 0) * 1000)
+  );
+  const nowMs = now.getTime();
+  if (nowMs < showStart) {
+    return storedStatus;
+  }
+  return nowMs < showEnd ? "live" : "completed";
+}
+
 export async function getPublicBroadcastContext(): Promise<PublicBroadcastContext> {
   const [streamState, writeouts, approvedSegments] = await Promise.all([
     getStreamState(),
@@ -244,7 +277,10 @@ export async function getPublicBroadcastContext(): Promise<PublicBroadcastContex
 
   if (writeoutCards.length) {
     return {
-      streamState,
+      streamState: {
+        ...streamState,
+        youtubeStatus: deriveDisplayYoutubeStatus(streamState.youtubeStatus, writeoutCards)
+      },
       cards: writeoutCards,
       currentCard: currentWriteoutCard(writeoutCards),
       source: "writeout"

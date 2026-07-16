@@ -37,49 +37,57 @@ to YouTube, and exposes the same broadcast on `conferencehype.com`.
 6. The production cron (`.github/workflows/youtube-stream.yml`, every 15
    minutes, with a 30-minutes-back/90-minutes-forward lookback window)
    discovers any approved slot with `youtube_status: not_scheduled` and runs
-   the full render/publish pipeline automatically — nothing further needs to
+   the full render/upload pipeline automatically — nothing further needs to
    be clicked. Alternatively, **Start selected hour** dispatches the same
    YouTube workflow immediately instead of waiting for the cron to discover
    it; the plan/preview buttons never start or confirm a broadcast on their
    own.
-7. With OAuth configured, each run creates and binds a fresh YouTube broadcast.
-8. Before public handoff, the workflow enables embedding and tests the exact
-   ConferenceHype embed request.
-9. The program is rendered and validated for both video and audio.
-10. Supabase `stream_state` receives the current YouTube ID, URL, and delivery
-    status. The public site reads this state dynamically.
-11. FFmpeg publishes the rendered MP4 to the bound YouTube RTMP endpoint —
-    `scripts/youtube-hour-presentation-stream.ts` restreams that video's own
-    video and audio tracks directly (the hype-line bars are already baked
-    into the render, from `render-hour-broadcast.ts`); it does not build a
-    separate visual for the live stream. (Fixed 2026-07-04: it previously
-    streamed a blank canvas with the bars overlaid on top instead of the
-    real rendered video, so only the audio was ever correct on air.)
-12. While FFmpeg is still running, the workflow loops until it verifies the
-    rendered video, YouTube live state, Supabase public stream state, and
-    `conferencehype.com` all point to the same video ID.
-13. After FFmpeg finishes, the workflow loops again until the saved YouTube
-    video/archive remains available, the public stream state and saved writeout
-    still match the same YouTube video ID, and the final public status is
-    `completed`.
-14. Once the writeout for a rendered hour is saved, every real (database-backed)
-    segment used in that hour transitions `status: "approved"` -> `"rendered"`
-    (`markSegmentsRenderedInDb`, called from `render-hour-broadcast.ts` right
-    after `saveBroadcastWriteout`). `getNextBroadcastSegmentsFromDb` only ever
-    selects `status = "approved"`, so this is what keeps an already-aired
-    segment from being picked again for a future hour. Added 2026-07-08 after
-    confirming segments from a completed broadcast were still sitting at
-    `approved` a day later and got picked again — this only applies going
-    forward from when it shipped; it does not retroactively fix history.
-    **Because of this, the approved pool only shrinks as hours air — it does
-    not refill itself.** Card creation/approval must keep pace with how much
-    airs, or later hours will have thinner presentation sequences and less
-    material available for bonus-card gap filling (see "Broadcast
-    Presentation" below). Watch the approved-segment count if broadcasts feel
-    sparse.
+7. **Migrated 2026-07-16 from a live RTMP broadcast to render-then-upload.**
+   There is no live broadcast object, no RTMP connection, and no "wait for
+   the scheduled hour" step anymore — `scripts/render-hour-broadcast.ts`
+   renders the file, then uploads it directly to YouTube
+   (`lib/youtube/uploadBroadcastVideo.ts`) with `privacyStatus: "private"`
+   and `publishAt` set to the slot's scheduled airtime. YouTube's own
+   scheduler flips it to public automatically at that instant; nothing in
+   this repo needs to run at that exact moment. Title/description/tags are
+   resolved from the real, final rendered cards (via
+   `buildBroadcastMetadata`) and set once, at upload time — there's no
+   longer an earlier placeholder to correct afterward.
+8. Supabase `stream_state` and the slot's row receive the resulting YouTube
+   video ID/URL and `youtube_status: "queued"` once the upload succeeds —
+   this is the terminal success status now (nothing writes `"live"` or
+   `"completed"` to the database going forward).
+9. The public site derives whether a queued video is currently "live" or
+   already "completed" from wall-clock time against the card schedule baked
+   into the writeout at render time (`deriveDisplayYoutubeStatus` in
+   `lib/data.ts`), the same way the existing "current topic" logic already
+   matched wall-clock time to individual cards. Viewers see no difference —
+   "Live now on YouTube" still shows during the scheduled air window.
+10. `scripts/verify-public-broadcast-alignment.ts` and
+    `scripts/verify-youtube-delivery-loop.ts` confirm the rendered video, the
+    uploaded YouTube video's status, Supabase's public stream state, and
+    `conferencehype.com` all agree on the same video ID after upload.
+11. Once the upload succeeds, every real (database-backed) segment used in
+    that hour transitions `status: "approved"` -> `"rendered"`
+    (`markSegmentsRenderedInDb`, called from `render-hour-broadcast.ts`
+    right after a successful upload — deliberately *not* called if the
+    upload fails, so a failed attempt's segments stay `"approved"` and are
+    eligible for a retry instead of being silently consumed).
+    `getNextBroadcastSegmentsFromDb` only ever selects `status = "approved"`,
+    so this is what keeps an already-aired segment from being picked again
+    for a future hour. **Because of this, the approved pool only shrinks as
+    hours air — it does not refill itself.** Card creation/approval must
+    keep pace with how much airs, or later hours will have thinner
+    presentation sequences and less material available for bonus-card gap
+    filling (see "Broadcast Presentation" below). Watch the approved-segment
+    count if broadcasts feel sparse.
 
-The fixed RTMP URL and key are a legacy fallback. The normal production path is
-the OAuth-created fresh broadcast.
+YouTube OAuth is required for delivery now — there is no RTMP-key fallback
+(uploading a file has no raw-stream-key equivalent). "Continuous mode" (the
+always-be-streaming fallback loop) was built entirely around the retired live
+RTMP layer and is not currently functional under render-then-upload; treat the
+"Allow continuous mode" admin toggle as dormant until that's redesigned or
+removed.
 
 GitHub `main` is the source of truth for final code. Any completed fix must be
 committed and pushed to GitHub before it is treated as final, runnable, or ready
@@ -570,9 +578,10 @@ for the current `youtubeVideoId`, URL, and delivery status.
 ## YouTube Title/Description/Tags/Category Automation
 
 Each hourly broadcast's YouTube title, description, tags, and category are
-built automatically from that hour's actual scheduled cards
+built automatically from that hour's actual, final rendered cards
 (`lib/youtube/broadcastMetadata.ts`, wired into
-`scripts/create-youtube-broadcast.ts`) so the broadcast surfaces in
+`scripts/render-hour-broadcast.ts` and set once at upload time via
+`lib/youtube/uploadBroadcastVideo.ts`) so the broadcast surfaces in
 search/recommendations for physicians, NPs, and PAs following specific
 journals or specialties, instead of a generic always-identical title.
 
@@ -639,26 +648,18 @@ journals or specialties, instead of a generic always-identical title.
   never be satisfied immediately before it, making the alternative
   unreachable in any context even though real social cards commonly carry a
   bare `@handle` as their only attribution marker.
-- **Title/description can drift from what actually aired, and did (fixed
-  2026-07-12).** `scripts/create-youtube-broadcast.ts` sets the initial
-  title/description from `getNextBroadcastSegmentsFromDb()` at broadcast-
-  creation time — minutes before `scripts/render-hour-broadcast.ts` finishes
-  selecting, framing, and replacing the actual cards for the hour. If the
-  approved-segment pool changes in between (a new approval, a resend, plain
-  churn), the two reads can disagree. Confirmed on a real broadcast: the
-  description's chapter list didn't match the narrated cards, every chapter
-  was missing its journal name/date, and the title fell back to the
-  coverage slot's linked conference ("ACC live programming") because that
-  earlier snapshot happened to land on backlog cards predating
-  `Citation.journalId`. Fixed by having `render-hour-broadcast.ts` rebuild
-  title/description/tags from the real, final `cards` list right after it's
-  known (fetching only those segments' citations, not a second independent
-  pool read) and push the correction via `videos.update` — the same
-  non-blocking, best-effort pattern already used for `categoryId`/`tags`.
-  This is now the single source of truth for what actually aired; the
-  broadcast-creation-time title/description are just an initial placeholder
-  that gets overwritten once rendering finishes, typically ~15-20 minutes
-  before airtime.
+- **Title/description used to drift from what actually aired (fixed
+  2026-07-12, structurally eliminated 2026-07-16).** Under the old live-
+  broadcast pipeline, `scripts/create-youtube-broadcast.ts` set the initial
+  title/description at broadcast-creation time, *before*
+  `render-hour-broadcast.ts` finished selecting/framing the actual cards, so
+  the two reads could disagree (confirmed on a real broadcast: chapter list
+  didn't match the narrated cards, title fell back to a generic placeholder).
+  That was patched with a post-render correcting `videos.update` call. Since
+  the 2026-07-16 migration to render-then-upload, there's no longer an
+  earlier snapshot to drift from at all — the video doesn't exist until
+  after rendering finishes, so `buildBroadcastMetadata` only ever runs once,
+  against the real, final `cards` list, as part of the upload itself.
 - `scripts/backfill-citation-journal-ids.ts` is a one-time backfill for
   citations that predate `Citation.journalId` (or predate the
   `isJournalItem()` bare-id fix above) but whose citation label's
@@ -673,16 +674,16 @@ journals or specialties, instead of a generic always-identical title.
 `next/og`'s `ImageResponse` (no new dependency — built into Next.js) with
 three tiers matching the title's own tiers exactly (dominant journal +
 specialty, specialty-only roundup, or the generic ConferenceHype wordmark).
-`scripts/create-youtube-broadcast.ts` fetches this route using the *exact
-same* resolved metadata already computed for the title (never a second
-independent resolution, so title and thumbnail can't disagree) and uploads
-it via `thumbnails.set` right after the broadcast is created. Wrapped in
-try/catch — YouTube requires the channel to be phone-verified before custom
-thumbnails are accepted (see `LAUNCH_CHECKLIST.md`'s YouTube section), which
-can't be confirmed from code, so an unverified channel just means the
-thumbnail step silently no-ops with a logged warning; broadcast creation,
-title/description/tags/category, and the stream itself are all unaffected
-either way.
+`lib/youtube/uploadBroadcastVideo.ts`'s `uploadYoutubeThumbnail` fetches this
+route using the *exact same* resolved metadata already computed for the title
+(never a second independent resolution, so title and thumbnail can't
+disagree) and uploads it via `thumbnails.set` right after the video upload
+succeeds. Wrapped in try/catch — YouTube requires the channel to be
+phone-verified before custom thumbnails are accepted (see
+`LAUNCH_CHECKLIST.md`'s YouTube section), which can't be confirmed from
+code, so an unverified channel just means the thumbnail step silently no-ops
+with a logged warning; the upload itself and
+title/description/tags/category are all unaffected either way.
 
 ## YouTube Embed Protection
 
@@ -817,11 +818,11 @@ npm run test:rss
 npm run build
 ```
 
-Delivery check loop:
+Delivery check loop (post-migration: single-pass upload verification, no more
+`live`/`completed` phases):
 
 ```powershell
 $env:YOUTUBE_VIDEO_ID="<video id>"
-$env:YOUTUBE_VERIFY_PHASE="live" # or completed
 npm run verify:youtube-delivery
 ```
 
@@ -832,36 +833,32 @@ npm run verify:platform-smoke
 ```
 
 In GitHub Actions the smoke loop dispatches `youtube-stream.yml`, waits for the
-stream workflow to finish, and then verifies the completed saved video. A
+stream workflow to finish, and then verifies the uploaded/queued video. A
 successful run must include content cards and music cards in the saved
 `broadcast_writeouts` record.
 
-Audio-mapping dry run:
-
-```powershell
-$env:STREAM_DRY_RUN="1"
-$env:STREAM_VIDEO_PATH="public/rendered/conferencehype-hour-broadcast.mp4"
-npx tsx scripts/youtube-hour-presentation-stream.ts
-```
-
 A configured workflow or a YouTube watch page alone does not prove a successful
-practice stream. Before declaring the stream visible on both sides, verify:
+upload. Before declaring it good, verify:
 
-1. The embed preflight passed for the new video ID.
-2. The render contains both video and audio streams.
-3. FFmpeg output is advancing without refused, forbidden, unauthorized,
-   broken-pipe, or competing-publisher errors.
-4. The workflow reports
-   `YOUTUBE_RTMP_STABLE: FFmpeg remained connected for 30 seconds.`
-5. `YOUTUBE_LIVE_DELIVERY_VERIFIED` appears, proving the generated MP4,
-   YouTube live record, YouTube saved/reachable video record,
-   `/api/stream/status`, saved writeout, and `conferencehype.com` all match the
-   same YouTube video ID. If YouTube cannot find the saved video by ID, the
-   process is not working and the workflow must fail.
-6. The YouTube watch page shows the same live program at the same time.
-7. After the hour finishes, the workflow's **Verify completed YouTube handoff**
-   loop passes and `/api/stream/status` reports `completed` for that same
-   YouTube video ID, with the saved YouTube video still reachable.
+1. The render contains both video and audio streams
+   (`assertMediaGenerated` in `lib/media/youtubeDeliveryVerifier.ts`).
+2. The upload step logs `Uploaded <url>, scheduled public at <ISO time>`.
+3. The uploaded video's `status.uploadStatus` is `processed`/`uploaded` (not
+   `deleted`/`failed`/`rejected`), and `status.publishAt` matches the slot's
+   scheduled airtime.
+4. `stream_state.youtube_video_id`/`youtube_status` and the matching
+   `broadcast_writeouts` row agree on the same video ID (`youtube_status`
+   should be `queued`).
+5. The YouTube watch page finds the video by ID (still `private` until
+   `publishAt` arrives — that's expected, not a failure).
+6. At the scheduled airtime, confirm on YouTube Studio that the video
+   actually flipped to `Public` on its own, and that
+   `conferencehype.com` shows "Live now" / the correct "Current topic" once
+   it has (derived from wall-clock time, not a stored `live` status — see
+   `deriveDisplayYoutubeStatus` in `lib/data.ts`).
+7. After the show's scheduled end time, confirm the public site's "Current
+   topic" section stops showing (source degrades gracefully back to
+   approved segments), with the saved YouTube video still reachable.
 
 ## Deployment
 

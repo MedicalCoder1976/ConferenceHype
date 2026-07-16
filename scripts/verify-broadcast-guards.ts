@@ -725,24 +725,29 @@ assert.match(renderHourSource, /durationSeconds = Math\.min\(Number\(process\.en
 assert.match(renderHourSource, /amix=inputs=\$\{totalStreams\}:duration=longest:normalize=0/);
 assert.doesNotMatch(renderHourSource, /amix=inputs=\$\{totalStreams\}:duration=first/);
 
-// Bug fixed 2026-07-12: scripts/create-youtube-broadcast.ts sets the
-// YouTube title/description from an independent, earlier snapshot of the
-// approved-segment pool -- taken minutes before render-hour-broadcast.ts
-// finishes selecting/framing/replacing the actual cards, so the two can
-// disagree. render-hour-broadcast.ts must push a corrected videos.update
-// using the real, final `cards` list as the single source of truth for
-// what actually aired -- confirmed missing on a real broadcast where the
-// description's chapter list didn't match the narrated cards and every
-// chapter was missing its journal name/date.
-assert.match(renderHourSource, /Updated YouTube title\/description from \$\{cards\.length\} actual rendered cards/);
+// Migrated 2026-07-16 from live RTMP streaming to render-then-upload: the
+// video no longer exists before rendering finishes (create-youtube-broadcast.ts
+// used to bind an empty live-broadcast shell first), so render-hour-broadcast.ts
+// now uploads the finished file directly, using the real, final `cards` list
+// as the single source of truth for title/description/tags -- there's no
+// separate earlier snapshot left to drift from.
+assert.match(renderHourSource, /Uploaded \$\{youtubeUrl\}, scheduled public at/);
 assert.match(renderHourSource, /buildBroadcastMetadata\(\{/);
-assert.match(renderHourSource, /videos\?part=snippet/);
+const uploadBroadcastVideoSource = readFileSync(
+  path.join(process.cwd(), "lib", "youtube", "uploadBroadcastVideo.ts"),
+  "utf8"
+);
+assert.match(uploadBroadcastVideoSource, /uploadType=resumable&part=snippet,status/);
+// publishAt only takes effect when privacyStatus is "private" at upload
+// time -- this is a hard YouTube API requirement, not a config choice, so
+// guard against it ever being loosened back to "unlisted"/"public".
+assert.match(uploadBroadcastVideoSource, /privacyStatus:\s*"private"/);
 const streamWorkflowSource = readFileSync(
   path.join(process.cwd(), ".github", "workflows", "youtube-stream.yml"),
   "utf8"
 );
 const renderStepSource = streamWorkflowSource.slice(
-  streamWorkflowSource.indexOf("Render current presentation"),
+  streamWorkflowSource.indexOf("Render and upload presentation"),
   streamWorkflowSource.indexOf("Verify public stream and writeout alignment")
 );
 assert.match(renderStepSource, /YOUTUBE_OAUTH_CLIENT_ID: \$\{\{ secrets\.YOUTUBE_OAUTH_CLIENT_ID \}\}/);

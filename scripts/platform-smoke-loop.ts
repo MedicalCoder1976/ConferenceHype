@@ -23,7 +23,7 @@ import {
 } from "@/lib/intakeCards";
 import { makeScheduledCopy } from "@/lib/reusableSegments";
 import { validateSegmentForApproval } from "@/lib/generation/validator";
-import { verifyYoutubeDeliveryLoop } from "@/lib/media/youtubeDeliveryVerifier";
+import { verifyYoutubeUpload } from "@/lib/media/youtubeDeliveryVerifier";
 import type {
   IngestedItem,
   MedicalConference,
@@ -496,7 +496,12 @@ async function assertCompletedSlotAndWriteout(prepared: PreparedAttempt) {
   if (slotError) {
     throw slotError;
   }
-  if (slot.youtube_status !== "completed" || !slot.youtube_video_id) {
+  // "queued" is now the terminal success status -- delivery switched from a
+  // live RTMP stream to render-then-upload, so nothing ever writes "live" or
+  // "completed" to the DB anymore (those are derived from wall-clock time
+  // for display, not stored). "queued" means the upload succeeded and the
+  // video is correctly scheduled via YouTube's own publishAt.
+  if (slot.youtube_status !== "queued" || !slot.youtube_video_id) {
     throw new Error(
       `Smoke slot did not complete: status=${slot.youtube_status}, video=${slot.youtube_video_id ?? "none"}, error=${slot.delivery_error ?? "none"}`
     );
@@ -520,12 +525,9 @@ async function assertCompletedSlotAndWriteout(prepared: PreparedAttempt) {
     );
   }
 
-  await verifyYoutubeDeliveryLoop({
-    phase: "completed",
+  await verifyYoutubeUpload({
     youtubeVideoId: slot.youtube_video_id,
     youtubeUrl: slot.youtube_url,
-    expectedPrivacyStatus:
-      process.env.YOUTUBE_EXPECT_PRIVACY_STATUS === "unlisted" ? "unlisted" : "public",
     timeoutSeconds: Number(process.env.PLATFORM_SMOKE_FINAL_VERIFY_TIMEOUT_SECONDS ?? "240"),
     intervalSeconds: 20
   });
