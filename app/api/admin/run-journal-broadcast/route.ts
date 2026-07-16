@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { assertAdminRequest } from "@/lib/auth";
+import { getJournalBroadcastSlotByIdFromDb } from "@/lib/db";
 import { env } from "@/lib/env";
+
+// Statuses safe to (re-)dispatch. Anything else means a workflow run for
+// this slot already exists or already aired -- dispatching again would
+// create a second, fully independent broadcast racing the first one.
+// Confirmed live 2026-07-15: three clicks on the same slot, with no guard
+// here, produced three separate YouTube videos all targeting the same
+// go-live time, only one of which the database ended up tracking.
+const DISPATCHABLE_STATUSES = new Set(["not_scheduled", "failed"]);
 
 const bodySchema = z.object({
   slotId: z.string().min(1),
@@ -33,6 +42,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { ok: false, error: "Slot start time is invalid." },
         { status: 422 }
+      );
+    }
+
+    const slot = await getJournalBroadcastSlotByIdFromDb(body.slotId);
+    if (!slot) {
+      return NextResponse.json(
+        { ok: false, error: "That journal broadcast slot no longer exists." },
+        { status: 404 }
+      );
+    }
+    if (!DISPATCHABLE_STATUSES.has(slot.youtubeStatus)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: `This slot is already "${slot.youtubeStatus}" -- dispatching again would create a second, duplicate broadcast. Refresh the page to see its current status.`
+        },
+        { status: 409 }
       );
     }
 

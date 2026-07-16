@@ -1229,6 +1229,25 @@ export async function getJournalBroadcastSlotsFromDb(): Promise<JournalBroadcast
   return (data as JournalBroadcastSlotRow[]).map(toJournalBroadcastSlot);
 }
 
+export async function getJournalBroadcastSlotByIdFromDb(
+  slotId: string
+): Promise<JournalBroadcastSlot | null> {
+  if (!hasSupabase()) {
+    return null;
+  }
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("journal_broadcast_slots")
+    .select("*")
+    .eq("id", slotId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+  return data ? toJournalBroadcastSlot(data as JournalBroadcastSlotRow) : null;
+}
+
 export async function deleteJournalBroadcastSlotInDb(slotId: string) {
   if (!hasSupabase()) {
     return;

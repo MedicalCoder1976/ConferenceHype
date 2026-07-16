@@ -217,6 +217,18 @@ async function main() {
     "3500k",
     "-bufsize",
     "7000k",
+    // Without nal-hrd=cbr, -b:v/-maxrate only cap the ceiling -- x264's rate
+    // control is free to output far less than the target for low-motion
+    // content (confirmed live 2026-07-15: measured ~200 Kbps against a
+    // 3500k target for these mostly-static title cards). A live-streamed
+    // connection running at ~5% of its configured bitrate is far more
+    // likely to look idle to network equipment between here and YouTube's
+    // ingest, which is the leading suspect for broadcasts whose own
+    // actualEndTime cuts off around the 15-16 minute mark while FFmpeg
+    // itself keeps encoding cleanly for the full 30. force-cfr=1 keeps
+    // frame timing constant so the CBR padding is well-formed.
+    "-x264-params",
+    "nal-hrd=cbr:force-cfr=1",
     "-c:a",
     "aac",
     "-b:a",
