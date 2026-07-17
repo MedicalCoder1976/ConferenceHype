@@ -257,14 +257,54 @@ function deriveDisplayYoutubeStatus(
 }
 
 export async function getPublicBroadcastContext(): Promise<PublicBroadcastContext> {
-  const [streamState, writeouts, approvedSegments] = await Promise.all([
+  const [streamState, writeouts, approvedSegments, conferenceSlots, journalSlots] = await Promise.all([
     getStreamState(),
     getBroadcastWriteoutsFromDb(20),
-    getPublicSegments()
+    getPublicSegments(),
+    getConferenceCoverageSlotsFromDb(),
+    getJournalBroadcastSlotsFromDb()
   ]);
+
+  // stream_state is a singleton -- it only remembers whichever broadcast's
+  // delivery status was written *last*, not necessarily whichever one is
+  // actually airing right now. That was fine under the old live-RTMP model
+  // (only one broadcast was ever truly live at a time, and stream_state got
+  // updated in real time exactly when it went live). Under render-then-
+  // upload, multiple slots can sit "queued" simultaneously -- rendered and
+  // scheduled well ahead of their airtime -- so the singleton can point at
+  // the wrong one. Confirmed live 2026-07-17: two journal slots (midnight
+  // and 00:30) were both queued in advance; stream_state pointed at
+  // whichever was queued last, which would have shown the wrong broadcast
+  // (or no live status at all) once the earlier one's airtime arrived.
+  // Prefer whichever queued slot's own scheduled window actually contains
+  // "now", across both slot tables, over trusting the singleton pointer.
+  const now = Date.now();
+  const currentlyAiringSlot = [
+    ...(journalSlots ?? [])
+      .filter((slot) => slot.youtubeStatus === "queued" && slot.youtubeVideoId)
+      .map((slot) => ({
+        youtubeVideoId: slot.youtubeVideoId!,
+        startMs: new Date(slot.startsAt).getTime(),
+        durationMs: slot.durationMinutes * 60_000
+      })),
+    ...(conferenceSlots ?? [])
+      .filter((slot) => slot.youtubeStatus === "queued" && slot.youtubeVideoId)
+      .map((slot) => ({
+        youtubeVideoId: slot.youtubeVideoId!,
+        startMs: new Date(slot.startsAt).getTime(),
+        durationMs: slot.durationHours * 3_600_000
+      }))
+  ]
+    .filter((slot) => now >= slot.startMs && now < slot.startMs + slot.durationMs)
+    .sort((a, b) => b.startMs - a.startMs)[0];
+
+  const effectiveStreamState = currentlyAiringSlot
+    ? { ...streamState, youtubeVideoId: currentlyAiringSlot.youtubeVideoId, youtubeStatus: "queued" as const }
+    : streamState;
+
   const matchingWriteout = findMatchingWriteout({
     writeouts: writeouts ?? [],
-    streamState
+    streamState: effectiveStreamState
   });
   // card.position is the card's index in the full interleaved
   // content+music sequence (see buildWriteoutCards in
@@ -286,8 +326,8 @@ export async function getPublicBroadcastContext(): Promise<PublicBroadcastContex
   if (writeoutCards.length) {
     return {
       streamState: {
-        ...streamState,
-        youtubeStatus: deriveDisplayYoutubeStatus(streamState.youtubeStatus, writeoutCards)
+        ...effectiveStreamState,
+        youtubeStatus: deriveDisplayYoutubeStatus(effectiveStreamState.youtubeStatus, writeoutCards)
       },
       cards: writeoutCards,
       currentCard: currentWriteoutCard(writeoutCards),
@@ -295,22 +335,18 @@ export async function getPublicBroadcastContext(): Promise<PublicBroadcastContex
     };
   }
 
-  if (streamState.youtubeVideoId) {
+  if (effectiveStreamState.youtubeVideoId) {
     // Journal-mode broadcasts never write a broadcast_writeouts row (see
     // render-hour-broadcast.ts's isJournalMode guard), so they always land
     // here rather than the "writeout" branch above -- meaning they'd never
     // get the same wall-clock-derived live/completed status. Look the video
     // up directly in whichever slot table has it and derive the same way,
     // using the slot's own scheduled window instead of card timings.
-    const [conferenceSlots, journalSlots] = await Promise.all([
-      getConferenceCoverageSlotsFromDb(),
-      getJournalBroadcastSlotsFromDb()
-    ]);
     const matchingConferenceSlot = (conferenceSlots ?? []).find(
-      (slot) => slot.youtubeVideoId === streamState.youtubeVideoId
+      (slot) => slot.youtubeVideoId === effectiveStreamState.youtubeVideoId
     );
     const matchingJournalSlot = (journalSlots ?? []).find(
-      (slot) => slot.youtubeVideoId === streamState.youtubeVideoId
+      (slot) => slot.youtubeVideoId === effectiveStreamState.youtubeVideoId
     );
     const scheduledWindow = matchingJournalSlot
       ? {
@@ -325,10 +361,10 @@ export async function getPublicBroadcastContext(): Promise<PublicBroadcastContex
         : undefined;
     return {
       streamState: {
-        ...streamState,
+        ...effectiveStreamState,
         youtubeStatus: scheduledWindow
-          ? deriveDisplayYoutubeStatusFromWindow(streamState.youtubeStatus, scheduledWindow)
-          : streamState.youtubeStatus
+          ? deriveDisplayYoutubeStatusFromWindow(effectiveStreamState.youtubeStatus, scheduledWindow)
+          : effectiveStreamState.youtubeStatus
       },
       cards: [],
       currentCard: undefined,
