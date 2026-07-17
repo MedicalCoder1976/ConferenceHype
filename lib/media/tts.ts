@@ -15,8 +15,17 @@ function expandRomanNumerals(text: string): string {
     XII: "12", XI: "11", X: "10", IX: "9", VIII: "8",
     VII: "7", VI: "6", V: "5", IV: "4", III: "3", II: "2", I: "1"
   };
-  // After a context word: replace I–XII
+  // Roman numeral immediately followed by a staging-suffix letter (cancer
+  // staging notation: Stage IA, IB, IC, IIA, IIB, IIIA, IVA, IVB...) --
+  // must run before the \b-anchored rules below, since \b never matches
+  // inside a single token like "IIA" (no boundary between "II" and "A").
+  // "IA" -> "1 A" so Kokoro reads it as "one A", not letter-by-letter.
   let out = text.replace(
+    /\b(XII|XI|X|IX|VIII|VII|VI|V|IV|III|II|I)([A-C])\b/g,
+    (_m, roman: string, letter: string) => `${romanMap[roman]} ${letter}`
+  );
+  // After a context word: replace I–XII
+  out = out.replace(
     new RegExp(`\\b(${contextWords})\\s+(XII|XI|X|IX|VIII|VII|VI|V|IV|III|II|I)\\b`, "gi"),
     (_m, prefix: string, roman: string) => `${prefix} ${romanMap[roman.toUpperCase()]}`
   );

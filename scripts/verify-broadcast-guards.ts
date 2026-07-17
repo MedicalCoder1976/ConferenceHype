@@ -69,6 +69,10 @@ assert.equal(
   applySpokenPronunciations("ECOG PS 1, PR, CR, pCR, WHO, and NCI data"),
   "EE-kog PS 1, partial response, complete response, pathologic complete response, World Health Organization, and N-C-I data"
 );
+assert.equal(
+  applySpokenPronunciations("Stage IA and Stage IIB were compared to Stage IIIA and Stage IVB."),
+  "Stage 1 A and Stage 2 B were compared to Stage 3 A and Stage 4 B."
+);
 // The ASCO-energy-all-day phrase must never reach air, no matter what filler
 // word the LLM tacks onto the end of it -- "long", "seems to creep in", or
 // any future variant. The strip must hit every speaker pipeline path: the

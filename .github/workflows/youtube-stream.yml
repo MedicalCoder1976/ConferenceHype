@@ -216,7 +216,7 @@ jobs:
           YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
 
       - name: Record failed YouTube delivery
-        if: ${{ always() && steps.block.outputs.block_start != '' && job.status == 'failure' }}
+        if: ${{ always() && steps.block.outputs.block_start != '' && job.status == 'failure' && steps.render.outputs.no_content_failure_recorded != 'true' }}
         run: npx tsx scripts/update-youtube-delivery.ts
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}

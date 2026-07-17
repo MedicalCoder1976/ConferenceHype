@@ -1265,6 +1265,47 @@ async function main() {
     return;
   }
 
+  // Guard against publishing a broadcast made of nothing but gap-clip
+  // stingers and background music. Confirmed live 2026-07-17 (video
+  // YnGo-ddNYv0, journal30 show for a journal with 0 approved segments):
+  // with no content cards, main() used to render and upload a near-silent
+  // 30-minute video anyway, and the DB's failure record (from an unrelated
+  // step further down the workflow) never mentioned the real cause. Bail
+  // out here, before the expensive ffmpeg render, with a delivery-status
+  // write that says exactly why.
+  const contentCardCount = cards.filter((card) => !card.isMusic).length;
+  if (contentCardCount === 0) {
+    const reason = isJournalMode
+      ? "No approved segments were available for this journal at render time -- 0 content cards scheduled, refusing to publish a music-only broadcast."
+      : "No approved (or fallback schedule/social) content was available at render time -- 0 content cards scheduled, refusing to publish a music-only broadcast.";
+    console.log(`::error::${reason}`);
+    const { updateConferenceCoverageDeliveryInDb, updateJournalBroadcastDeliveryInDb } = await import("@/lib/db");
+    const workflowUrl =
+      process.env.GITHUB_SERVER_URL && process.env.GITHUB_REPOSITORY && process.env.GITHUB_RUN_ID
+        ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
+        : undefined;
+    const failurePatch = {
+      youtubeStatus: "failed" as const,
+      deliveryError: reason,
+      workflowRunId: process.env.GITHUB_RUN_ID,
+      workflowUrl
+    };
+    if (process.env.JOURNAL_SLOT_ID) {
+      await updateJournalBroadcastDeliveryInDb(process.env.JOURNAL_SLOT_ID, failurePatch).catch((error) => {
+        console.warn(`Failed to record the no-content failure reason: ${describeError(error)}`);
+      });
+    } else if (process.env.COVERAGE_SLOT_ID) {
+      await updateConferenceCoverageDeliveryInDb(process.env.COVERAGE_SLOT_ID, failurePatch).catch((error) => {
+        console.warn(`Failed to record the no-content failure reason: ${describeError(error)}`);
+      });
+    }
+    if (process.env.GITHUB_OUTPUT) {
+      const { appendFile } = await import("node:fs/promises");
+      await appendFile(process.env.GITHUB_OUTPUT, `no_content_failure_recorded=true\n`);
+    }
+    throw new Error(reason);
+  }
+
   // Every real, DB-backed segment used in this hour's card list -- marked
   // rendered (and the writeout/delivery-status written with the real
   // YouTube video id) only after a successful upload, in
