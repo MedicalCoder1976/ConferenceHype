@@ -31,3 +31,10 @@ export const JOURNAL_DISCLAIMER_SECONDS = 30;
 export const JOURNAL_CARDS_PER_GROUP = 4;
 export const JOURNAL_GROUPS_PER_SHOW = 6;
 export const JOURNAL_DISCLAIMER_EVERY_N_GROUPS = 2;
+// Spoken sign-off length when the journal runs out of approved segments
+// before filling all JOURNAL_GROUPS_PER_SHOW groups. Operator request
+// (2026-07-17, after a real show narrated 11 cards then went silent for the
+// remaining ~15 minutes of trailing pad music with no explanation): say the
+// segment is ending before handing off to that trailing music, instead of
+// narration just stopping with no announcement.
+export const JOURNAL_OUTRO_SECONDS = 12;

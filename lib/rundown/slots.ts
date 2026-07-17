@@ -14,7 +14,8 @@ import {
   JOURNAL_DISCLAIMER_EVERY_N_GROUPS,
   JOURNAL_DISCLAIMER_SECONDS,
   JOURNAL_GROUPS_PER_SHOW,
-  JOURNAL_MUSIC_SECONDS
+  JOURNAL_MUSIC_SECONDS,
+  JOURNAL_OUTRO_SECONDS
 } from "@/lib/broadcast/journalShowSchedule";
 import { broadcastDisclaimer } from "@/lib/generation/disclaimers";
 import { contentSignature } from "@/lib/segments/contentSignature";
@@ -323,6 +324,31 @@ export function buildBroadcastSlots({
   return slots.sort((a, b) => a.at.getTime() - b.at.getTime());
 }
 
+function journalOutroSegment(persona: Persona, at: Date): Segment {
+  const createdAt = at.toISOString();
+  const script =
+    "That wraps up this segment of ConferenceHype's coverage. We'll be back with more source-attributed updates soon -- stay with us.";
+  return {
+    id: `journal-show-outro-${createdAt}`,
+    title: "End of segment",
+    summary: script,
+    script,
+    contentType: "media_roundup",
+    personaId: persona.id,
+    personaName: persona.name,
+    hypeLevel: "restrained",
+    language: "English",
+    status: "approved",
+    citations: [],
+    socialBuzzItems: [],
+    // Distinguishes this synthetic sign-off card from a real content card,
+    // same pattern as journal_show_disclaimer below.
+    riskFlags: ["journal_show_outro"],
+    confidenceScore: 100,
+    createdAt
+  };
+}
+
 function journalDisclaimerSegment(persona: Persona, at: Date): Segment {
   const createdAt = at.toISOString();
   return {
@@ -393,9 +419,10 @@ export function buildJournalShowSlots({
   let at = baseTime;
   let contentIndex = 0;
   let segmentCursor = 0;
+  let groupIndex = 0;
 
   for (
-    let groupIndex = 0;
+    ;
     groupIndex < JOURNAL_GROUPS_PER_SHOW && segmentCursor < journalSegments.length;
     groupIndex += 1
   ) {
@@ -452,6 +479,29 @@ export function buildJournalShowSlots({
       });
       at = addSeconds(at, JOURNAL_DISCLAIMER_SECONDS);
     }
+  }
+
+  // The journal ran out of approved segments before filling all
+  // JOURNAL_GROUPS_PER_SHOW groups (confirmed live 2026-07-17, video
+  // JSI7ZF34nF0: 11 available segments narrated for ~14 minutes, then the
+  // show just went silent under render-hour-broadcast.ts's existing
+  // pad-to-JOURNAL_SHOW_SECONDS music filler with no explanation). Say the
+  // segment is ending before handing off to that trailing music, rather
+  // than narration simply stopping. Only fires if at least one real card
+  // was actually narrated -- an all-filtered-out journal (0 real cards)
+  // is the zero-content case render-hour-broadcast.ts's main() already
+  // aborts on, and this card must not count as "content" there instead.
+  if (contentIndex > 0 && groupIndex < JOURNAL_GROUPS_PER_SHOW && segmentCursor >= journalSegments.length) {
+    const outroSegment = journalOutroSegment(persona, at);
+    slots.push({
+      at,
+      kind: "statement",
+      durationMinutes: JOURNAL_OUTRO_SECONDS / 60,
+      durationSeconds: JOURNAL_OUTRO_SECONDS,
+      label: "end of segment",
+      segment: outroSegment,
+      replaceable: false
+    });
   }
 
   return slots;
