@@ -33,10 +33,11 @@ on:
         required: false
         default: ""
   schedule:
-    # Poll the approved admin programming plan. Rendering + upload only take
-    # a few minutes now (no live stream to hold open), so this just needs to
-    # run comfortably before each slot's scheduled airtime -- YouTube's own
-    # publishAt scheduling handles exactly when the video goes public.
+    # Poll the approved admin programming plan. Uploads go public immediately
+    # on completion (2026-07-17 -- no more private+publishAt scheduling), so
+    # this cron cadence *is* the effective air-time precision: a slot goes
+    # live whenever this run happens to pick it up and finish rendering, not
+    # at a scheduled second.
     - cron: "15 * * * *"
 
 jobs:
@@ -142,10 +143,10 @@ jobs:
           JOURNAL_SLOT_ID: ${{ steps.block.outputs.journal_slot_id }}
           YOUTUBE_DELIVERY_STATUS: rendering
 
-      # Render, then upload the finished file to YouTube (private + publishAt
-      # scheduled), then mark segments rendered and write youtube_status=queued
-      # -- all in one process now that there's no live broadcast to create
-      # before rendering and no RTMP connection to hand off to afterward.
+      # Render, then upload the finished file to YouTube (public immediately),
+      # then mark segments rendered and write youtube_status=queued -- all in
+      # one process now that there's no live broadcast to create before
+      # rendering and no RTMP connection to hand off to afterward.
       - name: Render and upload presentation
         id: render
         if: ${{ steps.block.outputs.block_start != '' }}
@@ -206,7 +207,6 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           YOUTUBE_VIDEO_ID: ${{ steps.render.outputs.youtube_video_id }}
           YOUTUBE_VIDEO_URL: ${{ steps.render.outputs.youtube_url }}
-          YOUTUBE_PUBLISH_AT: ${{ steps.block.outputs.block_start }}
           JOURNAL_SLOT_ID: ${{ steps.block.outputs.journal_slot_id }}
           YOUTUBE_VERIFY_TIMEOUT_SECONDS: 120
           YOUTUBE_VERIFY_INTERVAL_SECONDS: 10

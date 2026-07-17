@@ -7,7 +7,6 @@ type VerifyOptions = {
   youtubeUrl?: string;
   mediaPath?: string;
   siteUrl?: string;
-  publishAt?: string;
   timeoutSeconds?: number;
   intervalSeconds?: number;
   // broadcast_writeouts has a strict FK to conference_coverage_slots and a
@@ -23,7 +22,6 @@ type YoutubeVideoStatus = {
   watchPageReachable: boolean;
   uploadStatus?: string;
   privacyStatus?: string;
-  publishAt?: string;
   embeddable?: boolean;
 };
 
@@ -132,7 +130,6 @@ async function getYoutubeStatus(videoId: string): Promise<YoutubeVideoStatus> {
       status?: {
         uploadStatus?: string;
         privacyStatus?: string;
-        publishAt?: string;
         embeddable?: boolean;
       };
     }>;
@@ -153,7 +150,6 @@ async function getYoutubeStatus(videoId: string): Promise<YoutubeVideoStatus> {
     watchPageReachable,
     uploadStatus: video.status?.uploadStatus,
     privacyStatus: video.status?.privacyStatus,
-    publishAt: video.status?.publishAt,
     embeddable: video.status?.embeddable
   };
 }
@@ -246,24 +242,10 @@ function assertYoutubeUploadState(options: VerifyOptions, status: YoutubeVideoSt
       `YouTube saved video uploadStatus is ${status.uploadStatus}; expected processed/uploaded.`
     );
   }
-  // privacyStatus stays "private" until YouTube's own scheduler flips it
-  // public at publishAt -- that's expected and not a failure on our end,
-  // just confirm publishAt is actually the value we asked for. Compare as
-  // parsed instants, not raw strings -- YouTube echoes publishAt back
-  // without milliseconds ("...:00Z"), which never string-equals what we
-  // sent ("...:00.000Z" from Date#toISOString()) even when they're the
-  // exact same moment. Confirmed live 2026-07-17: this false-mismatch
-  // failed verification on two real, successfully uploaded/scheduled
-  // broadcasts, which then got incorrectly marked youtube_status="failed"
-  // even though the upload was entirely correct.
-  if (
-    options.publishAt &&
-    status.publishAt &&
-    new Date(status.publishAt).getTime() !== new Date(options.publishAt).getTime()
-  ) {
-    throw new Error(
-      `YouTube video publishAt is ${status.publishAt}; expected ${options.publishAt}.`
-    );
+  // Uploads go public immediately (2026-07-17) -- confirm it actually landed
+  // that way rather than sitting private/unlisted for some other reason.
+  if (status.privacyStatus && status.privacyStatus !== "public") {
+    throw new Error(`YouTube video privacyStatus is ${status.privacyStatus}; expected public.`);
   }
 }
 

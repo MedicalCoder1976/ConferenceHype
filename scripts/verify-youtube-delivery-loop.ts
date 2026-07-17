@@ -14,7 +14,6 @@ verifyYoutubeUpload({
   youtubeUrl: process.env.YOUTUBE_VIDEO_URL,
   mediaPath: process.env.STREAM_VIDEO_PATH || process.env.HOUR_BROADCAST_OUTPUT,
   siteUrl: process.env.PUBLIC_SITE_URL,
-  publishAt: process.env.YOUTUBE_PUBLISH_AT,
   timeoutSeconds: process.env.YOUTUBE_VERIFY_TIMEOUT_SECONDS
     ? Number(process.env.YOUTUBE_VERIFY_TIMEOUT_SECONDS)
     : undefined,

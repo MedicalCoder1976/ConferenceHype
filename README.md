@@ -42,31 +42,48 @@ to YouTube, and exposes the same broadcast on `conferencehype.com`.
    YouTube workflow immediately instead of waiting for the cron to discover
    it; the plan/preview buttons never start or confirm a broadcast on their
    own.
-7. **Migrated 2026-07-16 from a live RTMP broadcast to render-then-upload.**
-   There is no live broadcast object, no RTMP connection, and no "wait for
-   the scheduled hour" step anymore — `scripts/render-hour-broadcast.ts`
+7. **Migrated 2026-07-16 from a live RTMP broadcast to render-then-upload;
+   changed 2026-07-17 to publish immediately instead of a scheduled
+   release.** There is no live broadcast object, no RTMP connection, and no
+   "wait for the scheduled hour" step — `scripts/render-hour-broadcast.ts`
    renders the file, then uploads it directly to YouTube
-   (`lib/youtube/uploadBroadcastVideo.ts`) with `privacyStatus: "private"`
-   and `publishAt` set to the slot's scheduled airtime. YouTube's own
-   scheduler flips it to public automatically at that instant; nothing in
-   this repo needs to run at that exact moment. Title/description/tags are
-   resolved from the real, final rendered cards (via
-   `buildBroadcastMetadata`) and set once, at upload time — there's no
+   (`lib/youtube/uploadBroadcastVideo.ts`) with `privacyStatus: "public"`
+   from the start. An earlier version of this migration uploaded as
+   `private` with `publishAt` set to the slot's scheduled airtime, letting
+   YouTube's own scheduler flip it public later — that added real
+   complexity (a wall-clock "is this the currently airing one" derivation, a
+   `stream_state` singleton picking the wrong queued video when multiple
+   slots were queued ahead of their airtime, confirmed live 2026-07-17 with
+   two journal slots queued in advance for the same night) for a benefit
+   that didn't hold up in practice: render+upload already finishes close to
+   the intended air time in the common cron-triggered case, so "public
+   immediately" and "public at the scheduled time" rarely differed.
+   Title/description/tags are resolved from the real, final rendered cards
+   (via `buildBroadcastMetadata`) and set once, at upload time — there's no
    longer an earlier placeholder to correct afterward.
 8. Supabase `stream_state` and the slot's row receive the resulting YouTube
    video ID/URL and `youtube_status: "queued"` once the upload succeeds —
    this is the terminal success status now (nothing writes `"live"` or
    `"completed"` to the database going forward).
-9. The public site derives whether a queued video is currently "live" or
-   already "completed" from wall-clock time against the card schedule baked
-   into the writeout at render time (`deriveDisplayYoutubeStatus` in
-   `lib/data.ts`), the same way the existing "current topic" logic already
-   matched wall-clock time to individual cards. Viewers see no difference —
-   "Live now on YouTube" still shows during the scheduled air window.
+9. The public site still derives whether a queued video should currently be
+   featured as "live" or already "completed" from wall-clock time against
+   the card schedule baked into the writeout at render time
+   (`deriveDisplayYoutubeStatus` in `lib/data.ts`) — this now decides which
+   already-public video to spotlight as current, not whether it's
+   technically live, but the viewer-facing effect is the same: "Live now on
+   YouTube" shows during the scheduled air window. Since `stream_state` is a
+   singleton that only remembers whichever slot's status was written last,
+   `getPublicBroadcastContext()` also checks both `conference_coverage_slots`
+   and `journal_broadcast_slots` directly for a queued slot whose own window
+   actually contains "now", and prefers that over the singleton pointer —
+   otherwise a slot queued (and already public) well ahead of its scheduled
+   window could get silently skipped once a *later*-queued slot overwrites
+   `stream_state` first.
 10. `scripts/verify-public-broadcast-alignment.ts` and
     `scripts/verify-youtube-delivery-loop.ts` confirm the rendered video, the
-    uploaded YouTube video's status, Supabase's public stream state, and
-    `conferencehype.com` all agree on the same video ID after upload.
+    uploaded YouTube video's status (including `privacyStatus: "public"`),
+    Supabase's public stream state, and `conferencehype.com` all agree on the
+    same video ID after upload.
 11. Once the upload succeeds, every real (database-backed) segment used in
     that hour transitions `status: "approved"` -> `"rendered"`
     (`markSegmentsRenderedInDb`, called from `render-hour-broadcast.ts`
@@ -842,20 +859,22 @@ upload. Before declaring it good, verify:
 
 1. The render contains both video and audio streams
    (`assertMediaGenerated` in `lib/media/youtubeDeliveryVerifier.ts`).
-2. The upload step logs `Uploaded <url>, scheduled public at <ISO time>`.
+2. The upload step logs `Uploaded <url>, public immediately.`.
 3. The uploaded video's `status.uploadStatus` is `processed`/`uploaded` (not
-   `deleted`/`failed`/`rejected`), and `status.publishAt` matches the slot's
-   scheduled airtime.
+   `deleted`/`failed`/`rejected`), and `status.privacyStatus` is `public`.
 4. `stream_state.youtube_video_id`/`youtube_status` and the matching
    `broadcast_writeouts` row agree on the same video ID (`youtube_status`
    should be `queued`).
-5. The YouTube watch page finds the video by ID (still `private` until
-   `publishAt` arrives — that's expected, not a failure).
-6. At the scheduled airtime, confirm on YouTube Studio that the video
-   actually flipped to `Public` on its own, and that
-   `conferencehype.com` shows "Live now" / the correct "Current topic" once
-   it has (derived from wall-clock time, not a stored `live` status — see
-   `deriveDisplayYoutubeStatus` in `lib/data.ts`).
+5. The YouTube watch page finds the video by ID and it's already publicly
+   playable (no `private`/scheduled-release wait — uploads go public
+   immediately as of 2026-07-17).
+6. Confirm `conferencehype.com` shows "Live now" / the correct "Current
+   topic" once the slot's scheduled window arrives (derived from wall-clock
+   time against the slot's own window, not a stored `live` status — see
+   `deriveDisplayYoutubeStatus`/the currently-airing-slot check in
+   `lib/data.ts`). If multiple slots are queued at once, confirm the site
+   features whichever one's window actually contains "now", not just
+   whichever was queued most recently.
 7. After the show's scheduled end time, confirm the public site's "Current
    topic" section stops showing (source degrades gracefully back to
    approved segments), with the saved YouTube video still reachable.

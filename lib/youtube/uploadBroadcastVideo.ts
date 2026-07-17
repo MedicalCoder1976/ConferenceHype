@@ -3,9 +3,11 @@ import { Readable } from "node:stream";
 
 // Replaces the old live-broadcast + RTMP pipeline: instead of streaming a
 // pre-rendered file to YouTube in real time, upload the finished file
-// directly and let YouTube's own scheduled-publish feature make it public
-// at the right time. privacyStatus must be "private" at upload time for
-// publishAt to take effect -- YouTube ignores publishAt otherwise.
+// directly. Goes public immediately on upload (2026-07-17) -- an earlier
+// version scheduled a delayed release, but that added real complexity (a
+// wall-clock "is this the currently airing one" derivation, a stream_state
+// singleton picking the wrong queued video when multiple slots were queued
+// ahead of time) that a "just publish now" model doesn't need.
 export async function getYoutubeAccessToken() {
   const clientId = process.env.YOUTUBE_OAUTH_CLIENT_ID;
   const clientSecret = process.env.YOUTUBE_OAUTH_CLIENT_SECRET;
@@ -36,8 +38,7 @@ export async function uploadVideoToYoutube({
   title,
   description,
   tags,
-  categoryId,
-  publishAt
+  categoryId
 }: {
   filePath: string;
   accessToken: string;
@@ -45,7 +46,6 @@ export async function uploadVideoToYoutube({
   description: string;
   tags: string[];
   categoryId: string;
-  publishAt: string;
 }): Promise<{ id: string }> {
   const initResponse = await fetch(
     "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status",
@@ -59,10 +59,15 @@ export async function uploadVideoToYoutube({
       body: JSON.stringify({
         snippet: { title, description, tags, categoryId },
         status: {
-          // Required combination for a scheduled release -- YouTube only
-          // honors publishAt when the video starts private.
-          privacyStatus: "private",
-          publishAt,
+          // Always public immediately on upload -- no more delayed-release
+          // scheduling. That added real complexity (a wall-clock "is this
+          // currently live" derivation, a stream_state singleton picking the
+          // wrong queued video when multiple slots were scheduled ahead of
+          // time) for a benefit that didn't hold up: render+upload already
+          // finishes close to the intended air time in the common
+          // cron-triggered case, so "public immediately" and "public at the
+          // scheduled time" rarely differed in practice.
+          privacyStatus: "public",
           selfDeclaredMadeForKids: false,
           embeddable: true
         }

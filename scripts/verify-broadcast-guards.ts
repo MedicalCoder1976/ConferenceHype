@@ -731,17 +731,19 @@ assert.doesNotMatch(renderHourSource, /amix=inputs=\$\{totalStreams\}:duration=f
 // now uploads the finished file directly, using the real, final `cards` list
 // as the single source of truth for title/description/tags -- there's no
 // separate earlier snapshot left to drift from.
-assert.match(renderHourSource, /Uploaded \$\{youtubeUrl\}, scheduled public at/);
+assert.match(renderHourSource, /Uploaded \$\{youtubeUrl\}, public immediately/);
 assert.match(renderHourSource, /buildBroadcastMetadata\(\{/);
 const uploadBroadcastVideoSource = readFileSync(
   path.join(process.cwd(), "lib", "youtube", "uploadBroadcastVideo.ts"),
   "utf8"
 );
 assert.match(uploadBroadcastVideoSource, /uploadType=resumable&part=snippet,status/);
-// publishAt only takes effect when privacyStatus is "private" at upload
-// time -- this is a hard YouTube API requirement, not a config choice, so
-// guard against it ever being loosened back to "unlisted"/"public".
-assert.match(uploadBroadcastVideoSource, /privacyStatus:\s*"private"/);
+// Changed 2026-07-17: uploads go public immediately, not private+publishAt
+// scheduled -- guard against a future edit silently reintroducing the
+// private/scheduled behavior (and its wall-clock-derivation complexity)
+// without it being a deliberate decision.
+assert.match(uploadBroadcastVideoSource, /privacyStatus:\s*"public"/);
+assert.doesNotMatch(uploadBroadcastVideoSource, /publishAt/);
 const streamWorkflowSource = readFileSync(
   path.join(process.cwd(), ".github", "workflows", "youtube-stream.yml"),
   "utf8"

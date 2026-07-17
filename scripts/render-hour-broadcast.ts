@@ -1144,13 +1144,12 @@ async function uploadRenderedBroadcast(cards: Card[], usedSegmentIds: string[], 
       title,
       description,
       tags,
-      categoryId,
-      publishAt: hourStart.toISOString()
+      categoryId
     })
   );
   const youtubeVideoId = uploaded.id;
   const youtubeUrl = `https://www.youtube.com/watch?v=${youtubeVideoId}`;
-  console.log(`Uploaded ${youtubeUrl}, scheduled public at ${hourStart.toISOString()}.`);
+  console.log(`Uploaded ${youtubeUrl}, public immediately.`);
 
   if (process.env.GITHUB_OUTPUT) {
     const { appendFile } = await import("node:fs/promises");
