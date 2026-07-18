@@ -20,6 +20,7 @@ import { SingleJournalPicker } from "@/components/SingleJournalPicker";
 import { EMPTY_CARD_DECK, type EntityCardDeck } from "@/lib/cardDeck";
 import { errorMessage } from "@/lib/errors";
 import { isGenericConferenceLandingItem } from "@/lib/intakeSelection";
+import { contentSignature } from "@/lib/segments/contentSignature";
 import { conferenceLinkedSourceIds } from "@/lib/sources/socialLinks";
 import { sortWeeklyReadySegmentsForSelection } from "@/lib/weeklySourceCards";
 import type {
@@ -34,6 +35,27 @@ import type {
 
 function journalSlotDeliveryLabel(status: JournalBroadcastSlot["youtubeStatus"]) {
   return status.replaceAll("_", " ");
+}
+
+// The weekly batch and the one-hour batch can each independently pick the
+// same underlying article (different segment rows, same citation url) --
+// confirmed live 2026-07-18: a single JCO Oncology Practice article had 54
+// separate segment rows across past runs, several still pending review at
+// once, which rendered as multiple identical-looking "ready card" tiles
+// here. Dedupe by content signature (same pattern already used for the
+// final broadcast card list, see lib/segments/contentSignature.ts) before
+// display -- keeps whichever of the duplicate set sorts first under the
+// existing ordering, since the content is identical either way.
+function dedupeByContentSignature(segments: Segment[]) {
+  const seen = new Set<string>();
+  return segments.filter((segment) => {
+    const signature = contentSignature(segment);
+    if (seen.has(signature)) {
+      return false;
+    }
+    seen.add(signature);
+    return true;
+  });
 }
 
 type PlanningDay = {
@@ -238,11 +260,13 @@ export function DailyCoveragePlanner({
     );
   }, [hasAnySelection, selectedConferences, selectedJournals, realSourceIds]);
 
-  const matchingWeeklyReadySegments = sortWeeklyReadySegmentsForSelection(initialReadySegments, {
-    conferences: selectedConferences,
-    journals: selectedJournals,
-    sourceIds: realSourceIds
-  }).slice(0, 24);
+  const matchingWeeklyReadySegments = dedupeByContentSignature(
+    sortWeeklyReadySegmentsForSelection(initialReadySegments, {
+      conferences: selectedConferences,
+      journals: selectedJournals,
+      sourceIds: realSourceIds
+    })
+  ).slice(0, 24);
   const matchingBatchItems = batchItems.filter((item) => {
     if (isGenericConferenceLandingItem(item)) {
       return false;
@@ -608,7 +632,7 @@ export function DailyCoveragePlanner({
     <section className="border border-ink/10 bg-white shadow-panel">
       <div className="border-b border-ink/10 p-5">
         <div className="mb-2 text-xs font-black uppercase text-ink/50">
-          One-hour planning slots - 24 h back through next week
+          One-hour planning slots - 24 h back through next 48 h
         </div>
         <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
           {planningDays.map((day) => (

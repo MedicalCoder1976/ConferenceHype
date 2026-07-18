@@ -53,7 +53,14 @@ type AdminPageProps = {
 
 const PLANNING_WINDOW_HOURS = 1;
 const PLANNING_HISTORY_HOURS = 24;
-const PLANNING_FUTURE_HOURS = 7 * 24;
+// Trimmed from 7*24 (a full week, 192 total slot links) to 48h (72 total)
+// 2026-07-18 -- cron already auto-picks whatever's approved regardless of
+// this picker, and conference/journal slots are created through their own
+// dedicated flows (ConferencePlanner, the journal-broadcast panels below),
+// not by paging through individual hours a week out. Each link is a full
+// force-dynamic page reload (see getAdminSnapshot in lib/data.ts), so fewer
+// links here also means fewer accidental multi-second reloads.
+const PLANNING_FUTURE_HOURS = 2 * 24;
 
 function getEasternDateParts(date: Date) {
   const parts = new Intl.DateTimeFormat("en-US", {

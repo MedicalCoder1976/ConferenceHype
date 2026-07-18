@@ -9,6 +9,7 @@ import { applySpokenPronunciations } from "@/lib/media/tts";
 import { getUnsafeGeneratedSourceErrors } from "@/lib/generation/sourceSafety";
 import { validateSegmentForApproval } from "@/lib/generation/validator";
 import { buildConferenceCardDecks, buildJournalCardDecks, buildSourceCardDecks } from "@/lib/cardDeck";
+import { buildRequiredSectionSummary } from "@/lib/segments/sectionSummary";
 import {
   buildBatchSegment,
   buildConferenceContextItem,
@@ -73,6 +74,26 @@ assert.equal(
   applySpokenPronunciations("Stage IA and Stage IIB were compared to Stage IIIA and Stage IVB."),
   "Stage 1 A and Stage 2 B were compared to Stage 3 A and Stage 4 B."
 );
+
+// Bug fixed 2026-07-18 (PMID 40729623): a Results section whose own prose
+// naturally contains the word "discussion" (e.g. "...prognostic discussion
+// tools (P < .05)") used to get misread as hitting a real "Discussion"
+// section boundary, truncating Results early and fabricating a garbled
+// fragment from whatever followed instead of the article's real Conclusion.
+{
+  const summary = buildRequiredSectionSummary({
+    title: "Teaching Communication Skills",
+    sourceName: "JCO Oncology Practice",
+    text: [
+      "PURPOSE: ASCO strongly endorses the integration of palliative care.",
+      "METHODS: We designed and piloted a didactic simulation session.",
+      "RESULTS: In year 1, 16 of 21 fellows completed surveys, with notable increase for prognostic discussion tools (P < .05). Comfort increased across multiple domains.",
+      "CONCLUSION: Dedicated and iterative communication teaching in fellowship is imperative for future oncologists."
+    ].join(" ")
+  });
+  assert.doesNotMatch(summary, /Discussion:\s*tools/i);
+  assert.match(summary, /Discussion:\s*Dedicated and iterative communication teaching/);
+}
 // The ASCO-energy-all-day phrase must never reach air, no matter what filler
 // word the LLM tacks onto the end of it -- "long", "seems to creep in", or
 // any future variant. The strip must hit every speaker pipeline path: the

@@ -32,9 +32,22 @@ function compactWords(value: string, maxWords: number) {
 }
 
 function sectionText(value: string, label: "Background" | "Methods" | "Results" | "Discussion") {
+  // Colon made mandatory 2026-07-18 (both here and in the lookahead): a bare
+  // occurrence of "Background"/"Methods"/"Results"/"Discussion" inside a
+  // sentence -- not as an actual "Label:" header -- used to be misread as a
+  // section boundary, truncating the preceding section and fabricating a
+  // garbled one-fragment section from whatever text followed the stray
+  // word. Confirmed on a real card (PMID 40729623) whose Results text
+  // naturally contained "...prognostic discussion tools (P < .05)"; the
+  // bare word "discussion" there cut Results down to one sentence and
+  // produced a nonsense "Discussion: tools (P <.05)." fragment instead of
+  // the article's real Conclusion text. See the matching fix and longer
+  // explanation in lib/segments/sectionSummary.ts's matchSection -- every
+  // caller of this function already receives "Label: text"-normalized
+  // input, so a genuine section header is always colon-terminated.
   const match = value.match(
     new RegExp(
-      `\\b${label}\\b\\s*[:,-]?\\s*([\\s\\S]*?)(?=\\b(?:Background|Methods|Results|Discussion)\\b\\s*[:,-]?|$)`,
+      `\\b${label}\\b\\s*:\\s*([\\s\\S]*?)(?=\\b(?:Background|Methods|Results|Discussion)\\b\\s*:|$)`,
       "i"
     )
   )?.[1];

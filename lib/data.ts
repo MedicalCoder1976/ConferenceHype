@@ -416,47 +416,99 @@ export async function getStreamState(): Promise<StreamState> {
 }
 
 export async function getAdminSnapshot(baseTime = new Date(), planningHours = 1) {
-  await upsertAdminCatalogSeedsToDb();
-  const xFollowVoices = (await getXFollowVoicesFromDb()) ?? [];
-  const blacklistedXHandles = (await getBlacklistedXHandlesFromDb()) ?? [];
-  const recentSocialItems = (await getRecentSocialItemsFromDb(24)) ?? [];
-  const socialVoiceLeaderboard = buildSocialVoiceLeaderboard(
-    recentSocialItems,
-    xFollowVoices,
-    blacklistedXHandles
-  );
-  // Higher than the 120 default so the per-entity card-deck counts (weekly
-  // batch cards accumulate over time) don't silently undercount once a
-  // catalog has been running for a few weeks.
-  const pendingSegments = filterBroadcastReadySegments(
-    (await getPendingSegmentsFromDb(1000)) ?? []
-  );
-  // Use the same generous limit as the render script so recently-scheduled
-  // cards (which sort to the end of the approved_at ASC order) are always
-  // included. 42 was too small: if the pool had 43+ approved segments the
-  // newly-pinned card was silently dropped and the UI reverted after refresh.
-  const nextBroadcastSegments = filterBroadcastReadySegments(
-    (await getNextBroadcastSegmentsFromDb(200)) ?? []
-  );
-  const scheduleRundownSegments = buildScheduleRundownSegments(baseTime, planningHours);
-  const airedSegments = (await getAiredSegmentsFromDb(200)) ?? [];
-  const broadcastWriteouts = (await getBroadcastWriteoutsFromDb()) ?? [];
-  const specialtyXVoices = (await getSpecialtyXVoicesFromDb()) ?? [];
-  const medicalConferences = (await getMedicalConferencesFromDb()) ?? [];
-  const conferenceCoverageSlots = (await getConferenceCoverageSlotsFromDb()) ?? [];
-  const journalBroadcastSlots = (await getJournalBroadcastSlotsFromDb()) ?? [];
-  const oncologyJournals = (await getOncologyJournalsFromDb()) ?? [];
-  const editorialPackages = (await getEditorialPackagesFromDb()) ?? [];
-  const platformSmokeRuns = (await getPlatformSmokeRunsFromDb(30)) ?? [];
-  const sources = (await getSourcesFromDb()) ?? sourceRegistry;
   const coverageDate = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/New_York",
     year: "numeric",
     month: "2-digit",
     day: "2-digit"
   }).format(baseTime);
-  const savedDailyCoveragePlan = await getDailyCoveragePlanFromDb(coverageDate);
-  const batchIntakeItems = (await getPreviousDayBatchItemsFromDb(coverageDate, 160)) ?? [];
+
+  // Every call below is independent of every other -- none of their inputs
+  // depend on another call's result, so they run in parallel instead of the
+  // ~20 sequential round-trips this used to be (each `await`ed one after
+  // another). Confirmed live 2026-07-18 as the main cause of "selecting a
+  // new time slot takes very long": every /admin navigation is
+  // force-dynamic (re-runs this whole function from scratch), and with a
+  // few hundred ms per Supabase round-trip, sequential awaits alone could
+  // add multiple seconds before the page even started rendering.
+  // upsertAdminCatalogSeedsToDb is a write (upsert ... ignoreDuplicates), not
+  // a read the rest of this function depends on -- other paths
+  // (lib/jobs/editorialPackages.ts, the weekly-batch scripts) already keep
+  // the catalog seeded, so it runs alongside everything else here purely as
+  // a safety net for a completely fresh database, not as a blocking
+  // precondition.
+  const [
+    ,
+    xFollowVoicesRaw,
+    blacklistedXHandlesRaw,
+    recentSocialItemsRaw,
+    pendingSegmentsRaw,
+    nextBroadcastSegmentsRaw,
+    airedSegmentsRaw,
+    broadcastWriteoutsRaw,
+    specialtyXVoicesRaw,
+    medicalConferencesRaw,
+    conferenceCoverageSlotsRaw,
+    journalBroadcastSlotsRaw,
+    oncologyJournalsRaw,
+    editorialPackagesRaw,
+    platformSmokeRunsRaw,
+    sourcesRaw,
+    savedDailyCoveragePlan,
+    batchIntakeItemsRaw,
+    analyticsRaw,
+    streamState
+  ] = await Promise.all([
+    upsertAdminCatalogSeedsToDb(),
+    getXFollowVoicesFromDb(),
+    getBlacklistedXHandlesFromDb(),
+    getRecentSocialItemsFromDb(24),
+    // Higher than the 120 default so the per-entity card-deck counts (weekly
+    // batch cards accumulate over time) don't silently undercount once a
+    // catalog has been running for a few weeks.
+    getPendingSegmentsFromDb(1000),
+    // Use the same generous limit as the render script so recently-scheduled
+    // cards (which sort to the end of the approved_at ASC order) are always
+    // included. 42 was too small: if the pool had 43+ approved segments the
+    // newly-pinned card was silently dropped and the UI reverted after refresh.
+    getNextBroadcastSegmentsFromDb(200),
+    getAiredSegmentsFromDb(200),
+    getBroadcastWriteoutsFromDb(),
+    getSpecialtyXVoicesFromDb(),
+    getMedicalConferencesFromDb(),
+    getConferenceCoverageSlotsFromDb(),
+    getJournalBroadcastSlotsFromDb(),
+    getOncologyJournalsFromDb(),
+    getEditorialPackagesFromDb(),
+    getPlatformSmokeRunsFromDb(30),
+    getSourcesFromDb(),
+    getDailyCoveragePlanFromDb(coverageDate),
+    getPreviousDayBatchItemsFromDb(coverageDate, 160),
+    getAnalyticsFromDb(),
+    getStreamState()
+  ]);
+
+  const xFollowVoices = xFollowVoicesRaw ?? [];
+  const blacklistedXHandles = blacklistedXHandlesRaw ?? [];
+  const socialVoiceLeaderboard = buildSocialVoiceLeaderboard(
+    recentSocialItemsRaw ?? [],
+    xFollowVoices,
+    blacklistedXHandles
+  );
+  const pendingSegments = filterBroadcastReadySegments(pendingSegmentsRaw ?? []);
+  const nextBroadcastSegments = filterBroadcastReadySegments(nextBroadcastSegmentsRaw ?? []);
+  const scheduleRundownSegments = buildScheduleRundownSegments(baseTime, planningHours);
+  const airedSegments = airedSegmentsRaw ?? [];
+  const broadcastWriteouts = broadcastWriteoutsRaw ?? [];
+  const specialtyXVoices = specialtyXVoicesRaw ?? [];
+  const medicalConferences = medicalConferencesRaw ?? [];
+  const conferenceCoverageSlots = conferenceCoverageSlotsRaw ?? [];
+  const journalBroadcastSlots = journalBroadcastSlotsRaw ?? [];
+  const oncologyJournals = oncologyJournalsRaw ?? [];
+  const editorialPackages = editorialPackagesRaw ?? [];
+  const platformSmokeRuns = platformSmokeRunsRaw ?? [];
+  const sources = sourcesRaw ?? sourceRegistry;
+  const batchIntakeItems = batchIntakeItemsRaw ?? [];
   const dailyCoveragePlan = normalizeLegacyDailyCoverageDefaults({
     plan:
       savedDailyCoveragePlan ??
@@ -468,7 +520,7 @@ export async function getAdminSnapshot(baseTime = new Date(), planningHours = 1)
     conferences: medicalConferences,
     sources
   });
-  const analytics: AnalyticsSnapshot = (await getAnalyticsFromDb()) ?? {
+  const analytics: AnalyticsSnapshot = analyticsRaw ?? {
     views: 128,
     clipsCreated: 4,
     pendingReview: pendingSegments.length
@@ -480,7 +532,7 @@ export async function getAdminSnapshot(baseTime = new Date(), planningHours = 1)
     airedSegments,
     broadcastWriteouts,
     platformSmokeRuns,
-    streamState: await getStreamState(),
+    streamState,
     sources,
     xFollowVoices,
     blacklistedXHandles,

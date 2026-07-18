@@ -7,6 +7,7 @@ import {
 } from "@/lib/weeklySourceCards";
 import { isEmptyConferenceInformationCard } from "@/lib/generation/validator";
 import { hasMissingIntakeFailureLanguage } from "@/lib/broadcast/sanitizeCopy";
+import { contentSignature } from "@/lib/segments/contentSignature";
 
 export type DeckCard = {
   segment: Segment;
@@ -72,14 +73,32 @@ function isSubstantiveDeckCard(segment: Segment) {
 // card back to its journal/conference/source for future re-presentation
 // from that Talked About view (re-approves it, same as any other approval).
 function buildDeck(segments: Segment[], matchesEntity: (sourceId: string) => boolean): EntityCardDeck {
-  const cards = segments
+  const matched = segments
     .filter(
       (segment) =>
         segment.status !== "rendered" &&
         isSubstantiveDeckCard(segment) &&
         sourceIdsFromSegment(segment).some(matchesEntity)
     )
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  // dedupeSegments (above, called before this) only dedupes by segment id --
+  // the weekly batch and the one-hour batch can each independently generate
+  // their own separate segment row for the same underlying article (same
+  // citation url, different ids). Confirmed live 2026-07-18: one JCO
+  // Oncology Practice article had 44 separate segment rows, several still
+  // pending review at once, which would otherwise render as many identical-
+  // looking tiles in this deck. Dedupe by content, keeping the newest
+  // (matched is already sorted newest-first above).
+  const seenSignatures = new Set<string>();
+  const cards = matched
+    .filter((segment) => {
+      const signature = contentSignature(segment);
+      if (seenSignatures.has(signature)) {
+        return false;
+      }
+      seenSignatures.add(signature);
+      return true;
+    })
     .map((segment) => ({ segment }));
   return { total: cards.length, cards };
 }

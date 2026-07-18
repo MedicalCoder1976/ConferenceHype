@@ -34,8 +34,25 @@ function matchSection(text: string, labels: string[]) {
       // already reduces whatever this captures down to one sentence, so
       // there's no need for an upper bound here -- only a floor to avoid
       // matching on a bare label with nothing after it.
+      //
+      // Bug fixed 2026-07-18: the colon after the label (both at the match
+      // start and in the lookahead) used to be optional ([:.-]?), so a bare
+      // occurrence of one of these words *inside* a sentence -- e.g. a real
+      // Results section reading "...notable increase for prognostic
+      // discussion tools (P < .05)" -- got misread as the start of a new
+      // section. That truncated Results to its first sentence and produced
+      // a garbled one-fragment "Discussion" from whatever followed the
+      // stray word, instead of the article's real Conclusion text.
+      // Confirmed on PMID 40729623 (JCO Oncology Practice, 44 duplicate
+      // segment rows all carrying the identical garbled "Discussion: tools
+      // (P <.05)." fragment). All text this function ever receives is
+      // already normalized to "Label: text" by abstractParts()
+      // (lib/sources/pubmed.ts) or fetchJournalArticleAbstract()
+      // (lib/sources/rss.ts) before it gets here, so a real section header
+      // is always colon-terminated -- making the colon mandatory here only
+      // rules out false positives, it can't miss a genuine section.
       new RegExp(
-        `\\b${label}\\b\\s*[:.-]?\\s+([\\s\\S]{20,}?)(?=\\b(?:Background|Purpose|Objective|Importance|Methods|Design|Results|Findings|Discussion|Conclusion|Conclusions)\\b\\s*[:.-]?|$)`,
+        `\\b${label}\\b\\s*:\\s+([\\s\\S]{20,}?)(?=\\b(?:Background|Purpose|Objective|Importance|Methods|Design|Results|Findings|Discussion|Conclusion|Conclusions)\\b\\s*:|$)`,
         "i"
       )
     )?.[1];
@@ -132,9 +149,10 @@ function sectionValue(value: string, label: "Background" | "Methods" | "Results"
   // the same failure mode (a long real section fails to match at all,
   // rather than truncating), which would wrongly fail
   // hasUsableClinicalSectionSource for a perfectly good structured abstract.
+  // Colon made mandatory 2026-07-18, same fix and reasoning as matchSection.
   return value.match(
     new RegExp(
-      `\\b${label}\\b\\s*[:.-]?\\s+([\\s\\S]{20,}?)(?=\\b(?:Background|Methods|Results|Discussion)\\b\\s*[:.-]?|$)`,
+      `\\b${label}\\b\\s*:\\s+([\\s\\S]{20,}?)(?=\\b(?:Background|Methods|Results|Discussion)\\b\\s*:|$)`,
       "i"
     )
   )?.[1]?.trim() ?? "";
