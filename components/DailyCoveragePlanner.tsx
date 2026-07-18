@@ -260,13 +260,40 @@ export function DailyCoveragePlanner({
     );
   }, [hasAnySelection, selectedConferences, selectedJournals, realSourceIds]);
 
+  // sortWeeklyReadySegmentsForSelection picks *which* 24 cards are most
+  // relevant (this week + real content over stale/announcement filler) --
+  // keep that for selection, then re-sort the chosen set by journal name so
+  // cards from the same journal cluster together for review, instead of
+  // interleaving by creation time. Non-journal cards (conference/source
+  // content with no citations[0].journalId) sort after all named journals,
+  // grouped together under "Other" rather than scattered by name lookup
+  // misses.
   const matchingWeeklyReadySegments = dedupeByContentSignature(
     sortWeeklyReadySegmentsForSelection(initialReadySegments, {
       conferences: selectedConferences,
       journals: selectedJournals,
       sourceIds: realSourceIds
     })
-  ).slice(0, 24);
+  )
+    .slice(0, 24)
+    .map((segment, index) => ({ segment, index }))
+    .sort((a, b) => {
+      const aName = journalsById.get(a.segment.citations[0]?.journalId ?? "")?.name;
+      const bName = journalsById.get(b.segment.citations[0]?.journalId ?? "")?.name;
+      if (aName && bName) {
+        const compared = aName.localeCompare(bName);
+        if (compared !== 0) {
+          return compared;
+        }
+      } else if (aName !== bName) {
+        // Exactly one has a resolvable journal name -- named journals first.
+        return aName ? -1 : 1;
+      }
+      // Same journal (or same "no journal" bucket) -- preserve the
+      // relevance order sortWeeklyReadySegmentsForSelection already chose.
+      return a.index - b.index;
+    })
+    .map(({ segment }) => segment);
   const matchingBatchItems = batchItems.filter((item) => {
     if (isGenericConferenceLandingItem(item)) {
       return false;
@@ -920,6 +947,9 @@ export function DailyCoveragePlanner({
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="bg-ink px-2 py-1 text-[11px] font-black uppercase text-white">
                     ready card
+                  </span>
+                  <span className="border border-broadcast/40 bg-broadcast/10 px-2 py-1 text-[11px] font-black uppercase text-broadcast">
+                    {journalsById.get(segment.citations[0]?.journalId ?? "")?.name ?? "Other"}
                   </span>
                   <span className="text-[11px] font-bold uppercase text-ink/45">
                     {segment.personaName}
