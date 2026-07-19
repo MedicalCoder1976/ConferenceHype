@@ -177,6 +177,11 @@ export function DailyCoveragePlanner({
     state: "idle",
     text: ""
   });
+  const [pendingReleaseAll, setPendingReleaseAll] = useState(false);
+  const [releaseAllStatus, setReleaseAllStatus] = useState<BatchStatus>({
+    state: "idle",
+    text: ""
+  });
   const [pending, startTransition] = useTransition();
   const [customLabel, setCustomLabel] = useState("");
   const [customUrl, setCustomUrl] = useState("");
@@ -639,6 +644,45 @@ export function DailyCoveragePlanner({
     });
   };
 
+  // Releases every pending_review card system-wide (not just the two
+  // selected journals above) that has no already-approved-or-rendered
+  // sibling and clears the same quality gates a manual approve already
+  // enforces (filterBroadcastReadySegments + validateSegmentForApproval,
+  // both run server-side in /api/admin/approve/release-all). Added
+  // 2026-07-19, explicit operator request: "release all the cards to
+  // rebroadcast queue that have not been broadcast as long as the cards
+  // meet quality standards." Unlike the per-panel approve buttons, this is
+  // deliberately global and does one bulk DB update server-side rather than
+  // one request per card -- confirmed live the pending pool alone was 1468
+  // rows, far too many for a per-card client round trip loop.
+  const releaseAllReadyCards = () => {
+    setPendingReleaseAll(true);
+    setReleaseAllStatus({ state: "creating", text: "Checking every pending card against quality standards..." });
+    startTransition(async () => {
+      try {
+        const response = await fetch("/api/admin/approve/release-all", { method: "POST" });
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) {
+          throw new Error(errorMessage(payload.error, "Could not release cards."));
+        }
+        setReleaseAllStatus({
+          state: "done",
+          text:
+            `Approved ${payload.approved} of ${payload.totalPending} pending cards. ` +
+            `${payload.alreadyBroadcastOrQueued} already covered by an approved/rendered sibling, ` +
+            `${payload.duplicateWithinPending} duplicate of another pending card, ` +
+            `${payload.failedQualityFilter} failed the broadcast-readiness filter, ` +
+            `${payload.failedValidation} failed approval validation.`
+        });
+        router.refresh();
+      } catch (error) {
+        setReleaseAllStatus({ state: "error", text: errorMessage(error, "Could not release cards.") });
+      } finally {
+        setPendingReleaseAll(false);
+      }
+    });
+  };
+
   const save = () => {
     setMessage("");
     startTransition(async () => {
@@ -1053,6 +1097,37 @@ export function DailyCoveragePlanner({
             <span className="border border-ink/10 bg-white px-3 py-2 text-xs font-black uppercase text-ink/60">
               {matchingWeeklyReadySegments.length} ready
             </span>
+          </div>
+          <div className="mt-3">
+            <button
+              type="button"
+              disabled={pending || pendingReleaseAll}
+              onClick={releaseAllReadyCards}
+              className="inline-flex min-h-9 items-center justify-center gap-2 border border-broadcast bg-broadcast/10 px-3 text-xs font-black uppercase text-broadcast disabled:opacity-50"
+            >
+              <Check className="h-3.5 w-3.5" />
+              {pendingReleaseAll
+                ? "Checking and releasing…"
+                : "Release all ready cards to rebroadcast queue"}
+            </button>
+            <p className="mt-1 text-[11px] font-bold uppercase leading-4 text-ink/45">
+              Approves every not-yet-broadcast card system-wide that passes the same quality
+              checks a manual approval already enforces — not just this selected source mix.
+            </p>
+            {releaseAllStatus.state !== "idle" ? (
+              <div
+                className={`mt-2 border p-2 text-xs font-bold ${
+                  releaseAllStatus.state === "error"
+                    ? "border-red-400/50 bg-red-50 text-red-800"
+                    : releaseAllStatus.state === "done"
+                      ? "border-cyanline/40 bg-cyanline/10 text-ink"
+                      : "border-gold/50 bg-gold/10 text-ink"
+                }`}
+                aria-live="polite"
+              >
+                {releaseAllStatus.text}
+              </div>
+            ) : null}
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {matchingWeeklyReadySegments.length === 0 ? (

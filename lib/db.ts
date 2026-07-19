@@ -554,6 +554,78 @@ export async function getPendingSegmentsFromDb(limit = 120) {
   return (data as SegmentRow[]).map(toSegment);
 }
 
+// PostgREST caps rows-per-request at 1000 regardless of a higher .limit()
+// value (confirmed live 2026-07-19: this project has 1468 pending_review
+// rows alone, well past that cap) -- pages through with .range() until a
+// page comes back short. Used for bulk operations that need the *entire*
+// set, not the usual small display-page limit every other getter here uses.
+async function getAllSegmentsByStatusFromDb(status: string) {
+  const supabase = createAdminClient();
+  const pageSize = 1000;
+  const rows: SegmentRow[] = [];
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await supabase
+      .from("segments")
+      .select("*")
+      .eq("status", status)
+      .order("created_at", { ascending: false })
+      .range(offset, offset + pageSize - 1);
+    if (error) {
+      throw error;
+    }
+    rows.push(...(data as SegmentRow[]));
+    if (!data || data.length < pageSize) {
+      break;
+    }
+  }
+  return rows.map(toSegment);
+}
+
+export async function getAllPendingSegmentsFromDb() {
+  if (!hasSupabase()) {
+    return null;
+  }
+  return getAllSegmentsByStatusFromDb("pending_review");
+}
+
+// Every segment whose content has already been approved (queued for a
+// future broadcast) or rendered (already aired) -- used to build a
+// content-signature exclusion set so a bulk release action doesn't
+// re-approve a pending duplicate of content that's already covered under a
+// different segment row.
+export async function getAllApprovedOrRenderedSegmentsFromDb() {
+  if (!hasSupabase()) {
+    return null;
+  }
+  const [approved, rendered] = await Promise.all([
+    getAllSegmentsByStatusFromDb("approved"),
+    getAllSegmentsByStatusFromDb("rendered")
+  ]);
+  return [...approved, ...rendered];
+}
+
+// Bulk in-place approval -- one UPDATE for every id, versus N individual
+// read-then-update round trips (updateSegmentDecisionInDb's pattern, fine
+// for a single manual approve click, far too slow for a few hundred cards
+// at once). Callers are responsible for validating each segment first
+// (validateSegmentForApproval) -- this function trusts the id list it's
+// given and doesn't re-check anything.
+export async function bulkApproveSegmentsInDb(segmentIds: string[]) {
+  if (!hasSupabase() || segmentIds.length === 0) {
+    return null;
+  }
+  const supabase = createAdminClient();
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from("segments")
+    .update({ status: "approved", approved_at: now, updated_at: now })
+    .in("id", segmentIds);
+  if (error) {
+    throw error;
+  }
+  return segmentIds.length;
+}
+
 export async function getSegmentByIdFromDb(segmentId: string) {
   if (!hasSupabase()) {
     return null;
