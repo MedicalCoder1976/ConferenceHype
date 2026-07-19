@@ -167,8 +167,13 @@ export function DailyCoveragePlanner({
     text: ""
   });
   const [journalScheduleExpanded, setJournalScheduleExpanded] = useState(true);
-  const [pendingApproveAll, setPendingApproveAll] = useState(false);
-  const [approveAllStatus, setApproveAllStatus] = useState<BatchStatus>({
+  const [pendingApproveAllFirstHalf, setPendingApproveAllFirstHalf] = useState(false);
+  const [pendingApproveAllSecondHalf, setPendingApproveAllSecondHalf] = useState(false);
+  const [approveAllStatusFirstHalf, setApproveAllStatusFirstHalf] = useState<BatchStatus>({
+    state: "idle",
+    text: ""
+  });
+  const [approveAllStatusSecondHalf, setApproveAllStatusSecondHalf] = useState<BatchStatus>({
     state: "idle",
     text: ""
   });
@@ -565,41 +570,41 @@ export function DailyCoveragePlanner({
     });
   };
 
-  // Bulk-approves every pending_review card for whichever journal(s) are
-  // currently selected in the two 30-minute slot panels above -- added
-  // 2026-07-19 after two real journal broadcasts (British Journal of
-  // Cancer, Blood Cancer Journal) both failed on 0 approved segments while
-  // each journal had a dozen-plus cards sitting unreviewed. Reuses the same
-  // /api/admin/approve route the (unused) human review queue and the
-  // "Discard" button already call -- approves each card's script exactly as
-  // generated, in place (no scheduled-copy, no hour pinning), which is all
-  // journal30's buildJournalShowSlots needs (status: "approved" + matching
-  // citations[0].journalId). Deliberately scoped to only the journals
-  // selected in these two panels, not a global "approve everything
-  // pending" action -- that would skip human review for content the
-  // operator hasn't actually looked at.
-  const approveAllForSelectedJournals = () => {
-    const journalIds = Array.from(
-      new Set([journalSlotIdFirstHalf, journalSlotIdSecondHalf].filter((id): id is string => Boolean(id)))
-    );
-    if (journalIds.length === 0) {
-      setMessage("Select a journal in at least one of the 30-minute slots first.");
+  // Bulk-approves every pending_review card for one 30-minute slot panel's
+  // selected journal -- added 2026-07-19 after two real journal broadcasts
+  // (British Journal of Cancer, Blood Cancer Journal) both failed on 0
+  // approved segments while each journal had a dozen-plus cards sitting
+  // unreviewed. Originally a single shared button below both panels
+  // together, scoped to the union of both selections -- moved to one
+  // button per panel (same day) after an operator report of not finding it
+  // for a specific slot: a shared control below two independently-selected
+  // panels is easy to miss and ambiguous about which panel it acts on, so
+  // each panel now gets its own, scoped only to that panel's own journal.
+  // Reuses the same /api/admin/approve route the (unused) human review
+  // queue and the "Discard" button already call -- approves each card's
+  // script exactly as generated, in place (no scheduled-copy, no hour
+  // pinning), which is all journal30's buildJournalShowSlots needs
+  // (status: "approved" + matching citations[0].journalId).
+  const approveAllForJournal = (half: "first" | "second") => {
+    const journalId = half === "first" ? journalSlotIdFirstHalf : journalSlotIdSecondHalf;
+    const setPendingHalf = half === "first" ? setPendingApproveAllFirstHalf : setPendingApproveAllSecondHalf;
+    const setStatusHalf = half === "first" ? setApproveAllStatusFirstHalf : setApproveAllStatusSecondHalf;
+    if (!journalId) {
+      setMessage("Select a journal in this 30-minute slot first.");
       return;
     }
-    const candidates = journalIds.flatMap((journalId) =>
-      (journalCardDecks[journalId]?.cards ?? [])
-        .map((card) => card.segment)
-        .filter((segment) => segment.status === "pending_review")
-    );
+    const candidates = (journalCardDecks[journalId]?.cards ?? [])
+      .map((card) => card.segment)
+      .filter((segment) => segment.status === "pending_review");
     if (candidates.length === 0) {
-      setApproveAllStatus({
+      setStatusHalf({
         state: "done",
-        text: "No pending cards to approve for the selected journal(s) — they may already be approved or none have been generated yet."
+        text: "No pending cards to approve for this journal — they may already be approved or none have been generated yet."
       });
       return;
     }
-    setPendingApproveAll(true);
-    setApproveAllStatus({
+    setPendingHalf(true);
+    setStatusHalf({
       state: "creating",
       text: `Approving ${candidates.length} card${candidates.length === 1 ? "" : "s"}...`
     });
@@ -623,13 +628,13 @@ export function DailyCoveragePlanner({
           failures.push(`${segment.title}: ${errorMessage(error, "approval failed")}`);
         }
       }
-      setApproveAllStatus({
+      setStatusHalf({
         state: failures.length > 0 && approved === 0 ? "error" : "done",
         text:
           `Approved ${approved} of ${candidates.length} card${candidates.length === 1 ? "" : "s"}.` +
           (failures.length > 0 ? ` ${failures.length} failed: ${failures.slice(0, 3).join("; ")}` : "")
       });
-      setPendingApproveAll(false);
+      setPendingHalf(false);
       router.refresh();
     });
   };
@@ -851,7 +856,9 @@ export function DailyCoveragePlanner({
                   selectedJournalId: journalSlotIdFirstHalf,
                   setSelectedJournalId: setJournalSlotIdFirstHalf,
                   pending: pendingJournalSlotFirstHalf,
-                  status: journalSlotStatusFirstHalf
+                  status: journalSlotStatusFirstHalf,
+                  pendingApprove: pendingApproveAllFirstHalf,
+                  approveStatus: approveAllStatusFirstHalf
                 },
                 {
                   half: "second" as const,
@@ -859,7 +866,9 @@ export function DailyCoveragePlanner({
                   selectedJournalId: journalSlotIdSecondHalf,
                   setSelectedJournalId: setJournalSlotIdSecondHalf,
                   pending: pendingJournalSlotSecondHalf,
-                  status: journalSlotStatusSecondHalf
+                  status: journalSlotStatusSecondHalf,
+                  pendingApprove: pendingApproveAllSecondHalf,
+                  approveStatus: approveAllStatusSecondHalf
                 }
               ]
             ).map((panel) => (
@@ -891,6 +900,31 @@ export function DailyCoveragePlanner({
                     journalCardDecks={journalCardDecks}
                   />
                 </div>
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    disabled={pending || panel.pendingApprove || !panel.selectedJournalId}
+                    onClick={() => approveAllForJournal(panel.half)}
+                    className="inline-flex min-h-9 w-full items-center justify-center gap-2 border border-broadcast bg-broadcast/10 px-3 text-xs font-black uppercase text-broadcast disabled:opacity-50"
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                    {panel.pendingApprove ? "Approving…" : "Approve all cards for this journal"}
+                  </button>
+                  {panel.approveStatus.state !== "idle" ? (
+                    <div
+                      className={`mt-2 border p-2 text-xs font-bold ${
+                        panel.approveStatus.state === "error"
+                          ? "border-red-400/50 bg-red-50 text-red-800"
+                          : panel.approveStatus.state === "done"
+                            ? "border-cyanline/40 bg-cyanline/10 text-ink"
+                            : "border-gold/50 bg-gold/10 text-ink"
+                      }`}
+                      aria-live="polite"
+                    >
+                      {panel.approveStatus.text}
+                    </div>
+                  ) : null}
+                </div>
                 {panel.status.state !== "idle" ? (
                   <div
                     className={`mt-3 border p-2 text-xs font-bold ${
@@ -907,35 +941,6 @@ export function DailyCoveragePlanner({
                 ) : null}
               </div>
             ))}
-          </div>
-          <div className="mt-3">
-            <button
-              type="button"
-              disabled={
-                pending ||
-                pendingApproveAll ||
-                (!journalSlotIdFirstHalf && !journalSlotIdSecondHalf)
-              }
-              onClick={approveAllForSelectedJournals}
-              className="inline-flex min-h-9 items-center justify-center gap-2 border border-broadcast bg-broadcast/10 px-3 text-xs font-black uppercase text-broadcast disabled:opacity-50"
-            >
-              <Check className="h-3.5 w-3.5" />
-              {pendingApproveAll ? "Approving…" : "Approve all cards for selected journal(s)"}
-            </button>
-            {approveAllStatus.state !== "idle" ? (
-              <div
-                className={`mt-2 border p-2 text-xs font-bold ${
-                  approveAllStatus.state === "error"
-                    ? "border-red-400/50 bg-red-50 text-red-800"
-                    : approveAllStatus.state === "done"
-                      ? "border-cyanline/40 bg-cyanline/10 text-ink"
-                      : "border-gold/50 bg-gold/10 text-ink"
-                }`}
-                aria-live="polite"
-              >
-                {approveAllStatus.text}
-              </div>
-            ) : null}
           </div>
           <div className="mt-4 border-t border-ink/10 pt-3">
             <button
