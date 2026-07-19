@@ -2,6 +2,7 @@
 
 import {
   CalendarCheck,
+  Check,
   ChevronDown,
   ExternalLink,
   Plus,
@@ -166,6 +167,11 @@ export function DailyCoveragePlanner({
     text: ""
   });
   const [journalScheduleExpanded, setJournalScheduleExpanded] = useState(true);
+  const [pendingApproveAll, setPendingApproveAll] = useState(false);
+  const [approveAllStatus, setApproveAllStatus] = useState<BatchStatus>({
+    state: "idle",
+    text: ""
+  });
   const [pending, startTransition] = useTransition();
   const [customLabel, setCustomLabel] = useState("");
   const [customUrl, setCustomUrl] = useState("");
@@ -559,6 +565,75 @@ export function DailyCoveragePlanner({
     });
   };
 
+  // Bulk-approves every pending_review card for whichever journal(s) are
+  // currently selected in the two 30-minute slot panels above -- added
+  // 2026-07-19 after two real journal broadcasts (British Journal of
+  // Cancer, Blood Cancer Journal) both failed on 0 approved segments while
+  // each journal had a dozen-plus cards sitting unreviewed. Reuses the same
+  // /api/admin/approve route the (unused) human review queue and the
+  // "Discard" button already call -- approves each card's script exactly as
+  // generated, in place (no scheduled-copy, no hour pinning), which is all
+  // journal30's buildJournalShowSlots needs (status: "approved" + matching
+  // citations[0].journalId). Deliberately scoped to only the journals
+  // selected in these two panels, not a global "approve everything
+  // pending" action -- that would skip human review for content the
+  // operator hasn't actually looked at.
+  const approveAllForSelectedJournals = () => {
+    const journalIds = Array.from(
+      new Set([journalSlotIdFirstHalf, journalSlotIdSecondHalf].filter((id): id is string => Boolean(id)))
+    );
+    if (journalIds.length === 0) {
+      setMessage("Select a journal in at least one of the 30-minute slots first.");
+      return;
+    }
+    const candidates = journalIds.flatMap((journalId) =>
+      (journalCardDecks[journalId]?.cards ?? [])
+        .map((card) => card.segment)
+        .filter((segment) => segment.status === "pending_review")
+    );
+    if (candidates.length === 0) {
+      setApproveAllStatus({
+        state: "done",
+        text: "No pending cards to approve for the selected journal(s) — they may already be approved or none have been generated yet."
+      });
+      return;
+    }
+    setPendingApproveAll(true);
+    setApproveAllStatus({
+      state: "creating",
+      text: `Approving ${candidates.length} card${candidates.length === 1 ? "" : "s"}...`
+    });
+    startTransition(async () => {
+      let approved = 0;
+      const failures: string[] = [];
+      for (const segment of candidates) {
+        try {
+          const response = await fetch("/api/admin/approve", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ segmentId: segment.id, action: "approve", script: segment.script })
+          });
+          const payload = await response.json();
+          if (!response.ok || !payload.ok) {
+            failures.push(`${segment.title}: ${errorMessage(payload.error ?? payload.errors, "approval failed")}`);
+            continue;
+          }
+          approved += 1;
+        } catch (error) {
+          failures.push(`${segment.title}: ${errorMessage(error, "approval failed")}`);
+        }
+      }
+      setApproveAllStatus({
+        state: failures.length > 0 && approved === 0 ? "error" : "done",
+        text:
+          `Approved ${approved} of ${candidates.length} card${candidates.length === 1 ? "" : "s"}.` +
+          (failures.length > 0 ? ` ${failures.length} failed: ${failures.slice(0, 3).join("; ")}` : "")
+      });
+      setPendingApproveAll(false);
+      router.refresh();
+    });
+  };
+
   const save = () => {
     setMessage("");
     startTransition(async () => {
@@ -832,6 +907,35 @@ export function DailyCoveragePlanner({
                 ) : null}
               </div>
             ))}
+          </div>
+          <div className="mt-3">
+            <button
+              type="button"
+              disabled={
+                pending ||
+                pendingApproveAll ||
+                (!journalSlotIdFirstHalf && !journalSlotIdSecondHalf)
+              }
+              onClick={approveAllForSelectedJournals}
+              className="inline-flex min-h-9 items-center justify-center gap-2 border border-broadcast bg-broadcast/10 px-3 text-xs font-black uppercase text-broadcast disabled:opacity-50"
+            >
+              <Check className="h-3.5 w-3.5" />
+              {pendingApproveAll ? "Approving…" : "Approve all cards for selected journal(s)"}
+            </button>
+            {approveAllStatus.state !== "idle" ? (
+              <div
+                className={`mt-2 border p-2 text-xs font-bold ${
+                  approveAllStatus.state === "error"
+                    ? "border-red-400/50 bg-red-50 text-red-800"
+                    : approveAllStatus.state === "done"
+                      ? "border-cyanline/40 bg-cyanline/10 text-ink"
+                      : "border-gold/50 bg-gold/10 text-ink"
+                }`}
+                aria-live="polite"
+              >
+                {approveAllStatus.text}
+              </div>
+            ) : null}
           </div>
           <div className="mt-4 border-t border-ink/10 pt-3">
             <button
