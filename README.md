@@ -258,6 +258,25 @@ embedder.
   ever wanted, but it also rejects any segment it can't re-verify against a
   live PubMed abstract, so treat it as a deliberate, reviewed action, not a
   quick fix).
+- `matchSection`/`sectionValue` (`lib/segments/sectionSummary.ts`) and
+  `sectionText` (`lib/broadcast/voiceSegment.ts`) must require a colon after
+  a section label (`Background:`, `Methods:`, `Results:`, `Discussion:`) —
+  never treat a bare occurrence of one of those words *inside* a sentence as
+  a section boundary. Confirmed live 2026-07-18 on a real card (PMID
+  40729623): the Results text naturally read "...with notable increase for
+  prognostic **discussion** tools (P < .05)" — that stray word was
+  misread as a real "Discussion:" header, truncating Results to its first
+  sentence and fabricating a garbled fake Discussion ("Discussion: tools (P
+  <.05).") from whatever text followed it, instead of the article's real
+  Conclusion. This produced 44 duplicate segment rows for the one article
+  across past runs, all carrying the identical garbled fragment. Fixed by
+  making the colon mandatory in both the label match and the lookahead
+  terminator in both functions — every string either function receives is
+  already normalized to `"Label: text"` before it arrives, so a genuine
+  section header is always colon-terminated and this only removes false
+  positives. Deliberately left `extractSection` in `lib/sources/rss.ts`
+  unchanged — it parses raw scraped journal-webpage HTML where real
+  headings often carry no colon at all, a different risk profile.
 - Narrative reviews, editorials, and commentaries have no real Methods or
   Results to extract. Do not force the four-section template onto these —
   that fabricates a "Results"/"Discussion" label over an arbitrary sentence
@@ -396,6 +415,20 @@ repository. See `public/music/README.md`.
   with `action: "start"` or `"stop"` — no backend change, just two explicit
   entry points instead of one.
 - Inspect YouTube status, video links, workflow links, and delivery errors.
+- The "Weekly ready-card pool" panel (`components/DailyCoveragePlanner.tsx`)
+  is deduplicated by content signature and sorted/grouped alphabetically by
+  journal name, with a visible journal-name badge per card. Fixed
+  2026-07-18: the weekly batch and the one-hour batch can each independently
+  generate their own segment row for the same underlying article (same
+  citation url, different ids) — one real article had 44 duplicate rows,
+  which rendered as repeated identical tiles before this fix. The
+  per-journal/conference deck view (`lib/cardDeck.ts`'s `buildDeck`) gets
+  the same content-signature dedup.
+- `getAdminSnapshot` (`lib/data.ts`) runs its ~20 independent Supabase calls
+  via `Promise.all` instead of one after another, and the "one-hour planning
+  slots" picker only spans 24h back through 48h forward (not a full week) —
+  fixed 2026-07-18 after `/admin` navigation (which is `force-dynamic` and
+  reruns this on every request) was reported very slow.
 
 ### Journal Watch
 
@@ -731,17 +764,21 @@ cards, in groups of 4 with a music break after every group and the
 disclaimer after every 2nd group — fewer, denser silent gaps than the hourly
 format. It runs alongside conference-coverage hours, never replacing them.
 
-Status as of 2026-07-13: Phases A-D (data model, scheduling, render
+Status as of 2026-07-18: Phases A-D (data model, scheduling, render
 integration, admin UI) are built, committed, and verified — including a real
 render exercised via `HOUR_BROADCAST_DRY_RUN=1` and a live admin-UI slot
 creation. Phase E's manual `workflow_dispatch` path (create real broadcast,
-render, stream, verify) is wired and has been exercised via real
-`youtube-stream.yml` dispatches. **The `schedule:` cron has deliberately not
-been switched over to run this format automatically** — it still only fires
-the existing hourly/conference format. Cutting the cron over to
-`15,45 * * * *` and teaching the "Resolve block start time" step to pick up
+render, upload, verify) is wired and has been exercised via many real
+`youtube-stream.yml` dispatches, including multiple journal slots per day.
+**The `schedule:` cron has deliberately not been switched over to run this
+format automatically** — it still only fires the existing hourly/conference
+format; every journal broadcast so far has been started manually via the
+"Start journal broadcast"/"Run now" buttons in the admin's "Journal-only
+broadcasts for this hour" panel. Cutting the cron over to `15,45 * * * *`
+and teaching the "Resolve block start time" step to pick up
 `journal_broadcast_slots` is the last remaining step, intentionally deferred
-until a manual test broadcast completes cleanly end-to-end.
+until the format has run cleanly enough, for long enough, on manual
+dispatch alone.
 
 Key files: `lib/broadcast/journalShowSchedule.ts` (group/music/disclaimer
 constants), `lib/rundown/slots.ts`'s `buildJournalShowSlots` /
@@ -780,18 +817,51 @@ broadcasts through this new path:
 - **Silent post-render write failures with useless error logs.** The first
   fully clean end-to-end journal30 test (video `xh77Aljha6o`) still shipped
   with two gaps: the post-render title/description rebuild never landed
-  (video stayed on its `create-youtube-broadcast.ts` placeholder title), and
-  the segments used in the show never got flipped to `rendered`, leaving
-  them eligible for reuse in a future broadcast. Both writes failed within
-  the same ~2-second window in `scripts/render-hour-broadcast.ts` while
-  every other network call in the same job succeeded — consistent with a
-  transient runner network blip, not a deterministic bug. Root-causing this
-  was slower than it should have been because both catch blocks logged
-  `${error}`/`String(error)` on plain Supabase/fetch error objects, which
-  stringify to `"[object Object]"` instead of anything useful. Fixed by
-  adding a `describeError()` helper that extracts the error's actual
-  fields, and wrapping both writes (both idempotent — safe to repeat) in a
-  short retry via a new `withRetry()` helper.
+  (video stayed on its placeholder title), and the segments used in the show
+  never got flipped to `rendered`, leaving them eligible for reuse in a
+  future broadcast. Both writes failed within the same ~2-second window in
+  `scripts/render-hour-broadcast.ts` while every other network call in the
+  same job succeeded — consistent with a transient runner network blip, not
+  a deterministic bug. Root-causing this was slower than it should have
+  been because both catch blocks logged `${error}`/`String(error)` on plain
+  Supabase/fetch error objects, which stringify to `"[object Object]"`
+  instead of anything useful. Fixed by adding a `describeError()` helper
+  that extracts the error's actual fields, and wrapping both writes (both
+  idempotent — safe to repeat) in a short retry via a new `withRetry()`
+  helper.
+- **A journal with zero approved segments at render time still rendered and
+  uploaded a near-silent video.** Confirmed live 2026-07-17 (video
+  `YnGo-ddNYv0`): `main()` in `scripts/render-hour-broadcast.ts` had no
+  check for "0 content cards scheduled" — it rendered and uploaded
+  regardless, so a journal with nothing approved yet produced a
+  30-minute video that was just the opening gap-clip stinger followed by
+  music, with the generic fallback YouTube title (since title-building also
+  requires `usedSegmentIds.length > 0`). Fixed by checking
+  `cards.filter(c => !c.isMusic).length === 0` right after building the
+  card list — on zero content cards it now aborts *before* the expensive
+  ffmpeg render, writes `youtube_status: "failed"` with a specific
+  `deliveryError` ("No approved segments were available for this journal at
+  render time...") directly to the slot, and exits non-zero. This check
+  applies to both the journal30 and the 60-minute hourly path (whichever
+  produced zero content cards), not just journal shows.
+- **A journal with SOME but not enough approved segments went completely
+  silent partway through with no explanation.** A different failure mode
+  from the zero-content case above: confirmed live 2026-07-17 (video
+  `JSI7ZF34nF0`) with 11 approved segments (a full show needs ~20-24) —
+  `buildJournalShowSlots` narrated all 11 across ~14 minutes, then stopped
+  scheduling entirely (its loop exits the moment segments run out, without
+  finishing the remaining groups' music breaks), and
+  `enforceOneHourFrame`'s existing pad-to-30-minutes behavior filled the
+  rest with one uninterrupted ~15-minute music-only block. That padding
+  itself is by design (see `lib/broadcast/journalShowSchedule.ts`'s own
+  comment); the bug was that nothing told the listener the segment had
+  ended. Fixed by having `buildJournalShowSlots` append a short (12s)
+  spoken sign-off card — "That wraps up this segment of ConferenceHype's
+  coverage. We'll be back with more source-attributed updates soon — stay
+  with us." — right before handing off to the trailing music, whenever at
+  least one real card was narrated but the show ran out of content before
+  completing all `JOURNAL_GROUPS_PER_SHOW` groups. A fully-stocked show is
+  unaffected.
 
 ## Automation Cadence
 
