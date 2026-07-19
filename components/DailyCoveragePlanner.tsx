@@ -260,14 +260,23 @@ export function DailyCoveragePlanner({
     );
   }, [hasAnySelection, selectedConferences, selectedJournals, realSourceIds]);
 
-  // sortWeeklyReadySegmentsForSelection picks *which* 24 cards are most
-  // relevant (this week + real content over stale/announcement filler) --
-  // keep that for selection, then re-sort the chosen set by journal name so
-  // cards from the same journal cluster together for review, instead of
-  // interleaving by creation time. Non-journal cards (conference/source
-  // content with no citations[0].journalId) sort after all named journals,
-  // grouped together under "Other" rather than scattered by name lookup
-  // misses.
+  // sortWeeklyReadySegmentsForSelection ranks cards by relevance (this week
+  // + real content over stale/announcement filler) -- keep that ranking,
+  // then re-sort by journal name so cards from the same journal cluster
+  // together for review, instead of interleaving by creation time.
+  // Non-journal cards (conference/source content with no
+  // citations[0].journalId) sort after all named journals, grouped under
+  // "Other" rather than scattered by name lookup misses.
+  //
+  // Cap raised from 24 to 300 (2026-07-19): there's no per-journal filter
+  // in this panel -- `selectedJournals` above is just every *enabled*
+  // journal, not an operator-narrowable subset -- so a flat top-24 cut
+  // across every journal combined could (and did, confirmed live) exclude
+  // a journal's cards entirely whenever other journals' content happened
+  // to rank higher, with no way to reach them. This is a pure review/
+  // browse list, not anything broadcast-facing, so a much higher cap (the
+  // page just grows, no special layout constraint needs exactly 24) is
+  // safe and guarantees every journal's pending cards are reachable here.
   const matchingWeeklyReadySegments = dedupeByContentSignature(
     sortWeeklyReadySegmentsForSelection(initialReadySegments, {
       conferences: selectedConferences,
@@ -275,7 +284,7 @@ export function DailyCoveragePlanner({
       sourceIds: realSourceIds
     })
   )
-    .slice(0, 24)
+    .slice(0, 300)
     .map((segment, index) => ({ segment, index }))
     .sort((a, b) => {
       const aName = journalsById.get(a.segment.citations[0]?.journalId ?? "")?.name;
