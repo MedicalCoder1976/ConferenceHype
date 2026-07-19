@@ -8,6 +8,7 @@ import {
 import { filterBroadcastReadySegments } from "@/lib/data";
 import { validateSegmentForApproval } from "@/lib/generation/validator";
 import { contentSignature } from "@/lib/segments/contentSignature";
+import { errorMessage } from "@/lib/errors";
 
 // Bulk-releases every pending_review segment that has not been broadcast
 // (no approved or rendered sibling citing the same source) into the
@@ -84,6 +85,10 @@ export async function POST(request: NextRequest) {
       rejectedSamples: rejected.slice(0, 5)
     });
   } catch (error) {
-    return NextResponse.json({ ok: false, error: String(error) }, { status: 400 });
+    // A plain PostgrestError object stringifies to "[object Object]" via
+    // String(error) -- confirmed live 2026-07-19 when a too-long .in()
+    // filter URL produced an unhelpful "Bad Request" with no other detail
+    // in the response. errorMessage() extracts the real message/details.
+    return NextResponse.json({ ok: false, error: errorMessage(error, "Release failed.") }, { status: 400 });
   }
 }

@@ -604,24 +604,37 @@ export async function getAllApprovedOrRenderedSegmentsFromDb() {
   return [...approved, ...rendered];
 }
 
-// Bulk in-place approval -- one UPDATE for every id, versus N individual
+// Bulk in-place approval -- batched UPDATEs instead of N individual
 // read-then-update round trips (updateSegmentDecisionInDb's pattern, fine
 // for a single manual approve click, far too slow for a few hundred cards
 // at once). Callers are responsible for validating each segment first
 // (validateSegmentForApproval) -- this function trusts the id list it's
 // given and doesn't re-check anything.
+//
+// PostgREST's .in() filter is serialized into the request URL's query
+// string regardless of HTTP method (PATCH included) -- confirmed live
+// 2026-07-19: a single .in("id", ids) call with 676 UUIDs produced a
+// bare "Bad Request" with no other detail (the URL exceeded a length
+// limit). Batches into chunks of 150 ids (~5.5KB of UUIDs per request,
+// comfortably under any reasonable URL length cap) and issues one UPDATE
+// per batch instead of one UPDATE for the whole list.
+const BULK_APPROVE_BATCH_SIZE = 150;
+
 export async function bulkApproveSegmentsInDb(segmentIds: string[]) {
   if (!hasSupabase() || segmentIds.length === 0) {
     return null;
   }
   const supabase = createAdminClient();
   const now = new Date().toISOString();
-  const { error } = await supabase
-    .from("segments")
-    .update({ status: "approved", approved_at: now, updated_at: now })
-    .in("id", segmentIds);
-  if (error) {
-    throw error;
+  for (let offset = 0; offset < segmentIds.length; offset += BULK_APPROVE_BATCH_SIZE) {
+    const batch = segmentIds.slice(offset, offset + BULK_APPROVE_BATCH_SIZE);
+    const { error } = await supabase
+      .from("segments")
+      .update({ status: "approved", approved_at: now, updated_at: now })
+      .in("id", batch);
+    if (error) {
+      throw error;
+    }
   }
   return segmentIds.length;
 }
