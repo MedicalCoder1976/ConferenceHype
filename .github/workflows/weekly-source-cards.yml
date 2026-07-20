@@ -140,3 +140,11 @@ jobs:
           JOURNAL_CARD_V2_SHADOW: "true"
           JOURNAL_CARD_V2_CREATE_PENDING: "true"
           JOURNAL_CARD_V2_LOOKBACK_DAYS: "14"
+      - name: Finalize interrupted journal state
+        if: ${{ always() }}
+        run: npm run job:journal-card-v2:finalize
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          JOURNAL_CARD_V2_FINALIZE_REASON: "Journal card workflow ended before journal completion"

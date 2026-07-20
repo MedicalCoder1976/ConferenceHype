@@ -67,7 +67,7 @@ export default async function JournalArticlesPage() {
         {error ? <div className="mt-6 border border-red-300 bg-red-50 p-4 text-sm font-bold text-red-800">Ledger unavailable: {error}. Apply the journal article ledger migration before running shadow inventory.</div> : null}
         <section className="mt-8 overflow-x-auto border border-ink/10 bg-white shadow-panel">
           <table className="min-w-full text-left text-sm">
-            <thead className="bg-ink text-white"><tr>{["Journal","Status","Found","Eligible","Created","Awaiting","Excluded","Last complete"].map((label) => <th key={label} className="px-3 py-3 font-black">{label}</th>)}</tr></thead>
+            <thead className="bg-ink text-white"><tr>{["Journal","Status","Found","Eligible","Created this run","Awaiting","Excluded","Last complete"].map((label) => <th key={label} className="px-3 py-3 font-black">{label}</th>)}</tr></thead>
             <tbody>{states.map((state: SyncStateRow) => <tr key={state.journal_id} className="border-t border-ink/10"><td className="px-3 py-3 font-bold">{journalName(state.oncology_journals) ?? state.journal_id}</td><td className="px-3 py-3">{state.status}</td><td className="px-3 py-3">{state.articles_found}</td><td className="px-3 py-3">{state.cards_eligible}</td><td className="px-3 py-3">{state.cards_created}</td><td className="px-3 py-3">{state.awaiting_abstract}</td><td className="px-3 py-3">{state.excluded}</td><td className="px-3 py-3">{state.last_completed_at ? new Date(state.last_completed_at).toLocaleString() : "—"}</td></tr>)}</tbody>
           </table>
         </section>

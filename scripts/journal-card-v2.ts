@@ -1,9 +1,10 @@
 import { loadEnvConfig } from "@next/env";
 import { createHash } from "node:crypto";
+import { appendFileSync } from "node:fs";
 import { fetchCompletePubMedJournalInventory, fetchPubMedArticlesByIds } from "@/lib/sources/pubmed";
 import { fetchRssSource } from "@/lib/sources/rss";
 import { buildDeterministicJournalCard } from "@/lib/journalCardsV2/builder";
-import { classifyJournalArticle, validateJournalCardCopy } from "@/lib/journalCardsV2/quality";
+import { classifyJournalArticle, resolveJournalArticleLedgerStatus, validateJournalCardCopy } from "@/lib/journalCardsV2/quality";
 import type { OncologyJournal, Segment } from "@/lib/types";
 
 loadEnvConfig(process.cwd());
@@ -289,14 +290,15 @@ async function processJournal(journal: OncologyJournal, since: string) {
     const rows = articles.map((article) => {
       const eligibility = classifyJournalArticle(article);
       const existing = existingByPmid.get(article.pmid);
-      const protectedStatus = existing?.card_segment_id
-        ? "card_created"
-        : existing?.eligibility_status === "operator_rejected"
-          ? "operator_rejected"
-          : eligibility.status;
       const shadowCandidate = eligibility.status === "eligible"
         ? buildDeterministicJournalCard({ article, journal })
         : null;
+      const protectedStatus = resolveJournalArticleLedgerStatus({
+        sourceStatus: eligibility.status,
+        existingStatus: existing?.eligibility_status,
+        hasLinkedCard: Boolean(existing?.card_segment_id),
+        candidateQualityPassed: shadowCandidate?.quality.passed
+      });
       return {
         journal_id: journal.id,
         pmid: article.pmid,
@@ -325,10 +327,11 @@ async function processJournal(journal: OncologyJournal, since: string) {
     const rss = await reconcilePublisherFeed({ journal, pubmedArticles: articles });
 
     let cardsCreated = 0;
-    let qualityFailed = rows.filter((row) => {
+    const candidateQualityFailed = rows.filter((row) => {
       const report = row.quality_report as { passed?: boolean };
       return typeof report?.passed === "boolean" && !report.passed;
     }).length;
+    let qualityFailed = createPending ? 0 : candidateQualityFailed;
     if (createPending) {
       const { data: ledgerRows, error: ledgerError } = await supabase
         .from("journal_articles")
@@ -415,8 +418,72 @@ async function processJournal(journal: OncologyJournal, since: string) {
   }
 }
 
+async function finalizeInterruptedJournalSync(reason: string) {
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("journal_article_sync_state")
+    .update({
+      status: "failed",
+      error_message: reason,
+      updated_at: new Date().toISOString()
+    })
+    .eq("status", "running");
+  if (error) console.error("Could not finalize interrupted journal sync state:", error.message);
+}
+
+function installInterruptionCleanup() {
+  const handle = (signal: NodeJS.Signals) => {
+    void finalizeInterruptedJournalSync("Journal card inventory interrupted by " + signal)
+      .finally(() => process.exit(128 + (signal === "SIGINT" ? 2 : 15)));
+  };
+  process.once("SIGINT", handle);
+  process.once("SIGTERM", handle);
+}
+
+function writeGitHubSummary(summary: {
+  shadow: boolean;
+  results: Array<{ articles: number; cardsCreated: number; qualityFailed: number; rssWarning?: string | null }>;
+  failures: Array<{ journal: string; error: string }>;
+  rssWarnings: Array<{ journal: string; rssWarning?: string | null }>;
+}) {
+  const path = process.env.GITHUB_STEP_SUMMARY;
+  if (!path) return;
+  const total = (key: "articles" | "cardsCreated" | "qualityFailed") =>
+    summary.results.reduce((sum, result) => sum + result[key], 0);
+  const warningRows = summary.rssWarnings.length
+    ? summary.rssWarnings.map((result) => "| " + result.journal + " | " + String(result.rssWarning).replace(/\|/g, "\\|") + " |").join("\n")
+    : "| None | None |";
+  const failureRows = summary.failures.length
+    ? summary.failures.map((failure) => "| " + failure.journal + " | " + failure.error.replace(/\|/g, "\\|") + " |").join("\n")
+    : "| None | None |";
+  appendFileSync(path, [
+    "## Journal card V2 result",
+    "",
+    "- Mode: " + (summary.shadow ? "shadow inventory" : "create pending-review cards"),
+    "- Journals processed: " + summary.results.length,
+    "- PubMed articles found: " + total("articles"),
+    "- Cards created: " + total("cardsCreated"),
+    "- Quality failures: " + total("qualityFailed"),
+    "- RSS warnings: " + summary.rssWarnings.length,
+    "- Journal failures: " + summary.failures.length,
+    "",
+    "### Supplemental RSS warnings",
+    "",
+    "| Journal | Warning |",
+    "| --- | --- |",
+    warningRows,
+    "",
+    "### Processing failures",
+    "",
+    "| Journal | Error |",
+    "| --- | --- |",
+    failureRows,
+    ""
+  ].join("\n"));
+}
 async function main() {
   await loadDependencies();
+  installInterruptionCleanup();
   if (!enabled) {
     console.log(JSON.stringify({ ok: true, skipped: true, reason: "JOURNAL_CARD_V2_SHADOW is not true" }));
     return;
@@ -434,7 +501,13 @@ async function main() {
     }
   }
   const linkedExisting = await linkExistingCards();
-  console.log(JSON.stringify({ ok: failures.length === 0, shadow: !createPending, since, linkedExisting, results, failures }, null, 2));
+  const rssWarnings = results.filter((result) => result.rssWarning);
+  const summary = { ok: failures.length === 0, shadow: !createPending, since, linkedExisting, results, failures, rssWarnings };
+  writeGitHubSummary(summary);
+  if (rssWarnings.length) {
+    console.log("::warning title=RSS supplemental-source warnings::" + rssWarnings.length + " journal RSS feeds were unavailable; PubMed processing completed. See the job summary.");
+  }
+  console.log(JSON.stringify(summary, null, 2));
   if (failures.length) process.exitCode = 1;
 }
 

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { classifyJournalArticle, validateJournalCardCopy } from "@/lib/journalCardsV2/quality";
+import { classifyJournalArticle, resolveJournalArticleLedgerStatus, validateJournalCardCopy } from "@/lib/journalCardsV2/quality";
 import { buildDeterministicJournalCard } from "@/lib/journalCardsV2/builder";
 import { oncologyJournalSeeds } from "@/lib/catalog/oncologyJournalSeeds";
 import type { OncologyJournal } from "@/lib/types";
@@ -49,6 +49,23 @@ assert.match(duplicated.errors.join(" "), /duplicated/i);
 
 assert.equal(classifyJournalArticle({ ...article, abstract: "" }).status, "awaiting_abstract");
 assert.equal(classifyJournalArticle({ ...article, publicationTypes: ["Published Erratum"] }).status, "excluded_erratum");
+assert.equal(resolveJournalArticleLedgerStatus({
+  sourceStatus: "eligible",
+  existingStatus: "quality_failed",
+  hasLinkedCard: false,
+  candidateQualityPassed: false
+}), "quality_failed");
+assert.equal(resolveJournalArticleLedgerStatus({
+  sourceStatus: "awaiting_abstract",
+  existingStatus: "quality_failed",
+  hasLinkedCard: false
+}), "awaiting_abstract");
+assert.equal(resolveJournalArticleLedgerStatus({
+  sourceStatus: "eligible",
+  existingStatus: "operator_rejected",
+  hasLinkedCard: false,
+  candidateQualityPassed: true
+}), "operator_rejected");
 assert.equal(new Set(oncologyJournalSeeds.map((item) => item.rssUrl)).size, oncologyJournalSeeds.length);
 for (const required of ["Blood", "Circulation", "Journal of the American College of Cardiology", "Gastroenterology", "Radiology", "Pediatrics", "Annals of Surgery"]) {
   assert.ok(oncologyJournalSeeds.some((item) => item.name === required), `${required} must be in the journal catalog`);

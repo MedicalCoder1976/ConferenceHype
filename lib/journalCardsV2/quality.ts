@@ -18,6 +18,22 @@ export type JournalCardQualityReport = {
   checks: Record<string, "pass" | "fail" | "not_applicable">;
 };
 
+export function resolveJournalArticleLedgerStatus({
+  sourceStatus,
+  existingStatus,
+  hasLinkedCard,
+  candidateQualityPassed
+}: {
+  sourceStatus: JournalArticleEligibility["status"];
+  existingStatus?: string | null;
+  hasLinkedCard: boolean;
+  candidateQualityPassed?: boolean;
+}) {
+  if (hasLinkedCard) return "card_created";
+  if (existingStatus === "operator_rejected") return "operator_rejected";
+  if (sourceStatus === "eligible" && candidateQualityPassed === false) return "quality_failed";
+  return sourceStatus;
+}
 const exclusionType = (types: string[], pattern: RegExp) =>
   types.some((type) => pattern.test(type));
 
