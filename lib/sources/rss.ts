@@ -168,7 +168,8 @@ async function fetchRssText(url: string, sourceName: string) {
         ...(cookie ? { Cookie: cookie } : {})
       },
       redirect: "manual",
-      next: { revalidate: 900 }
+      next: { revalidate: 900 },
+      signal: AbortSignal.timeout(30_000)
     });
 
     for (const setCookie of responseSetCookies(response.headers)) {
@@ -210,7 +211,10 @@ async function fetchRssText(url: string, sourceName: string) {
   throw new Error(`RSS fetch failed for ${sourceName}: too many redirects.`);
 }
 
-export async function fetchRssSource(source: SourceConfig): Promise<IngestedItem[]> {
+export async function fetchRssSource(
+  source: SourceConfig,
+  options: { enrichJournalAbstract?: boolean } = {}
+): Promise<IngestedItem[]> {
   const xml = await fetchRssText(source.url, source.name);
   const parsed = parser.parse(xml);
   const rawItems =
@@ -240,7 +244,7 @@ export async function fetchRssSource(source: SourceConfig): Promise<IngestedItem
         item["content:encoded"] ??
         ""
       );
-      const articleAbstract = isJournalSource(source)
+      const articleAbstract = options.enrichJournalAbstract !== false && isJournalSource(source)
         ? (await fetchPubMedAbstract({ title: scalar(item.title || ""), url }))?.abstract ??
           await fetchJournalArticleAbstract(url)
         : "";

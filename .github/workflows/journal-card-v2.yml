@@ -1,0 +1,45 @@
+name: Journal card V2 inventory
+
+concurrency:
+  group: journal-card-v2-production
+  cancel-in-progress: false
+
+on:
+  workflow_dispatch:
+    inputs:
+      journal_id:
+        description: "Optional single journal UUID for a canary run"
+        required: false
+        type: string
+      lookback_days:
+        description: "PubMed publication-date lookback"
+        required: true
+        default: "14"
+        type: string
+      create_pending_cards:
+        description: "Create quality-passed pending-review cards (leave false for shadow inventory)"
+        required: true
+        default: false
+        type: boolean
+
+jobs:
+  journal-card-v2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run test:journal-card-v2
+      - run: npm run job:journal-card-v2
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          JOURNAL_CARD_V2_SHADOW: "true"
+          JOURNAL_CARD_V2_CREATE_PENDING: ${{ inputs.create_pending_cards && 'true' || 'false' }}
+          JOURNAL_CARD_V2_JOURNAL_ID: ${{ inputs.journal_id }}
+          JOURNAL_CARD_V2_LOOKBACK_DAYS: ${{ inputs.lookback_days }}

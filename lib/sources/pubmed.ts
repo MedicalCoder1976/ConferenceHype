@@ -77,13 +77,13 @@ async function ncbiFetchSerialized(url: URL): Promise<Response> {
   }
   ncbiLastCallAt = Date.now();
   const headers = { "User-Agent": "ConferenceHypeBot/0.1 PubMed abstract summaries" };
-  const response = await fetch(url, { headers });
+  const response = await fetch(url, { headers, signal: AbortSignal.timeout(30_000) });
   if (response.status !== 429) {
     return response;
   }
   await new Promise((resolve) => setTimeout(resolve, 1000));
   ncbiLastCallAt = Date.now();
-  return fetch(url, { headers });
+  return fetch(url, { headers, signal: AbortSignal.timeout(30_000) });
 }
 
 function scalar(value: unknown): string {
@@ -210,7 +210,7 @@ function articlePubDate(article: Record<string, unknown>) {
   return [year, month, day].filter(Boolean).join(" ");
 }
 
-async function pubmedFetch(ids: string[]) {
+async function pubmedFetch(ids: string[], includeWithoutAbstract = false) {
   if (!ids.length) {
     return [];
   }
@@ -233,15 +233,29 @@ async function pubmedFetch(ids: string[]) {
       const title = articleTitle(article);
       const pmid = clean(scalar(citation.PMID));
       const parts = abstractParts(article);
+      const publicationTypeList = article.PublicationTypeList as Record<string, unknown> | undefined;
+      const rawPublicationTypes = publicationTypeList?.PublicationType;
+      const publicationTypes = (Array.isArray(rawPublicationTypes) ? rawPublicationTypes : rawPublicationTypes ? [rawPublicationTypes] : [])
+        .map((value) => clean(scalar(value)))
+        .filter(Boolean);
+      const pubmedData = entry?.PubmedData as Record<string, unknown> | undefined;
+      const articleIdList = pubmedData?.ArticleIdList as Record<string, unknown> | undefined;
+      const rawArticleIds = articleIdList?.ArticleId;
+      const articleIds = Array.isArray(rawArticleIds) ? rawArticleIds : rawArticleIds ? [rawArticleIds] : [];
+      const doi = articleIds
+        .map((value) => value as Record<string, unknown>)
+        .find((value) => String(value?.IdType ?? "").toLowerCase() === "doi");
       return {
         pmid,
+        doi: doi ? clean(scalar(doi)) : "",
         title,
         abstract: parts.join(" "),
+        publicationTypes,
         url: pmid ? `https://pubmed.ncbi.nlm.nih.gov/${pmid}/` : "",
         publishedAt: articlePubDate(article)
       };
     })
-    .filter((entry) => entry.pmid && entry.abstract);
+    .filter((entry) => entry.pmid && (includeWithoutAbstract || entry.abstract));
 }
 
 // Direct journal lookup, used as a fallback when a journal's own RSS feed
@@ -271,6 +285,81 @@ async function pubmedSearchByJournal(journalName: string, retmax: number) {
   return payload.esearchresult?.idlist ?? [];
 }
 
+export type PubMedJournalArticle = {
+  pmid: string;
+  doi: string;
+  title: string;
+  abstract: string;
+  publicationTypes: string[];
+  url: string;
+  publishedAt?: string;
+};
+
+async function pubmedSearchJournalPage({
+  journalName,
+  retstart,
+  retmax,
+  since
+}: {
+  journalName: string;
+  retstart: number;
+  retmax: number;
+  since?: string;
+}) {
+  const url = new URL("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi");
+  url.searchParams.set("db", "pubmed");
+  url.searchParams.set("retmode", "json");
+  url.searchParams.set("retstart", String(retstart));
+  url.searchParams.set("retmax", String(retmax));
+  url.searchParams.set("sort", "pub+date");
+  url.searchParams.set("term", `"${clean(journalName)}"[Journal]`);
+  if (since) {
+    url.searchParams.set("datetype", "pdat");
+    url.searchParams.set("mindate", since.replace(/-/g, "/"));
+    url.searchParams.set("maxdate", new Date().toISOString().slice(0, 10).replace(/-/g, "/"));
+  }
+  const response = await ncbiFetch(url);
+  if (!response.ok) {
+    throw new Error(`PubMed journal search failed with ${response.status}`);
+  }
+  const payload = (await response.json()) as {
+    esearchresult?: { idlist?: string[]; count?: string };
+  };
+  return {
+    ids: payload.esearchresult?.idlist ?? [],
+    count: Number(payload.esearchresult?.count ?? 0)
+  };
+}
+
+export async function fetchPubMedArticlesByIds(ids: string[]): Promise<PubMedJournalArticle[]> {
+  const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
+  const articles: PubMedJournalArticle[] = [];
+  for (let index = 0; index < uniqueIds.length; index += 100) {
+    articles.push(...await pubmedFetch(uniqueIds.slice(index, index + 100), true) as PubMedJournalArticle[]);
+  }
+  return articles;
+}
+export async function fetchCompletePubMedJournalInventory({
+  journalName,
+  since,
+  pageSize = 100,
+  maxPages = 100
+}: {
+  journalName: string;
+  since?: string;
+  pageSize?: number;
+  maxPages?: number;
+}): Promise<PubMedJournalArticle[]> {
+  const articles: PubMedJournalArticle[] = [];
+  for (let page = 0; page < maxPages; page += 1) {
+    const retstart = page * pageSize;
+    const search = await pubmedSearchJournalPage({ journalName, retstart, retmax: pageSize, since });
+    if (search.ids.length === 0) break;
+    articles.push(...(await pubmedFetch(search.ids, true)) as PubMedJournalArticle[]);
+    if (retstart + search.ids.length >= search.count) break;
+  }
+  return Array.from(new Map(articles.map((article) => [article.pmid, article])).values());
+}
 export async function fetchPubMedArticlesForJournal(journalName: string, retmax = 15) {
   try {
     const ids = await pubmedSearchByJournal(journalName, retmax);

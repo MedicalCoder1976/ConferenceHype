@@ -160,6 +160,21 @@ export async function runIngestionJob(
       ) {
         return fetchEhaSource(source);
       }
+      // Some flagship journals do not expose a stable publisher RSS endpoint.
+      // Their catalog entry uses an explicit PubMed [Journal] query URL so the
+      // existing ingestion path still receives authoritative abstracts without
+      // falling through to page scraping or X. This remains serialized and
+      // rate-limited by lib/sources/pubmed.ts.
+      if (source.url.includes("pubmed.ncbi.nlm.nih.gov/") && journalById.has(source.id)) {
+        const journal = journalById.get(source.id)!;
+        const articles = await fetchPubMedArticlesForJournal(journal.name);
+        return pubmedArticlesToIngestedItems(articles, {
+          sourceId: source.id,
+          sourceName: source.name,
+          sourceType: source.type,
+          rank: source.rank
+        });
+      }
       if (isRssSource(source)) {
         try {
           return await fetchRssSource(source);

@@ -7,10 +7,6 @@ on:
         description: "Cards to pre-generate per enabled conference and news source"
         required: true
         default: "8"
-      journal_cards_per_source:
-        description: "Richer per-journal card budget (still template-only, no LLM cost)"
-        required: true
-        default: "16"
       scope:
         description: "Which entity types to generate cards for"
         required: true
@@ -22,15 +18,14 @@ on:
           - conferences
           - newspapers
   schedule:
-    # Low-cost weekly pre-generation of ready-card candidates for every enabled
-    # conference, journal RSS feed, and clinical news/newspaper source.
     - cron: "20 9 * * 0"
 
 permissions:
   contents: read
 
 jobs:
-  weekly-source-cards:
+  weekly-non-journal-cards:
+    if: ${{ github.event_name == 'schedule' || inputs.scope != 'journals' }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -40,46 +35,108 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Generate weekly ready-card pool
-        id: generate_weekly_cards
+      - name: Generate conference ready-card pool
+        id: generate_conference_cards
         continue-on-error: true
+        if: ${{ github.event_name == 'schedule' || inputs.scope == 'all' || inputs.scope == 'conferences' }}
         run: npm run job:weekly-source-cards
         env:
           WEEKLY_SOURCE_CARDS_PER_SOURCE: ${{ inputs.cards_per_source || '8' }}
-          WEEKLY_JOURNAL_CARDS_PER_SOURCE: ${{ inputs.journal_cards_per_source || '16' }}
-          WEEKLY_SOURCE_SCOPE: ${{ inputs.scope || 'all' }}
+          WEEKLY_SOURCE_SCOPE: conferences
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
-
-      - name: Verify weekly ready-card pool
-        id: verify_weekly_cards
+      - name: Verify conference ready-card pool
+        id: verify_conference_cards
         continue-on-error: true
+        if: ${{ github.event_name == 'schedule' || inputs.scope == 'all' || inputs.scope == 'conferences' }}
         run: npm run test:weekly-source-cards
         env:
-          WEEKLY_SOURCE_SCOPE: ${{ inputs.scope || 'all' }}
+          WEEKLY_SOURCE_SCOPE: conferences
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-
-      - name: Repair missing weekly ready cards
-        if: ${{ steps.generate_weekly_cards.outcome == 'failure' || steps.verify_weekly_cards.outcome == 'failure' }}
+      - name: Repair conference ready-card pool
+        if: ${{ steps.generate_conference_cards.outcome == 'failure' || steps.verify_conference_cards.outcome == 'failure' }}
         run: npm run job:weekly-source-cards
         env:
           WEEKLY_SOURCE_CARDS_PER_SOURCE: ${{ inputs.cards_per_source || '8' }}
-          WEEKLY_JOURNAL_CARDS_PER_SOURCE: ${{ inputs.journal_cards_per_source || '16' }}
-          WEEKLY_SOURCE_SCOPE: ${{ inputs.scope || 'all' }}
+          WEEKLY_SOURCE_SCOPE: conferences
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
-
-      - name: Verify weekly ready-card pool after repair
-        if: ${{ steps.generate_weekly_cards.outcome == 'failure' || steps.verify_weekly_cards.outcome == 'failure' }}
+      - name: Verify conference ready-card pool after repair
+        if: ${{ steps.generate_conference_cards.outcome == 'failure' || steps.verify_conference_cards.outcome == 'failure' }}
         run: npm run test:weekly-source-cards
         env:
-          WEEKLY_SOURCE_SCOPE: ${{ inputs.scope || 'all' }}
+          WEEKLY_SOURCE_SCOPE: conferences
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      - name: Generate news ready-card pool
+        id: generate_news_cards
+        continue-on-error: true
+        if: ${{ github.event_name == 'schedule' || inputs.scope == 'all' || inputs.scope == 'newspapers' }}
+        run: npm run job:weekly-source-cards
+        env:
+          WEEKLY_SOURCE_CARDS_PER_SOURCE: ${{ inputs.cards_per_source || '8' }}
+          WEEKLY_SOURCE_SCOPE: newspapers
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
+      - name: Verify news ready-card pool
+        id: verify_news_cards
+        continue-on-error: true
+        if: ${{ github.event_name == 'schedule' || inputs.scope == 'all' || inputs.scope == 'newspapers' }}
+        run: npm run test:weekly-source-cards
+        env:
+          WEEKLY_SOURCE_SCOPE: newspapers
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      - name: Repair news ready-card pool
+        if: ${{ steps.generate_news_cards.outcome == 'failure' || steps.verify_news_cards.outcome == 'failure' }}
+        run: npm run job:weekly-source-cards
+        env:
+          WEEKLY_SOURCE_CARDS_PER_SOURCE: ${{ inputs.cards_per_source || '8' }}
+          WEEKLY_SOURCE_SCOPE: newspapers
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
+      - name: Verify news ready-card pool after repair
+        if: ${{ steps.generate_news_cards.outcome == 'failure' || steps.verify_news_cards.outcome == 'failure' }}
+        run: npm run test:weekly-source-cards
+        env:
+          WEEKLY_SOURCE_SCOPE: newspapers
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+  weekly-journal-cards:
+    if: ${{ github.event_name == 'schedule' || inputs.scope == 'all' || inputs.scope == 'journals' }}
+    concurrency:
+      group: journal-card-v2-production
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run test:journal-card-v2
+      - name: Inventory PubMed, reconcile RSS, and create complete pending-review cards
+        run: npm run job:journal-card-v2
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          JOURNAL_CARD_V2_SHADOW: "true"
+          JOURNAL_CARD_V2_CREATE_PENDING: "true"
+          JOURNAL_CARD_V2_LOOKBACK_DAYS: "14"

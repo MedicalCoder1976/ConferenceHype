@@ -668,5 +668,31 @@ export const oncologyJournalSeeds: JournalSeed[] = [
     rssUrl: "https://jamanetwork.com/rss/site_17/73.xml",
     officialUrl: "https://jamanetwork.com/journals/jamaophthalmology",
     specialty: "Others"
-  }
+  },
+  // Major PubMed-indexed flagship journals without a dependable publisher
+  // feed in the current catalog. Their rssUrl intentionally points to an
+  // exact PubMed [Journal] query; lib/jobs/ingest.ts recognizes these entries
+  // and uses the serialized PubMed client instead of scraping the page.
+  { name: "Blood", abbreviation: "Blood", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Blood%22%5BJournal%5D", officialUrl: "https://ashpublications.org/blood", specialty: "Hematology" },
+  { name: "Circulation", abbreviation: "Circulation", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Circulation%22%5BJournal%5D", officialUrl: "https://www.ahajournals.org/journal/circ", specialty: "Cardiology" },
+  { name: "Journal of the American College of Cardiology", abbreviation: "JACC", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22J+Am+Coll+Cardiol%22%5BJournal%5D", officialUrl: "https://www.jacc.org/", specialty: "Cardiology" },
+  { name: "European Heart Journal", abbreviation: "Eur Heart J", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Eur+Heart+J%22%5BJournal%5D", officialUrl: "https://academic.oup.com/eurheartj", specialty: "Cardiology" },
+  { name: "Gastroenterology", abbreviation: "Gastroenterology", rssUrl: "https://www.gastrojournal.org/current.rss", officialUrl: "https://www.gastrojournal.org/", specialty: "Gastroenterology" },
+  { name: "Hepatology", abbreviation: "Hepatology", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Hepatology%22%5BJournal%5D", officialUrl: "https://journals.lww.com/hep/", specialty: "Gastroenterology" },
+  { name: "Journal of the American Society of Nephrology", abbreviation: "JASN", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22J+Am+Soc+Nephrol%22%5BJournal%5D", officialUrl: "https://journals.lww.com/jasn/", specialty: "Nephrology" },
+  { name: "Clinical Journal of the American Society of Nephrology", abbreviation: "CJASN", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Clin+J+Am+Soc+Nephrol%22%5BJournal%5D", officialUrl: "https://journals.lww.com/cjasn/", specialty: "Nephrology" },
+  { name: "Radiology", abbreviation: "Radiology", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Radiology%22%5BJournal%5D", officialUrl: "https://pubs.rsna.org/journal/radiology", specialty: "Radiology / Radiation Oncology" },
+  { name: "European Radiology", abbreviation: "Eur Radiol", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Eur+Radiol%22%5BJournal%5D", officialUrl: "https://link.springer.com/journal/330", specialty: "Radiology / Radiation Oncology" },
+  { name: "Pediatrics", abbreviation: "Pediatrics", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Pediatrics%22%5BJournal%5D", officialUrl: "https://publications.aap.org/pediatrics", specialty: "Pediatric Oncology / Pediatrics" },
+  { name: "Annals of Surgery", abbreviation: "Ann Surg", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Ann+Surg%22%5BJournal%5D", officialUrl: "https://journals.lww.com/annalsofsurgery/", specialty: "Surgery" },
+  { name: "Obstetrics & Gynecology", abbreviation: "Obstet Gynecol", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Obstet+Gynecol%22%5BJournal%5D", officialUrl: "https://journals.lww.com/greenjournal/", specialty: "ObGyn" },
+  { name: "Arthritis & Rheumatology", abbreviation: "Arthritis Rheumatol", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Arthritis+Rheumatol%22%5BJournal%5D", officialUrl: "https://acrjournals.onlinelibrary.wiley.com/journal/23265205", specialty: "Rheumatology" },
+  { name: "Neurology", abbreviation: "Neurology", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Neurology%22%5BJournal%5D", officialUrl: "https://www.neurology.org/", specialty: "Others" },
+  { name: "BMJ", abbreviation: "BMJ", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22BMJ%22%5BJournal%5D", officialUrl: "https://www.bmj.com/", specialty: "Internal Medicine" },
+  { name: "JAMA Internal Medicine", abbreviation: "JAMA Intern Med", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22JAMA+Intern+Med%22%5BJournal%5D", officialUrl: "https://jamanetwork.com/journals/jamainternalmedicine", specialty: "Internal Medicine" },
+  { name: "The Lancet Neurology", abbreviation: "Lancet Neurol", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Lancet+Neurol%22%5BJournal%5D", officialUrl: "https://www.thelancet.com/journals/laneur/home", specialty: "Others" },
+  { name: "The Lancet Gastroenterology & Hepatology", abbreviation: "Lancet Gastroenterol Hepatol", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Lancet+Gastroenterol+Hepatol%22%5BJournal%5D", officialUrl: "https://www.thelancet.com/journals/langas/home", specialty: "Gastroenterology" },
+  { name: "The Lancet Rheumatology", abbreviation: "Lancet Rheumatol", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Lancet+Rheumatol%22%5BJournal%5D", officialUrl: "https://www.thelancet.com/journals/lanrhe/home", specialty: "Rheumatology" },
+  { name: "Cancer Discovery", abbreviation: "Cancer Discov", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Cancer+Discov%22%5BJournal%5D", officialUrl: "https://aacrjournals.org/cancerdiscovery", specialty: "Oncology" },
+  { name: "Cancer Cell", abbreviation: "Cancer Cell", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Cancer+Cell%22%5BJournal%5D", officialUrl: "https://www.cell.com/cancer-cell/home", specialty: "Oncology" }
 ];

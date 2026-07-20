@@ -6,7 +6,10 @@ function clean(value: string) {
 
 function firstSentence(value: string) {
   const cleaned = clean(value);
-  return cleaned.match(/^(.+?[.!?])\s/)?.[1] ?? cleaned;
+  // Protect common biomedical prose abbreviations so a result such as
+  // "67.3% vs. 51.9%" is not emitted as the broken fragment "67.3% vs.".
+  const protectedText = cleaned.replace(/\b(vs|e\.g|i\.e)\./gi, "$1<period>");
+  return (protectedText.match(/^(.+?[.!?])\s/)?.[1] ?? protectedText).replace(/<period>/g, ".");
 }
 
 function sentenceAt(value: string, index: number) {
@@ -52,7 +55,7 @@ function matchSection(text: string, labels: string[]) {
       // is always colon-terminated -- making the colon mandatory here only
       // rules out false positives, it can't miss a genuine section.
       new RegExp(
-        `\\b${label}\\b\\s*:\\s+([\\s\\S]{20,}?)(?=\\b(?:Background|Purpose|Objective|Importance|Methods|Design|Results|Findings|Discussion|Conclusion|Conclusions)\\b\\s*:|$)`,
+        `\\b${label}\\b\\s*:\\s+([\\s\\S]{20,}?)(?=\\b(?:Background|Purpose|Objectives?|Importance|Materials? and Methods|Methods|Design|Results|Findings|Discussion|Conclusions?)\\b\\s*:|$)`,
         "i"
       )
     )?.[1];
@@ -85,11 +88,11 @@ export function buildRequiredSectionSummary({
   const sourceText = clean(text);
   const topic = titleWithoutBatch(title);
   const background =
-    matchSection(sourceText, ["Background", "Purpose", "Objective", "Importance"]) ||
+    matchSection(sourceText, ["Background", "Purpose", "Objective", "Objectives", "Importance"]) ||
     sentenceAt(sourceText, 0) ||
     `The available ${sourceName} record identifies ${topic} as the article topic.`;
   const methods =
-    matchSection(sourceText, ["Methods", "Design"]) ||
+    matchSection(sourceText, ["Materials and Methods", "Material and Methods", "Methods", "Design"]) ||
     sentenceAt(sourceText, 1) ||
     (/\bphase\s?(?:i|ii|iii|iv|1|2|3|4)|trial|cohort|randomized|study\b/i.test(topic)
       ? `The source record signals a study or trial design; complete methods detail needs PubMed or full-record confirmation before broadcast.`
@@ -119,7 +122,10 @@ export function buildRequiredSectionSummary({
 // actually contains a Methods- or Results-style section label.
 export function hasExplicitClinicalStructure(value: string) {
   const cleaned = clean(value);
-  return Boolean(matchSection(cleaned, ["Methods", "Design"]) || matchSection(cleaned, ["Results", "Findings"]));
+  return Boolean(
+    matchSection(cleaned, ["Materials and Methods", "Material and Methods", "Methods", "Design"]) ||
+      matchSection(cleaned, ["Results", "Findings"])
+  );
 }
 
 export function hasGenericSectionFallback(value: string) {
