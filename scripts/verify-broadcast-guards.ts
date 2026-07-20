@@ -67,6 +67,10 @@ assert.ok(fourthFramed.endsWith(SEGMENT_CLOSE));
 assert.doesNotMatch(framed, /interactive AI commentary only/i);
 assert.equal(applySpokenPronunciations("ASCO 2026 and Ib disease"), "Ask-ho 2026 and one B disease");
 assert.equal(
+  applySpokenPronunciations("Cholangiocarcinoma treatment"),
+  "colangiocarcinoma treatment"
+);
+assert.equal(
   applySpokenPronunciations("ECOG PS 1, PR, CR, pCR, WHO, and NCI data"),
   "EE-kog PS 1, partial response, complete response, pathologic complete response, World Health Organization, and N-C-I data"
 );

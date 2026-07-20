@@ -326,7 +326,7 @@ embedder.
   If a "the same card played twice" report recurs, check for duplicate rows
   sharing a citation URL or script text first, before assuming a scheduling
   bug.
-- Narration style: pronounce `ASCO` as `ASKho`/`Ask-ho`, never as the individual letters A-S-C-O. Pronounce `Ib` and `1b` as `one B`. Pronounce `ECOG` as a word (`EE-kog`), not individual letters. Expand `PR` to "partial response", `CR` to "complete response", `pCR` to "pathologic complete response", and `WHO` to "World Health Organization" when spoken. Spell `NCI` out as individual letters ("N-C-I"). Cancer-staging notation (Roman numeral immediately followed by a letter, e.g. `IA`, `IIA`, `IIIB`, `IVA`) is read as the cardinal number plus the letter — `IA` as "one A", `IIA` as "two A", and so on.
+- Narration style: pronounce `ASCO` as `ASKho`/`Ask-ho`, never as the individual letters A-S-C-O. Pronounce `cholangiocarcinoma` as `COLANGIOCARCINOMA` ("colangio-carcinoma"); the `ch` is a hard `k` sound and must not be read as "cho". Pronounce `Ib` and `1b` as `one B`. Pronounce `ECOG` as a word (`EE-kog`), not individual letters. Expand `PR` to "partial response", `CR` to "complete response", `pCR` to "pathologic complete response", and `WHO` to "World Health Organization" when spoken. Spell `NCI` out as individual letters ("N-C-I"). Cancer-staging notation (Roman numeral immediately followed by a letter, e.g. `IA`, `IIA`, `IIIB`, `IVA`) is read as the cardinal number plus the letter — `IA` as "one A", `IIA` as "two A", and so on.
 - Transition audio rotates through six 20-second tracks:
   four licensed voiced stingers in `public/music/gap-clips` and two generated
   preview tracks in `public/music`.
