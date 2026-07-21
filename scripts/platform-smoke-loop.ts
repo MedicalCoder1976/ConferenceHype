@@ -407,7 +407,7 @@ function githubToken() {
 }
 
 async function githubApi<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const repository = process.env.GITHUB_REPOSITORY ?? "lijosimpson/ConferenceHype";
+  const repository = process.env.GITHUB_REPOSITORY ?? "MedicalCoder1976/ConferenceHype";
   const response = await fetch(`https://api.github.com/repos/${repository}${path}`, {
     ...init,
     headers: {

@@ -11,7 +11,7 @@ loadEnvConfig(process.cwd());
 const PORT = 53682;
 const REDIRECT_URI = `http://localhost:${PORT}/oauth/callback`;
 const SCOPE = "https://www.googleapis.com/auth/youtube";
-const REPO = "lijosimpson/ConferenceHype";
+const REPO = "MedicalCoder1976/ConferenceHype";
 
 function openBrowser(url: string) {
   if (process.platform === "win32") {
