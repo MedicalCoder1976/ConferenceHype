@@ -14,6 +14,7 @@ const envSchema = z.object({
   GITHUB_DISPATCH_TOKEN: z.string().optional(),
   GITHUB_DISPATCH_REPO: z.string().default("lijosimpson/ConferenceHype"),
   ADMIN_SHARED_SECRET: z.string().optional(),
+  JUDGE_ADMIN_SHARED_SECRET: z.string().optional(),
   NEXT_PUBLIC_YOUTUBE_VIDEO_ID: z.string().optional(),
   NEXT_PUBLIC_HLS_URL: z.string().optional()
 });

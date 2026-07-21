@@ -14,7 +14,7 @@ export default function AdminLoginPage() {
       >
         <h1 className="text-3xl font-black text-ink">Operator login</h1>
         <p className="mt-2 text-sm leading-6 text-ink/65">
-          Enter the admin shared secret configured in Vercel or `.env.local`.
+          Enter your operator password or temporary judge access code. Judge access is read-only.
         </p>
         <input type="hidden" name="next" value="/admin" />
         <label htmlFor="admin-secret" className="mt-5 block text-sm font-black uppercase text-ink">

@@ -9,6 +9,7 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test:guards": "tsx scripts/verify-broadcast-guards.ts",
+    "test:admin-access": "tsx scripts/verify-admin-access.ts",
     "test:rss": "tsx scripts/verify-rss-feeds.ts",
     "test:weekly-source-cards": "tsx scripts/verify-weekly-source-cards.ts",
     "test:journal-card-v2": "tsx scripts/verify-journal-card-v2.ts",

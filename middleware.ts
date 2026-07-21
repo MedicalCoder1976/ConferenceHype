@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isAdminPageAccessConfigured, isAdminPageSecretValid } from "@/lib/adminAccess";
 
 export function middleware(request: NextRequest) {
-  const secret = process.env.ADMIN_SHARED_SECRET;
-  if (!secret) {
+  const secrets = {
+    operator: process.env.ADMIN_SHARED_SECRET,
+    judge: process.env.JUDGE_ADMIN_SHARED_SECRET
+  };
+  if (!isAdminPageAccessConfigured(secrets)) {
     return NextResponse.next();
   }
 
@@ -13,7 +17,7 @@ export function middleware(request: NextRequest) {
   }
 
   const cookieSecret = request.cookies.get("conferencehype_admin_secret")?.value;
-  if (cookieSecret === secret) {
+  if (isAdminPageSecretValid(cookieSecret, secrets)) {
     return NextResponse.next();
   }
 

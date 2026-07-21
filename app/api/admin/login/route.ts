@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isAdminPageSecretValid } from "@/lib/adminAccess";
 
 export async function POST(request: NextRequest) {
   const formData = await request.formData();
   const supplied = String(formData.get("secret") ?? "");
   const next = String(formData.get("next") ?? "/admin");
-  const expected = process.env.ADMIN_SHARED_SECRET;
+  const secrets = {
+    operator: process.env.ADMIN_SHARED_SECRET,
+    judge: process.env.JUDGE_ADMIN_SHARED_SECRET
+  };
 
-  if (expected && supplied !== expected) {
+  if (!isAdminPageSecretValid(supplied, secrets)) {
     return NextResponse.redirect(new URL("/admin/login?error=1", request.url), 303);
   }
 
