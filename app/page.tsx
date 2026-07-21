@@ -56,32 +56,22 @@ export default async function Home() {
         </div>
       </section>
 
-      <section className="border-b border-ink/10 bg-white px-4 py-7 sm:px-5 md:px-8">
+      {broadcast.cards.length > 0 ? (
+        <section className="border-b border-ink/10 bg-white px-4 py-7 sm:px-5 md:px-8">
         <div className="mx-auto max-w-7xl">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <div className="text-xs font-black uppercase tracking-wide text-broadcast">
-                {broadcast.source === "writeout"
-                  ? "Cards from this broadcast"
-                  : broadcast.source === "stream_without_writeout"
-                    ? "Rundown unavailable for this video"
-                    : "Next approved cards"}
+                Latest completed program
               </div>
               <h2 className="mt-1 text-2xl font-black text-ink">
-                Broadcast rundown
+                Latest broadcast
               </h2>
             </div>
             <span className="border border-ink/10 bg-paper px-3 py-2 text-xs font-black uppercase text-ink/60">
               {broadcast.cards.length} cards
             </span>
           </div>
-          {broadcast.cards.length === 0 ? (
-            <div className="mt-5 border border-ink/10 bg-paper/60 p-4 text-sm font-bold leading-6 text-ink/65">
-              No card rundown is shown because the current video does not have a matching
-              saved broadcast writeout. This prevents the public page from showing cards
-              from a different broadcast.
-            </div>
-          ) : null}
           <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {broadcast.cards.slice(0, 12).map((card) => (
               <article
@@ -116,7 +106,8 @@ export default async function Home() {
             ))}
           </div>
         </div>
-      </section>
+        </section>
+      ) : null}
 
       <footer className="border-t border-ink/10 bg-ink px-4 py-7 text-white md:px-8">
         <div className="mx-auto max-w-5xl">

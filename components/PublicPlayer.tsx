@@ -48,26 +48,26 @@ export function PublicPlayer({ streamState, currentCard }: Props) {
   const playerHeading = isYoutubeLive
     ? "Live now on YouTube"
     : isYoutubeComplete
-      ? "Rehearsal recording"
+      ? "Latest broadcast"
       : isYoutubeQueued
-        ? "Rehearsal preparing"
+        ? "Latest broadcast"
         : isYoutubeFailed
-          ? "Broadcast start failed"
-        : "Watch on YouTube";
+          ? "Latest broadcast"
+        : "Latest broadcast";
   const playerDescription = isYoutubeLive
     ? "This broadcast is live on YouTube. Open the player directly to watch and listen."
     : isYoutubeComplete
-      ? "This rehearsal has ended. Open the recording on YouTube to review the completed program."
+      ? "Watch the latest completed ConferenceHype broadcast on YouTube."
       : isYoutubeQueued
-        ? "The next rehearsal is being prepared. Its YouTube page is available while rendering finishes."
+        ? "Watch the latest ConferenceHype broadcast on YouTube."
       : isYoutubeFailed
-        ? "The latest broadcast start failed before YouTube went live. The operator desk needs to review the workflow run."
-        : "Open the ConferenceHype YouTube player to watch the latest program.";
+        ? "The latest completed ConferenceHype broadcast will remain available on YouTube."
+        : "Watch the latest ConferenceHype broadcast on YouTube.";
   const youtubeActionLabel = isYoutubeLive
     ? "Open live on YouTube"
     : isYoutubeComplete
-      ? "Watch rehearsal recording"
-      : "Open on YouTube";
+      ? "Watch latest broadcast"
+      : "Watch latest broadcast";
 
   return (
     <div className="overflow-hidden border border-ink/15 bg-white shadow-panel lg:min-h-[520px] xl:min-h-[580px]">
@@ -190,23 +190,23 @@ export function PublicPlayer({ streamState, currentCard }: Props) {
         ) : (
           <>
             <div className="text-xs font-black uppercase tracking-wide text-broadcast">
-              Broadcast status
+              Latest broadcast
             </div>
             <h3 className="mt-1 text-lg font-black leading-tight text-ink md:text-xl xl:text-2xl">
               {isYoutubeComplete
-                ? "Rehearsal completed"
+                ? "Latest broadcast available"
                 : isYoutubeQueued
-                  ? "Preparing the next rehearsal"
+                  ? "Latest broadcast available"
                   : isYoutubeFailed
-                    ? "Broadcast start failed"
-                  : "No live broadcast right now"}
+                    ? "Latest broadcast"
+                  : "Latest broadcast"}
             </h3>
             <p className="mt-2 text-sm leading-6 text-ink/70">
               {isYoutubeComplete
-                ? "The completed rehearsal is available from the YouTube link above."
+                ? "Watch the latest completed program using the YouTube link above."
                 : isYoutubeFailed
-                  ? "The latest YouTube start did not complete. Check the workflow run before trying again."
-                : "Live topic details will appear here when the next broadcast begins."}
+                  ? "The latest completed program remains available on the ConferenceHype YouTube channel."
+                : "Watch the latest program using the YouTube link above."}
             </p>
           </>
         )}
