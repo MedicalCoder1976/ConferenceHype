@@ -996,6 +996,27 @@ const realClinicalCard: Segment = {
 const journalDeckWithReal = buildJournalCardDecks([realClinicalCard], [selectedJournal]);
 assert.equal(journalDeckWithReal[selectedJournal.id]?.total, 1, "Real clinical content must still appear in the journal deck");
 
+const releaseAllRouteSource = readFileSync(
+  path.join(process.cwd(), "app/api/admin/approve/release-all/route.ts"),
+  "utf8"
+);
+assert.match(
+  releaseAllRouteSource,
+  /weeklyPool\.filter\(\(segment\) => !approvedIds\.has\(segment\.id\)\)/,
+  "Release-all must return skipped weekly cards to their source decks"
+);
+assert.match(
+  releaseAllRouteSource,
+  /bulkRemoveSegmentRiskFlagInDb\([\s\S]*WEEKLY_SOURCE_POOL_FLAG/,
+  "Release-all must remove the weekly-pool marker from skipped cards"
+);
+const dbSource = readFileSync(path.join(process.cwd(), "lib/db.ts"), "utf8");
+assert.match(
+  dbSource,
+  /\.eq\("status", "pending_review"\)/,
+  "Returning cards to source decks must not alter non-pending cards"
+);
+
 (async () => {
   const enrichedXPost = await buildPubMedBackedJournalItem(conferenceLinkedXPost, new Set());
   assert.equal(enrichedXPost, conferenceLinkedXPost);

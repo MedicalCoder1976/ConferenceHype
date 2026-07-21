@@ -668,7 +668,9 @@ export function DailyCoveragePlanner({
         setReleaseAllStatus({
           state: "done",
           text:
-            `Approved ${payload.approved} of ${payload.totalPending} pending cards. ` +
+            `Released ${payload.approved} cards to the broadcast queue and returned ` +
+            `${payload.returnedToJournals} skipped weekly cards to their journal decks. ` +
+            `The weekly pool is now clear. Checked ${payload.totalPending} pending cards: ` +
             `${payload.alreadyBroadcastOrQueued} already covered by an approved/rendered sibling, ` +
             `${payload.duplicateWithinPending} duplicate of another pending card, ` +
             `${payload.failedQualityFilter} failed the broadcast-readiness filter, ` +
@@ -1111,8 +1113,8 @@ export function DailyCoveragePlanner({
                 : "Release all ready cards to rebroadcast queue"}
             </button>
             <p className="mt-1 text-[11px] font-bold uppercase leading-4 text-ink/45">
-              Approves every not-yet-broadcast card system-wide that passes the same quality
-              checks a manual approval already enforces — not just this selected source mix.
+              Quality-passing cards go to the rebroadcast queue. Every skipped weekly card
+              returns to its journal deck so it can be sent to the broadcast queue later.
             </p>
             {releaseAllStatus.state !== "idle" ? (
               <div

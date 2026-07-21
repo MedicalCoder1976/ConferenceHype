@@ -639,6 +639,42 @@ export async function bulkApproveSegmentsInDb(segmentIds: string[]) {
   return segmentIds.length;
 }
 
+const BULK_RISK_FLAG_UPDATE_BATCH_SIZE = 50;
+
+export async function bulkRemoveSegmentRiskFlagInDb(segments: Segment[], riskFlag: string) {
+  if (!hasSupabase() || segments.length === 0) {
+    return null;
+  }
+
+  const updates = segments
+    .filter((segment) => segment.riskFlags.includes(riskFlag))
+    .map((segment) => ({
+      id: segment.id,
+      riskFlags: segment.riskFlags.filter((flag) => flag !== riskFlag)
+    }));
+  const supabase = createAdminClient();
+  const now = new Date().toISOString();
+
+  for (let offset = 0; offset < updates.length; offset += BULK_RISK_FLAG_UPDATE_BATCH_SIZE) {
+    const batch = updates.slice(offset, offset + BULK_RISK_FLAG_UPDATE_BATCH_SIZE);
+    const results = await Promise.all(
+      batch.map((segment) =>
+        supabase
+          .from("segments")
+          .update({ risk_flags: segment.riskFlags, updated_at: now })
+          .eq("id", segment.id)
+          .eq("status", "pending_review")
+      )
+    );
+    const failed = results.find((result) => result.error);
+    if (failed?.error) {
+      throw failed.error;
+    }
+  }
+
+  return updates.length;
+}
+
 export async function getSegmentByIdFromDb(segmentId: string) {
   if (!hasSupabase()) {
     return null;

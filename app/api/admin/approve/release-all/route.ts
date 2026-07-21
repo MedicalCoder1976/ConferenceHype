@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { assertAdminRequest } from "@/lib/auth";
 import {
   bulkApproveSegmentsInDb,
+  bulkRemoveSegmentRiskFlagInDb,
   getAllApprovedOrRenderedSegmentsFromDb,
   getAllPendingSegmentsFromDb
 } from "@/lib/db";
@@ -9,6 +10,7 @@ import { filterBroadcastReadySegments } from "@/lib/data";
 import { validateSegmentForApproval } from "@/lib/generation/validator";
 import { contentSignature } from "@/lib/segments/contentSignature";
 import { errorMessage } from "@/lib/errors";
+import { WEEKLY_SOURCE_POOL_FLAG } from "@/lib/weeklySourceCards";
 
 // Bulk-releases every pending_review segment that has not been broadcast
 // (no approved or rendered sibling citing the same source) into the
@@ -40,6 +42,9 @@ export async function POST(request: NextRequest) {
     }
 
     const coveredSignatures = new Set(alreadyCovered.map((segment) => contentSignature(segment)));
+    const weeklyPool = pending.filter((segment) =>
+      segment.riskFlags.includes(WEEKLY_SOURCE_POOL_FLAG)
+    );
 
     let alreadyBroadcastOrQueued = 0;
     let duplicateWithinPending = 0;
@@ -73,6 +78,12 @@ export async function POST(request: NextRequest) {
     }
 
     const approvedCount = await bulkApproveSegmentsInDb(toApprove);
+    const approvedIds = new Set(toApprove);
+    const returnToJournals = weeklyPool.filter((segment) => !approvedIds.has(segment.id));
+    const returnedToJournals = await bulkRemoveSegmentRiskFlagInDb(
+      returnToJournals,
+      WEEKLY_SOURCE_POOL_FLAG
+    );
 
     return NextResponse.json({
       ok: true,
@@ -82,6 +93,8 @@ export async function POST(request: NextRequest) {
       failedQualityFilter,
       failedValidation: rejected.length,
       approved: approvedCount ?? 0,
+      weeklyPoolTotal: weeklyPool.length,
+      returnedToJournals: returnedToJournals ?? 0,
       rejectedSamples: rejected.slice(0, 5)
     });
   } catch (error) {
