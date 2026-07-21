@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import { classifyJournalArticle, resolveJournalArticleLedgerStatus, validateJournalCardCopy } from "@/lib/journalCardsV2/quality";
-import { buildDeterministicJournalCard } from "@/lib/journalCardsV2/builder";
+import {
+  buildDeterministicJournalCard,
+  journalSourceRiskFlag,
+  withJournalSourceRiskFlag
+} from "@/lib/journalCardsV2/builder";
 import { oncologyJournalSeeds } from "@/lib/catalog/oncologyJournalSeeds";
+import { buildJournalCardDecks } from "@/lib/cardDeck";
+import { buildJournalShowSlots } from "@/lib/rundown/slots";
 import type { OncologyJournal } from "@/lib/types";
 
 const article = {
@@ -28,6 +34,51 @@ assert.equal(built.quality.passed, true);
 assert.match(built.segment.script, /Background:/);
 assert.match(built.segment.script, /Discussion:/);
 assert.ok(built.segment.riskFlags.includes("pmid:99999999"));
+assert.ok(built.segment.riskFlags.includes(journalSourceRiskFlag(journal.id)));
+assert.equal(buildJournalCardDecks([built.segment], [journal])[journal.id].total, 1);
+assert.deepEqual(
+  withJournalSourceRiskFlag(["journal_card_v2", "pmid:99999999"], journal.id),
+  ["journal_card_v2", "pmid:99999999", journalSourceRiskFlag(journal.id)]
+);
+assert.deepEqual(
+  withJournalSourceRiskFlag(
+    ["journal_card_v2", "pmid:99999999", journalSourceRiskFlag(journal.id)],
+    journal.id
+  ),
+  ["journal_card_v2", "pmid:99999999", journalSourceRiskFlag(journal.id)]
+);
+
+// Catch-up cards are pending review and therefore cannot enter a journal
+// broadcast sequence. Adding/removing the deck-routing flag from an already
+// approved card must not change the content-card sequence or its order.
+assert.equal(
+  buildJournalShowSlots({
+    segments: [built.segment],
+    journalId: journal.id,
+    baseTime: new Date("2026-07-21T12:00:00Z")
+  }).length,
+  0
+);
+const approvedBuilt = {
+  ...built.segment,
+  status: "approved" as const,
+  approvedAt: "2026-07-21T11:00:00Z"
+};
+const contentIds = (segments: typeof approvedBuilt[]) =>
+  buildJournalShowSlots({
+    segments,
+    journalId: journal.id,
+    baseTime: new Date("2026-07-21T12:00:00Z")
+  })
+    .filter((slot) => slot.segment && !slot.segment.riskFlags.includes("journal_show_outro"))
+    .map((slot) => slot.segment?.id);
+assert.deepEqual(
+  contentIds([approvedBuilt]),
+  contentIds([{
+    ...approvedBuilt,
+    riskFlags: approvedBuilt.riskFlags.filter((flag) => !flag.startsWith("source_id:"))
+  }])
+);
 
 for (const methodsLabel of ["MATERIALS AND METHODS", "MATERIAL AND METHODS"]) {
   const radiologyArticle = {

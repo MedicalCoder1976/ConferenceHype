@@ -5,6 +5,15 @@ import type { OncologyJournal, Segment } from "@/lib/types";
 import type { PubMedJournalArticle } from "@/lib/sources/pubmed";
 import { isStructuredJournalArticle, validateJournalCardCopy } from "@/lib/journalCardsV2/quality";
 
+export function journalSourceRiskFlag(journalId: string) {
+  return `source_id:${journalId}`;
+}
+
+export function withJournalSourceRiskFlag(riskFlags: string[], journalId: string) {
+  const sourceFlag = journalSourceRiskFlag(journalId);
+  return riskFlags.includes(sourceFlag) ? riskFlags : [...riskFlags, sourceFlag];
+}
+
 function completeSentences(value: string, maxWords = 145) {
   const sentences = value.replace(/\b(?:OBJECTIVES?|FINDINGS|CONCLUSIONS?|PURPOSE|IMPORTANCE)\s*:/gi, "")
     .split(/(?<=[.!?])\s+/)
@@ -58,12 +67,12 @@ export function buildDeterministicJournalCard({
       publishedAt: article.publishedAt
     }],
     socialBuzzItems: [],
-    riskFlags: [
+    riskFlags: withJournalSourceRiskFlag([
       "journal_card_v2",
       `pmid:${article.pmid}`,
       structured ? "structured_article_card" : "narrative_review_card",
       quality.passed ? "journal_quality_passed" : "journal_quality_failed"
-    ],
+    ], journal.id),
     confidenceScore: quality.passed ? 95 : 40,
     createdAt: now,
     updatedAt: now

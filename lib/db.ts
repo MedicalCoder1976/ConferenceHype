@@ -588,6 +588,13 @@ export async function getAllPendingSegmentsFromDb() {
   return getAllSegmentsByStatusFromDb("pending_review");
 }
 
+export async function getAllApprovedSegmentsFromDb() {
+  if (!hasSupabase()) {
+    return null;
+  }
+  return getAllSegmentsByStatusFromDb("approved");
+}
+
 // Every segment whose content has already been approved (queued for a
 // future broadcast) or rendered (already aired) -- used to build a
 // content-signature exclusion set so a bulk release action doesn't

@@ -3,7 +3,10 @@ import { createHash } from "node:crypto";
 import { appendFileSync } from "node:fs";
 import { fetchCompletePubMedJournalInventory, fetchPubMedArticlesByIds } from "@/lib/sources/pubmed";
 import { fetchRssSource } from "@/lib/sources/rss";
-import { buildDeterministicJournalCard } from "@/lib/journalCardsV2/builder";
+import {
+  buildDeterministicJournalCard,
+  withJournalSourceRiskFlag
+} from "@/lib/journalCardsV2/builder";
 import { classifyJournalArticle, resolveJournalArticleLedgerStatus, validateJournalCardCopy } from "@/lib/journalCardsV2/quality";
 import type { OncologyJournal, Segment } from "@/lib/types";
 
@@ -190,6 +193,43 @@ async function linkExistingCards() {
   }
   return linked;
 }
+// Adds only the missing journal-deck routing flag to existing V2 cards.
+// Status, approval, scheduling, rendered state, timestamps, copy, citations,
+// and every existing risk flag remain untouched, so this cannot reorder or
+// insert anything into a broadcast presentation sequence.
+async function backfillJournalSourceTags() {
+  const supabase = createAdminClient();
+  let checked = 0;
+  let updated = 0;
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase
+      .from("segments")
+      .select("id,risk_flags,citations")
+      .contains("risk_flags", ["journal_card_v2"])
+      .order("id", { ascending: true })
+      .range(from, from + 999);
+    if (error) throw error;
+    const rows = data ?? [];
+    checked += rows.length;
+    for (const row of rows) {
+      const journalId = (row.citations ?? []).find(
+        (citation: { journalId?: string }) => citation.journalId
+      )?.journalId;
+      if (!journalId) continue;
+      const riskFlags = withJournalSourceRiskFlag(row.risk_flags ?? [], journalId);
+      if (riskFlags.length === (row.risk_flags ?? []).length) continue;
+      const { error: updateError } = await supabase
+        .from("segments")
+        .update({ risk_flags: riskFlags })
+        .eq("id", row.id);
+      if (updateError) throw updateError;
+      updated += 1;
+    }
+    if (rows.length < 1000) break;
+  }
+  return { checked, updated };
+}
+
 function normalizedTitle(value: string) {
   return value.toLowerCase().replace(/^\[[^\]]+\]\s*/, "").replace(/[^a-z0-9]+/g, " ").trim();
 }
@@ -491,6 +531,9 @@ async function main() {
   const journals = ((await getOncologyJournalsFromDb()) ?? [])
     .filter((journal) => journal.enabled && (!onlyJournal || journal.id === onlyJournal));
   const since = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+  // Reconcile existing PMID-backed cards before inventory creation so the
+  // catch-up cannot create a duplicate and only discover the older card later.
+  const linkedExisting = await linkExistingCards();
   const results = [];
   const failures = [];
   for (const journal of journals) {
@@ -500,9 +543,20 @@ async function main() {
       failures.push({ journal: journal.name, error: errorText(error) });
     }
   }
-  const linkedExisting = await linkExistingCards();
+  const sourceTagBackfill = createPending
+    ? await backfillJournalSourceTags()
+    : { checked: 0, updated: 0, skipped: true };
   const rssWarnings = results.filter((result) => result.rssWarning);
-  const summary = { ok: failures.length === 0, shadow: !createPending, since, linkedExisting, results, failures, rssWarnings };
+  const summary = {
+    ok: failures.length === 0,
+    shadow: !createPending,
+    since,
+    linkedExisting,
+    sourceTagBackfill,
+    results,
+    failures,
+    rssWarnings
+  };
   writeGitHubSummary(summary);
   if (rssWarnings.length) {
     console.log("::warning title=RSS supplemental-source warnings::" + rssWarnings.length + " journal RSS feeds were unavailable; PubMed processing completed. See the job summary.");

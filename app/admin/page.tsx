@@ -219,11 +219,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     snapshot.scheduleRundownSegments,
     selectedSources
   );
-  const allDeckSegments = [
-    ...snapshot.pendingSegments,
-    ...snapshot.nextBroadcastSegments,
-    ...snapshot.airedSegments
-  ];
+  // Complete pending + approved inventory is fetched separately for decks;
+  // the bounded nextBroadcastSegments sequence remains unchanged.
+  const allDeckSegments = snapshot.deckSegments;
   const conferenceCardDecks = buildConferenceCardDecks(
     allDeckSegments,
     snapshot.medicalConferences,

@@ -5,6 +5,8 @@ import {
 } from "@/lib/jobs/upcomingEvents";
 import {
   getAnalyticsFromDb,
+  getAllApprovedSegmentsFromDb,
+  getAllPendingSegmentsFromDb,
   getAiredSegmentsFromDb,
   getApprovedSegmentsFromDb,
   getBlacklistedXHandlesFromDb,
@@ -17,7 +19,6 @@ import {
   getMedicalConferencesFromDb,
   getOncologyJournalsFromDb,
   getNextBroadcastSegmentsFromDb,
-  getPendingSegmentsFromDb,
   getPlatformSmokeRunsFromDb,
   getPreviousDayBatchItemsFromDb,
   getRecentSocialItemsFromDb,
@@ -443,6 +444,7 @@ export async function getAdminSnapshot(baseTime = new Date(), planningHours = 1)
     blacklistedXHandlesRaw,
     recentSocialItemsRaw,
     pendingSegmentsRaw,
+    approvedDeckSegmentsRaw,
     nextBroadcastSegmentsRaw,
     airedSegmentsRaw,
     broadcastWriteoutsRaw,
@@ -463,10 +465,13 @@ export async function getAdminSnapshot(baseTime = new Date(), planningHours = 1)
     getXFollowVoicesFromDb(),
     getBlacklistedXHandlesFromDb(),
     getRecentSocialItemsFromDb(24),
-    // Higher than the 120 default so the per-entity card-deck counts (weekly
-    // batch cards accumulate over time) don't silently undercount once a
-    // catalog has been running for a few weeks.
-    getPendingSegmentsFromDb(1000),
+    // The review pool and card decks must include every pending card, even
+    // after the project exceeds PostgREST's 1000-row response cap.
+    getAllPendingSegmentsFromDb(),
+    // Deck inventory is intentionally separate from nextBroadcastSegments:
+    // loading every approved card makes per-journal counts complete without
+    // changing the bounded, ordered pool used to construct the broadcast.
+    getAllApprovedSegmentsFromDb(),
     // Use the same generous limit as the render script so recently-scheduled
     // cards (which sort to the end of the approved_at ASC order) are always
     // included. 42 was too small: if the pool had 43+ approved segments the
@@ -496,6 +501,10 @@ export async function getAdminSnapshot(baseTime = new Date(), planningHours = 1)
     blacklistedXHandles
   );
   const pendingSegments = filterBroadcastReadySegments(pendingSegmentsRaw ?? []);
+  const deckSegments = filterBroadcastReadySegments([
+    ...(pendingSegmentsRaw ?? []),
+    ...(approvedDeckSegmentsRaw ?? [])
+  ]);
   const nextBroadcastSegments = filterBroadcastReadySegments(nextBroadcastSegmentsRaw ?? []);
   const scheduleRundownSegments = buildScheduleRundownSegments(baseTime, planningHours);
   const airedSegments = airedSegmentsRaw ?? [];
@@ -527,6 +536,7 @@ export async function getAdminSnapshot(baseTime = new Date(), planningHours = 1)
   };
   return {
     pendingSegments,
+    deckSegments,
     nextBroadcastSegments,
     scheduleRundownSegments,
     airedSegments,
