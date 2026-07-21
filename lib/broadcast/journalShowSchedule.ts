@@ -37,4 +37,4 @@ export const JOURNAL_DISCLAIMER_EVERY_N_GROUPS = 2;
 // remaining ~15 minutes of trailing pad music with no explanation): say the
 // segment is ending before handing off to that trailing music, instead of
 // narration just stopping with no announcement.
-export const JOURNAL_OUTRO_SECONDS = 12;
+export const JOURNAL_OUTRO_SECONDS = 25;

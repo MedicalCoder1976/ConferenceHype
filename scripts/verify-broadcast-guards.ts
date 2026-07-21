@@ -58,12 +58,20 @@ assert.match(
 assert.ok(!framed.endsWith(SEGMENT_CLOSE));
 const fourthFramed = formatVoiceSegment({
   voiceName: "Echo Sage",
-  topic: "late-breaking sessions",
-  narrative: "The official program has published a schedule update with source-attributed detail.",
+  topic: "journal review",
+  narrative: "From the June 2026 edition of Journal of Clinical Oncology, this journal review covers practice-changing results.",
   at: new Date("2026-06-11T13:00:00Z"),
-  cardIndex: 3
+  cardIndex: 3,
+  publishedAt: "2026-06-15T00:00:00.000Z"
 });
-assert.ok(fourthFramed.endsWith(SEGMENT_CLOSE));
+assert.match(
+  fourthFramed,
+  /This concludes ConferenceHype's coverage of the June 2026 issue of Journal of Clinical Oncology\./
+);
+assert.match(fourthFramed, /which finding deserves a deeper follow-up\?/);
+assert.match(fourthFramed, /Tag us on X at @conferencehype/);
+assert.match(fourthFramed, /please like the video and subscribe/);
+assert.doesNotMatch(fourthFramed, /That is it for this segment/i);
 assert.doesNotMatch(framed, /interactive AI commentary only/i);
 assert.equal(applySpokenPronunciations("ASCO 2026 and Ib disease"), "Ask-ho 2026 and one B disease");
 assert.equal(
@@ -248,6 +256,32 @@ const journalShowContentJournalIds = new Set(
     .map((slot) => slot.segment?.citations?.[0]?.journalId)
 );
 assert.deepEqual([...journalShowContentJournalIds], [journalShowJournalId]);
+
+const shortJournalShowSlots = buildJournalShowSlots({
+  segments: journalShowSegments.slice(0, 3).map((segment) => ({
+    ...segment,
+    script: segment.script.replace(
+      "Plain narrative body",
+      "From the July 2026 edition of Test Journal, this journal review covers"
+    ),
+    citations: segment.citations.map((citation) => ({
+      ...citation,
+      publishedAt: "2026-07-10T00:00:00.000Z"
+    }))
+  })),
+  journalId: journalShowJournalId,
+  baseTime: new Date("2026-07-13T16:00:00Z")
+});
+const shortJournalOutro = shortJournalShowSlots.find((slot) =>
+  slot.segment?.riskFlags.includes("journal_show_outro")
+)?.segment?.script ?? "";
+assert.match(
+  shortJournalOutro,
+  /This concludes ConferenceHype's coverage of the July 2026 issue of Test Journal\./
+);
+assert.match(shortJournalOutro, /Tag us on X at @conferencehype/);
+assert.match(shortJournalOutro, /please like the video and subscribe/);
+assert.doesNotMatch(shortJournalOutro, /That (?:is it|wraps up) for this segment/i);
 
 // buildBroadcastMetadata's titleDateOverride must be strictly additive:
 // omitted, it must produce byte-identical output to today's air-date

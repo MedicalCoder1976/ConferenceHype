@@ -341,6 +341,7 @@ embedder.
   sharing a citation URL or script text first, before assuming a scheduling
   bug.
 - Narration style: pronounce `ASCO` as `ASKho`/`Ask-ho`, never as the individual letters A-S-C-O. Pronounce `cholangiocarcinoma` as `COLANGIOCARCINOMA` ("colangio-carcinoma"); the `ch` is a hard `k` sound and must not be read as "cho". Pronounce `Ib` and `1b` as `one B`. Pronounce `ECOG` as a word (`EE-kog`), not individual letters. Expand `PR` to "partial response", `CR` to "complete response", `pCR` to "pathologic complete response", and `WHO` to "World Health Organization" when spoken. Spell `NCI` out as individual letters ("N-C-I"). Cancer-staging notation (Roman numeral immediately followed by a letter, e.g. `IA`, `IIA`, `IIIB`, `IVA`) is read as the cardinal number plus the letter — `IA` as "one A", `IIA` as "two A", and so on.
+- Broadcast closing: never narrate "That is it for this segment." The close must identify the journal and issue month/year, invite viewers to report a missed article or name a finding that deserves deeper follow-up by tagging `@conferencehype` on X, and ask viewers to like the video and subscribe. This shared close applies to every newly rendered broadcast, including the early-ending outro used when a 30-minute journal show runs out of approved articles.
 - Transition audio rotates through six 20-second tracks:
   four licensed voiced stingers in `public/music/gap-clips` and two generated
   preview tracks in `public/music`.
@@ -869,13 +870,14 @@ broadcasts through this new path:
   rest with one uninterrupted ~15-minute music-only block. That padding
   itself is by design (see `lib/broadcast/journalShowSchedule.ts`'s own
   comment); the bug was that nothing told the listener the segment had
-  ended. Fixed by having `buildJournalShowSlots` append a short (12s)
-  spoken sign-off card — "That wraps up this segment of ConferenceHype's
-  coverage. We'll be back with more source-attributed updates soon — stay
-  with us." — right before handing off to the trailing music, whenever at
-  least one real card was narrated but the show ran out of content before
-  completing all `JOURNAL_GROUPS_PER_SHOW` groups. A fully-stocked show is
-  unaffected.
+  ended. Fixed by having `buildJournalShowSlots` append a spoken sign-off card
+  before handing off to the trailing music whenever at least one real card
+  was narrated but the show ran out of content before completing all
+  `JOURNAL_GROUPS_PER_SHOW` groups. The shared closing identifies the journal
+  and issue month/year, asks whether an article was missed or a finding needs
+  deeper follow-up, directs comments to `@conferencehype` on X, and asks the
+  viewer to like and subscribe. A fully-stocked show uses the same close at
+  its normal four-card boundary.
 
 ## Automation Cadence
 

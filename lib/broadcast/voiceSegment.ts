@@ -1,5 +1,40 @@
-const SEGMENT_CLOSE =
-  "That is it for this segment, if there are any Medical Conferences or events you want covered tag our team @conferencehype on X.";
+type SegmentCloseContext = {
+  narrative?: string;
+  journalName?: string;
+  issueDate?: string;
+  publishedAt?: string;
+};
+
+function formattedIssueDate(publishedAt?: string) {
+  if (!publishedAt) return undefined;
+  const parsed = new Date(publishedAt);
+  if (Number.isNaN(parsed.getTime())) return undefined;
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "UTC",
+    month: "long",
+    year: "numeric"
+  }).format(parsed);
+}
+
+function journalContextFromNarrative(narrative?: string) {
+  const match = narrative?.match(
+    /^From the (.+?) edition of (.+?)(?=,\s+this\b|\.\s+(?:Background|Methods|Results|Discussion)\b|$)/i
+  );
+  return match ? { issueDate: match[1].trim(), journalName: match[2].trim() } : {};
+}
+
+export function buildSegmentClose(context: SegmentCloseContext = {}) {
+  const narrativeContext = journalContextFromNarrative(context.narrative);
+  const journalName = context.journalName ?? narrativeContext.journalName;
+  const issueDate =
+    context.issueDate ?? formattedIssueDate(context.publishedAt) ?? narrativeContext.issueDate;
+  const coverage = journalName && issueDate
+    ? `ConferenceHype's coverage of the ${issueDate} issue of ${journalName}`
+    : "this ConferenceHype coverage segment";
+  return `This concludes ${coverage}. Did we miss an article, or which finding deserves a deeper follow-up? Tag us on X at @conferencehype and join the conversation. If this review helped you keep up, please like the video and subscribe so you do not miss the next broadcast.`;
+}
+
+const SEGMENT_CLOSE = buildSegmentClose();
 
 function wordCount(value: string) {
   return value.trim().split(/\s+/).filter(Boolean).length;
@@ -135,6 +170,10 @@ function stripExistingVoiceFrame(value: string) {
       /\s*That is it for this segment,?\s+if there are any Medical Conferences or events you want covered,?\s+tag our team @conferencehype on X\.?\s*$/i,
       ""
     )
+    .replace(
+      /\s*This concludes (?:ConferenceHype's coverage of the .*? issue of .*?|this ConferenceHype coverage segment)\.\s+Did we miss an article, or which finding deserves a deeper follow-up\?\s+Tag us on X at @conferencehype and join the conversation\.\s+If this review helped you keep up, please like the video and subscribe so you do not miss the next broadcast\.\s*$/i,
+      ""
+    )
     .trim();
 }
 
@@ -148,7 +187,9 @@ export function formatVoiceSegment({
   at,
   maxWords = 800,
   cardIndex,
-  includeIntro = true
+  includeIntro = true,
+  journalName,
+  publishedAt
 }: {
   voiceName: string;
   topic: string;
@@ -157,13 +198,17 @@ export function formatVoiceSegment({
   maxWords?: number;
   cardIndex?: number;
   includeIntro?: boolean;
+  journalName?: string;
+  publishedAt?: string;
 }) {
   const greeting = broadcastHour(at) < 12 ? "Good morning" : "Good evening";
   const cleanNarrative = stripExistingVoiceFrame(narrative);
   const journalReview = /^From the (?:current|[A-Za-z]+ \d{4}) edition of\b/i.test(cleanNarrative);
   const structuredReview = hasFourSectionNarrative(cleanNarrative);
   const includeClose = typeof cardIndex === "number" && (cardIndex + 1) % 4 === 0;
-  const closing = includeClose ? SEGMENT_CLOSE : "";
+  const closing = includeClose
+    ? buildSegmentClose({ narrative: cleanNarrative, journalName, publishedAt })
+    : "";
   const opening = !includeIntro
     ? ""
     : journalReview

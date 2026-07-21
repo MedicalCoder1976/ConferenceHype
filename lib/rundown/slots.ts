@@ -1,5 +1,5 @@
 import { personas } from "@/lib/generation/personas";
-import { formatVoiceSegment } from "@/lib/broadcast/voiceSegment";
+import { buildSegmentClose, formatVoiceSegment } from "@/lib/broadcast/voiceSegment";
 import {
   CONTENT_CARDS_PER_HOUR,
   CONTENT_SECONDS,
@@ -150,6 +150,11 @@ function cleanForbiddenBroadcastPhrases(value: string) {
     .trim();
 }
 
+function journalNameFromSegment(segment: Segment) {
+  const label = segment.citations.find((citation) => citation.journalId)?.label;
+  return label?.match(/^([^:]{2,120}):\s/)?.[1]?.trim();
+}
+
 export function withAssignedVoice(
   segment: Segment,
   persona: Persona,
@@ -175,7 +180,9 @@ export function withAssignedVoice(
       narrative,
       at,
       cardIndex: slotIndex,
-      includeIntro
+      includeIntro,
+      journalName: journalNameFromSegment(segment),
+      publishedAt: segment.citations.find((citation) => citation.publishedAt)?.publishedAt
     }),
     summary
   };
@@ -324,13 +331,16 @@ export function buildBroadcastSlots({
   return slots.sort((a, b) => a.at.getTime() - b.at.getTime());
 }
 
-function journalOutroSegment(persona: Persona, at: Date): Segment {
+function journalOutroSegment(persona: Persona, at: Date, sourceSegment: Segment): Segment {
   const createdAt = at.toISOString();
-  const script =
-    "That wraps up this segment of ConferenceHype's coverage. We'll be back with more source-attributed updates soon -- stay with us.";
+  const script = buildSegmentClose({
+    narrative: sourceSegment.script || sourceSegment.summary,
+    journalName: journalNameFromSegment(sourceSegment),
+    publishedAt: sourceSegment.citations.find((citation) => citation.publishedAt)?.publishedAt
+  });
   return {
     id: `journal-show-outro-${createdAt}`,
-    title: "End of segment",
+    title: "End of journal coverage",
     summary: script,
     script,
     contentType: "media_roundup",
@@ -492,7 +502,7 @@ export function buildJournalShowSlots({
   // is the zero-content case render-hour-broadcast.ts's main() already
   // aborts on, and this card must not count as "content" there instead.
   if (contentIndex > 0 && groupIndex < JOURNAL_GROUPS_PER_SHOW && segmentCursor >= journalSegments.length) {
-    const outroSegment = journalOutroSegment(persona, at);
+    const outroSegment = journalOutroSegment(persona, at, journalSegments[segmentCursor - 1]);
     slots.push({
       at,
       kind: "statement",
