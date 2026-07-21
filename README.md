@@ -5,6 +5,20 @@ collects selected conference, journal, clinical-news, and social material,
 builds an operator-controlled presentation, renders the program, publishes it
 to YouTube, and exposes the same broadcast on `conferencehype.com`.
 
+## Built with Codex and GPT-5.6
+
+ConferenceHype was substantially extended during OpenAI Build Week 2026 with
+Codex and GPT-5.6 acting as an engineering collaborator. Codex inspected the
+existing application, traced failures across the codebase, GitHub Actions,
+Supabase, Vercel, YouTube, Kokoro, and FFmpeg, implemented focused repairs,
+added regression checks, and helped run shadow and production workflows.
+
+The product and editorial decisions remained human-directed, including
+PubMed-first sourcing, human approval before broadcast, low-cost operation,
+complete-video delivery, and the rule that incomplete medical cards must
+never air. Local installation and the judge testing path are documented under
+**Verification** below.
+
 ## Production Flow
 
 1. The operator selects conferences, journals, news sources, priorities,
