@@ -44,7 +44,6 @@ type Card = {
   script?: string | null;
   text: string;
   voiceAudioPath?: string;
-  voiceDurationMs?: number;
   riskFlags?: string[];
 };
 
@@ -68,6 +67,34 @@ function run(command: string, args: string[]) {
       } else {
         reject(new Error(`${path.basename(command)} exited with code ${code}`));
       }
+    });
+  });
+}
+
+// No ffprobe binary is guaranteed to be on PATH (ffmpeg-static ships only
+// ffmpeg locally; CI installs the apt "ffmpeg" package, which does bundle
+// ffprobe, but nothing here should depend on that). Decoding with
+// "-f null -" and reading the last "time=" progress line gives the real
+// decoded length from the same ffmpeg binary already used everywhere else in
+// this script, rather than trusting a container's "Duration:" header, which
+// can be a bitrate-based estimate for some MP3 encoders.
+function probeAudioDurationSeconds(ffmpeg: string, filePath: string): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(ffmpeg, ["-i", filePath, "-f", "null", "-"]);
+    let stderr = "";
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
+    child.on("error", reject);
+    child.on("exit", () => {
+      const matches = [...stderr.matchAll(/time=(\d+):(\d{2}):(\d{2}(?:\.\d+)?)/g)];
+      const last = matches[matches.length - 1];
+      if (!last) {
+        reject(new Error(`Could not determine audio duration for ${path.basename(filePath)}`));
+        return;
+      }
+      const [, hh, mm, ss] = last;
+      resolve(Number(hh) * 3600 + Number(mm) * 60 + Number(ss));
     });
   });
 }
@@ -1323,131 +1350,69 @@ async function main() {
   await mkdir(renderDir, { recursive: true });
   await mkdir(path.dirname(outputPath), { recursive: true });
 
-  const concatLines: string[] = [];
-
-  for (let index = 0; index < cards.length; index += 1) {
-    const slidePath = path.join(renderDir, `slide-${String(index + 1).padStart(2, "0")}.txt`);
-    const imagePath = path.join(renderDir, `slide-${String(index + 1).padStart(2, "0")}.png`);
-    await writeFile(slidePath, cards[index].text, "utf8");
-    const color = index % 2 === 0 ? "0x11151f" : "0x151a27";
-    await run(ffmpeg, [
-      "-y",
-      "-f",
-      "lavfi",
-      "-i",
-      `color=c=${color}:s=1280x720`,
-      "-frames:v",
-      "1",
-      imagePath
-    ]);
-    const concatPath = path.resolve(imagePath).replace(/\\/g, "/");
-    concatLines.push(`file '${concatPath}'`, `duration ${cards[index].duration}`);
-  }
-  const lastImage = path
-    .resolve(renderDir, `slide-${String(cards.length).padStart(2, "0")}.png`)
-    .replace(/\\/g, "/");
-  concatLines.push(`file '${lastImage}'`);
-  const concatPath = path.join(renderDir, "slides.ffconcat");
-  await writeFile(concatPath, concatLines.join("\n"), "utf8");
-
-  // Per-card Kokoro TTS with file caching — batch synthesis (model loaded once)
+  // Per-card Kokoro TTS with file caching — batch synthesis (model loaded
+  // once). This now runs BEFORE slide generation and the offset/timeline
+  // pass below (previously it ran after both): scheduling every card's
+  // slide duration and audio placement off expandContentDurations' word-count
+  // estimate is what let a card's real narration keep playing after the next
+  // card's audio was told to start -- audible overlap, most exposed in the
+  // 30-minute journal show where three of every four transitions are
+  // voice-straight-into-voice with no music buffer to absorb the overrun.
+  // Synthesizing first lets every later step use each card's REAL length.
   const voiceCacheDir = path.join(renderDir, "voice-cache");
   const voiceWavDir = path.join(voiceCacheDir, "wav-tmp");
   await mkdir(voiceCacheDir, { recursive: true });
   await mkdir(voiceWavDir, { recursive: true });
 
-  type VoiceEntry = { path: string; startMs: number; durationMs: number };
-  type GapEntry = { path: string; startMs: number };
-  type BedEntry = { startMs: number; durationMs: number };
-  const voiceEntries: VoiceEntry[] = [];
-  const gapEntries: GapEntry[] = [];    // gap-clip stingers, one per music card
-  // Music-bed windows, one per music-kind card -- confined to that card's own
-  // slot so the bed only ever plays during an actual gap, never under voice.
-  const bedEntries: BedEntry[] = [];
-  let offsetMs = 0;
-
-  // Resolve every card to its cache path and collect the ones that need synthesis.
+  type SynthTask = { voice: string; text: string; wavPath: string; cachePath: string };
+  const taskByCacheKey = new Map<string, SynthTask>();
+  // Parallel to `cards` -- which cacheKey (if any) each card resolves to.
   // Multiple distinct card slots can share an identical cacheKey -- most
   // commonly the BROADCAST_DISCLAIMER card, which is the exact same text and
   // persona every time it's inserted (every ~15 minutes, so 2-3x per hour).
-  // Those occurrences must be deduplicated for synthesis (no point asking
-  // Kokoro to render identical audio 3 times) but each occurrence still needs
-  // its OWN voiceEntry at its own startMs, since they land in different
-  // slots of the broadcast.
-  type SynthTask = { voice: string; text: string; wavPath: string; cachePath: string };
-  type Occurrence = { cacheKey: string; cachePath: string; startMs: number; durationMs: number };
-  const taskByCacheKey = new Map<string, SynthTask>();
-  const pendingOccurrences: Occurrence[] = [];
-  const alreadyCached: Occurrence[] = [];
+  // Synthesis itself is deduplicated by cacheKey below, but every occurrence
+  // still needs its own scheduled slot, hence tracking this per card position.
+  const cardCacheKeys: (string | undefined)[] = cards.map(() => undefined);
 
-  for (const card of cards) {
-    // Rule 9: the music bed only plays inside a music-kind card's own slot,
-    // never under voice -- previously it looped continuously for the whole
-    // hour and got mixed under every voice card too, confirmed as a real
-    // bug from a live operator report (background music audible "often",
-    // not just between cards) rather than the intended gap-only sound.
-    if (card.isMusic) {
-      bedEntries.push({ startMs: offsetMs, durationMs: card.duration * 1000 });
+  for (let index = 0; index < cards.length; index += 1) {
+    const card = cards[index];
+    if (card.isMusic || !card.script || !card.personaId) {
+      continue;
     }
-    // Rule 7: collect gap-clip start times for music cards
-    if (card.isMusic && card.gapClipPath) {
-      const resolvedGap = path.resolve(card.gapClipPath);
-      if (existsSync(resolvedGap)) {
-        gapEntries.push({ path: resolvedGap, startMs: offsetMs });
-      }
+    const persona = getPersona(card.personaId);
+    const voiceName = process.env[persona.voiceEnvKey];
+    if (!voiceName) {
+      continue;
     }
-
-    if (!card.isMusic && card.script && card.personaId) {
-      const persona = getPersona(card.personaId);
-      const voiceName = process.env[persona.voiceEnvKey];
-      if (voiceName) {
-        const processedScript = applySpokenPronunciations(card.script);
-        // replaceEmptyContentCardsWithMusic already screened out cards whose
-        // RAW script is empty, but applySpokenPronunciations (stripping URLs,
-        // bracketed citations, and internal operator-language sentences) can
-        // still reduce a genuinely non-empty script down to "" -- e.g. a card
-        // whose entire content is a bare URL or a single internal-label
-        // sentence like "Source-only schedule confirmed for this session."
-        // Kokoro doesn't throw on empty text itself; it just returns zero
-        // audio chunks, and concatenating zero chunks downstream is what
-        // actually raised. Skip creating a synthesis task at all in that
-        // case rather than handing Kokoro text with nothing to say.
-        if (!processedScript.trim()) {
-          console.warn(
-            `Skipping voice synthesis for a card whose script became empty after pronunciation cleanup (persona ${persona.voiceEnvKey}).`
-          );
-        } else {
-          const cacheKey = createHash("sha256")
-            .update(`${persona.voiceEnvKey}|${processedScript}`)
-            .digest("hex");
-          const cachePath = path.join(voiceCacheDir, `${cacheKey}.mp3`);
-          const durationMs = card.duration * 1000;
-          if (existsSync(cachePath)) {
-            alreadyCached.push({ cacheKey, cachePath, startMs: offsetMs, durationMs });
-          } else {
-            pendingOccurrences.push({ cacheKey, cachePath, startMs: offsetMs, durationMs });
-            if (!taskByCacheKey.has(cacheKey)) {
-              const wavPath = path.join(voiceWavDir, `${cacheKey}.wav`);
-              taskByCacheKey.set(cacheKey, { voice: voiceName, text: processedScript, wavPath, cachePath });
-            }
-          }
-        }
-      }
+    const processedScript = applySpokenPronunciations(card.script);
+    // replaceEmptyContentCardsWithMusic already screened out cards whose RAW
+    // script is empty, but applySpokenPronunciations (stripping URLs,
+    // bracketed citations, and internal operator-language sentences) can
+    // still reduce a genuinely non-empty script down to "" -- e.g. a card
+    // whose entire content is a bare URL or a single internal-label sentence
+    // like "Source-only schedule confirmed for this session." Kokoro doesn't
+    // throw on empty text itself; it just returns zero audio chunks, and
+    // concatenating zero chunks downstream is what actually raised. Skip
+    // creating a synthesis task at all in that case rather than handing
+    // Kokoro text with nothing to say.
+    if (!processedScript.trim()) {
+      console.warn(
+        `Skipping voice synthesis for a card whose script became empty after pronunciation cleanup (persona ${persona.voiceEnvKey}).`
+      );
+      continue;
     }
-    offsetMs += card.duration * 1000;
+    const cacheKey = createHash("sha256")
+      .update(`${persona.voiceEnvKey}|${processedScript}`)
+      .digest("hex");
+    cardCacheKeys[index] = cacheKey;
+    if (!taskByCacheKey.has(cacheKey)) {
+      const cachePath = path.join(voiceCacheDir, `${cacheKey}.mp3`);
+      const wavPath = path.join(voiceWavDir, `${cacheKey}.wav`);
+      taskByCacheKey.set(cacheKey, { voice: voiceName, text: processedScript, wavPath, cachePath });
+    }
   }
 
-  const tasks = [...taskByCacheKey.values()];
-
-  // Add already-cached entries first (preserving time order below) -- one
-  // voiceEntry per occurrence, even when several slots share a cachePath.
-  for (const entry of alreadyCached) {
-    voiceEntries.push({
-      path: entry.cachePath,
-      startMs: entry.startMs,
-      durationMs: entry.durationMs
-    });
-  }
+  const tasks = [...taskByCacheKey.values()].filter((task) => !existsSync(task.cachePath));
 
   // Synthesize all uncached cards in one Python call — loads KPipeline once
   if (tasks.length > 0) {
@@ -1497,28 +1462,127 @@ async function main() {
       }
     }
     await rm(batchJsonPath, { force: true }).catch(() => {});
+  }
 
-    // Now fan each successfully-produced cachePath back out to every card
-    // slot that needed it, not just the first. Previously this pushed a
-    // voiceEntry inline in the loop above, keyed to one task per cachePath --
-    // when 2+ card slots shared an identical cacheKey (most commonly the
-    // BROADCAST_DISCLAIMER card, which repeats verbatim every ~15 minutes),
-    // only the first slot got a voiceEntry; the wav was deleted right after
-    // its conversion, so by the time the loop reached the next occurrence of
-    // that same cacheKey it found nothing to convert and silently produced no
-    // voiceEntry at all for that slot -- confirmed 2026-07-06 on a real
-    // broadcast where 2 of 3 disclaimer repeats within the hour played music
-    // with no narration. Every occurrence now gets its own voiceEntry at its
-    // own startMs as long as the shared mp3 exists on disk.
-    for (const occurrence of pendingOccurrences) {
-      if (existsSync(occurrence.cachePath)) {
-        voiceEntries.push({
-          path: occurrence.cachePath,
-          startMs: occurrence.startMs,
-          durationMs: occurrence.durationMs
-        });
+  // Measure every unique voice clip's REAL duration (freshly synthesized or
+  // reused from cache) instead of trusting the word-count estimate. Real
+  // Kokoro output routinely runs longer than that estimate -- it doesn't
+  // account for the 1.15x speaking rate or the 0.12s pause inserted per
+  // line -- which is exactly what let a card's audio still be playing when
+  // the next card's audio started.
+  const durationByCacheKey = new Map<string, number>();
+  for (const [cacheKey, task] of taskByCacheKey) {
+    if (!existsSync(task.cachePath)) {
+      continue; // synthesis or conversion failed for this card -- word-count estimate stands
+    }
+    try {
+      durationByCacheKey.set(cacheKey, await probeAudioDurationSeconds(ffmpeg, task.cachePath));
+    } catch (error) {
+      console.warn(
+        `Could not measure real audio duration for a synthesized card, falling back to its word-count estimate: ${describeError(error)}`
+      );
+    }
+  }
+
+  // Small fixed pad so adjacent voice cards never share a hard, zero-gap
+  // jump-cut, and so a fractional-second probe reading always rounds up
+  // safely rather than shaving a hair off the real clip.
+  const VOICE_CARD_PAD_SECONDS = 0.4;
+
+  for (let index = 0; index < cards.length; index += 1) {
+    const cacheKey = cardCacheKeys[index];
+    if (!cacheKey) {
+      continue;
+    }
+    const measuredSeconds = durationByCacheKey.get(cacheKey);
+    if (measuredSeconds === undefined) {
+      continue;
+    }
+    const estimatedSeconds = cards[index].duration;
+    const correctedSeconds = Math.ceil(measuredSeconds) + VOICE_CARD_PAD_SECONDS;
+    cards[index].duration = correctedSeconds;
+    // Mirrors expandContentDurations' own slack rule: only ever hand leftover
+    // time forward into a following music card, never borrow time back from
+    // one. An overrun (real audio longer than estimated) simply makes the
+    // show run a little long instead of shrinking anything -- a fully
+    // acceptable trade for correctness given the alternative is overlapping
+    // voices or a hard mid-sentence cutoff.
+    const slack = estimatedSeconds - correctedSeconds;
+    const nextCard = cards[index + 1];
+    if (slack > 0 && nextCard?.isMusic) {
+      nextCard.duration += slack;
+    }
+  }
+
+  const concatLines: string[] = [];
+
+  for (let index = 0; index < cards.length; index += 1) {
+    const slidePath = path.join(renderDir, `slide-${String(index + 1).padStart(2, "0")}.txt`);
+    const imagePath = path.join(renderDir, `slide-${String(index + 1).padStart(2, "0")}.png`);
+    await writeFile(slidePath, cards[index].text, "utf8");
+    const color = index % 2 === 0 ? "0x11151f" : "0x151a27";
+    await run(ffmpeg, [
+      "-y",
+      "-f",
+      "lavfi",
+      "-i",
+      `color=c=${color}:s=1280x720`,
+      "-frames:v",
+      "1",
+      imagePath
+    ]);
+    const concatPath = path.resolve(imagePath).replace(/\\/g, "/");
+    concatLines.push(`file '${concatPath}'`, `duration ${cards[index].duration}`);
+  }
+  const lastImage = path
+    .resolve(renderDir, `slide-${String(cards.length).padStart(2, "0")}.png`)
+    .replace(/\\/g, "/");
+  concatLines.push(`file '${lastImage}'`);
+  const concatPath = path.join(renderDir, "slides.ffconcat");
+  await writeFile(concatPath, concatLines.join("\n"), "utf8");
+
+  type VoiceEntry = { path: string; startMs: number; durationMs: number };
+  type GapEntry = { path: string; startMs: number };
+  type BedEntry = { startMs: number; durationMs: number };
+  const voiceEntries: VoiceEntry[] = [];
+  const gapEntries: GapEntry[] = [];    // gap-clip stingers, one per music card
+  // Music-bed windows, one per music-kind card -- confined to that card's own
+  // slot so the bed only ever plays during an actual gap, never under voice.
+  const bedEntries: BedEntry[] = [];
+  let offsetMs = 0;
+
+  for (let index = 0; index < cards.length; index += 1) {
+    const card = cards[index];
+    // Rule 9: the music bed only plays inside a music-kind card's own slot,
+    // never under voice -- previously it looped continuously for the whole
+    // hour and got mixed under every voice card too, confirmed as a real
+    // bug from a live operator report (background music audible "often",
+    // not just between cards) rather than the intended gap-only sound.
+    if (card.isMusic) {
+      bedEntries.push({ startMs: offsetMs, durationMs: card.duration * 1000 });
+      // Rule 7: collect gap-clip start times for music cards
+      if (card.gapClipPath) {
+        const resolvedGap = path.resolve(card.gapClipPath);
+        if (existsSync(resolvedGap)) {
+          gapEntries.push({ path: resolvedGap, startMs: offsetMs });
+        }
       }
     }
+
+    // Every occurrence of a cacheKey gets its own voiceEntry at its own
+    // startMs, even when several slots share one synthesized mp3 (e.g. the
+    // BROADCAST_DISCLAIMER card, which repeats verbatim every ~15 minutes) --
+    // confirmed 2026-07-06 that reusing only the first slot's entry silently
+    // dropped narration from later repeats.
+    const cacheKey = cardCacheKeys[index];
+    if (cacheKey) {
+      const cachePath = path.join(voiceCacheDir, `${cacheKey}.mp3`);
+      if (existsSync(cachePath)) {
+        voiceEntries.push({ path: cachePath, startMs: offsetMs, durationMs: card.duration * 1000 });
+      }
+    }
+
+    offsetMs += card.duration * 1000;
   }
 
   // Sort voice entries by start time so adelay values are ordered
@@ -1556,13 +1620,11 @@ async function main() {
       });
     }
     voiceEntries.forEach((e, i) => {
-      // card.duration (and so e.durationMs) is a word-count estimate of the
-      // spoken length, not the real Kokoro output length. atrim is only here
-      // to stop a voice track from bleeding into the next card's slot, not to
-      // guarantee the estimate is exact — a +3s safety margin means a card
-      // whose real narration runs slightly longer than estimated still gets
-      // its last words heard instead of hard-cut mid-sentence.
-      const durationSeconds = Math.max(0.1, e.durationMs / 1000) + 3;
+      // e.durationMs now comes from the card's real measured audio duration
+      // (plus VOICE_CARD_PAD_SECONDS), not a word-count guess, so atrim no
+      // longer needs a blind safety margin to avoid cutting off a card's
+      // last words -- the window already covers the real clip length.
+      const durationSeconds = Math.max(0.1, e.durationMs / 1000);
       filterParts.push(
         `[${i + 2}:a]volume=0.85,atrim=0:${durationSeconds.toFixed(
           3

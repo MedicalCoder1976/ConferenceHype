@@ -655,6 +655,18 @@ journals or specialties, instead of a generic always-identical title.
   for a genuinely mixed hour; falls back to today's original generic
   conference-based title when zero cards have resolvable journal data — a
   zero-journal-data hour is never worse off than before this feature.
+  **Known issue, diagnosed but not yet fixed (2026-07-19):** the "≥2 cards"
+  `dominant` threshold in `resolveTier()` (`lib/youtube/broadcastMetadata.ts`)
+  is a flat count, not a share of the hour, so at 90-journal scale a journal
+  with a slim plurality (e.g. 7 of 32 cards) still gets crowned as the whole
+  hour's title/intro even though the rest of the hour is unrelated
+  specialties. Confirmed on a real video (`MRDoPUwUVgk`, titled "JAMA
+  Psychiatry - Others" while ~78% of its 32 cards were Nature Medicine, PLOS
+  Medicine, JAMA Surgery, JAMA Otolaryngology, JCO Oncology Practice, and
+  JAMA Pediatrics). Per-card chapter attribution in the description is
+  correct; only the title/intro summarization is wrong. Fix direction:
+  require `dominant` to represent a real proportion of resolved cards (e.g.
+  ≥40%), falling through to the existing `roundup` tier otherwise.
 - **Description**: one YouTube-chapter-formatted line per content card
   (`M:SS Journal - Specialty - Mon YYYY`), which YouTube auto-converts into
   clickable chapters, plus an intro sentence and a closing hashtag line.
@@ -878,6 +890,50 @@ broadcasts through this new path:
   deeper follow-up, directs comments to `@conferencehype` on X, and asks the
   viewer to like and subscribe. A fully-stocked show uses the same close at
   its normal four-card boundary.
+- **Overlapping voices / hard mid-sentence cutoffs.** Card scheduling (slide
+  duration and audio placement in `scripts/render-hour-broadcast.ts`) was
+  driven entirely by `expandContentDurations`' word-count estimate
+  (`~2 words/sec + 5s`), never checked against the real synthesized Kokoro
+  clip length. Real narration routinely ran longer than the estimate (the
+  1.15x speaking rate and the 0.12s per-line pause aren't in that estimate at
+  all), so a card's audio could still be playing when the next card's audio
+  was told to start. A flat `+3s` pad on the `atrim` window papered over
+  short overruns by letting a card's tail play past its own slot instead of
+  being cut off — which is exactly what caused the overlap, since the next
+  card's `adelay` start time never moved to account for it. This is
+  structurally worse for journal30 than the hourly format: hourly puts a 45s
+  music slot after every single voice card, but journal30 only inserts music
+  after a whole 4-card group finishes, so 3 of every 4 transitions are
+  voice-straight-into-voice with zero buffer to absorb an overrun. Confirmed
+  live on video `MRDoPUwUVgk`. Fixed 2026-07-19: TTS synthesis now runs
+  *before* slide generation and timeline placement (previously last), each
+  unique voice clip's real duration is measured via `probeAudioDurationSeconds()`
+  (decodes with `ffmpeg -i <file> -f null -` and reads the last `time=`
+  progress line — no ffprobe dependency needed), and every voice card's
+  `duration` is corrected to `ceil(realSeconds) + 0.4s` before slides/offsets
+  are computed, with leftover positive slack still flowing forward into a
+  following music card exactly as `expandContentDurations` already did. The
+  `atrim` window is sized to this real duration directly, so the `+3s` guess
+  pad was removed entirely. Verified via `tsc`, `verify-broadcast-guards.ts`,
+  `npm run build`, and a `journal30` dry run — not yet verified against a
+  live audio render; do that via manual `workflow_dispatch` before relying on
+  it for a real slot.
+- **Cron cutover to journal30 reaffirmed pending, 2026-07-19.** Explicitly
+  revisited after the overlap fix above — decided to keep both formats
+  running rather than replace the hourly cron with journal30. Reasons: (1)
+  journal30 has no content-volume fallback by design (a thin journal means a
+  short show or, with the empty-content guard, no show at all), while hourly
+  always has something to air via its cross-journal approved pool plus
+  schedule/social-voice fallback; (2) journal picking is manual, not
+  auto-rotated, so journal30-only would roughly double daily operator slot
+  actions (48 half-hour slots vs. 24 hourly ones) with no guarantee all ~90
+  journals get airtime; (3) journal30 has no conference-coverage support at
+  all, so replacing hourly would remove ConferenceHype's ability to cover a
+  live conference; (4) journal30 has only ever run via manual
+  `workflow_dispatch` test broadcasts, never as the sole unattended
+  cron-driven format. None of this blocks a future cutover to *add* journal30
+  to the cron alongside hourly — it's specifically "replace hourly entirely"
+  that was rejected.
 
 ## Automation Cadence
 
