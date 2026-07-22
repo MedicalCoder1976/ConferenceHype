@@ -808,6 +808,9 @@ assert.match(renderHourSource, /durationSeconds = Math\.min\(Number\(process\.en
 // of content was audible.
 assert.match(renderHourSource, /amix=inputs=\$\{totalStreams\}:duration=longest:normalize=0/);
 assert.doesNotMatch(renderHourSource, /amix=inputs=\$\{totalStreams\}:duration=first/);
+assert.match(renderHourSource, /placedMusicPath/);
+assert.match(renderHourSource, /!card\.riskFlags\?\.includes\("operator_music_card"\)/);
+assert.match(renderHourSource, /\.filter\(\(card\) => card\.segmentId\)/);
 
 // Migrated 2026-07-16 from live RTMP streaming to render-then-upload: the
 // video no longer exists before rendering finishes (create-youtube-broadcast.ts

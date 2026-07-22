@@ -546,7 +546,7 @@ function slotsToCards(slots: BroadcastSlot[]): Card[] {
       sourceLabel: !isMusic ? slot.segment?.citations[0]?.label : undefined,
       sourceUrl: !isMusic ? slot.segment?.citations[0]?.url : undefined,
       script: !isMusic ? (slot.segment?.script || slot.segment?.summary || null) : null,
-      riskFlags: !isMusic ? (slot.segment?.riskFlags ?? []) : undefined,
+      riskFlags: slot.segment?.riskFlags ?? [],
       text: isMusic
         ? formatTransitionCard()
         : formatCard({
@@ -1567,7 +1567,9 @@ async function main() {
     // bug from a live operator report (background music audible "often",
     // not just between cards) rather than the intended gap-only sound.
     if (card.isMusic) {
-      bedEntries.push({ startMs: offsetMs, durationMs: card.duration * 1000 });
+      if (!card.riskFlags?.includes("operator_music_card")) {
+        bedEntries.push({ startMs: offsetMs, durationMs: card.duration * 1000 });
+      }
       // Rule 7: collect gap-clip start times for music cards
       if (card.gapClipPath) {
         const resolvedGap = path.resolve(card.gapClipPath);
