@@ -38,6 +38,7 @@ import {
 } from "@/lib/dailyCoverage";
 import { getUnsafeReviewSourceErrors } from "@/lib/generation/sourceSafety";
 import { hasMissingIntakeFailureLanguage } from "@/lib/broadcast/sanitizeCopy";
+import { isOperatorMusicSegment } from "@/lib/broadcast/operatorMusic";
 import type {
   AnalyticsSnapshot,
   BroadcastWriteout,
@@ -79,6 +80,9 @@ export function filterBroadcastReadySegments<T extends {
   segments: T[]
 ) {
   return segments.filter((segment) => {
+    if (isOperatorMusicSegment(segment)) {
+      return true;
+    }
     const text = `${segment.summary}\n${segment.script}`;
     const isLegacyCopiedSourceCard =
       segment.riskFlags?.includes("rss_latest_source_card") &&

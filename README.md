@@ -342,6 +342,14 @@ embedder.
   bug.
 - Narration style: pronounce `ASCO` as `ASKho`/`Ask-ho`, never as the individual letters A-S-C-O. Pronounce `cholangiocarcinoma` as `COLANGIOCARCINOMA` ("colangio-carcinoma"); the `ch` is a hard `k` sound and must not be read as "cho". Pronounce `Ib` and `1b` as `one B`. Pronounce `ECOG` as a word (`EE-kog`), not individual letters. Expand `PR` to "partial response", `CR` to "complete response", `pCR` to "pathologic complete response", and `WHO` to "World Health Organization" when spoken. Spell `NCI` out as individual letters ("N-C-I"). Cancer-staging notation (Roman numeral immediately followed by a letter, e.g. `IA`, `IIA`, `IIIB`, `IVA`) is read as the cardinal number plus the letter — `IA` as "one A", `IIA` as "two A", and so on.
 - Broadcast closing: never narrate "That is it for this segment." The close must identify the journal and issue month/year, invite viewers to report a missed article or name a finding that deserves deeper follow-up by tagging `@conferencehype` on X, and ask viewers to like the video and subscribe. This shared close applies to every newly rendered broadcast, including the early-ending outro used when a 30-minute journal show runs out of approved articles.
+- Operator music cards are allow-listed original three-minute instrumentals in
+  `public/music/fast-jazz-blocks`. The Admin Music cards panel may replace one
+  presentation card with a selected Funk or Latin track. One music card occupies
+  exactly one existing 135-second content + 45-second transition pair, so the
+  hour remains exactly 60 minutes and later slot timestamps do not move. The
+  replaced good editorial card returns to pending review, and the DB-backed
+  music card is marked rendered only after successful delivery. Music cards are
+  never sent to TTS.
 - Transition audio rotates through six 20-second tracks:
   four licensed voiced stingers in `public/music/gap-clips` and two generated
   preview tracks in `public/music`.
@@ -416,6 +424,7 @@ repository. See `public/music/README.md`.
 - Configure daily sources, priorities, exclusions, and breaking-news behavior.
 - Edit and order the one-hour presentation sequence.
 - Drag review cards into exact content slots.
+- Preview and place any of the 20 three-minute Funk/Latin music cards into a selected presentation slot.
 - Approve, reject, discard, or atomically replace cards.
 - Manage source URLs, X follows, social items, and emergency overrides.
 - Approve conference coverage by slot, day, or week.

@@ -13,6 +13,7 @@ import {
   stripBroadcastDisclaimer
 } from "@/lib/broadcast/voiceSegment";
 import { MUSIC_SECONDS } from "@/lib/broadcast/hourSchedule";
+import { isOperatorMusicSegment, operatorMusicPath } from "@/lib/broadcast/operatorMusic";
 import { broadcastDisclaimer } from "@/lib/generation/disclaimers";
 import { JOURNAL_SHOW_SECONDS } from "@/lib/broadcast/journalShowSchedule";
 import { contentSignature } from "@/lib/segments/contentSignature";
@@ -526,11 +527,18 @@ function slotsToCards(slots: BroadcastSlot[]): Card[] {
   let musicIndex = 0;
   return slots.map((slot) => {
     const isMusic = slot.kind === "music";
+    const placedMusicPath = isOperatorMusicSegment(slot.segment)
+      ? operatorMusicPath(slot.segment)
+      : undefined;
     return {
       duration: slot.durationSeconds,
       isMusic,
-      gapClipPath: isMusic ? GAP_CLIP_PATHS[musicIndex++ % GAP_CLIP_PATHS.length] : undefined,
-      segmentId: !isMusic ? slot.segment?.id : undefined,
+      gapClipPath: isMusic
+        ? placedMusicPath
+          ? `public${placedMusicPath}`
+          : GAP_CLIP_PATHS[musicIndex++ % GAP_CLIP_PATHS.length]
+        : undefined,
+      segmentId: slot.segment?.id,
       personaId: !isMusic ? (slot.segment?.personaId ?? "echo-sage") : undefined,
       personaName: !isMusic ? slot.segment?.personaName : undefined,
       contentType: !isMusic ? slot.segment?.contentType : undefined,
@@ -1342,7 +1350,7 @@ async function main() {
   const usedSegmentIds = [
     ...new Set(
       cards
-        .filter((card) => !card.isMusic && card.segmentId)
+        .filter((card) => card.segmentId)
         .map((card) => card.segmentId!)
     )
   ];

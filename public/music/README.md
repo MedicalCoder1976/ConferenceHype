@@ -47,3 +47,7 @@ Recommended workflow:
   gap-clip stingers in `public/music/gap-clips/*.mp3` already cover the
   spoken "up next" moment, and only play during actual music-transition
   slots. See `scripts/generate-gap-music.ps1`.
+- `fast-jazz-blocks/*.mp3` (current, 2026-07-22): 20 original instrumental
+  three-minute blocks generated for ConferenceHype from synthetic tones and
+  percussion only. Ten are Funk variations and ten are Latin variations. No
+  third-party recordings, samples, or paid voices are used.

@@ -29,6 +29,7 @@ import {
   buildJournalCardDecks,
   buildSourceCardDecks
 } from "@/lib/cardDeck";
+import { isOperatorMusicSegment } from "@/lib/broadcast/operatorMusic";
 import { getAdminSnapshot } from "@/lib/data";
 import { getCachedRecordings } from "@/lib/media/recordings";
 import { buildHourlySocialVoiceRundownSegments } from "@/lib/social/hourlyVoiceRundown";
@@ -183,7 +184,7 @@ function filterSegmentsForSelectedSources(
     return segments;
   }
   return segments.filter((segment) =>
-    segmentSourceMatchesSelection(segment, selection)
+    isOperatorMusicSegment(segment) || segmentSourceMatchesSelection(segment, selection)
   );
 }
 export default async function AdminPage({ searchParams }: AdminPageProps) {

@@ -4,6 +4,7 @@ import { AlertCircle, CalendarDays, CheckCircle2, Clock3, GripVertical, Mic2, Mu
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { cardTypeLabel } from "@/lib/broadcast/cardTypes";
+import { isOperatorMusicSegment, OPERATOR_MUSIC_TRACKS } from "@/lib/broadcast/operatorMusic";
 import { buildBroadcastHourBuckets, buildBroadcastSlots } from "@/lib/rundown/slots";
 import { normalizeLegacySegment } from "@/lib/segments/normalizeLegacy";
 import {
@@ -77,6 +78,26 @@ async function replaceSegment({
   return payload.segment as Segment;
 }
 
+async function placeMusicCard({
+  trackId,
+  approvedAt,
+  targetSegmentId
+}: {
+  trackId: string;
+  approvedAt: string;
+  targetSegmentId?: string;
+}) {
+  const response = await fetch("/api/admin/music-cards/place", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ trackId, approvedAt, targetSegmentId })
+  });
+  const payload = await response.json();
+  if (!response.ok || !payload.ok) {
+    throw new Error(payload.error ?? "Could not place music card.");
+  }
+  return payload.segment as Segment;
+}
 function timeLabel(value?: string | Date) {
   if (!value) {
     return "queued";
@@ -123,7 +144,7 @@ function filterSegmentsForSourceSelection(
     return segments;
   }
   return segments.filter((segment) =>
-    segmentSourceMatchesSelection(segment, selection)
+    isOperatorMusicSegment(segment) || segmentSourceMatchesSelection(segment, selection)
   );
 }
 
@@ -395,6 +416,46 @@ export function BroadcastRundown({
     });
   };
 
+  const placeMusic = (trackId: string) => {
+    if (!replaceTarget) {
+      showError("Click Replace on a presentation slot first, then choose a music track.");
+      return;
+    }
+    const target = replaceTarget;
+    setPendingId(`music:${trackId}`);
+    startTransition(async () => {
+      try {
+        const replacedSegment = target.segmentId
+          ? visibleSegments.find((item) => item.id === target.segmentId)
+          : undefined;
+        const updated = await placeMusicCard({
+          trackId,
+          approvedAt: target.at,
+          targetSegmentId:
+            target.segmentId && !target.segmentId.startsWith("virtual-")
+              ? target.segmentId
+              : undefined
+        });
+        setVisibleSegments((current) => [
+          ...current.filter((item) => item.id !== target.segmentId),
+          updated
+        ]);
+        if (replacedSegment && !isOperatorMusicSegment(replacedSegment)) {
+          setVisibleReviewSegments((current) => [
+            { ...replacedSegment, status: "pending_review", approvedAt: undefined },
+            ...current.filter((item) => item.id !== replacedSegment.id)
+          ]);
+        }
+        showSuccess(`${updated.title} placed at ${timeLabel(target.at)}.`);
+        setReplaceTarget(null);
+        router.refresh();
+      } catch (error) {
+        showError(error instanceof Error ? error.message : "Could not place music card.");
+      } finally {
+        setPendingId("");
+      }
+    });
+  };
   return (
     <section id="presentation-sequence" tabIndex={-1} className="scroll-mt-4 border border-ink/10 bg-white shadow-panel focus:outline-none">
       <div className="border-b border-ink/10 p-5">
@@ -445,6 +506,34 @@ export function BroadcastRundown({
             </p>
           </div>
         ) : null}
+        <div className="border border-ink/10 bg-paper/60 p-4 xl:col-start-2 xl:row-start-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-lg font-black text-ink">Music cards</h3>
+            <span className="text-xs font-black uppercase text-ink/50">20 original 3-minute tracks</span>
+          </div>
+          <p className="mt-2 text-xs font-bold uppercase leading-5 text-ink/50">
+            Click Replace on a presentation card, preview a track, then place it. The replaced good card returns to the ready pool.
+          </p>
+          <div className="mt-3 grid max-h-[34rem] gap-3 overflow-y-auto pr-1 md:grid-cols-2">
+            {OPERATOR_MUSIC_TRACKS.map((track) => (
+              <article key={track.id} className="border border-ink/15 bg-white p-3 shadow-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <h4 className="text-sm font-black text-ink">{track.title}</h4>
+                  <span className="text-[11px] font-black uppercase text-broadcast">{track.bpm} BPM</span>
+                </div>
+                <audio className="mt-2 h-9 w-full" controls preload="none" src={track.publicPath} />
+                <button
+                  type="button"
+                  className="mt-2 min-h-9 w-full bg-ink px-3 text-xs font-black uppercase text-white disabled:opacity-40"
+                  disabled={pending || !replaceTarget}
+                  onClick={() => placeMusic(track.id)}
+                >
+                  {pendingId === `music:${track.id}` ? "Placing..." : "Place in selected slot"}
+                </button>
+              </article>
+            ))}
+          </div>
+        </div>
         <div className="border border-ink/10 bg-paper/60 p-4 xl:col-start-2 xl:row-start-1">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-lg font-black text-ink">Brand new ready cards</h3>
@@ -578,7 +667,7 @@ export function BroadcastRundown({
                     moveToSlot(event.dataTransfer.getData("text/plain"), slot.at);
                   }}
                   onClick={() => {
-                    if (slot.kind !== "music") {
+                    if (slot.kind !== "music" || slot.segment) {
                       setSelectedSlotAt(slot.at.toISOString());
                     }
                   }}
@@ -604,7 +693,7 @@ export function BroadcastRundown({
                         Approved in presentation sequence
                       </span>
                     ) : null}
-                    {slot.kind !== "music" ? (
+                    {slot.kind !== "music" || slot.segment ? (
                       <button
                         type="button"
                         className="border border-broadcast bg-white px-2 py-1 text-[11px] font-black uppercase text-broadcast"
@@ -636,7 +725,7 @@ export function BroadcastRundown({
                   {slot.kind === "music" ? (
                     <div className="mt-2 flex items-center gap-2 text-xs font-black uppercase text-ink/50">
                       <Music2 className="h-4 w-4" />
-                      Broadcast transition.
+                      {slot.segment?.title ?? "Broadcast transition."}
                     </div>
                   ) : (
                     <>

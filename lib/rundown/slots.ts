@@ -20,6 +20,10 @@ import {
 import { broadcastDisclaimer } from "@/lib/generation/disclaimers";
 import { contentSignature } from "@/lib/segments/contentSignature";
 import { hasMissingIntakeFailureLanguage } from "@/lib/broadcast/sanitizeCopy";
+import {
+  isOperatorMusicSegment,
+  OPERATOR_MUSIC_SECONDS
+} from "@/lib/broadcast/operatorMusic";
 import type { Persona, Segment } from "@/lib/types";
 
 // Each broadcast hour uses exactly 4 voices, one per equal-size section of the
@@ -288,6 +292,18 @@ export function buildBroadcastSlots({
         }
         const sourceSegment =
           scheduledSegment ?? allContent[contentIndex % allContent.length];
+        if (isOperatorMusicSegment(sourceSegment)) {
+          slots.push({
+            at: contentAt,
+            kind: "music",
+            durationMinutes: OPERATOR_MUSIC_SECONDS / 60,
+            durationSeconds: OPERATOR_MUSIC_SECONDS,
+            label: sourceSegment.title,
+            segment: sourceSegment,
+            replaceable: true
+          });
+          continue;
+        }
         if (
           hasMissingIntakeFailureLanguage(
             `${sourceSegment.title} ${sourceSegment.summary} ${sourceSegment.script}`

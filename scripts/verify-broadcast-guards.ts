@@ -20,6 +20,7 @@ import {
 } from "@/lib/intakeCards";
 import { isGenericConferenceLandingItem } from "@/lib/intakeSelection";
 import { filterBroadcastReadySegments } from "@/lib/data";
+import { buildOperatorMusicSegment, OPERATOR_MUSIC_TRACKS } from "@/lib/broadcast/operatorMusic";
 import { normalizeLegacyDailyCoverageDefaults } from "@/lib/dailyCoverage";
 import {
   segmentSourceMatchesSelection,
@@ -182,6 +183,26 @@ const hourCheckIntroCount = hourCheckSlots.filter((slot) =>
   /This is .+ from ConferenceHype/.test(slot.segment?.script ?? "")
 ).length;
 assert.equal(hourCheckIntroCount, 4);
+// A manually placed three-minute music card replaces one complete 135-second
+// content + 45-second transition pair. The hour stays exactly 3,600 seconds,
+// the following content remains on its original timestamp, and the music row
+// remains DB-backed so it can be marked rendered after delivery.
+const musicHourStart = new Date("2026-06-22T13:00:00Z");
+const placedMusic = buildOperatorMusicSegment({
+  track: OPERATOR_MUSIC_TRACKS[0],
+  approvedAt: musicHourStart.toISOString()
+});
+const musicHourSlots = buildBroadcastSlots({
+  segments: hourCheckSegments,
+  scheduleSegments: [placedMusic],
+  baseTime: musicHourStart,
+  hours: 1
+});
+assert.equal(musicHourSlots.reduce((sum, slot) => sum + slot.durationSeconds, 0), 3600);
+assert.equal(musicHourSlots[0].kind, "music");
+assert.equal(musicHourSlots[0].durationSeconds, 180);
+assert.equal(musicHourSlots[0].segment?.id, placedMusic.id);
+assert.equal(musicHourSlots[1].at.toISOString(), "2026-06-22T13:03:00.000Z");
 
 // A 30-minute single-journal show must group cards 4-at-a-time with a music
 // break after every group, a disclaimer added after every 2nd group, one

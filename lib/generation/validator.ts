@@ -5,6 +5,7 @@ import {
   hasSourceLimitedScienceLanguage,
   hasUsableClinicalSectionSource
 } from "@/lib/segments/sectionSummary";
+import { isOperatorMusicSegment, operatorMusicPath } from "@/lib/broadcast/operatorMusic";
 
 function isClinicalScienceCard(segment: Pick<Segment, "title" | "summary" | "script" | "contentType">) {
   // Social posts are attributed callouts, not full studies — they're held to
@@ -53,6 +54,12 @@ const bannedAdvicePatterns = [
 
 export function validateSegmentForApproval(segment: Pick<Segment, "title" | "summary" | "script" | "citations" | "contentType" | "riskFlags">) {
   const errors: string[] = [];
+  if (isOperatorMusicSegment(segment)) {
+    if (!operatorMusicPath(segment)) {
+      errors.push("Operator music cards require an allow-listed music path.");
+    }
+    return errors;
+  }
   // Weekly context cards are generated when a source had no new content this
   // week. They are placeholder announcements ("no new articles this week"),
   // not substantive broadcast content, and must never enter the schedule.
