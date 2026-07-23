@@ -909,10 +909,13 @@ broadcasts through this new path:
   render time...") directly to the slot, and exits non-zero. This check
   applies to both the journal30 and the 60-minute hourly path (whichever
   produced zero content cards), not just journal shows.
-- **A journal with SOME but not enough approved segments went completely
-  silent partway through with no explanation.** A different failure mode
-  from the zero-content case above: confirmed live 2026-07-17 (video
-  `JSI7ZF34nF0`) with 11 approved segments (a full show needs ~20-24) —
+- **A journal with SOME but not enough approved segments can appear to go
+  silent partway through with no explanation.** This was confirmed again in
+  the May 2026 Journal of Minimally Invasive Gynecology video
+  (`h61Hvrwai4M`), where viewers heard no useful program audio after roughly
+  15 minutes. It is a different failure mode from the zero-content case above.
+  An earlier reproduction on 2026-07-17 (`JSI7ZF34nF0`) had 11 approved
+  segments (a full show needs roughly 20-24):
   `buildJournalShowSlots` narrated all 11 across ~14 minutes, then stopped
   scheduling entirely (its loop exits the moment segments run out, without
   finishing the remaining groups' music breaks), and
@@ -929,8 +932,11 @@ broadcasts through this new path:
   viewer to share, comment, like, and subscribe. The conclusion is suppressed
   on every intermediate four-card boundary and appears exactly once in the
   final journal outro. Any time remaining after that outro is divided into
-  consecutive three-minute Funk/Latin music blocks, preventing a long silent
-  tail when the journal has fewer cards than the 30-minute slot can hold.
+  consecutive full-length Funk/Latin music blocks of at most three minutes;
+  these use the allow-listed audio files rather than a silent or stretched
+  placeholder. The 2026-07-23 production rebuild (`1cLkv39c2ag`) verified one
+  closing at position 17 followed by five Funk music cards through the
+  remainder of the 30-minute program.
 - **Overlapping voices / hard mid-sentence cutoffs.** Card scheduling (slide
   duration and audio placement in `scripts/render-hour-broadcast.ts`) was
   driven entirely by `expandContentDurations`' word-count estimate
