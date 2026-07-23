@@ -12,6 +12,10 @@ export function StationSchedulePanel({
 }) {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const latestSchedule = schedules[0];
+  const canActivate =
+    latestSchedule?.programs.length === 6 &&
+    latestSchedule.programs.every((program) => program.status === "verified");
   const today = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/New_York",
     year: "numeric",
@@ -51,19 +55,19 @@ export function StationSchedulePanel({
         <button disabled={busy} onClick={() => post("/api/admin/station", { action: "generate_draft", scheduleDate: today, timezone: "America/New_York" })} className="bg-ink px-4 py-3 text-xs font-black uppercase text-white disabled:opacity-50">
           Generate today&apos;s draft
         </button>
-        {schedules[0] && schedules[0].status !== "active" ? (
-          <button disabled={busy} onClick={() => post("/api/admin/station", { action: "activate", scheduleId: schedules[0].id })} className="border border-mint px-4 py-3 text-xs font-black uppercase text-mint disabled:opacity-50">
+        {latestSchedule && latestSchedule.status !== "active" ? (
+          <button disabled={busy || !canActivate} onClick={() => post("/api/admin/station", { action: "activate", scheduleId: latestSchedule.id })} className="border border-mint px-4 py-3 text-xs font-black uppercase text-mint disabled:opacity-50">
             Activate only after all six verify
           </button>
         ) : null}
       </div>
-      {schedules[0] ? (
+      {latestSchedule ? (
         <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-          {schedules[0].programs.map((program) => (
+          {latestSchedule.programs.map((program) => (
             <article key={program.id} className="border border-ink/10 bg-paper/50 p-3">
-              <div className="text-[11px] font-black uppercase text-broadcast">+{program.startsAtOffsetMinutes} min · {program.status}</div>
+              <div className="text-[11px] font-black uppercase text-broadcast">+{program.startsAtOffsetMinutes} min {" · "} {program.status}</div>
               <h3 className="mt-1 font-black text-ink">{program.journalName}</h3>
-              <p className="text-xs font-semibold text-ink/60">{program.specialty} · {program.programType.replaceAll("_", " ")}</p>
+              <p className="text-xs font-semibold text-ink/60">{program.specialty} {" · "} {program.programType.replaceAll("_", " ")}</p>
               {program.programType === "new" && program.status !== "verified" ? (
                 <button disabled={busy} onClick={() => post("/api/admin/station/program", { programId: program.id })} className="mt-3 border border-broadcast px-3 py-2 text-[11px] font-black uppercase text-broadcast disabled:opacity-50">
                   Approve quality-passed cards, render and verify
@@ -95,7 +99,7 @@ export function StationSchedulePanel({
         <button disabled={busy} className="w-fit bg-broadcast px-4 py-3 text-xs font-black uppercase text-white disabled:opacity-50">Validate, render and upload break-in</button>
       </form>
       {message ? <p role="status" className="border border-ink/10 bg-paper p-3 text-sm font-bold">{message}</p> : null}
-      {breakIns.length ? <p className="text-xs font-bold text-ink/60">Latest break-in: {breakIns[0].title} · {breakIns[0].status}</p> : null}
+      {breakIns.length ? <p className="text-xs font-bold text-ink/60">Latest break-in: {breakIns[0].title} {" · "} {breakIns[0].status}</p> : null}
     </section>
   );
 }
