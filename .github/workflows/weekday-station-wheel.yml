@@ -1,0 +1,70 @@
+name: Weekday station wheel
+
+on:
+  workflow_dispatch:
+    inputs:
+      schedule_date:
+        description: "America/New_York date (YYYY-MM-DD); blank means today"
+        required: false
+        default: ""
+  schedule:
+    # 12:30 UTC is 7:30 AM EST / 8:30 AM EDT, safely before the 9:00 AM ET wheel start.
+    - cron: "30 12 * * 1-5"
+
+concurrency:
+  group: weekday-station-wheel
+  cancel-in-progress: false
+
+jobs:
+  activate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve Eastern weekday
+        id: day
+        shell: bash
+        run: |
+          TARGET="${{ inputs.schedule_date }}"
+          if [ -z "$TARGET" ]; then TARGET=$(TZ=America/New_York date +%F); fi
+          DOW=$(TZ=America/New_York date -d "$TARGET" +%u)
+          if [ "$DOW" -gt 5 ]; then
+            echo "Refusing weekend schedule for $TARGET"
+            exit 1
+          fi
+          echo "target=$TARGET" >> "$GITHUB_OUTPUT"
+
+      - name: Activate verified 9 AM ET replay wheel
+        env:
+          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TARGET_DATE: ${{ steps.day.outputs.target }}
+        shell: bash
+        run: |
+          RESPONSE=$(curl --fail --silent --show-error \
+            "${SUPABASE_URL}/rest/v1/rpc/roll_weekday_station_schedule" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "{\"p_schedule_date\":\"${TARGET_DATE}\",\"p_cycle_start_minutes\":540}")
+          echo "$RESPONSE" | jq -e '.status == "active" and .cycle_start_minutes == 540'
+
+      - name: Verify six canonical programs and no duplicate IDs
+        env:
+          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TARGET_DATE: ${{ steps.day.outputs.target }}
+        shell: bash
+        run: |
+          SCHEDULE=$(curl --fail --silent --show-error --get \
+            "${SUPABASE_URL}/rest/v1/station_daily_schedules" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            --data-urlencode "select=id" \
+            --data-urlencode "schedule_date=eq.${TARGET_DATE}" \
+            --data-urlencode "status=eq.active" | jq -r '.[0].id')
+          PROGRAMS=$(curl --fail --silent --show-error --get \
+            "${SUPABASE_URL}/rest/v1/station_programs" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            --data-urlencode "select=position,status,youtube_video_id" \
+            --data-urlencode "schedule_id=eq.${SCHEDULE}")
+          echo "$PROGRAMS" | jq -e 'length == 6 and all(.status == "verified") and all(.youtube_video_id != null) and ([.[].youtube_video_id] | unique | length) == 6'

@@ -51,6 +51,21 @@ export function nextBreakInBoundary(
   return boundary;
 }
 
+export function stationHasStartedToday(
+  now: Date,
+  cycleStartMinutes = 0,
+  timeZone = "America/New_York"
+) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23"
+  }).formatToParts(now);
+  const value = (type: string) => Number(parts.find((part) => part.type === type)?.value ?? 0);
+  return value("hour") * 60 + value("minute") >= cycleStartMinutes;
+}
+
 export function stationPositionAt(
   now: Date,
   cycleStartMinutes = 0,

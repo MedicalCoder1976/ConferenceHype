@@ -29,7 +29,7 @@ import {
   getXFollowVoicesFromDb
 } from "@/lib/db";
 import { getActiveStationScheduleFromDb, getStationBreakInsFromDb } from "@/lib/station/db";
-import { stationPositionAt } from "@/lib/station/schedule";
+import { stationHasStartedToday, stationPositionAt } from "@/lib/station/schedule";
 import {
   buildSocialVoiceLeaderboard,
   shouldRunSocialVoiceCompetition
@@ -320,9 +320,15 @@ export async function getPublicBroadcastContext(): Promise<PublicBroadcastContex
     const start = new Date(item.targetAt).getTime();
     return item.status === "verified" && Boolean(item.youtubeVideoId) && now >= start && now < start + 15 * 60_000;
   });
-  const stationProgram = stationSchedule?.programs[
-    stationPositionAt(stationNow, stationSchedule.cycleStartMinutes, stationSchedule.timezone)
-  ];
+  const stationProgram = stationSchedule && stationHasStartedToday(
+    stationNow,
+    stationSchedule.cycleStartMinutes,
+    stationSchedule.timezone
+  )
+    ? stationSchedule.programs[
+        stationPositionAt(stationNow, stationSchedule.cycleStartMinutes, stationSchedule.timezone)
+      ]
+    : undefined;
   const verifiedStationProgram = stationProgram?.status === "verified" && stationProgram.youtubeVideoId ? stationProgram : undefined;
   const effectiveStreamState = activeBreakIn
     ? {

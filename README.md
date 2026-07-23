@@ -619,6 +619,15 @@ Each new program reserves at most twelve quality-passed cards. This bounds the
 approval transaction and render input while leaving excess cards in their
 journal deck for a later program.
 
+The production weekday wheel starts at 9:00 AM America/New_York. The
+`weekday-station-wheel.yml` workflow runs at 12:30 UTC Monday-Friday (7:30
+AM EST / 8:30 AM EDT), rolls the latest active six-program verified wheel
+forward to that Eastern date, and activates it atomically. The same six
+canonical YouTube video IDs repeat every three hours; the rollover never
+re-uploads a replay, so it creates no duplicate YouTube videos. It fails
+closed on weekends, non-active pre-existing schedules, fewer than six
+verified source programs, missing video IDs, or duplicate IDs within a wheel.
+
 
 This feature is additive and fail-closed:
 
