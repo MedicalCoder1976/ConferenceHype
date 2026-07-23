@@ -22,6 +22,7 @@ import { RunWeeklyBatchButton } from "@/components/RunWeeklyBatchButton";
 import { SocialVoiceCompetition } from "@/components/SocialVoiceCompetition";
 import { SourceManager } from "@/components/SourceManager";
 import { StartStreamButton } from "@/components/StartStreamButton";
+import { StationSchedulePanel } from "@/components/StationSchedulePanel";
 import { SpecialtyVoiceDirectory } from "@/components/SpecialtyVoiceDirectory";
 import { XVoiceCallouts } from "@/components/XVoiceCallouts";
 import {
@@ -43,6 +44,7 @@ import type {
   OncologyJournal,
   Segment
 } from "@/lib/types";
+import { getStationBreakInsFromDb, getStationSchedulesFromDb } from "@/lib/station/db";
 
 // Prevent Vercel from caching this page so currentBlockStart() always reflects
 // the real server time rather than the build-time snapshot.
@@ -195,6 +197,13 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     getCachedRecordings()
   ]);
   const baseTime = baseDate.toISOString();
+  const stationWindowStart = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const stationWindowEnd = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+  const [stationSchedules, stationBreakIns] = await Promise.all([
+    getStationSchedulesFromDb(14).catch(() => []),
+    getStationBreakInsFromDb(stationWindowStart, stationWindowEnd).catch(() => [])
+  ]);
+
   const hourlySocialVoiceSegments = buildHourlySocialVoiceRundownSegments({
     leaders: snapshot.socialVoiceLeaderboard,
     specialtyVoices: snapshot.specialtyXVoices,
@@ -320,6 +329,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         initialActive={params?.section}
         broadcast={
           <div className="grid gap-6">
+            <StationSchedulePanel schedules={stationSchedules ?? []} breakIns={stationBreakIns ?? []} />
             <DailyCoveragePlanner
               key={activePlanningKey}
               initialPlan={snapshot.dailyCoveragePlan}

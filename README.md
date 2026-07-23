@@ -607,6 +607,31 @@ Rotate the OAuth client secret and refresh token immediately if either is
 exposed in chat, logs, screenshots, or source control.
 
 ### Renewing the YouTube refresh token
+## Continuous journal station and manual break-ins
+
+The station planner in the admin Broadcast tab creates a daily three-hour wheel
+of six 30-minute specialty/journal programs. The wheel repeats across the day.
+For a journal with new ready cards, the operator renders a new program. If the
+card count is zero, the planner reuses the latest verified program for that
+journal (or, secondarily, that specialty). Music already fills unused time
+inside every 30-minute render.
+
+This feature is additive and fail-closed:
+
+- The station tables are private service-role tables created by migration
+  20260722170000_station_schedule_and_breakins.sql.
+- A daily wheel cannot become active until exactly six programs have status
+  verified; activation is one atomic database function.
+- The public page selects only an active schedule and a verified current
+  program. If either is absent, it retains the existing working YouTube
+  broadcast without changing stream_state.
+- station-program.yml and station-breakin.yml are isolated manual workflows;
+  they do not alter the proven scheduled youtube-stream.yml path.
+- A manual breaking-news card is source-labelled, approval-validated, and
+  rendered as a 15-minute program for either the next :00 (top) or next :30
+  (bottom) boundary. It temporarily takes public-player precedence only during
+  its verified 15-minute window. A failed render leaves the current player
+  untouched.
 
 While the OAuth consent screen is in Testing publishing status, Google
 auto-revokes the refresh token after 7 days — this will recur until the app

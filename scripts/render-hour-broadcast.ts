@@ -732,6 +732,48 @@ async function buildJournalCards(): Promise<{ cards: Card[]; unusedApproved: Seg
 
   return { cards, unusedApproved };
 }
+async function buildBreakingNewsCards(): Promise<{ cards: Card[]; unusedApproved: Segment[] }> {
+  const [{ getSegmentByIdFromDb }, { withAssignedVoice }, { getPersona }] = await Promise.all([
+    import("@/lib/db"),
+    import("@/lib/rundown/slots"),
+    import("@/lib/generation/personas")
+  ]);
+  const segmentId = process.env.BREAKING_SEGMENT_ID;
+  if (!segmentId) {
+    throw new Error("BREAKING_SEGMENT_ID is required when HOUR_BROADCAST_MODE=breaking15");
+  }
+  const source = await getSegmentByIdFromDb(segmentId);
+  if (!source || source.status !== "approved") {
+    throw new Error("The selected breaking-news card is no longer approved or could not be found.");
+  }
+  const at = process.env.HOUR_BROADCAST_START
+    ? new Date(process.env.HOUR_BROADCAST_START)
+    : new Date();
+  const segment = withAssignedVoice(source, getPersona(source.personaId), 0, true, at);
+  return {
+    cards: slotsToCards([
+      {
+        at,
+        kind: "statement",
+        durationMinutes: 135 / 60,
+        durationSeconds: 135,
+        segment,
+        label: "Breaking news",
+        replaceable: false
+      },
+      {
+        at: new Date(at.getTime() + 135_000),
+        kind: "music",
+        durationMinutes: 45 / 60,
+        durationSeconds: 45,
+        label: "Breaking-news transition",
+        replaceable: false
+      }
+    ]),
+    unusedApproved: []
+  };
+}
+
 
 // ---------------------------------------------------------------------------
 // Block-mode card builder — three 20-minute blocks per hour:
@@ -1075,7 +1117,13 @@ async function saveBroadcastWriteout(
 // pre-render placeholder) if metadata resolution has nothing to work with
 // -- a broadcast should still go out even when it's mostly fallback/music
 // content.
-async function uploadRenderedBroadcast(cards: Card[], usedSegmentIds: string[], isJournalMode: boolean) {
+async function uploadRenderedBroadcast(
+  cards: Card[],
+  usedSegmentIds: string[],
+  mode: "presentation" | "journal30" | "breaking15"
+) {
+  const isJournalMode = mode === "journal30";
+  const isBreakingMode = mode === "breaking15";
   const hourStart = process.env.HOUR_BROADCAST_START
     ? new Date(process.env.HOUR_BROADCAST_START)
     : new Date();
@@ -1212,7 +1260,7 @@ async function uploadRenderedBroadcast(cards: Card[], usedSegmentIds: string[], 
     }
   }
 
-  if (!isJournalMode) {
+  if (!isJournalMode && !isBreakingMode) {
     await withRetry(() => saveBroadcastWriteout(cards, youtubeVideoId, youtubeUrl, title));
   }
 
@@ -1229,6 +1277,34 @@ async function uploadRenderedBroadcast(cards: Card[], usedSegmentIds: string[], 
   }
 
   const { updateConferenceCoverageDeliveryInDb, updateJournalBroadcastDeliveryInDb } = await import("@/lib/db");
+  if (process.env.STATION_PROGRAM_ID) {
+    const { updateStationProgramDeliveryInDb } = await import("@/lib/station/delivery");
+    await withRetry(() =>
+      updateStationProgramDeliveryInDb(process.env.STATION_PROGRAM_ID!, {
+        status: "verified",
+        youtubeVideoId,
+        youtubeUrl,
+        title,
+        description,
+        cardIds: usedSegmentIds,
+        writeoutCards: buildWriteoutCards(cards, hourStart)
+      })
+    );
+    return;
+  }
+  if (isBreakingMode && process.env.STATION_BREAKIN_ID) {
+    const { updateStationBreakInDeliveryInDb } = await import("@/lib/station/delivery");
+    await withRetry(() =>
+      updateStationBreakInDeliveryInDb(process.env.STATION_BREAKIN_ID!, {
+        status: "verified",
+        youtubeVideoId,
+        youtubeUrl,
+        failureReason: null
+      })
+    );
+    return;
+  }
+
   const workflowUrl =
     process.env.GITHUB_SERVER_URL && process.env.GITHUB_REPOSITORY && process.env.GITHUB_RUN_ID
       ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
@@ -1253,9 +1329,13 @@ async function main() {
   const isJournalMode = process.env.HOUR_BROADCAST_MODE === "journal30";
   const { applySpokenPronunciations } = await import("@/lib/media/tts");
   const { getPersona } = await import("@/lib/generation/personas");
+  const isBreakingMode = process.env.HOUR_BROADCAST_MODE === "breaking15";
+  const broadcastMode = isBreakingMode ? "breaking15" : isJournalMode ? "journal30" : "presentation";
   const { cards: rawCards, unusedApproved } = useBlockMode
     ? { cards: await buildBlockCards(), unusedApproved: [] as Segment[] }
-    : isJournalMode
+    : isBreakingMode
+      ? await buildBreakingNewsCards()
+      : isJournalMode
       ? await buildJournalCards()
       : await buildCards();
   const cards = enforceOneHourFrame(
@@ -1263,7 +1343,7 @@ async function main() {
       expandContentDurations(
         replaceEmptyContentCardsWithMusic(
           replaceMissingIntakeCardsWithMusic(
-            applyPresentationPolicy(rawCards, isJournalMode ? Infinity : DISCLAIMER_INTERVAL_SECONDS)
+            applyPresentationPolicy(rawCards, isJournalMode || isBreakingMode ? Infinity : DISCLAIMER_INTERVAL_SECONDS)
           )
         )
       ),
@@ -1271,7 +1351,7 @@ async function main() {
       applySpokenPronunciations,
       getPersona
     ),
-    isJournalMode ? JOURNAL_SHOW_SECONDS : 3600
+    isBreakingMode ? 15 * 60 : isJournalMode ? JOURNAL_SHOW_SECONDS : 3600
   );
 
   // Opt-in, no-op-by-default escape hatch for sanity-checking the full card
@@ -1310,7 +1390,9 @@ async function main() {
   // write that says exactly why.
   const contentCardCount = cards.filter((card) => !card.isMusic).length;
   if (contentCardCount === 0) {
-    const reason = isJournalMode
+    const reason = isBreakingMode
+      ? "The selected breaking-news card was unavailable at render time; the current public broadcast remains unchanged."
+      : isJournalMode
       ? "No approved segments were available for this journal at render time -- 0 content cards scheduled, refusing to publish a music-only broadcast."
       : "No approved (or fallback schedule/social) content was available at render time -- 0 content cards scheduled, refusing to publish a music-only broadcast.";
     console.log(`::error::${reason}`);
@@ -1319,6 +1401,15 @@ async function main() {
       process.env.GITHUB_SERVER_URL && process.env.GITHUB_REPOSITORY && process.env.GITHUB_RUN_ID
         ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
         : undefined;
+    if (isBreakingMode && process.env.STATION_BREAKIN_ID) {
+      const { updateStationBreakInDeliveryInDb } = await import("@/lib/station/delivery");
+      await updateStationBreakInDeliveryInDb(process.env.STATION_BREAKIN_ID, {
+        status: "failed",
+        failureReason: reason
+      }).catch((error) => {
+        console.warn(`Failed to record the breaking-news failure reason: ${describeError(error)}`);
+      });
+    }
     const failurePatch = {
       youtubeStatus: "failed" as const,
       deliveryError: reason,
@@ -1748,7 +1839,7 @@ async function main() {
   );
   await run(ffmpeg, args);
 
-  await uploadRenderedBroadcast(cards, usedSegmentIds, isJournalMode);
+  await uploadRenderedBroadcast(cards, usedSegmentIds, broadcastMode);
 }
 
 main().catch((error) => {

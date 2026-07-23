@@ -28,6 +28,8 @@ import {
   upsertAdminCatalogSeedsToDb,
   getXFollowVoicesFromDb
 } from "@/lib/db";
+import { getActiveStationScheduleFromDb, getStationBreakInsFromDb } from "@/lib/station/db";
+import { stationPositionAt } from "@/lib/station/schedule";
 import {
   buildSocialVoiceLeaderboard,
   shouldRunSocialVoiceCompetition
@@ -262,12 +264,23 @@ function deriveDisplayYoutubeStatus(
 }
 
 export async function getPublicBroadcastContext(): Promise<PublicBroadcastContext> {
-  const [streamState, writeouts, approvedSegments, conferenceSlots, journalSlots] = await Promise.all([
+  const stationNow = new Date();
+  const stationWindowStart = new Date(stationNow.getTime() - 15 * 60_000).toISOString();
+  const stationWindowEnd = new Date(stationNow.getTime() + 60 * 60_000).toISOString();
+  const stationDateParts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit"
+  }).formatToParts(stationNow);
+  const stationDateValue = (type: string) => stationDateParts.find((part) => part.type === type)?.value ?? "";
+  const stationDate = `${stationDateValue("year")}-${stationDateValue("month")}-${stationDateValue("day")}`;
+  const [streamState, writeouts, approvedSegments, conferenceSlots, journalSlots, stationBreakIns, stationSchedule] =
+    await Promise.all([
     getStreamState(),
     getBroadcastWriteoutsFromDb(20),
     getPublicSegments(),
     getConferenceCoverageSlotsFromDb(),
-    getJournalBroadcastSlotsFromDb()
+    getJournalBroadcastSlotsFromDb(),
+    getStationBreakInsFromDb(stationWindowStart, stationWindowEnd).catch(() => []),
+    getActiveStationScheduleFromDb(stationDate).catch(() => null)
   ]);
 
   // stream_state is a singleton -- it only remembers whichever broadcast's
@@ -303,9 +316,31 @@ export async function getPublicBroadcastContext(): Promise<PublicBroadcastContex
     .filter((slot) => now >= slot.startMs && now < slot.startMs + slot.durationMs)
     .sort((a, b) => b.startMs - a.startMs)[0];
 
-  const effectiveStreamState = currentlyAiringSlot
-    ? { ...streamState, youtubeVideoId: currentlyAiringSlot.youtubeVideoId, youtubeStatus: "queued" as const }
-    : streamState;
+  const activeBreakIn = (stationBreakIns ?? []).find((item) => {
+    const start = new Date(item.targetAt).getTime();
+    return item.status === "verified" && Boolean(item.youtubeVideoId) && now >= start && now < start + 15 * 60_000;
+  });
+  const stationProgram = stationSchedule?.programs[
+    stationPositionAt(stationNow, stationSchedule.cycleStartMinutes, stationSchedule.timezone)
+  ];
+  const verifiedStationProgram = stationProgram?.status === "verified" && stationProgram.youtubeVideoId ? stationProgram : undefined;
+  const effectiveStreamState = activeBreakIn
+    ? {
+        ...streamState,
+        youtubeVideoId: activeBreakIn.youtubeVideoId,
+        youtubeUrl: activeBreakIn.youtubeUrl,
+        youtubeStatus: "queued" as const
+      }
+    : verifiedStationProgram
+      ? {
+          ...streamState,
+          youtubeVideoId: verifiedStationProgram.youtubeVideoId,
+          youtubeUrl: verifiedStationProgram.youtubeUrl,
+          youtubeStatus: "queued" as const
+        }
+      : currentlyAiringSlot
+      ? { ...streamState, youtubeVideoId: currentlyAiringSlot.youtubeVideoId, youtubeStatus: "queued" as const }
+      : streamState;
 
   const matchingWriteout = findMatchingWriteout({
     writeouts: writeouts ?? [],
@@ -318,8 +353,10 @@ export async function getPublicBroadcastContext(): Promise<PublicBroadcastContex
   // Renumber sequentially here so the public "Broadcast rundown" list reads
   // 1, 2, 3, ... instead of only odd numbers -- id generation still uses the
   // original position, so ids stay unique.
+  const selectedWriteoutCards =
+    (!activeBreakIn && verifiedStationProgram?.writeoutCards?.length ? verifiedStationProgram.writeoutCards : matchingWriteout?.cards) ?? [];
   const writeoutCards =
-    matchingWriteout?.cards
+    selectedWriteoutCards
       .filter(
         (card) =>
           card.kind === "content" &&
@@ -332,7 +369,7 @@ export async function getPublicBroadcastContext(): Promise<PublicBroadcastContex
     return {
       streamState: {
         ...effectiveStreamState,
-        youtubeStatus: deriveDisplayYoutubeStatus(effectiveStreamState.youtubeStatus, writeoutCards)
+        youtubeStatus: !activeBreakIn && verifiedStationProgram ? "queued" : deriveDisplayYoutubeStatus(effectiveStreamState.youtubeStatus, writeoutCards)
       },
       cards: writeoutCards,
       currentCard: currentWriteoutCard(writeoutCards),
