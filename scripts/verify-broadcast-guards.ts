@@ -255,8 +255,8 @@ const journalShowSlots = buildJournalShowSlots({
   baseTime: new Date("2026-07-13T16:00:00Z")
 });
 // 6 groups of (4 content + 1 music) = 30, plus a disclaimer after every 2nd
-// group (groups 2, 4, 6) = 3 more = 33 slots total.
-assert.equal(journalShowSlots.length, 33);
+// group (groups 2, 4, 6) = 3 more, plus the one true-end outro = 34 slots.
+assert.equal(journalShowSlots.length, 34);
 for (let group = 0; group < 6; group += 1) {
   const groupStart = group * 5 + Math.floor(group / 2);
   for (let card = 0; card < 4; card += 1) {
@@ -268,13 +268,23 @@ const journalShowDisclaimerSlots = journalShowSlots.filter((slot) =>
   slot.segment?.riskFlags.includes("journal_show_disclaimer")
 );
 assert.equal(journalShowDisclaimerSlots.length, 3);
+assert.equal(
+  journalShowSlots.filter((slot) => slot.segment?.riskFlags.includes("journal_show_outro")).length,
+  1,
+  "A full journal show must also have exactly one true-end outro."
+);
+assert.equal(journalShowSlots.at(-1)?.segment?.riskFlags.includes("journal_show_outro"), true);
 const journalShowPersonaNames = new Set(
   journalShowSlots.filter((slot) => slot.segment).map((slot) => slot.segment?.personaName)
 );
 assert.equal(journalShowPersonaNames.size, 1);
 const journalShowContentJournalIds = new Set(
   journalShowSlots
-    .filter((slot) => slot.kind !== "music" && !slot.segment?.riskFlags.includes("journal_show_disclaimer"))
+    .filter((slot) =>
+      slot.kind !== "music" &&
+      !slot.segment?.riskFlags.includes("journal_show_disclaimer") &&
+      !slot.segment?.riskFlags.includes("journal_show_outro")
+    )
     .map((slot) => slot.segment?.citations?.[0]?.journalId)
 );
 assert.deepEqual([...journalShowContentJournalIds], [journalShowJournalId]);
@@ -299,24 +309,25 @@ const shortJournalOutro = shortJournalShowSlots.find((slot) =>
 )?.segment?.script ?? "";
 assert.match(
   shortJournalOutro,
-  /This concludes ConferenceHype's coverage of the July 2026 issue of Test Journal\./
+  /That's it for now for ConferenceHype's coverage of the July 2026 issue of Test Journal\./
 );
+assert.match(shortJournalOutro, /If anything was missed/);
 assert.match(shortJournalOutro, /tag @conferencehype on X/);
-assert.match(shortJournalOutro, /Share this broadcast with a colleague or your clinical team/);
+assert.match(shortJournalOutro, /share this review with your clinical team/);
 assert.match(shortJournalOutro, /subscribe with notifications turned on/);
 assert.doesNotMatch(shortJournalOutro, /That (?:is it|wraps up) for this segment/i);
 const shortJournalContentScripts = shortJournalShowSlots
   .filter((slot) => slot.segment && !slot.segment.riskFlags.includes("journal_show_outro"))
   .map((slot) => slot.segment?.script ?? "");
 assert.ok(
-  shortJournalContentScripts.every((script) => !script.includes("This concludes ConferenceHype's coverage")),
+  shortJournalContentScripts.every((script) => !script.includes("That's it for now")),
   "Journal content cards must not repeat the final coverage conclusion."
 );
 assert.equal(
   shortJournalShowSlots
     .map((slot) => slot.segment?.script ?? "")
     .join(" ")
-    .match(/This concludes ConferenceHype's coverage/g)?.length,
+    .match(/That's it for now/g)?.length,
   1,
   "A short journal show must contain exactly one final coverage conclusion."
 );
@@ -355,6 +366,17 @@ const metadataWithOverride = buildBroadcastMetadata({
 });
 assert.match(metadataWithOverride.title, /Mar 2026/);
 assert.doesNotMatch(metadataWithOverride.title, /Jul 13, 2026/);
+assert.match(
+  metadataWithOverride.description,
+  /Journals and publication dates covered: Test Journal \(publication date unavailable\)\./
+);
+const legacyNeurologyMetadata = buildBroadcastMetadata({
+  hourStart: metadataHourStart,
+  slots: journalShowSlots,
+  journalsById: new Map([[journalShowJournalId, { ...journalShowTestJournal, name: "Neurology", specialty: "Others" }]])
+});
+assert.match(legacyNeurologyMetadata.title, /Neurology - Neurology/);
+assert.doesNotMatch(`${legacyNeurologyMetadata.title} ${legacyNeurologyMetadata.description} ${legacyNeurologyMetadata.tags.join(" ")}`, /\bOthers\b/);
 
 assert.ok(
   validateSegmentForApproval(sponsorBase).some((error) =>

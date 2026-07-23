@@ -88,6 +88,19 @@ type ResolvedCard = {
   publishedAt?: string;
 };
 
+// Historical database rows may still contain the old catch-all "Others"
+// value. Never expose that non-specific label in viewer-facing metadata.
+function specificSpecialty(journal: OncologyJournal) {
+  if (journal.specialty && journal.specialty !== "Others") return journal.specialty;
+  const name = journal.name.toLowerCase();
+  if (/(neurolog|neurosurg)/.test(name)) return "Neurology";
+  if (/psychiatr/.test(name)) return "Psychiatry";
+  if (/ophthalm/.test(name)) return "Ophthalmology";
+  if (/(thorax|pulmon|respir)/.test(name)) return "Pulmonology";
+  if (/endocrin/.test(name)) return "Endocrinology";
+  return "Medical Journal";
+}
+
 function resolveContentCards(
   slots: BroadcastSlot[],
   journalsById: Map<string, OncologyJournal>
@@ -111,9 +124,8 @@ function tallyDominant(cards: ResolvedCard[]) {
       journal: card.journal,
       count: (existing?.count ?? 0) + 1
     });
-    if (card.journal.specialty) {
-      specialtyCounts.set(card.journal.specialty, (specialtyCounts.get(card.journal.specialty) ?? 0) + 1);
-    }
+    const specialty = specificSpecialty(card.journal);
+    specialtyCounts.set(specialty, (specialtyCounts.get(specialty) ?? 0) + 1);
   }
   const dominantJournalEntry = [...journalCounts.values()].sort((a, b) => b.count - a.count)[0];
   const dominantSpecialtyEntry = [...specialtyCounts.entries()].sort((a, b) => b[1] - a[1])[0];
@@ -141,7 +153,7 @@ function resolveTier({
     return {
       tier: "dominant",
       journalName: dominantJournal.journal.name,
-      specialty: dominantJournal.journal.specialty
+      specialty: specificSpecialty(dominantJournal.journal)
     };
   }
   if (anyJournalResolved) {
@@ -187,9 +199,21 @@ function buildDescription({
   tags: string[];
 }) {
   let intro: string;
+  const journalEditions = new Map<string, Set<string>>();
+  for (const { journal, publishedAt } of cards) {
+    if (!journal) continue;
+    const editions = journalEditions.get(journal.name) ?? new Set<string>();
+    editions.add(monthYearLabel(publishedAt) ?? "publication date unavailable");
+    journalEditions.set(journal.name, editions);
+  }
+  const journalEditionLine = journalEditions.size > 0
+    ? `Journals and publication dates covered: ${[...journalEditions.entries()]
+        .map(([journal, editions]) => `${journal} (${[...editions].join(", ")})`)
+        .join("; ")}.`
+    : "";
   if (dominantJournal && dominantJournal.count >= 2) {
-    const specialty = dominantJournal.journal.specialty ?? "medicine";
-    intro = `This hour of ConferenceHype focuses on ${dominantJournal.journal.name} coverage in ${specialty}, source-attributed for physicians, NPs, and PAs following the literature.`;
+    const specialty = specificSpecialty(dominantJournal.journal);
+    intro = `This ConferenceHype journal broadcast focuses on ${dominantJournal.journal.name} coverage in ${specialty}, source-attributed for physicians, NPs, and PAs following the literature.`;
   } else if (anyJournalResolved) {
     intro = `This hour of ConferenceHype covers ${dominantSpecialty ?? "medical journal"} literature across multiple journals, source-attributed for physicians, NPs, and PAs.`;
   } else {
@@ -200,7 +224,7 @@ function buildDescription({
     const elapsedSeconds = (slot.at.getTime() - hourStart.getTime()) / 1000;
     const timestamp = formatElapsed(elapsedSeconds);
     if (journal) {
-      const specialty = journal.specialty ?? "Medicine";
+      const specialty = specificSpecialty(journal);
       const monthYear = monthYearLabel(publishedAt);
       const label = monthYear ? `${journal.name} - ${specialty} - ${monthYear}` : `${journal.name} - ${specialty}`;
       return `${timestamp} ${truncate(label, TITLE_MAX_LENGTH)}`;
@@ -211,7 +235,7 @@ function buildDescription({
 
   const hashtags = tags.slice(0, 6).map((tag) => `#${tag.replace(/\s+/g, "")}`).join(" ");
 
-  return [intro, "", ...chapterLines, "", hashtags].join("\n");
+  return [intro, journalEditionLine, "", ...chapterLines, "", hashtags].join("\n");
 }
 
 function buildTags(cards: ResolvedCard[]) {
@@ -219,7 +243,7 @@ function buildTags(cards: ResolvedCard[]) {
   for (const card of cards) {
     if (!card.journal) continue;
     names.add(card.journal.name);
-    if (card.journal.specialty) names.add(card.journal.specialty);
+    names.add(specificSpecialty(card.journal));
   }
   const candidates = [...names, ...GENERIC_TAGS];
   const tags: string[] = [];

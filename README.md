@@ -341,7 +341,7 @@ embedder.
   sharing a citation URL or script text first, before assuming a scheduling
   bug.
 - Narration style: pronounce `ASCO` as `ASKho`/`Ask-ho`, never as the individual letters A-S-C-O. Pronounce `cholangiocarcinoma` as `COLANGIOCARCINOMA` ("colangio-carcinoma"); the `ch` is a hard `k` sound and must not be read as "cho". Pronounce `Ib` and `1b` as `one B`. Pronounce `ECOG` as a word (`EE-kog`), not individual letters. Expand `PR` to "partial response", `CR` to "complete response", `pCR` to "pathologic complete response", and `WHO` to "World Health Organization" when spoken. Spell `NCI` out as individual letters ("N-C-I"). Cancer-staging notation (Roman numeral immediately followed by a letter, e.g. `IA`, `IIA`, `IIIB`, `IVA`) is read as the cardinal number plus the letter — `IA` as "one A", `IIA` as "two A", and so on.
-- Broadcast closing: never narrate "That is it for this segment." A single-journal program must narrate its conclusion exactly once, in the dedicated final outro after the last available article; content-card group boundaries must never repeat it. The close identifies the journal and issue month/year, asks what could change practice and what deserves follow-up, invites disagreement and missed-article reports via `@conferencehype` on X and comments, asks viewers to share the review with their team, and asks them to like and subscribe with notifications enabled.
+- Broadcast closing: never narrate "That is it for this segment." A single-journal program must say "That's it for now" and "If anything was missed" exactly once, in the dedicated final outro at the true end of the journal broadcast; content-card group boundaries must never repeat either phrase. The close identifies the journal and issue month/year and invites missed-article reports via `@conferencehype` on X.
 - Operator music cards are allow-listed original three-minute instrumentals in
   `public/music/fast-jazz-blocks`. The Admin Music cards panel may replace one
   presentation card with a selected Funk or Latin track. One music card occupies
@@ -705,9 +705,10 @@ journals or specialties, instead of a generic always-identical title.
   correct; only the title/intro summarization is wrong. Fix direction:
   require `dominant` to represent a real proportion of resolved cards (e.g.
   ≥40%), falling through to the existing `roundup` tier otherwise.
-- **Description**: one YouTube-chapter-formatted line per content card
+- **Description**: explicitly names every journal and its source publication month/year near the top, followed by one YouTube-chapter-formatted line per content card
   (`M:SS Journal - Specialty - Mon YYYY`), which YouTube auto-converts into
   clickable chapters, plus an intro sentence and a closing hashtag line.
+- **Specificity rule**: titles, descriptions, hashtags, and tags must never expose the catch-all `Others`; use the journal's actual clinical specialty.
 - **Tags/category**: every distinct journal/specialty that aired that hour
   plus fixed medical-education keywords; `categoryId` defaults to Education
   (`"27"`), overridable via `YOUTUBE_BROADCAST_CATEGORY_ID`.

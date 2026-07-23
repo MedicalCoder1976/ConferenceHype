@@ -414,12 +414,17 @@ async function fillLeftoverGapsWithBonusCards(
 function enforceOneHourFrame(
   cards: Card[],
   frameSeconds = 3600,
-  useFullLengthMusicPadding = false
+  useFullLengthMusicPadding = false,
+  preserveJournalOutro = false
 ) {
-  const framedCards = [...cards];
+  const finalOutro = preserveJournalOutro
+    ? cards.findLast((card) => card.riskFlags?.includes("journal_show_outro"))
+    : undefined;
+  const framedCards = finalOutro ? cards.filter((card) => card !== finalOutro) : [...cards];
+  const contentFrameSeconds = finalOutro ? frameSeconds - finalOutro.duration : frameSeconds;
   let removedContentCards = 0;
 
-  while (totalCardSeconds(framedCards) > frameSeconds) {
+  while (totalCardSeconds(framedCards) > contentFrameSeconds) {
     const lastContentIndex = framedCards.map((card) => !card.isMusic).lastIndexOf(true);
     if (lastContentIndex === -1) {
       break;
@@ -436,9 +441,9 @@ function enforceOneHourFrame(
     removedContentCards += 1;
   }
 
-  while (totalCardSeconds(framedCards) > frameSeconds && framedCards.length > 0) {
+  while (totalCardSeconds(framedCards) > contentFrameSeconds && framedCards.length > 0) {
     const lastCard = framedCards[framedCards.length - 1];
-    const excessSeconds = totalCardSeconds(framedCards) - frameSeconds;
+    const excessSeconds = totalCardSeconds(framedCards) - contentFrameSeconds;
     if (lastCard.isMusic && lastCard.duration > excessSeconds) {
       lastCard.duration -= excessSeconds;
       break;
@@ -446,7 +451,7 @@ function enforceOneHourFrame(
     framedCards.pop();
   }
 
-  let remainingSeconds = frameSeconds - totalCardSeconds(framedCards);
+  let remainingSeconds = contentFrameSeconds - totalCardSeconds(framedCards);
   if (remainingSeconds > 0) {
     let musicIndex = framedCards.filter((card) => card.isMusic).length;
     while (remainingSeconds > 0) {
@@ -463,6 +468,10 @@ function enforceOneHourFrame(
       remainingSeconds -= chunkSeconds;
       musicIndex += 1;
     }
+  }
+
+  if (finalOutro) {
+    framedCards.push(finalOutro);
   }
 
   if (removedContentCards > 0) {
@@ -1392,6 +1401,7 @@ async function main() {
       getPersona
     ),
     isBreakingMode ? 15 * 60 : isJournalMode ? JOURNAL_SHOW_SECONDS : 3600,
+    isJournalMode,
     isJournalMode
   );
 

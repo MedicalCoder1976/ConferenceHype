@@ -1,5 +1,5 @@
 import { personas } from "@/lib/generation/personas";
-import { buildSegmentClose, formatVoiceSegment } from "@/lib/broadcast/voiceSegment";
+import { buildJournalShowClose, formatVoiceSegment } from "@/lib/broadcast/voiceSegment";
 import {
   CONTENT_CARDS_PER_HOUR,
   CONTENT_SECONDS,
@@ -350,7 +350,7 @@ export function buildBroadcastSlots({
 
 function journalOutroSegment(persona: Persona, at: Date, sourceSegment: Segment): Segment {
   const createdAt = at.toISOString();
-  const script = buildSegmentClose({
+  const script = buildJournalShowClose({
     narrative: sourceSegment.script || sourceSegment.summary,
     journalName: journalNameFromSegment(sourceSegment),
     publishedAt: sourceSegment.citations.find((citation) => citation.publishedAt)?.publishedAt
@@ -528,7 +528,8 @@ export function buildJournalShowSlots({
   // was actually narrated -- an all-filtered-out journal (0 real cards)
   // is the zero-content case render-hour-broadcast.ts's main() already
   // aborts on, and this card must not count as "content" there instead.
-  if (contentIndex > 0 && groupIndex < JOURNAL_GROUPS_PER_SHOW && segmentCursor >= journalSegments.length) {
+  // This is the only true-end journal sign-off; never emit it at a group boundary.
+  if (contentIndex > 0) {
     const outroSegment = journalOutroSegment(persona, at, journalSegments[segmentCursor - 1]);
     slots.push({
       at,

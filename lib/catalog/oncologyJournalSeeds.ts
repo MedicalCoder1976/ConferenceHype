@@ -618,56 +618,56 @@ export const oncologyJournalSeeds: JournalSeed[] = [
     abbreviation: "Thorax",
     rssUrl: "https://thorax.bmj.com/rss/current.xml",
     officialUrl: "https://thorax.bmj.com/",
-    specialty: "Others"
+    specialty: "Pulmonology"
   },
   {
     name: "Journal of Neurology, Neurosurgery & Psychiatry",
     abbreviation: "J Neurol Neurosurg Psychiatry",
     rssUrl: "https://jnnp.bmj.com/rss/current.xml",
     officialUrl: "https://jnnp.bmj.com/",
-    specialty: "Others"
+    specialty: "Neurology"
   },
   {
     name: "Nature Reviews Neurology",
     abbreviation: "Nat Rev Neurol",
     rssUrl: "https://www.nature.com/nrneurol.rss",
     officialUrl: "https://www.nature.com/nrneurol/",
-    specialty: "Others"
+    specialty: "Neurology"
   },
   {
     name: "Nature Reviews Endocrinology",
     abbreviation: "Nat Rev Endocrinol",
     rssUrl: "https://www.nature.com/nrendo.rss",
     officialUrl: "https://www.nature.com/nrendo/",
-    specialty: "Others"
+    specialty: "Endocrinology"
   },
   {
     name: "British Journal of Ophthalmology",
     abbreviation: "Br J Ophthalmol",
     rssUrl: "https://bjo.bmj.com/rss/current.xml",
     officialUrl: "https://bjo.bmj.com/",
-    specialty: "Others"
+    specialty: "Ophthalmology"
   },
   {
     name: "JAMA Neurology",
     abbreviation: "JAMA Neurology",
     rssUrl: "https://jamanetwork.com/rss/site_16/72.xml",
     officialUrl: "https://jamanetwork.com/journals/jamaneurology",
-    specialty: "Others"
+    specialty: "Neurology"
   },
   {
     name: "JAMA Psychiatry",
     abbreviation: "JAMA Psychiatry",
     rssUrl: "https://jamanetwork.com/rss/site_14/70.xml",
     officialUrl: "https://jamanetwork.com/journals/jamapsychiatry",
-    specialty: "Others"
+    specialty: "Psychiatry"
   },
   {
     name: "JAMA Ophthalmology",
     abbreviation: "JAMA Ophthalmology",
     rssUrl: "https://jamanetwork.com/rss/site_17/73.xml",
     officialUrl: "https://jamanetwork.com/journals/jamaophthalmology",
-    specialty: "Others"
+    specialty: "Ophthalmology"
   },
   // Major PubMed-indexed flagship journals without a dependable publisher
   // feed in the current catalog. Their rssUrl intentionally points to an
@@ -687,10 +687,10 @@ export const oncologyJournalSeeds: JournalSeed[] = [
   { name: "Annals of Surgery", abbreviation: "Ann Surg", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Ann+Surg%22%5BJournal%5D", officialUrl: "https://journals.lww.com/annalsofsurgery/", specialty: "Surgery" },
   { name: "Obstetrics & Gynecology", abbreviation: "Obstet Gynecol", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Obstet+Gynecol%22%5BJournal%5D", officialUrl: "https://journals.lww.com/greenjournal/", specialty: "ObGyn" },
   { name: "Arthritis & Rheumatology", abbreviation: "Arthritis Rheumatol", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Arthritis+Rheumatol%22%5BJournal%5D", officialUrl: "https://acrjournals.onlinelibrary.wiley.com/journal/23265205", specialty: "Rheumatology" },
-  { name: "Neurology", abbreviation: "Neurology", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Neurology%22%5BJournal%5D", officialUrl: "https://www.neurology.org/", specialty: "Others" },
+  { name: "Neurology", abbreviation: "Neurology", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Neurology%22%5BJournal%5D", officialUrl: "https://www.neurology.org/", specialty: "Neurology" },
   { name: "BMJ", abbreviation: "BMJ", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22BMJ%22%5BJournal%5D", officialUrl: "https://www.bmj.com/", specialty: "Internal Medicine" },
   { name: "JAMA Internal Medicine", abbreviation: "JAMA Intern Med", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22JAMA+Intern+Med%22%5BJournal%5D", officialUrl: "https://jamanetwork.com/journals/jamainternalmedicine", specialty: "Internal Medicine" },
-  { name: "The Lancet Neurology", abbreviation: "Lancet Neurol", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Lancet+Neurol%22%5BJournal%5D", officialUrl: "https://www.thelancet.com/journals/laneur/home", specialty: "Others" },
+  { name: "The Lancet Neurology", abbreviation: "Lancet Neurol", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Lancet+Neurol%22%5BJournal%5D", officialUrl: "https://www.thelancet.com/journals/laneur/home", specialty: "Neurology" },
   { name: "The Lancet Gastroenterology & Hepatology", abbreviation: "Lancet Gastroenterol Hepatol", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Lancet+Gastroenterol+Hepatol%22%5BJournal%5D", officialUrl: "https://www.thelancet.com/journals/langas/home", specialty: "Gastroenterology" },
   { name: "The Lancet Rheumatology", abbreviation: "Lancet Rheumatol", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Lancet+Rheumatol%22%5BJournal%5D", officialUrl: "https://www.thelancet.com/journals/lanrhe/home", specialty: "Rheumatology" },
   { name: "Cancer Discovery", abbreviation: "Cancer Discov", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Cancer+Discov%22%5BJournal%5D", officialUrl: "https://aacrjournals.org/cancerdiscovery", specialty: "Oncology" },
