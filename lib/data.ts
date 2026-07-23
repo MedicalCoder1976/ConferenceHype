@@ -329,14 +329,16 @@ export async function getPublicBroadcastContext(): Promise<PublicBroadcastContex
         ...streamState,
         youtubeVideoId: activeBreakIn.youtubeVideoId,
         youtubeUrl: activeBreakIn.youtubeUrl,
-        youtubeStatus: "queued" as const
+        youtubeStatus: "queued" as const,
+        continuousEnabled: true
       }
     : verifiedStationProgram
       ? {
           ...streamState,
           youtubeVideoId: verifiedStationProgram.youtubeVideoId,
           youtubeUrl: verifiedStationProgram.youtubeUrl,
-          youtubeStatus: "queued" as const
+          youtubeStatus: "queued" as const,
+          continuousEnabled: true
         }
       : currentlyAiringSlot
       ? { ...streamState, youtubeVideoId: currentlyAiringSlot.youtubeVideoId, youtubeStatus: "queued" as const }

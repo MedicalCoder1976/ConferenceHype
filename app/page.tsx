@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PublicPlayer } from "@/components/PublicPlayer";
+import { StationBoundaryRefresh } from "@/components/StationBoundaryRefresh";
 import { getPublicBroadcastContext } from "@/lib/data";
 import { monitoredSocialTags } from "@/lib/sources/registry";
 
@@ -10,6 +11,7 @@ export default async function Home() {
 
   return (
     <main className="min-h-screen">
+      <StationBoundaryRefresh enabled={broadcast.streamState.continuousEnabled === true} />
       <section className="hype-grid border-b border-ink/10 px-4 py-4 sm:px-5 md:px-8 md:py-8 xl:py-10">
         <div className="mx-auto grid max-w-[1500px] gap-6 md:gap-8 xl:grid-cols-[minmax(560px,0.95fr)_minmax(520px,1.05fr)] xl:items-center">
           <div className="order-2 min-w-0 xl:order-1">
