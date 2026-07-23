@@ -615,6 +615,10 @@ For a journal with new ready cards, the operator renders a new program. If the
 card count is zero, the planner reuses the latest verified program for that
 journal (or, secondarily, that specialty). Music already fills unused time
 inside every 30-minute render.
+Each new program reserves at most twelve quality-passed cards. This bounds the
+approval transaction and render input while leaving excess cards in their
+journal deck for a later program.
+
 
 This feature is additive and fail-closed:
 

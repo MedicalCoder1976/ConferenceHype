@@ -6,6 +6,7 @@ export const STATION_PROGRAMS_PER_CYCLE = 6;
 export const STATION_PROGRAM_MINUTES = 30;
 export const STATION_CYCLE_MINUTES = 180;
 export const STATION_BREAK_IN_MINUTES = 15;
+export const STATION_MAX_RESERVED_CARDS = 12;
 
 export type StationProgramDraft = Pick<
   StationProgram,
@@ -128,7 +129,10 @@ export function buildStationDraft({
       durationMinutes: 30,
       status: hasNewContent ? "planned" : replay ? "verified" : "failed",
       cardIds: hasNewContent
-        ? readyCards.map(({ segment }) => segment.id).filter((id) => /^[0-9a-f-]{36}$/i.test(id))
+        ? readyCards
+            .map(({ segment }) => segment.id)
+            .filter((id) => /^[0-9a-f-]{36}$/i.test(id))
+            .slice(0, STATION_MAX_RESERVED_CARDS)
         : replay?.cardIds ?? [],
       youtubeVideoId: hasNewContent ? undefined : replay?.youtubeVideoId,
       youtubeUrl: hasNewContent ? undefined : replay?.youtubeUrl,

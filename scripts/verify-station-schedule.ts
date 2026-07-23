@@ -18,5 +18,6 @@ const draft = buildStationDraft({ scheduleDate: "2026-07-22", journals, journalC
 assert.equal(draft.length, 6);
 assert.deepEqual(draft.map((program) => program.startsAtOffsetMinutes), [0, 30, 60, 90, 120, 150]);
 assert.ok(draft.every((program) => program.durationMinutes === 30 && program.programType === "new"));
+assert.ok(draft.every((program) => program.cardIds.length <= 12));
 
 console.log("Station schedule verification passed.");
