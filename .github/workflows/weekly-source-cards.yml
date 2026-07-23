@@ -132,6 +132,8 @@ jobs:
       - run: npm ci
       - run: npm run test:journal-card-v2
       - name: Inventory PubMed, reconcile RSS, and create complete pending-review cards
+        id: generate_journal_cards
+        continue-on-error: true
         run: npm run job:journal-card-v2
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
@@ -139,7 +141,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           JOURNAL_CARD_V2_SHADOW: "true"
           JOURNAL_CARD_V2_CREATE_PENDING: "true"
-          JOURNAL_CARD_V2_LOOKBACK_DAYS: "14"
+          JOURNAL_CARD_V2_LOOKBACK_DAYS: "21"
       - name: Finalize interrupted journal state
         if: ${{ always() }}
         run: npm run job:journal-card-v2:finalize
@@ -148,3 +150,29 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           JOURNAL_CARD_V2_FINALIZE_REASON: "Journal card workflow ended before journal completion"
+      - name: Repair missed journal inventory
+        if: ${{ steps.generate_journal_cards.outcome == 'failure' }}
+        run: npm run job:journal-card-v2
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          JOURNAL_CARD_V2_SHADOW: "true"
+          JOURNAL_CARD_V2_CREATE_PENDING: "true"
+          JOURNAL_CARD_V2_LOOKBACK_DAYS: "21"
+      - name: Finalize interrupted repair state
+        if: ${{ always() }}
+        run: npm run job:journal-card-v2:finalize
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          JOURNAL_CARD_V2_FINALIZE_REASON: "Journal card repair ended before journal completion"
+      - name: Verify every enabled journal was covered
+        if: ${{ always() }}
+        run: npm run test:weekly-journal-coverage
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          JOURNAL_COVERAGE_MAX_AGE_HOURS: "12"
