@@ -35,4 +35,10 @@ assert.match(rolloverMigration, /extract\(isodow from p_schedule_date\) not betw
 assert.match(rolloverMigration, /canonical_video_reuse', true/);
 assert.match(rolloverMigration, /count\(\*\)[\s\S]*status = 'verified'\) <> 6/);
 
+const cleanupSource = readFileSync(path.join(process.cwd(), "scripts", "delete-superseded-station-video.ts"), "utf8");
+assert.match(cleanupSource, /Old video is still referenced by an active station schedule/);
+assert.match(cleanupSource, /Old video is still the public stream-state video/);
+assert.match(cleanupSource, /method: "DELETE"/);
+assert.match(cleanupSource, /status: "failed"/);
+
 console.log("Station schedule verification passed.");

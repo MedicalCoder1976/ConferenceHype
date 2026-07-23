@@ -1,0 +1,36 @@
+name: Delete superseded station video
+
+on:
+  workflow_dispatch:
+    inputs:
+      old_video_id:
+        required: true
+        description: "Superseded YouTube video ID"
+      replacement_video_id:
+        required: true
+        description: "Verified replacement YouTube video ID"
+      replacement_program_id:
+        required: true
+        description: "Verified station_programs UUID"
+
+jobs:
+  delete:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Delete only after active-reference safeguards pass
+        run: npx tsx scripts/delete-superseded-station-video.ts
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
+          YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
+          YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
+          OLD_YOUTUBE_VIDEO_ID: ${{ inputs.old_video_id }}
+          REPLACEMENT_YOUTUBE_VIDEO_ID: ${{ inputs.replacement_video_id }}
+          REPLACEMENT_STATION_PROGRAM_ID: ${{ inputs.replacement_program_id }}
