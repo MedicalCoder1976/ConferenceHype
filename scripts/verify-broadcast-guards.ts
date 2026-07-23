@@ -69,9 +69,10 @@ assert.match(
   fourthFramed,
   /This concludes ConferenceHype's coverage of the June 2026 issue of Journal of Clinical Oncology\./
 );
-assert.match(fourthFramed, /which finding deserves a deeper follow-up\?/);
-assert.match(fourthFramed, /Tag us on X at @conferencehype/);
-assert.match(fourthFramed, /please like the video and subscribe/);
+assert.match(fourthFramed, /Which paper could change practice/);
+assert.match(fourthFramed, /tag @conferencehype on X/);
+assert.match(fourthFramed, /Share this broadcast with a colleague or your clinical team/);
+assert.match(fourthFramed, /subscribe with notifications turned on/);
 assert.doesNotMatch(fourthFramed, /That is it for this segment/i);
 assert.doesNotMatch(framed, /interactive AI commentary only/i);
 assert.equal(applySpokenPronunciations("ASCO 2026 and Ib disease"), "Ask-ho 2026 and one B disease");
@@ -300,9 +301,25 @@ assert.match(
   shortJournalOutro,
   /This concludes ConferenceHype's coverage of the July 2026 issue of Test Journal\./
 );
-assert.match(shortJournalOutro, /Tag us on X at @conferencehype/);
-assert.match(shortJournalOutro, /please like the video and subscribe/);
+assert.match(shortJournalOutro, /tag @conferencehype on X/);
+assert.match(shortJournalOutro, /Share this broadcast with a colleague or your clinical team/);
+assert.match(shortJournalOutro, /subscribe with notifications turned on/);
 assert.doesNotMatch(shortJournalOutro, /That (?:is it|wraps up) for this segment/i);
+const shortJournalContentScripts = shortJournalShowSlots
+  .filter((slot) => slot.segment && !slot.segment.riskFlags.includes("journal_show_outro"))
+  .map((slot) => slot.segment?.script ?? "");
+assert.ok(
+  shortJournalContentScripts.every((script) => !script.includes("This concludes ConferenceHype's coverage")),
+  "Journal content cards must not repeat the final coverage conclusion."
+);
+assert.equal(
+  shortJournalShowSlots
+    .map((slot) => slot.segment?.script ?? "")
+    .join(" ")
+    .match(/This concludes ConferenceHype's coverage/g)?.length,
+  1,
+  "A short journal show must contain exactly one final coverage conclusion."
+);
 
 // buildBroadcastMetadata's titleDateOverride must be strictly additive:
 // omitted, it must produce byte-identical output to today's air-date
@@ -794,7 +811,8 @@ const renderHourSource = readFileSync(
 );
 assert.match(renderHourSource, /function enforceOneHourFrame/);
 assert.match(renderHourSource, /Removed \$\{removedContentCards\} trailing content card/);
-assert.match(renderHourSource, /framedCards\.push\(musicTransitionCard\(remainingSeconds/);
+assert.match(renderHourSource, /while \(remainingSeconds > 0\)/);
+assert.match(renderHourSource, /Math\.min\(OPERATOR_MUSIC_SECONDS, remainingSeconds\)/);
 assert.match(renderHourSource, /durationSeconds = Math\.min\(Number\(process\.env\.HOUR_BROADCAST_SECONDS \?\? 3600\), 3600\)/);
 
 // Bug fixed 2026-07-12: the per-card audio amix must run for the length of
@@ -819,6 +837,8 @@ assert.match(renderHourSource, /\.filter\(\(card\) => card\.segmentId\)/);
 // as the single source of truth for title/description/tags -- there's no
 // separate earlier snapshot left to drift from.
 assert.match(renderHourSource, /Uploaded \$\{youtubeUrl\}, public immediately/);
+assert.match(renderHourSource, /useFullLengthMusicPadding/);
+assert.match(renderHourSource, /OPERATOR_MUSIC_TRACKS\[musicIndex % OPERATOR_MUSIC_TRACKS\.length\]/);
 assert.match(renderHourSource, /buildBroadcastMetadata\(\{/);
 const uploadBroadcastVideoSource = readFileSync(
   path.join(process.cwd(), "lib", "youtube", "uploadBroadcastVideo.ts"),

@@ -341,7 +341,7 @@ embedder.
   sharing a citation URL or script text first, before assuming a scheduling
   bug.
 - Narration style: pronounce `ASCO` as `ASKho`/`Ask-ho`, never as the individual letters A-S-C-O. Pronounce `cholangiocarcinoma` as `COLANGIOCARCINOMA` ("colangio-carcinoma"); the `ch` is a hard `k` sound and must not be read as "cho". Pronounce `Ib` and `1b` as `one B`. Pronounce `ECOG` as a word (`EE-kog`), not individual letters. Expand `PR` to "partial response", `CR` to "complete response", `pCR` to "pathologic complete response", and `WHO` to "World Health Organization" when spoken. Spell `NCI` out as individual letters ("N-C-I"). Cancer-staging notation (Roman numeral immediately followed by a letter, e.g. `IA`, `IIA`, `IIIB`, `IVA`) is read as the cardinal number plus the letter — `IA` as "one A", `IIA` as "two A", and so on.
-- Broadcast closing: never narrate "That is it for this segment." The close must identify the journal and issue month/year, invite viewers to report a missed article or name a finding that deserves deeper follow-up by tagging `@conferencehype` on X, and ask viewers to like the video and subscribe. This shared close applies to every newly rendered broadcast, including the early-ending outro used when a 30-minute journal show runs out of approved articles.
+- Broadcast closing: never narrate "That is it for this segment." A single-journal program must narrate its conclusion exactly once, in the dedicated final outro after the last available article; content-card group boundaries must never repeat it. The close identifies the journal and issue month/year, asks what could change practice and what deserves follow-up, invites disagreement and missed-article reports via `@conferencehype` on X and comments, asks viewers to share the review with their team, and asks them to like and subscribe with notifications enabled.
 - Operator music cards are allow-listed original three-minute instrumentals in
   `public/music/fast-jazz-blocks`. The Admin Music cards panel may replace one
   presentation card with a selected Funk or Latin track. One music card occupies
@@ -926,8 +926,11 @@ broadcasts through this new path:
   `JOURNAL_GROUPS_PER_SHOW` groups. The shared closing identifies the journal
   and issue month/year, asks whether an article was missed or a finding needs
   deeper follow-up, directs comments to `@conferencehype` on X, and asks the
-  viewer to like and subscribe. A fully-stocked show uses the same close at
-  its normal four-card boundary.
+  viewer to share, comment, like, and subscribe. The conclusion is suppressed
+  on every intermediate four-card boundary and appears exactly once in the
+  final journal outro. Any time remaining after that outro is divided into
+  consecutive three-minute Funk/Latin music blocks, preventing a long silent
+  tail when the journal has fewer cards than the 30-minute slot can hold.
 - **Overlapping voices / hard mid-sentence cutoffs.** Card scheduling (slide
   duration and audio placement in `scripts/render-hour-broadcast.ts`) was
   driven entirely by `expandContentDurations`' word-count estimate

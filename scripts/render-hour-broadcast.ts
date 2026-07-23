@@ -13,7 +13,12 @@ import {
   stripBroadcastDisclaimer
 } from "@/lib/broadcast/voiceSegment";
 import { MUSIC_SECONDS } from "@/lib/broadcast/hourSchedule";
-import { isOperatorMusicSegment, operatorMusicPath } from "@/lib/broadcast/operatorMusic";
+import {
+  isOperatorMusicSegment,
+  operatorMusicPath,
+  OPERATOR_MUSIC_SECONDS,
+  OPERATOR_MUSIC_TRACKS
+} from "@/lib/broadcast/operatorMusic";
 import { broadcastDisclaimer } from "@/lib/generation/disclaimers";
 import { JOURNAL_SHOW_SECONDS } from "@/lib/broadcast/journalShowSchedule";
 import { contentSignature } from "@/lib/segments/contentSignature";
@@ -406,7 +411,11 @@ async function fillLeftoverGapsWithBonusCards(
   return result;
 }
 
-function enforceOneHourFrame(cards: Card[], frameSeconds = 3600) {
+function enforceOneHourFrame(
+  cards: Card[],
+  frameSeconds = 3600,
+  useFullLengthMusicPadding = false
+) {
   const framedCards = [...cards];
   let removedContentCards = 0;
 
@@ -437,10 +446,23 @@ function enforceOneHourFrame(cards: Card[], frameSeconds = 3600) {
     framedCards.pop();
   }
 
-  const remainingSeconds = frameSeconds - totalCardSeconds(framedCards);
+  let remainingSeconds = frameSeconds - totalCardSeconds(framedCards);
   if (remainingSeconds > 0) {
-    const musicIndex = framedCards.filter((card) => card.isMusic).length;
-    framedCards.push(musicTransitionCard(remainingSeconds, musicIndex));
+    let musicIndex = framedCards.filter((card) => card.isMusic).length;
+    while (remainingSeconds > 0) {
+      const chunkSeconds = useFullLengthMusicPadding
+        ? Math.min(OPERATOR_MUSIC_SECONDS, remainingSeconds)
+        : remainingSeconds;
+      const musicCard = musicTransitionCard(chunkSeconds, musicIndex);
+      if (useFullLengthMusicPadding) {
+        const track = OPERATOR_MUSIC_TRACKS[musicIndex % OPERATOR_MUSIC_TRACKS.length];
+        musicCard.gapClipPath = `public${track.publicPath}`;
+        musicCard.title = `${track.title} music break`;
+      }
+      framedCards.push(musicCard);
+      remainingSeconds -= chunkSeconds;
+      musicIndex += 1;
+    }
   }
 
   if (removedContentCards > 0) {
@@ -1369,7 +1391,8 @@ async function main() {
       applySpokenPronunciations,
       getPersona
     ),
-    isBreakingMode ? 15 * 60 : isJournalMode ? JOURNAL_SHOW_SECONDS : 3600
+    isBreakingMode ? 15 * 60 : isJournalMode ? JOURNAL_SHOW_SECONDS : 3600,
+    isJournalMode
   );
 
   // Opt-in, no-op-by-default escape hatch for sanity-checking the full card

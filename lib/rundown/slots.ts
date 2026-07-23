@@ -164,7 +164,8 @@ export function withAssignedVoice(
   persona: Persona,
   slotIndex: number | undefined,
   includeIntro: boolean,
-  at: Date
+  at: Date,
+  includePeriodicClose = true
 ): Segment {
   let narrative = cleanForbiddenBroadcastPhrases(stripIntro(segment.script || segment.summary));
 
@@ -183,7 +184,7 @@ export function withAssignedVoice(
       topic: segment.title,
       narrative,
       at,
-      cardIndex: slotIndex,
+      cardIndex: includePeriodicClose ? slotIndex : undefined,
       includeIntro,
       journalName: journalNameFromSegment(segment),
       publishedAt: segment.citations.find((citation) => citation.publishedAt)?.publishedAt
@@ -467,7 +468,17 @@ export function buildJournalShowSlots({
         continue;
       }
       const includeIntro = contentIndex === 0;
-      const segment = withAssignedVoice(sourceSegment, persona, contentIndex, includeIntro, at);
+      // A single-journal show signs off once, in its dedicated final outro.
+      // Periodic four-card closes would repeat "This concludes..." before
+      // the journal coverage has actually ended.
+      const segment = withAssignedVoice(
+        sourceSegment,
+        persona,
+        contentIndex,
+        includeIntro,
+        at,
+        false
+      );
       slots.push({
         at,
         kind: segmentKind(segment),

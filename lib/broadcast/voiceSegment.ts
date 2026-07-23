@@ -31,7 +31,7 @@ export function buildSegmentClose(context: SegmentCloseContext = {}) {
   const coverage = journalName && issueDate
     ? `ConferenceHype's coverage of the ${issueDate} issue of ${journalName}`
     : "this ConferenceHype coverage segment";
-  return `This concludes ${coverage}. Did we miss an article, or which finding deserves a deeper follow-up? Tag us on X at @conferencehype and join the conversation. If this review helped you keep up, please like the video and subscribe so you do not miss the next broadcast.`;
+  return `This concludes ${coverage}. Which paper could change practice, what should we cover next, and where do you disagree with our interpretation? If we missed an article, tag @conferencehype on X and join the discussion. Share this broadcast with a colleague or your clinical team, add your perspective in the comments, like the video, and subscribe with notifications turned on so you do not miss the next journal review.`;
 }
 
 const SEGMENT_CLOSE = buildSegmentClose();
@@ -171,7 +171,7 @@ function stripExistingVoiceFrame(value: string) {
       ""
     )
     .replace(
-      /\s*This concludes (?:ConferenceHype's coverage of the .*? issue of .*?|this ConferenceHype coverage segment)\.\s+Did we miss an article, or which finding deserves a deeper follow-up\?\s+Tag us on X at @conferencehype and join the conversation\.\s+If this review helped you keep up, please like the video and subscribe so you do not miss the next broadcast\.\s*$/i,
+      /\s*This concludes (?:ConferenceHype's coverage of the .*? issue of .*?|this ConferenceHype coverage segment)\.[\s\S]*$/i,
       ""
     )
     .trim();
