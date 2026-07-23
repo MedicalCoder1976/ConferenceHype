@@ -685,11 +685,12 @@ async function buildCards(): Promise<{ cards: Card[]; unusedApproved: Segment[] 
 // (what to do if a journal doesn't have enough fresh content) is explicitly
 // out of scope for this first cut.
 async function buildJournalCards(): Promise<{ cards: Card[]; unusedApproved: Segment[] }> {
-  const [{ filterBroadcastReadySegments }, { getNextBroadcastSegmentsFromDb }, { buildJournalShowSlots }] =
+  const [{ filterBroadcastReadySegments }, { getNextBroadcastSegmentsFromDb, getSegmentsByIdsFromDb }, { buildJournalShowSlots }, { getStationProgramFromDb }] =
     await Promise.all([
       import("@/lib/data"),
       import("@/lib/db"),
-      import("@/lib/rundown/slots")
+      import("@/lib/rundown/slots"),
+      import("@/lib/station/db")
     ]);
   const baseTime = process.env.HOUR_BROADCAST_START
     ? new Date(process.env.HOUR_BROADCAST_START)
@@ -698,7 +699,13 @@ async function buildJournalCards(): Promise<{ cards: Card[]; unusedApproved: Seg
   if (!journalId) {
     throw new Error("JOURNAL_ID is required when HOUR_BROADCAST_MODE=journal30");
   }
-  const approved = await getNextBroadcastSegmentsFromDb(200);
+  const stationProgramId = process.env.STATION_PROGRAM_ID;
+  const stationProgram = stationProgramId
+    ? await getStationProgramFromDb(stationProgramId)
+    : undefined;
+  const approved = stationProgram
+    ? await getSegmentsByIdsFromDb(stationProgram.cardIds)
+    : await getNextBroadcastSegmentsFromDb(200);
   const renderSegments = filterBroadcastReadySegments(approved ?? []);
 
   const slots = buildJournalShowSlots({ segments: renderSegments, journalId, baseTime }).filter(
