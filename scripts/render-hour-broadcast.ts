@@ -706,7 +706,18 @@ async function buildJournalCards(): Promise<{ cards: Card[]; unusedApproved: Seg
   const approved = stationProgram
     ? await getSegmentsByIdsFromDb(stationProgram.cardIds)
     : await getNextBroadcastSegmentsFromDb(200);
-  const renderSegments = filterBroadcastReadySegments(approved ?? []);
+  // A station retry is idempotent over its exact reserved card ids. A prior
+  // upload may have marked those cards rendered before a later delivery-state
+  // write failed; permit only those reserved cards to rebuild the same show.
+  // The normal journal path still receives only currently approved cards.
+  const retryEligible = stationProgram
+    ? (approved ?? []).map((segment) => ({
+        ...segment,
+        status: "approved" as const,
+        approvedAt: segment.approvedAt ?? stationProgram.createdAt
+      }))
+    : approved ?? [];
+  const renderSegments = filterBroadcastReadySegments(retryEligible);
 
   const slots = buildJournalShowSlots({ segments: renderSegments, journalId, baseTime }).filter(
     (slot) => slot.at < new Date(baseTime.getTime() + durationSeconds * 1000)

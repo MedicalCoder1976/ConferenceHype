@@ -20,12 +20,14 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               </p>
             </div>
           </div>
-          <Link
-            href="/"
-            className="border border-ink px-4 py-2 text-sm font-bold text-ink"
-          >
-            Public channel
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/admin/station" className="border border-broadcast px-4 py-2 text-sm font-bold text-broadcast">
+              Station controls
+            </Link>
+            <Link href="/" className="border border-ink px-4 py-2 text-sm font-bold text-ink">
+              Public channel
+            </Link>
+          </div>
         </div>
       </header>
       <section className="mx-auto max-w-7xl px-5 py-7 md:px-8">
