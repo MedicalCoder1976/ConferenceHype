@@ -31,7 +31,7 @@ export function buildSegmentClose(context: SegmentCloseContext = {}) {
   const coverage = journalName && issueDate
     ? `ConferenceHype's coverage of the ${issueDate} issue of ${journalName}`
     : "this ConferenceHype coverage segment";
-  return `This concludes ${coverage}. Which paper could change practice, what should we cover next, and where do you disagree with our interpretation? If we missed an article, tag @conferencehype on X and join the discussion. Share this broadcast with a colleague or your clinical team, add your perspective in the comments, like the video, and subscribe with notifications turned on so you do not miss the next journal review.`;
+  return `This concludes ${coverage}. Which paper could change practice, what should we cover next, and where do you disagree with our interpretation? If we missed an article, tell us which one deserves follow-up. Tag us on X @conferencehype. Share this broadcast with a colleague or your clinical team, add your perspective in the comments, like the video, and subscribe with notifications turned on so you do not miss the next journal review.`;
 }
 
 export function buildJournalShowClose(context: SegmentCloseContext = {}) {
@@ -41,7 +41,7 @@ export function buildJournalShowClose(context: SegmentCloseContext = {}) {
   const coverage = journalName && issueDate
     ? `ConferenceHype's coverage of the ${issueDate} issue of ${journalName}`
     : "this ConferenceHype journal broadcast";
-  return `That's it for now for ${coverage}. If anything was missed, tag @conferencehype on X and tell us which article deserves follow-up. Add your perspective in the comments, share this review with your clinical team, like the video, and subscribe with notifications turned on for the next journal broadcast.`;
+  return `That's it for now for ${coverage}. If anything was missed, tell us which article deserves follow-up. Tag us on X @conferencehype. Add your perspective in the comments, share this review with your clinical team, like the video, and subscribe with notifications turned on for the next journal broadcast.`;
 }
 
 const SEGMENT_CLOSE = buildSegmentClose();

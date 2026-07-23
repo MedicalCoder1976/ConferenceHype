@@ -70,7 +70,7 @@ assert.match(
   /This concludes ConferenceHype's coverage of the June 2026 issue of Journal of Clinical Oncology\./
 );
 assert.match(fourthFramed, /Which paper could change practice/);
-assert.match(fourthFramed, /tag @conferencehype on X/);
+assert.match(fourthFramed, /Tag us on X @conferencehype\./);
 assert.match(fourthFramed, /Share this broadcast with a colleague or your clinical team/);
 assert.match(fourthFramed, /subscribe with notifications turned on/);
 assert.doesNotMatch(fourthFramed, /That is it for this segment/i);
@@ -312,7 +312,7 @@ assert.match(
   /That's it for now for ConferenceHype's coverage of the July 2026 issue of Test Journal\./
 );
 assert.match(shortJournalOutro, /If anything was missed/);
-assert.match(shortJournalOutro, /tag @conferencehype on X/);
+assert.match(shortJournalOutro, /Tag us on X @conferencehype\./);
 assert.match(shortJournalOutro, /share this review with your clinical team/);
 assert.match(shortJournalOutro, /subscribe with notifications turned on/);
 assert.doesNotMatch(shortJournalOutro, /That (?:is it|wraps up) for this segment/i);
