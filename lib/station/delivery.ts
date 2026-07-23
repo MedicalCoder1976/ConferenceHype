@@ -2,6 +2,9 @@ import { hasSupabase } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { StationBreakIn, StationProgram } from "@/lib/station/types";
 
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export async function updateStationBreakInDeliveryInDb(
   id: string,
   patch: {
@@ -42,6 +45,10 @@ export async function updateStationProgramDeliveryInDb(
   }
 ) {
   if (!hasSupabase()) return null;
+  // card_ids is a Postgres uuid[] column, while the rendered rundown also
+  // contains synthetic disclaimer/music/spine ids. Preserve those synthetic
+  // entries in writeout_cards, but never send them to the uuid[] column.
+  const persistedCardIds = patch.cardIds?.filter((cardId) => UUID_PATTERN.test(cardId));
   const { data, error } = await createAdminClient()
     .from("station_programs")
     .update({
@@ -50,7 +57,7 @@ export async function updateStationProgramDeliveryInDb(
       youtube_url: patch.youtubeUrl ?? undefined,
       title: patch.title ?? undefined,
       description: patch.description ?? undefined,
-      card_ids: patch.cardIds ?? undefined,
+      card_ids: persistedCardIds ?? undefined,
       writeout_cards: patch.writeoutCards ?? undefined,
       failure_reason: patch.failureReason ?? null,
       updated_at: new Date().toISOString()
