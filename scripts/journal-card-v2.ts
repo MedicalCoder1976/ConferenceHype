@@ -308,6 +308,7 @@ function pubmedJournalQuery(journal: OncologyJournal) {
 }
 async function processJournal(journal: OncologyJournal, since: string) {
   const supabase = createAdminClient();
+  const processStartedAt = new Date().toISOString();
   await supabase.from("journal_article_sync_state").upsert({
     journal_id: journal.id,
     status: "running",
@@ -378,7 +379,8 @@ async function processJournal(journal: OncologyJournal, since: string) {
         .select("id,pmid,card_segment_id")
         .eq("journal_id", journal.id)
         .eq("eligibility_status", "eligible")
-        .is("card_segment_id", null);
+        .is("card_segment_id", null)
+        .gte("last_checked_at", processStartedAt);
       if (ledgerError) throw ledgerError;
       const ledgerByPmid = new Map((ledgerRows ?? []).map((row) => [row.pmid, row]));
       for (let index = 0; index < articles.length; index += 1) {

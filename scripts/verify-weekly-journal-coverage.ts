@@ -35,7 +35,8 @@ async function main() {
     .from("journal_articles")
     .select("id", { count: "exact", head: true })
     .eq("eligibility_status", "eligible")
-    .is("card_segment_id", null);
+    .is("card_segment_id", null)
+    .gte("last_checked_at", new Date(Date.now() - maxAgeHours * 3_600_000).toISOString());
   if (eligibleError) throw eligibleError;
 
   const summary = {
