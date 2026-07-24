@@ -21,6 +21,7 @@
     "job:weekly-source-cards": "tsx scripts/generate-weekly-source-cards.ts",
     "job:journal-card-v2": "tsx scripts/journal-card-v2.ts",
     "job:journal-card-v2:finalize": "tsx scripts/finalize-journal-card-v2.ts",
+    "job:station-metadata": "tsx scripts/refresh-station-video-metadata.ts",
     "job:briefing": "tsx scripts/worker.ts briefing",
     "job:upcoming": "tsx scripts/worker.ts upcoming",
     "job:eha2026": "tsx scripts/prepare-eha-2026-broadcast.ts",

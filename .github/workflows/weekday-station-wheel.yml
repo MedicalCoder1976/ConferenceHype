@@ -68,3 +68,20 @@ jobs:
             --data-urlencode "select=position,status,youtube_video_id" \
             --data-urlencode "schedule_id=eq.${SCHEDULE}")
           echo "$PROGRAMS" | jq -e 'length == 6 and all(.status == "verified") and all(.youtube_video_id != null) and ([.[].youtube_video_id] | unique | length) == 6'
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Refresh canonical video search metadata and thumbnails
+        run: npm run job:station-metadata
+        env:
+          STATION_METADATA_DATE: ${{ steps.day.outputs.target }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
+          YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
+          YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
+          PUBLIC_SITE_URL: https://conferencehype.com

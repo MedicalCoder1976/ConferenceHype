@@ -4,7 +4,7 @@ import path from "node:path";
 import { sanitizeBroadcastCopy } from "@/lib/broadcast/sanitizeCopy";
 import { formatVoiceSegment, SEGMENT_CLOSE } from "@/lib/broadcast/voiceSegment";
 import { buildBroadcastSlots, buildJournalShowSlots } from "@/lib/rundown/slots";
-import { buildBroadcastMetadata } from "@/lib/youtube/broadcastMetadata";
+import { buildBroadcastMetadata, extractExplicitStudyName } from "@/lib/youtube/broadcastMetadata";
 import { applySpokenPronunciations } from "@/lib/media/tts";
 import { getUnsafeGeneratedSourceErrors } from "@/lib/generation/sourceSafety";
 import { validateSegmentForApproval } from "@/lib/generation/validator";
@@ -377,6 +377,27 @@ const legacyNeurologyMetadata = buildBroadcastMetadata({
 });
 assert.match(legacyNeurologyMetadata.title, /Neurology - Neurology/);
 assert.doesNotMatch(`${legacyNeurologyMetadata.title} ${legacyNeurologyMetadata.description} ${legacyNeurologyMetadata.tags.join(" ")}`, /\bOthers\b/);
+
+assert.equal(extractExplicitStudyName("V-NE Ulcer Study 6: randomized findings"), "V-NE Ulcer Study 6");
+assert.equal(extractExplicitStudyName("Results from NCT01234567 in adults"), "NCT01234567");
+assert.equal(extractExplicitStudyName("A randomized controlled trial in adults"), undefined);
+const firstStudySlotIndex = journalShowSlots.findIndex((slot) => slot.segment && !slot.segment.riskFlags.includes("journal_show_outro"));
+const studyNamedSlots = journalShowSlots.map((slot, index) => index === firstStudySlotIndex && slot.segment
+  ? { ...slot, segment: { ...slot.segment, title: "V-NE Ulcer Study 6: randomized findings" } }
+  : slot);
+const optimizedStudyMetadata = buildBroadcastMetadata({
+  hourStart: new Date("2026-07-24T13:00:00Z"),
+  slots: studyNamedSlots,
+  journalsById: journalShowJournalsById,
+  titleDateOverride: "2026-07-01"
+});
+assert.match(optimizedStudyMetadata.title, /^V-NE Ulcer Study 6:/);
+assert.match(optimizedStudyMetadata.description, /^Studies covered: V-NE Ulcer Study 6\./);
+assert.equal(optimizedStudyMetadata.tags[0], "V-NE Ulcer Study 6");
+assert.equal(optimizedStudyMetadata.thumbnailHeadline, "V-NE Ulcer Study 6: What Did It Find?");
+assert.deepEqual(optimizedStudyMetadata.studyNames, ["V-NE Ulcer Study 6"]);
+assert.equal(metadataWithoutOverride.thumbnailHeadline, undefined);
+assert.deepEqual(metadataWithoutOverride.studyNames, []);
 
 assert.ok(
   validateSegmentForApproval(sponsorBase).some((error) =>
@@ -862,6 +883,17 @@ assert.match(renderHourSource, /Uploaded \$\{youtubeUrl\}, public immediately/);
 assert.match(renderHourSource, /useFullLengthMusicPadding/);
 assert.match(renderHourSource, /OPERATOR_MUSIC_TRACKS\[musicIndex % OPERATOR_MUSIC_TRACKS\.length\]/);
 assert.match(renderHourSource, /buildBroadcastMetadata\(\{/);
+assert.match(renderHourSource, /headline:\s*actualMetadata\.thumbnailHeadline/);
+const thumbnailRouteSource = readFileSync(path.join(process.cwd(), "app", "api", "youtube-thumbnail", "route.tsx"), "utf8");
+assert.match(thumbnailRouteSource, /params\.get\("headline"\)/);
+assert.match(thumbnailRouteSource, /STUDY RESULTS/);
+const stationMetadataSource = readFileSync(path.join(process.cwd(), "scripts", "refresh-station-video-metadata.ts"), "utf8");
+assert.match(stationMetadataSource, /updateYoutubeVideoMetadata/);
+assert.match(stationMetadataSource, /uploadYoutubeThumbnail/);
+assert.doesNotMatch(stationMetadataSource, /uploadVideoToYoutube/);
+const weekdayWheelSource = readFileSync(path.join(process.cwd(), ".github", "workflows", "weekday-station-wheel.yml"), "utf8");
+assert.match(weekdayWheelSource, /npm run job:station-metadata/);
+assert.match(weekdayWheelSource, /STATION_METADATA_DATE:/);
 const uploadBroadcastVideoSource = readFileSync(
   path.join(process.cwd(), "lib", "youtube", "uploadBroadcastVideo.ts"),
   "utf8"

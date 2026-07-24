@@ -1300,6 +1300,7 @@ async function uploadRenderedBroadcast(
         journalName: actualMetadata.journalName,
         specialty: actualMetadata.specialty,
         dateLabel: actualMetadata.dateLabel,
+        headline: actualMetadata.thumbnailHeadline,
         siteUrl: process.env.PUBLIC_SITE_URL
       });
     } catch (error) {

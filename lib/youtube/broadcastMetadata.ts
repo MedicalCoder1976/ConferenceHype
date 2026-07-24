@@ -32,11 +32,14 @@ export type BroadcastMetadata = {
   journalName?: string;
   specialty?: string;
   dateLabel: string;
+  studyNames: string[];
+  thumbnailHeadline?: string;
 };
 
 const TITLE_MAX_LENGTH = 100;
 const MAX_TAGS_TOTAL_CHARS = 500;
 const MAX_TAG_LENGTH = 30;
+const OPTIMIZATION_START_DATE = "2026-07-24";
 
 const GENERIC_TAGS = [
   "Medical Education",
@@ -87,6 +90,26 @@ type ResolvedCard = {
   journal?: OncologyJournal;
   publishedAt?: string;
 };
+
+function easternDateKey(date: Date) {
+  return new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: "America/New_York"
+  }).format(date);
+}
+
+export function extractExplicitStudyName(title: string) {
+  const clean = title.replace(/\s+/g, " ").trim();
+  const colonLead = clean.match(/^(.{3,80}?\b(?:study|trial)\s*(?:\d+[A-Za-z-]*)?)\s*:/i)?.[1];
+  if (colonLead) return colonLead.trim();
+  const numbered = clean.match(/\b([A-Za-z0-9][A-Za-z0-9-]*(?:\s+[A-Za-z0-9][A-Za-z0-9-]*){0,4}\s+(?:study|trial)\s+\d+[A-Za-z-]*)\b/i)?.[1];
+  if (numbered) return numbered.trim();
+  const named = clean.match(/\b([A-Z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)+\s+(?:study|trial))\b/)?.[1];
+  if (named) return named.trim();
+  return clean.match(/\b(?:NCT|ISRCTN|ACTRN)\s*[-:]?\s*[A-Z0-9-]{5,}\b/i)?.[0].replace(/\s+/g, "");
+}
 
 // Historical database rows may still contain the old catch-all "Others"
 // value. Never expose that non-specific label in viewer-facing metadata.
@@ -165,14 +188,21 @@ function resolveTier({
 function buildTitle({
   resolved,
   conferenceName,
-  label
+  label,
+  studyName,
+  optimized
 }: {
   resolved: { tier: BroadcastMetadataTier; journalName?: string; specialty?: string };
   conferenceName?: string;
   label: string;
+  studyName?: string;
+  optimized: boolean;
 }) {
   let title: string;
-  if (resolved.tier === "dominant") {
+  if (optimized && studyName) {
+    const context = resolved.journalName ?? resolved.specialty ?? conferenceName ?? "Medical Research";
+    title = `${studyName}: ${context} - ${label}`;
+  } else if (resolved.tier === "dominant") {
     const specialtyPart = resolved.specialty ? ` - ${resolved.specialty}` : "";
     title = `ConferenceHype: ${resolved.journalName}${specialtyPart} - ${label}`;
   } else if (resolved.tier === "roundup") {
@@ -189,7 +219,9 @@ function buildDescription({
   dominantJournal,
   dominantSpecialty,
   anyJournalResolved,
-  tags
+  tags,
+  studyNames,
+  optimized
 }: {
   cards: ResolvedCard[];
   hourStart: Date;
@@ -197,6 +229,8 @@ function buildDescription({
   dominantSpecialty?: string;
   anyJournalResolved: boolean;
   tags: string[];
+  studyNames: string[];
+  optimized: boolean;
 }) {
   let intro: string;
   const journalEditions = new Map<string, Set<string>>();
@@ -235,17 +269,18 @@ function buildDescription({
 
   const hashtags = tags.slice(0, 6).map((tag) => `#${tag.replace(/\s+/g, "")}`).join(" ");
 
-  return [intro, journalEditionLine, "", ...chapterLines, "", hashtags].join("\n");
+  const studyLine = optimized && studyNames.length ? `Studies covered: ${studyNames.join("; ")}.` : "";
+  return [studyLine, intro, journalEditionLine, "", ...chapterLines, "", hashtags].filter((line, index, lines) => line || (index > 0 && lines[index - 1])).join("\n");
 }
 
-function buildTags(cards: ResolvedCard[]) {
+function buildTags(cards: ResolvedCard[], studyNames: string[] = []) {
   const names = new Set<string>();
   for (const card of cards) {
     if (!card.journal) continue;
     names.add(card.journal.name);
     names.add(specificSpecialty(card.journal));
   }
-  const candidates = [...names, ...GENERIC_TAGS];
+  const candidates = [...studyNames, ...names, ...GENERIC_TAGS];
   const tags: string[] = [];
   let totalChars = 0;
   for (const candidate of candidates) {
@@ -266,15 +301,21 @@ export function buildBroadcastMetadata(input: BroadcastMetadataInput): Broadcast
     ? (monthYearLabel(input.titleDateOverride) ?? dateLabel(input.hourStart))
     : dateLabel(input.hourStart);
 
-  const title = buildTitle({ resolved, conferenceName: input.conferenceName, label });
-  const tags = buildTags(cards);
+  const optimized = easternDateKey(input.hourStart) >= OPTIMIZATION_START_DATE;
+  const studyNames = optimized
+    ? [...new Set(cards.map((card) => extractExplicitStudyName(card.slot.segment?.title ?? "")).filter((name): name is string => Boolean(name)))].slice(0, 5)
+    : [];
+  const title = buildTitle({ resolved, conferenceName: input.conferenceName, label, studyName: studyNames[0], optimized });
+  const tags = buildTags(cards, studyNames);
   const description = buildDescription({
     cards,
     hourStart: input.hourStart,
     dominantJournal,
     dominantSpecialty,
     anyJournalResolved,
-    tags
+    tags,
+    studyNames,
+    optimized
   });
 
   return {
@@ -288,6 +329,8 @@ export function buildBroadcastMetadata(input: BroadcastMetadataInput): Broadcast
     tier: resolved.tier,
     journalName: resolved.journalName,
     specialty: resolved.specialty,
-    dateLabel: label
+    dateLabel: label,
+    studyNames,
+    thumbnailHeadline: optimized ? (studyNames[0] ? `${studyNames[0]}: What Did It Find?` : "What Did This Research Find?") : undefined
   };
 }

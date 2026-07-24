@@ -103,6 +103,43 @@ export async function uploadVideoToYoutube({
   return (await uploadResponse.json()) as { id: string };
 }
 
+export async function updateYoutubeVideoMetadata({
+  videoId,
+  accessToken,
+  title,
+  description,
+  tags,
+  categoryId
+}: {
+  videoId: string;
+  accessToken: string;
+  title: string;
+  description: string;
+  tags: string[];
+  categoryId: string;
+}) {
+  const currentResponse = await fetch(
+    `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${encodeURIComponent(videoId)}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!currentResponse.ok) {
+    throw new Error(`YouTube metadata lookup failed: ${currentResponse.status} ${await currentResponse.text()}`);
+  }
+  const current = (await currentResponse.json()) as { items?: Array<{ snippet?: Record<string, unknown> }> };
+  const snippet = current.items?.[0]?.snippet;
+  if (!snippet) throw new Error(`YouTube video ${videoId} was not found.`);
+  const updateResponse = await fetch("https://www.googleapis.com/youtube/v3/videos?part=snippet", {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      id: videoId,
+      snippet: { ...snippet, title, description, tags, categoryId }
+    })
+  });
+  if (!updateResponse.ok) {
+    throw new Error(`YouTube metadata update failed: ${updateResponse.status} ${await updateResponse.text()}`);
+  }
+}
 export async function uploadYoutubeThumbnail({
   videoId,
   accessToken,
@@ -110,6 +147,7 @@ export async function uploadYoutubeThumbnail({
   journalName,
   specialty,
   dateLabel,
+  headline,
   siteUrl
 }: {
   videoId: string;
@@ -118,12 +156,14 @@ export async function uploadYoutubeThumbnail({
   journalName?: string;
   specialty?: string;
   dateLabel: string;
+  headline?: string;
   siteUrl?: string;
 }) {
   const resolvedSiteUrl = siteUrl || "https://conferencehype.com";
   const params = new URLSearchParams({ tier, date: dateLabel });
   if (journalName) params.set("journal", journalName);
   if (specialty) params.set("specialty", specialty);
+  if (headline) params.set("headline", headline);
   const thumbnailResponse = await fetch(`${resolvedSiteUrl}/api/youtube-thumbnail?${params.toString()}`);
   if (!thumbnailResponse.ok) {
     throw new Error(`Thumbnail render failed: ${thumbnailResponse.status} ${await thumbnailResponse.text()}`);
