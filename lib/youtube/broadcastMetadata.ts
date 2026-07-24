@@ -313,6 +313,35 @@ function buildTags(cards: ResolvedCard[], studyNames: string[] = []) {
   return tags;
 }
 
+export function assertSearchOptimizedBroadcastMetadata(
+  metadata: BroadcastMetadata,
+  { requireJournalContext = false }: { requireJournalContext?: boolean } = {}
+) {
+  if (!metadata.thumbnailHeadline) throw new Error("A search-optimized thumbnail headline is required.");
+  if (/\bOthers\b/.test(`${metadata.title}\n${metadata.description}\n${metadata.tags.join(" ")}`)) {
+    throw new Error("Search metadata must use a specific specialty, never Others.");
+  }
+  if (metadata.studyNames.length > 0) {
+    const studiesLine = `Studies covered: ${metadata.studyNames.join("; ")}.`;
+    if (!metadata.title.startsWith(`${metadata.studyNames[0]}:`)) throw new Error("The primary explicit study name must begin the title.");
+    if (metadata.description.split("\n")[0] !== studiesLine) throw new Error("Every explicit study name must appear in the description's first line.");
+    metadata.studyNames.forEach((name, index) => {
+      if (metadata.tags[index] !== truncate(name, MAX_TAG_LENGTH)) throw new Error("Explicit study names must lead the YouTube tags.");
+    });
+    if (metadata.thumbnailHeadline !== `${metadata.studyNames[0]}: What Did It Find?`) throw new Error("The thumbnail must use the primary explicit study name.");
+  } else if (metadata.thumbnailHeadline !== "What Did This Research Find?") {
+    throw new Error("A non-named study broadcast must use the approved curiosity thumbnail fallback.");
+  }
+  if (requireJournalContext) {
+    if (metadata.tier !== "dominant" || !metadata.journalName) throw new Error("A station journal program must resolve one dominant journal.");
+    if (!metadata.specialty || metadata.specialty === "Medical Journal") throw new Error("A station journal program must resolve a specific specialty.");
+    if (!metadata.description.includes(metadata.journalName)) throw new Error("The description must name the journal.");
+    if (!metadata.description.includes("Journals and publication dates covered:") || metadata.description.includes("publication date unavailable")) {
+      throw new Error("The description must include the journal's source publication month and year.");
+    }
+  }
+  return metadata;
+}
 export function buildBroadcastMetadata(input: BroadcastMetadataInput): BroadcastMetadata {
   const cards = resolveContentCards(input.slots, input.journalsById);
   const { dominantJournal, dominantSpecialty, anyJournalResolved } = tallyDominant(cards);

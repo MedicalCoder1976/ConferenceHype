@@ -1189,7 +1189,7 @@ async function uploadRenderedBroadcast(
           getConferenceCoverageSlotsFromDb,
           getMedicalConferencesFromDb
         } = await import("@/lib/db");
-        const { buildBroadcastMetadata } = await import("@/lib/youtube/broadcastMetadata");
+        const { buildBroadcastMetadata, assertSearchOptimizedBroadcastMetadata } = await import("@/lib/youtube/broadcastMetadata");
         const [usedSegments, journals, coverageSlots, conferences] = await Promise.all([
           getSegmentsByIdsFromDb(usedSegmentIds),
           getOncologyJournalsFromDb(),
@@ -1243,7 +1243,7 @@ async function uploadRenderedBroadcast(
         } catch (error) {
           console.log(`::warning::Could not load linked PubMed text for study-name metadata: ${describeError(error)}`);
         }
-        return buildBroadcastMetadata({
+        const metadata = buildBroadcastMetadata({
           hourStart,
           conferenceName: activeConference?.acronym ?? activeConference?.name,
           slots,
@@ -1251,8 +1251,10 @@ async function uploadRenderedBroadcast(
           titleDateOverride,
           studySourceTextBySegmentId
         });
+        return assertSearchOptimizedBroadcastMetadata(metadata, { requireJournalContext: isJournalMode });
       });
     } catch (error) {
+      if (isJournalMode || process.env.STATION_PROGRAM_ID) throw error;
       console.log(
         `::warning::Could not build YouTube metadata from actual rendered cards, falling back to generic: ${describeError(error)}`
       );
@@ -1317,6 +1319,7 @@ async function uploadRenderedBroadcast(
         siteUrl: process.env.PUBLIC_SITE_URL
       });
     } catch (error) {
+      if (process.env.STATION_PROGRAM_ID) throw error;
       console.log(
         `::warning::Could not set a custom YouTube thumbnail (channel may not be phone-verified yet): ${describeError(error)}`
       );

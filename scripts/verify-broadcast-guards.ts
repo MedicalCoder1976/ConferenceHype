@@ -4,7 +4,7 @@ import path from "node:path";
 import { sanitizeBroadcastCopy } from "@/lib/broadcast/sanitizeCopy";
 import { formatVoiceSegment, SEGMENT_CLOSE } from "@/lib/broadcast/voiceSegment";
 import { buildBroadcastSlots, buildJournalShowSlots } from "@/lib/rundown/slots";
-import { buildBroadcastMetadata, extractExplicitStudyName, extractExplicitStudyNames } from "@/lib/youtube/broadcastMetadata";
+import { assertSearchOptimizedBroadcastMetadata, buildBroadcastMetadata, extractExplicitStudyName, extractExplicitStudyNames } from "@/lib/youtube/broadcastMetadata";
 import { applySpokenPronunciations } from "@/lib/media/tts";
 import { getUnsafeGeneratedSourceErrors } from "@/lib/generation/sourceSafety";
 import { validateSegmentForApproval } from "@/lib/generation/validator";
@@ -403,6 +403,16 @@ assert.match(optimizedStudyMetadata.title, /^V-NE Ulcer Study 6:/);
 assert.match(optimizedStudyMetadata.description, /^Studies covered: V-NE Ulcer Study 6\./);
 assert.equal(optimizedStudyMetadata.tags[0], "V-NE Ulcer Study 6");
 assert.equal(optimizedStudyMetadata.thumbnailHeadline, "V-NE Ulcer Study 6: What Did It Find?");
+assert.doesNotThrow(() => assertSearchOptimizedBroadcastMetadata(optimizedStudyMetadata));
+assert.throws(() => assertSearchOptimizedBroadcastMetadata(optimizedStudyMetadata, { requireJournalContext: true }), /publication month and year/);
+assert.throws(
+  () => assertSearchOptimizedBroadcastMetadata({ ...optimizedStudyMetadata, description: "Missing study line" }),
+  /description's first line/
+);
+assert.throws(
+  () => assertSearchOptimizedBroadcastMetadata({ ...optimizedStudyMetadata, thumbnailHeadline: undefined }),
+  /thumbnail headline/
+);
 assert.deepEqual(optimizedStudyMetadata.studyNames, ["V-NE Ulcer Study 6"]);
 const optimizedDescriptionOpening = optimizedStudyMetadata.description.split("\n")[0];
 for (const studyName of optimizedStudyMetadata.studyNames) {
@@ -907,6 +917,8 @@ assert.match(renderHourSource, /useFullLengthMusicPadding/);
 assert.match(renderHourSource, /OPERATOR_MUSIC_TRACKS\[musicIndex % OPERATOR_MUSIC_TRACKS\.length\]/);
 assert.match(renderHourSource, /buildBroadcastMetadata\(\{/);
 assert.match(renderHourSource, /headline:\s*actualMetadata\.thumbnailHeadline/);
+assert.match(renderHourSource, /assertSearchOptimizedBroadcastMetadata/);
+assert.match(renderHourSource, /if \(isJournalMode \|\| process\.env\.STATION_PROGRAM_ID\) throw error/);
 const thumbnailRouteSource = readFileSync(path.join(process.cwd(), "app", "api", "youtube-thumbnail", "route.tsx"), "utf8");
 assert.match(thumbnailRouteSource, /params\.get\("headline"\)/);
 assert.match(thumbnailRouteSource, /STUDY RESULTS/);
@@ -915,8 +927,8 @@ assert.match(stationMetadataSource, /updateYoutubeVideoMetadata/);
 assert.match(stationMetadataSource, /uploadYoutubeThumbnail/);
 assert.doesNotMatch(stationMetadataSource, /uploadVideoToYoutube/);
 const weekdayWheelSource = readFileSync(path.join(process.cwd(), ".github", "workflows", "weekday-station-wheel.yml"), "utf8");
-assert.match(weekdayWheelSource, /npm run job:station-metadata/);
-assert.match(weekdayWheelSource, /STATION_METADATA_DATE:/);
+assert.match(weekdayWheelSource, /uses: \.\/\.github\/workflows\/station-program\.yml/);
+assert.match(weekdayWheelSource, /prepare-weekday-station/);
 const uploadBroadcastVideoSource = readFileSync(
   path.join(process.cwd(), "lib", "youtube", "uploadBroadcastVideo.ts"),
   "utf8"
