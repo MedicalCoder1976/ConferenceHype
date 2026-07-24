@@ -119,11 +119,11 @@ export function extractExplicitStudyNames(value: string) {
     const normalized = candidate?.replace(/\s+/g, " ").trim();
     if (normalized && !found.some((existing) => existing.toLowerCase() === normalized.toLowerCase())) found.push(normalized);
   };
-  for (const match of clean.matchAll(/\b(?:NCT|ISRCTN|ACTRN)\s*[-:]?\s*[A-Z0-9-]{5,}\b/gi)) add(match[0].replace(/\s+/g, ""));
   for (const match of clean.matchAll(/\b([A-Za-z0-9][A-Za-z0-9-]*(?:\s+[A-Za-z0-9][A-Za-z0-9-]*){0,4}\s+(?:study|trial)\s+\d+[A-Za-z-]*)\b/gi)) add(match[1]);
   for (const match of clean.matchAll(/\b([A-Za-z][A-Za-z0-9-]{2,39})\s+(?:(?:randomized|randomised|placebo-controlled|controlled|phase\s+[1-4])\s+){0,3}(study|trial)\b/gi)) {
     if (looksLikeExplicitStudyToken(match[1])) add(`${match[1]} ${match[2]}`);
   }
+  for (const match of clean.matchAll(/\b(?:NCT\s*[-:]?\s*\d{6,}|ISRCTN\s*[-:]?\s*\d{6,}|ACTRN\s*[-:]?\s*\d{8,})\b/gi)) add(match[0].replace(/\s+/g, ""));
   return found;
 }
 
@@ -322,18 +322,21 @@ export function buildBroadcastMetadata(input: BroadcastMetadataInput): Broadcast
     : dateLabel(input.hourStart);
 
   const optimized = easternDateKey(input.hourStart) >= OPTIMIZATION_START_DATE;
+  const discoveredStudyNames = cards.flatMap((card) => {
+    const segment = card.slot.segment;
+    if (!segment) return [];
+    return extractExplicitStudyNames([
+      segment.title,
+      segment.summary,
+      segment.script,
+      ...segment.citations.map((citation) => citation.label),
+      input.studySourceTextBySegmentId?.get(segment.id) ?? ""
+    ].join(" "));
+  });
   const studyNames = optimized
-    ? [...new Set(cards.flatMap((card) => {
-        const segment = card.slot.segment;
-        if (!segment) return [];
-        return extractExplicitStudyNames([
-          segment.title,
-          segment.summary,
-          segment.script,
-          ...segment.citations.map((citation) => citation.label),
-          input.studySourceTextBySegmentId?.get(segment.id) ?? ""
-        ].join(" "));
-      }))].slice(0, 5)
+    ? [...new Set(discoveredStudyNames)].sort((left, right) =>
+        Number(/^(?:NCT|ISRCTN|ACTRN)/i.test(left)) - Number(/^(?:NCT|ISRCTN|ACTRN)/i.test(right))
+      ).slice(0, 5)
     : [];
   const title = buildTitle({ resolved, conferenceName: input.conferenceName, label, studyName: studyNames[0], optimized });
   const tags = buildTags(cards, studyNames);

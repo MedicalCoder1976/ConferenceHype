@@ -380,6 +380,8 @@ assert.doesNotMatch(`${legacyNeurologyMetadata.title} ${legacyNeurologyMetadata.
 
 assert.equal(extractExplicitStudyName("V-NE Ulcer Study 6: randomized findings"), "V-NE Ulcer Study 6");
 assert.equal(extractExplicitStudyName("Results from NCT01234567 in adults"), "NCT01234567");
+assert.equal(extractExplicitStudyName("ISRCTN registration was planned"), undefined);
+assert.deepEqual(extractExplicitStudyNames("NCT01234567 reports the ILUSTRO study"), ["ILUSTRO study", "NCT01234567"]);
 assert.equal(extractExplicitStudyName("A randomized controlled trial in adults"), undefined);
 assert.deepEqual(
   extractExplicitStudyNames("The ILUSTRO study was followed by the POLAR trial and RESOLUTION Trial."),
