@@ -404,6 +404,10 @@ assert.match(optimizedStudyMetadata.description, /^Studies covered: V-NE Ulcer S
 assert.equal(optimizedStudyMetadata.tags[0], "V-NE Ulcer Study 6");
 assert.equal(optimizedStudyMetadata.thumbnailHeadline, "V-NE Ulcer Study 6: What Did It Find?");
 assert.deepEqual(optimizedStudyMetadata.studyNames, ["V-NE Ulcer Study 6"]);
+const optimizedDescriptionOpening = optimizedStudyMetadata.description.split("\n")[0];
+for (const studyName of optimizedStudyMetadata.studyNames) {
+  assert.ok(optimizedDescriptionOpening.includes(studyName), `${studyName} must appear in the description opening line.`);
+}
 const firstStudySegmentId = studyNamedSlots[firstStudySlotIndex].segment!.id;
 const abstractNamedMetadata = buildBroadcastMetadata({
   hourStart: new Date("2026-07-24T13:00:00Z"),
@@ -414,6 +418,7 @@ const abstractNamedMetadata = buildBroadcastMetadata({
 });
 assert.match(abstractNamedMetadata.title, /^PREDICT study:/);
 assert.equal(abstractNamedMetadata.tags[0], "PREDICT study");
+assert.match(abstractNamedMetadata.description.split("\n")[0], /PREDICT study/);
 assert.equal(metadataWithoutOverride.thumbnailHeadline, undefined);
 assert.deepEqual(metadataWithoutOverride.studyNames, []);
 

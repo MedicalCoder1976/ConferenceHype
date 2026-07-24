@@ -714,6 +714,8 @@ journals or specialties, instead of a generic always-identical title.
   correct; only the title/intro summarization is wrong. Fix direction:
   require `dominant` to represent a real proportion of resolved cards (e.g.
   ≥40%), falling through to the existing `roundup` tier otherwise.
+- **Study-name search optimization (effective July 24, 2026)**: study and trial names are extracted only when explicitly present in approved card text, citation labels, or the linked PubMed abstract. Recognizable names (for example `ILUSTRO study`, `PREDICT study`, or `RESOLUTION Trial`) outrank registry identifiers such as `NCT...`. The primary name begins the title; every detected name appears in the description's first line and in the leading tags. Generic phrases such as `this study`, `controlled trial`, or `ISRCTN registration` are rejected, and the system never invents a study name. The weekday station wheel refreshes metadata on the six canonical videos in place, without uploading duplicates.
+- **Description invariant**: when one or more explicit study names are detected, the first description line is `Studies covered: ...` and must contain every detected name retained in metadata. The broadcast's journal and source publication month/year remain immediately below it.
 - **Description**: explicitly names every journal and its source publication month/year near the top, followed by one YouTube-chapter-formatted line per content card
   (`M:SS Journal - Specialty - Mon YYYY`), which YouTube auto-converts into
   clickable chapters, plus an intro sentence and a closing hashtag line.
@@ -794,6 +796,8 @@ journals or specialties, instead of a generic always-identical title.
   attribution. A dry run against production found ~545 affected citations.
 
 ## YouTube Custom Thumbnails
+
+Beginning July 24, 2026, new and weekday-refreshed journal videos use a higher-contrast curiosity thumbnail. When a verified explicit study name exists, the headline combines that name with `What Did It Find?`; otherwise it uses the non-claiming `What Did This Research Find?`. Thumbnail text comes from the same metadata object as the title, description, and tags, so it cannot independently invent or select a different study.
 
 `app/api/youtube-thumbnail/route.tsx` renders a 1280×720 thumbnail via
 `next/og`'s `ImageResponse` (no new dependency — built into Next.js) with
