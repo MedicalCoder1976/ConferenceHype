@@ -15,6 +15,7 @@ export type BroadcastMetadataInput = {
   // journal issue's month/date, not when it aired. Existing callers omit
   // this and get today's unchanged air-date behavior.
   titleDateOverride?: string;
+  studySourceTextBySegmentId?: Map<string, string>;
 };
 
 export type BroadcastMetadataTier = "dominant" | "roundup" | "generic";
@@ -100,15 +101,34 @@ function easternDateKey(date: Date) {
   }).format(date);
 }
 
-export function extractExplicitStudyName(title: string) {
-  const clean = title.replace(/\s+/g, " ").trim();
-  const colonLead = clean.match(/^(.{3,80}?\b(?:study|trial)\s*(?:\d+[A-Za-z-]*)?)\s*:/i)?.[1];
-  if (colonLead) return colonLead.trim();
-  const numbered = clean.match(/\b([A-Za-z0-9][A-Za-z0-9-]*(?:\s+[A-Za-z0-9][A-Za-z0-9-]*){0,4}\s+(?:study|trial)\s+\d+[A-Za-z-]*)\b/i)?.[1];
-  if (numbered) return numbered.trim();
-  const named = clean.match(/\b([A-Z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)+\s+(?:study|trial))\b/)?.[1];
-  if (named) return named.trim();
-  return clean.match(/\b(?:NCT|ISRCTN|ACTRN)\s*[-:]?\s*[A-Z0-9-]{5,}\b/i)?.[0].replace(/\s+/g, "");
+const GENERIC_STUDY_WORDS = new Set([
+  "this", "the", "our", "clinical", "controlled", "randomized", "prospective",
+  "retrospective", "cohort", "pilot", "current", "previous", "present", "target"
+]);
+
+function looksLikeExplicitStudyToken(value: string) {
+  const token = value.trim();
+  if (GENERIC_STUDY_WORDS.has(token.toLowerCase())) return false;
+  return /^[A-Z0-9-]{3,}$/.test(token) || /[a-z][A-Z]|[A-Z].*[A-Z]/.test(token) || /\d/.test(token);
+}
+
+export function extractExplicitStudyNames(value: string) {
+  const clean = value.replace(/\s+/g, " ").trim();
+  const found: string[] = [];
+  const add = (candidate: string | undefined) => {
+    const normalized = candidate?.replace(/\s+/g, " ").trim();
+    if (normalized && !found.some((existing) => existing.toLowerCase() === normalized.toLowerCase())) found.push(normalized);
+  };
+  for (const match of clean.matchAll(/\b(?:NCT|ISRCTN|ACTRN)\s*[-:]?\s*[A-Z0-9-]{5,}\b/gi)) add(match[0].replace(/\s+/g, ""));
+  for (const match of clean.matchAll(/\b([A-Za-z0-9][A-Za-z0-9-]*(?:\s+[A-Za-z0-9][A-Za-z0-9-]*){0,4}\s+(?:study|trial)\s+\d+[A-Za-z-]*)\b/gi)) add(match[1]);
+  for (const match of clean.matchAll(/\b([A-Za-z][A-Za-z0-9-]{2,39})\s+(?:(?:randomized|randomised|placebo-controlled|controlled|phase\s+[1-4])\s+){0,3}(study|trial)\b/gi)) {
+    if (looksLikeExplicitStudyToken(match[1])) add(`${match[1]} ${match[2]}`);
+  }
+  return found;
+}
+
+export function extractExplicitStudyName(value: string) {
+  return extractExplicitStudyNames(value)[0];
 }
 
 // Historical database rows may still contain the old catch-all "Others"
@@ -303,7 +323,17 @@ export function buildBroadcastMetadata(input: BroadcastMetadataInput): Broadcast
 
   const optimized = easternDateKey(input.hourStart) >= OPTIMIZATION_START_DATE;
   const studyNames = optimized
-    ? [...new Set(cards.map((card) => extractExplicitStudyName(card.slot.segment?.title ?? "")).filter((name): name is string => Boolean(name)))].slice(0, 5)
+    ? [...new Set(cards.flatMap((card) => {
+        const segment = card.slot.segment;
+        if (!segment) return [];
+        return extractExplicitStudyNames([
+          segment.title,
+          segment.summary,
+          segment.script,
+          ...segment.citations.map((citation) => citation.label),
+          input.studySourceTextBySegmentId?.get(segment.id) ?? ""
+        ].join(" "));
+      }))].slice(0, 5)
     : [];
   const title = buildTitle({ resolved, conferenceName: input.conferenceName, label, studyName: studyNames[0], optimized });
   const tags = buildTags(cards, studyNames);

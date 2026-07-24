@@ -4,7 +4,7 @@ import path from "node:path";
 import { sanitizeBroadcastCopy } from "@/lib/broadcast/sanitizeCopy";
 import { formatVoiceSegment, SEGMENT_CLOSE } from "@/lib/broadcast/voiceSegment";
 import { buildBroadcastSlots, buildJournalShowSlots } from "@/lib/rundown/slots";
-import { buildBroadcastMetadata, extractExplicitStudyName } from "@/lib/youtube/broadcastMetadata";
+import { buildBroadcastMetadata, extractExplicitStudyName, extractExplicitStudyNames } from "@/lib/youtube/broadcastMetadata";
 import { applySpokenPronunciations } from "@/lib/media/tts";
 import { getUnsafeGeneratedSourceErrors } from "@/lib/generation/sourceSafety";
 import { validateSegmentForApproval } from "@/lib/generation/validator";
@@ -381,6 +381,12 @@ assert.doesNotMatch(`${legacyNeurologyMetadata.title} ${legacyNeurologyMetadata.
 assert.equal(extractExplicitStudyName("V-NE Ulcer Study 6: randomized findings"), "V-NE Ulcer Study 6");
 assert.equal(extractExplicitStudyName("Results from NCT01234567 in adults"), "NCT01234567");
 assert.equal(extractExplicitStudyName("A randomized controlled trial in adults"), undefined);
+assert.deepEqual(
+  extractExplicitStudyNames("The ILUSTRO study was followed by the POLAR trial and RESOLUTION Trial."),
+  ["ILUSTRO study", "POLAR trial", "RESOLUTION Trial"]
+);
+assert.equal(extractExplicitStudyName("AI triage in the LungIMPACT randomized controlled trial"), "LungIMPACT trial");
+assert.equal(extractExplicitStudyName("The LungIMPACT trial evaluated AI triage"), "LungIMPACT trial");
 const firstStudySlotIndex = journalShowSlots.findIndex((slot) => slot.segment && !slot.segment.riskFlags.includes("journal_show_outro"));
 const studyNamedSlots = journalShowSlots.map((slot, index) => index === firstStudySlotIndex && slot.segment
   ? { ...slot, segment: { ...slot.segment, title: "V-NE Ulcer Study 6: randomized findings" } }
@@ -396,6 +402,16 @@ assert.match(optimizedStudyMetadata.description, /^Studies covered: V-NE Ulcer S
 assert.equal(optimizedStudyMetadata.tags[0], "V-NE Ulcer Study 6");
 assert.equal(optimizedStudyMetadata.thumbnailHeadline, "V-NE Ulcer Study 6: What Did It Find?");
 assert.deepEqual(optimizedStudyMetadata.studyNames, ["V-NE Ulcer Study 6"]);
+const firstStudySegmentId = studyNamedSlots[firstStudySlotIndex].segment!.id;
+const abstractNamedMetadata = buildBroadcastMetadata({
+  hourStart: new Date("2026-07-24T13:00:00Z"),
+  slots: journalShowSlots,
+  journalsById: journalShowJournalsById,
+  titleDateOverride: "2026-07-01",
+  studySourceTextBySegmentId: new Map([[firstStudySegmentId, "Methods from the PREDICT study were prespecified."]])
+});
+assert.match(abstractNamedMetadata.title, /^PREDICT study:/);
+assert.equal(abstractNamedMetadata.tags[0], "PREDICT study");
 assert.equal(metadataWithoutOverride.thumbnailHeadline, undefined);
 assert.deepEqual(metadataWithoutOverride.studyNames, []);
 

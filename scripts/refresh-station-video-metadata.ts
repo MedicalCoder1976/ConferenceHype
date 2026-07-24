@@ -30,6 +30,12 @@ async function main() {
       throw new Error(`Station position ${program.position} is not a refreshable verified program.`);
     }
     const segments = await getSegmentsByIdsFromDb(program.cardIds);
+    const { data: articleRows, error: articleError } = await supabase
+      .from("journal_articles")
+      .select("card_segment_id,abstract_text")
+      .in("card_segment_id", program.cardIds);
+    if (articleError) throw articleError;
+    const studySourceTextBySegmentId = new Map((articleRows ?? []).map((row) => [row.card_segment_id, row.abstract_text ?? ""]));
     const ordered = program.cardIds.map((id) => segments.find((segment) => segment.id === id)).filter((segment): segment is NonNullable<typeof segment> => Boolean(segment));
     if (!ordered.length) throw new Error(`Station position ${program.position} has no resolvable cards.`);
     const hourStart = new Date(`${targetDate}T12:00:00Z`);
@@ -42,7 +48,7 @@ async function main() {
       label: segment.title
     }));
     const published = ordered.map((segment) => segment.citations?.[0]?.publishedAt).filter((value): value is string => Boolean(value));
-    const metadata = buildBroadcastMetadata({ hourStart, slots, journalsById, titleDateOverride: published[0] });
+    const metadata = buildBroadcastMetadata({ hourStart, slots, journalsById, titleDateOverride: published[0], studySourceTextBySegmentId });
     await updateYoutubeVideoMetadata({
       videoId: program.youtubeVideoId,
       accessToken,

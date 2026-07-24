@@ -1231,12 +1231,25 @@ async function uploadRenderedBroadcast(
           }
           titleDateOverride = [...monthCounts.values()].sort((a, b) => b.count - a.count)[0]?.sample;
         }
+        let studySourceTextBySegmentId = new Map<string, string>();
+        try {
+          const { createAdminClient } = await import("@/lib/supabase/admin");
+          const { data: articleRows, error: articleError } = await createAdminClient()
+            .from("journal_articles")
+            .select("card_segment_id,abstract_text")
+            .in("card_segment_id", usedSegmentIds);
+          if (articleError) throw articleError;
+          studySourceTextBySegmentId = new Map((articleRows ?? []).map((row) => [row.card_segment_id, row.abstract_text ?? ""]));
+        } catch (error) {
+          console.log(`::warning::Could not load linked PubMed text for study-name metadata: ${describeError(error)}`);
+        }
         return buildBroadcastMetadata({
           hourStart,
           conferenceName: activeConference?.acronym ?? activeConference?.name,
           slots,
           journalsById,
-          titleDateOverride
+          titleDateOverride,
+          studySourceTextBySegmentId
         });
       });
     } catch (error) {
