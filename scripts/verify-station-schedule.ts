@@ -27,12 +27,12 @@ assert.ok(draft.every((program) => program.durationMinutes === 30 && program.pro
 assert.ok(draft.every((program) => program.cardIds.length <= 12));
 
 const weekdayWorkflow = readFileSync(path.join(process.cwd(), ".github", "workflows", "weekday-station-wheel.yml"), "utf8");
-assert.match(weekdayWorkflow, /cron: "30 12 \* \* 1-5"/);
-assert.match(weekdayWorkflow, /p_cycle_start_minutes\\\":540/);
-assert.match(weekdayWorkflow, /unique \| length\) == 6/);
+assert.match(weekdayWorkflow, /cron: "30 11 \* \* 1-5"/);
+assert.match(weekdayWorkflow, /prepare-weekday-station/);
+assert.match(weekdayWorkflow, /fromJSON\(needs\.prepare\.outputs\.matrix\)/);
 const rolloverMigration = readFileSync(path.join(process.cwd(), "supabase", "migrations", "20260723193000_weekday_station_wheel_rollover.sql"), "utf8");
 assert.match(rolloverMigration, /extract\(isodow from p_schedule_date\) not between 1 and 5/);
-assert.match(rolloverMigration, /canonical_video_reuse', true/);
+assert.match(weekdayWorkflow, /six new non-repeating journal programs/);
 assert.match(rolloverMigration, /count\(\*\)[\s\S]*status = 'verified'\) <> 6/);
 
 const cleanupSource = readFileSync(path.join(process.cwd(), "scripts", "delete-superseded-station-video.ts"), "utf8");

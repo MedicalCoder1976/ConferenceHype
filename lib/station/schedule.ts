@@ -27,10 +27,16 @@ export type StationProgramDraft = Pick<
   | "writeoutCards"
 >;
 
-function dayNumber(date: string) {
-  return Math.floor(Date.parse(`${date}T00:00:00Z`) / 86_400_000);
+function specificJournalSpecialty(journal: Pick<OncologyJournal, "name" | "specialty">) {
+  if (journal.specialty && journal.specialty !== "Others") return journal.specialty;
+  const name = journal.name.toLowerCase();
+  if (/(neurolog|neurosurg)/.test(name)) return "Neurology";
+  if (/psychiatr/.test(name)) return "Psychiatry";
+  if (/ophthalm/.test(name)) return "Ophthalmology";
+  if (/(thorax|pulmon|respir)/.test(name)) return "Pulmonology";
+  if (/endocrin/.test(name)) return "Endocrinology";
+  return "Medical Journal";
 }
-
 export function nextBreakInBoundary(
   now: Date,
   placement: "top" | "bottom"
@@ -85,75 +91,60 @@ export function stationPositionAt(
 }
 
 export function buildStationDraft({
-  scheduleDate,
+  scheduleDate: _scheduleDate,
   journals,
   journalCardDecks,
-  replayPrograms = []
+  excludedJournalIds = [],
+  excludedCardIds = []
 }: {
   scheduleDate: string;
   journals: OncologyJournal[];
   journalCardDecks: Record<string, EntityCardDeck>;
   replayPrograms?: StationProgram[];
+  excludedJournalIds?: string[];
+  excludedCardIds?: string[];
 }): StationProgramDraft[] {
-  const enabled = journals.filter((journal) => journal.enabled && journal.specialty);
-  const specialties = [...new Set(enabled.map((journal) => journal.specialty!))].sort();
-  if (specialties.length === 0) return [];
+  const excludedJournals = new Set(excludedJournalIds);
+  const excludedCards = new Set(excludedCardIds);
+  const candidates = journals
+    .filter((journal) => journal.enabled && journal.specialty && !excludedJournals.has(journal.id))
+    .map((journal) => ({
+      journal,
+      specialty: specificJournalSpecialty(journal),
+      readyCards: (journalCardDecks[journal.id]?.cards ?? []).filter(({ segment }) => !excludedCards.has(segment.id))
+    }))
+    .filter(({ readyCards }) => readyCards.length > 0)
+    .sort((a, b) => b.readyCards.length - a.readyCards.length || a.journal.name.localeCompare(b.journal.name));
 
-  const start = (dayNumber(scheduleDate) * STATION_PROGRAMS_PER_CYCLE) % specialties.length;
-  const selectedSpecialties = Array.from(
-    { length: Math.min(STATION_PROGRAMS_PER_CYCLE, specialties.length) },
-    (_, index) => specialties[(start + index) % specialties.length]
-  );
+  const selected: typeof candidates = [];
+  const specialties = new Set<string>();
+  for (const candidate of candidates) {
+    if (selected.length === STATION_PROGRAMS_PER_CYCLE) break;
+    if (specialties.has(candidate.specialty)) continue;
+    selected.push(candidate);
+    specialties.add(candidate.specialty);
+  }
+  for (const candidate of candidates) {
+    if (selected.length === STATION_PROGRAMS_PER_CYCLE) break;
+    if (!selected.some(({ journal }) => journal.id === candidate.journal.id)) selected.push(candidate);
+  }
+  if (selected.length !== STATION_PROGRAMS_PER_CYCLE) return [];
 
-  return selectedSpecialties.map((specialty, position) => {
-    const candidates = enabled
-      .filter((journal) => journal.specialty === specialty)
-      .sort((a, b) => {
-        const cardDifference =
-          (journalCardDecks[b.id]?.total ?? 0) - (journalCardDecks[a.id]?.total ?? 0);
-        if (cardDifference !== 0) return cardDifference;
-        return a.name.localeCompare(b.name);
-      });
-    const journal = candidates[0];
-    const readyCards = journal ? journalCardDecks[journal.id]?.cards ?? [] : [];
-    const journalReplay = replayPrograms.find(
-      (program) => program.journalId === journal?.id && program.status === "verified"
-    );
-    const specialtyReplay = replayPrograms.find(
-      (program) => program.specialty === specialty && program.status === "verified"
-    );
-    const replay = journalReplay ?? specialtyReplay;
-    const hasNewContent = readyCards.length > 0;
-
-    return {
-      position,
-      specialty,
-      journalId: hasNewContent ? journal?.id : replay?.journalId ?? journal?.id,
-      journalName: hasNewContent
-        ? journal?.name ?? specialty
-        : replay?.journalName ?? journal?.name ?? `${specialty} replay`,
-      programType: hasNewContent
-        ? "new"
-        : journalReplay
-          ? "journal_replay"
-          : specialtyReplay
-            ? "specialty_replay"
-            : "fallback",
-      sourceProgramId: hasNewContent ? undefined : replay?.id,
-      startsAtOffsetMinutes: position * STATION_PROGRAM_MINUTES,
-      durationMinutes: 30,
-      status: hasNewContent ? "planned" : replay ? "verified" : "failed",
-      cardIds: hasNewContent
-        ? readyCards
-            .map(({ segment }) => segment.id)
-            .filter((id) => /^[0-9a-f-]{36}$/i.test(id))
-            .slice(0, STATION_MAX_RESERVED_CARDS)
-        : replay?.cardIds ?? [],
-      youtubeVideoId: hasNewContent ? undefined : replay?.youtubeVideoId,
-      youtubeUrl: hasNewContent ? undefined : replay?.youtubeUrl,
-      title: hasNewContent ? undefined : replay?.title,
-      description: hasNewContent ? undefined : replay?.description,
-      writeoutCards: hasNewContent ? [] : replay?.writeoutCards ?? []
-    };
-  });
+  return selected.map(({ journal, specialty, readyCards }, position) => ({
+    position,
+    specialty,
+    journalId: journal.id,
+    journalName: journal.name,
+    programType: "new",
+    sourceProgramId: undefined,
+    startsAtOffsetMinutes: position * STATION_PROGRAM_MINUTES,
+    durationMinutes: 30,
+    status: "planned",
+    cardIds: readyCards.map(({ segment }) => segment.id).filter((id) => /^[0-9a-f-]{36}$/i.test(id)).slice(0, STATION_MAX_RESERVED_CARDS),
+    youtubeVideoId: undefined,
+    youtubeUrl: undefined,
+    title: undefined,
+    description: undefined,
+    writeoutCards: []
+  }));
 }

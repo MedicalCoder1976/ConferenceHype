@@ -1,6 +1,24 @@
 name: Station journal program
 
 on:
+  workflow_call:
+    inputs:
+      station_program_id:
+        required: true
+        type: string
+      journal_id:
+        required: true
+        type: string
+      stream_start_time:
+        required: true
+        type: string
+    secrets:
+      NEXT_PUBLIC_SUPABASE_URL: { required: true }
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: { required: true }
+      SUPABASE_SERVICE_ROLE_KEY: { required: true }
+      YOUTUBE_OAUTH_CLIENT_ID: { required: true }
+      YOUTUBE_OAUTH_CLIENT_SECRET: { required: true }
+      YOUTUBE_OAUTH_REFRESH_TOKEN: { required: true }
   workflow_dispatch:
     inputs:
       station_program_id:

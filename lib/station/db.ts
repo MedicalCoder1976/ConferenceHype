@@ -184,10 +184,12 @@ export async function getActiveStationScheduleFromDb(date: string) {
 export async function saveStationDraftToDb({
   scheduleDate,
   timezone,
+  cycleStartMinutes = 0,
   programs
 }: {
   scheduleDate: string;
   timezone: string;
+  cycleStartMinutes?: number;
   programs: StationProgramDraft[];
 }) {
   if (!hasSupabase()) return null;
@@ -209,6 +211,7 @@ export async function saveStationDraftToDb({
       {
         schedule_date: scheduleDate,
         timezone,
+        cycle_start_minutes: cycleStartMinutes,
         status: "draft",
         updated_at: new Date().toISOString()
       },

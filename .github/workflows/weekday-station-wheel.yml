@@ -8,17 +8,27 @@ on:
         required: false
         default: ""
   schedule:
-    # 12:30 UTC is 7:30 AM EST / 8:30 AM EDT, safely before the 9:00 AM ET wheel start.
-    - cron: "30 12 * * 1-5"
+    - cron: "30 11 * * 1-5"
+
+permissions:
+  contents: read
 
 concurrency:
   group: weekday-station-wheel
   cancel-in-progress: false
 
 jobs:
-  activate:
+  prepare:
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.prepare.outputs.matrix }}
     steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
       - name: Resolve Eastern weekday
         id: day
         shell: bash
@@ -26,62 +36,42 @@ jobs:
           TARGET="${{ inputs.schedule_date }}"
           if [ -z "$TARGET" ]; then TARGET=$(TZ=America/New_York date +%F); fi
           DOW=$(TZ=America/New_York date -d "$TARGET" +%u)
-          if [ "$DOW" -gt 5 ]; then
-            echo "Refusing weekend schedule for $TARGET"
-            exit 1
-          fi
+          if [ "$DOW" -gt 5 ]; then echo "Refusing weekend schedule for $TARGET"; exit 1; fi
           echo "target=$TARGET" >> "$GITHUB_OUTPUT"
-
-      - name: Activate verified 9 AM ET replay wheel
+      - name: Reserve six new non-repeating journal programs
+        id: prepare
+        run: npx tsx scripts/prepare-weekday-station.ts
         env:
-          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          TARGET_DATE: ${{ steps.day.outputs.target }}
-        shell: bash
-        run: |
-          RESPONSE=$(curl --fail --silent --show-error \
-            "${SUPABASE_URL}/rest/v1/rpc/roll_weekday_station_schedule" \
-            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
-            -H "Content-Type: application/json" \
-            -d "{\"p_schedule_date\":\"${TARGET_DATE}\",\"p_cycle_start_minutes\":540}")
-          echo "$RESPONSE" | jq -e '.status == "active" and .cycle_start_minutes == 540'
-
-      - name: Verify six canonical programs and no duplicate IDs
-        env:
-          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          TARGET_DATE: ${{ steps.day.outputs.target }}
-        shell: bash
-        run: |
-          SCHEDULE=$(curl --fail --silent --show-error --get \
-            "${SUPABASE_URL}/rest/v1/station_daily_schedules" \
-            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
-            --data-urlencode "select=id" \
-            --data-urlencode "schedule_date=eq.${TARGET_DATE}" \
-            --data-urlencode "status=eq.active" | jq -r '.[0].id')
-          PROGRAMS=$(curl --fail --silent --show-error --get \
-            "${SUPABASE_URL}/rest/v1/station_programs" \
-            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
-            --data-urlencode "select=position,status,youtube_video_id" \
-            --data-urlencode "schedule_id=eq.${SCHEDULE}")
-          echo "$PROGRAMS" | jq -e 'length == 6 and all(.status == "verified") and all(.youtube_video_id != null) and ([.[].youtube_video_id] | unique | length) == 6'
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - name: Refresh canonical video search metadata and thumbnails
-        run: npm run job:station-metadata
-        env:
-          STATION_METADATA_DATE: ${{ steps.day.outputs.target }}
+          STATION_SCHEDULE_DATE: ${{ steps.day.outputs.target }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
-          YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
-          YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
-          PUBLIC_SITE_URL: https://conferencehype.com
+
+  render:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        program: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    uses: ./.github/workflows/station-program.yml
+    with:
+      station_program_id: ${{ matrix.program.station_program_id }}
+      journal_id: ${{ matrix.program.journal_id }}
+      stream_start_time: ${{ matrix.program.stream_start_time }}
+    secrets: inherit
+
+  activate:
+    needs: [prepare, render]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Activate only after all six new videos verify
+        env:
+          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TARGET_DATE: ${{ inputs.schedule_date }}
+        shell: bash
+        run: |
+          if [ -z "$TARGET_DATE" ]; then TARGET_DATE=$(TZ=America/New_York date +%F); fi
+          SCHEDULE_ID=$(curl --fail --silent --show-error --get "${SUPABASE_URL}/rest/v1/station_daily_schedules" -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" --data-urlencode "select=id" --data-urlencode "schedule_date=eq.${TARGET_DATE}" | jq -er '.[0].id')
+          curl --fail --silent --show-error "${SUPABASE_URL}/rest/v1/rpc/activate_station_schedule" -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" -H "Content-Type: application/json" -d "{\"p_schedule_id\":\"${SCHEDULE_ID}\"}" | jq -e '.status == "active"'
