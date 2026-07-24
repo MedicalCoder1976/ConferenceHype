@@ -663,6 +663,48 @@ export const oncologyJournalSeeds: JournalSeed[] = [
     specialty: "Psychiatry"
   },
   {
+    name: "American Journal of Psychiatry",
+    abbreviation: "Am J Psychiatry",
+    rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Am+J+Psychiatry%22%5BJournal%5D",
+    officialUrl: "https://psychiatryonline.org/journal/ajp",
+    specialty: "Psychiatry"
+  },
+  {
+    name: "The British Journal of Psychiatry",
+    abbreviation: "Br J Psychiatry",
+    rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Br+J+Psychiatry%22%5BJournal%5D",
+    officialUrl: "https://www.cambridge.org/core/journals/the-british-journal-of-psychiatry",
+    specialty: "Psychiatry"
+  },
+  {
+    name: "Molecular Psychiatry",
+    abbreviation: "Mol Psychiatry",
+    rssUrl: "https://feeds.nature.com/mp/rss/current",
+    officialUrl: "https://www.nature.com/mp/",
+    specialty: "Psychiatry"
+  },
+  {
+    name: "World Psychiatry",
+    abbreviation: "World Psychiatry",
+    rssUrl: "https://onlinelibrary.wiley.com/feed/20515545/most-recent",
+    officialUrl: "https://onlinelibrary.wiley.com/journal/20515545",
+    specialty: "Psychiatry"
+  },
+  {
+    name: "Psychiatric Services",
+    abbreviation: "Psychiatr Serv",
+    rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Psychiatr+Serv%22%5BJournal%5D",
+    officialUrl: "https://psychiatryonline.org/journal/ps",
+    specialty: "Psychiatry"
+  },
+  {
+    name: "Journal of Child Psychology and Psychiatry",
+    abbreviation: "J Child Psychol Psychiatry",
+    rssUrl: "https://acamh.onlinelibrary.wiley.com/feed/14697610/most-recent",
+    officialUrl: "https://acamh.onlinelibrary.wiley.com/journal/14697610",
+    specialty: "Psychiatry"
+  },
+  {
     name: "JAMA Ophthalmology",
     abbreviation: "JAMA Ophthalmology",
     rssUrl: "https://jamanetwork.com/rss/site_17/73.xml",

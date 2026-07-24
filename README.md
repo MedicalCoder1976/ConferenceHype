@@ -475,6 +475,22 @@ Current seeded feeds:
 - The Lancet
 
 Run `npm run test:rss` to make a live request to every seeded feed.
+Psychiatry coverage includes JAMA Psychiatry, American Journal of Psychiatry,
+The British Journal of Psychiatry, Molecular Psychiatry, World Psychiatry,
+Psychiatric Services, and Journal of Child Psychology and Psychiatry. Publisher
+feeds are used when they are dependable; American Journal of Psychiatry, The
+British Journal of Psychiatry, and Psychiatric Services use exact PubMed
+`[Journal]` queries because their publisher feed endpoints reject automated
+requests. JAMA Psychiatry must remain labeled `Psychiatry`, while Journal of
+Neurology, Neurosurgery & Psychiatry must remain labeled `Neurology`.
+
+Psychiatry cards follow the same source and approval rules as every journal:
+start at PubMed, require substantive abstract-grounded Background, Methods,
+Results, and Discussion coverage, keep generated cards in pending review, and
+never auto-approve a title-only, missing-abstract, or otherwise source-limited
+card. Weekly availability is not proof of complete intake; feed-level sync,
+article, reconciliation, and card-state counts must be audited before claiming
+that no psychiatry journals or articles were missed.
 
 ### Meeting Watch
 

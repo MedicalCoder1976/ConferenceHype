@@ -2051,7 +2051,7 @@ export async function upsertAdminCatalogSeedsToDb() {
         enabled: true,
         specialty: journal.specialty ?? null
       })),
-      { onConflict: "rss_url", ignoreDuplicates: true }
+      { onConflict: "rss_url" }
     )
   ]);
   if (voiceResult.error) {

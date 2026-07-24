@@ -459,6 +459,34 @@ assert.match(
 
 const natureCancerSeed = oncologyJournalSeeds.find((journal) => journal.name === "Nature Cancer");
 assert.equal(natureCancerSeed?.rssUrl, "https://feeds.nature.com/natcancer/rss/current");
+const requiredPsychiatryJournals = [
+  "JAMA Psychiatry",
+  "American Journal of Psychiatry",
+  "The British Journal of Psychiatry",
+  "Molecular Psychiatry",
+  "World Psychiatry",
+  "Psychiatric Services",
+  "Journal of Child Psychology and Psychiatry"
+];
+for (const name of requiredPsychiatryJournals) {
+  assert.equal(
+    oncologyJournalSeeds.find((journal) => journal.name === name)?.specialty,
+    "Psychiatry",
+    `${name} must remain in Psychiatry`
+  );
+}
+assert.equal(
+  oncologyJournalSeeds.find(
+    (journal) => journal.name === "Journal of Neurology, Neurosurgery & Psychiatry"
+  )?.specialty,
+  "Neurology"
+);
+const journalDbSource = readFileSync(path.join(process.cwd(), "lib", "db.ts"), "utf8");
+assert.doesNotMatch(
+  journalDbSource,
+  /onConflict:\s*"rss_url",\s*ignoreDuplicates:\s*true/,
+  "journal seed synchronization must update corrected metadata"
+);
 
 const selectedJournal = {
   id: "11111111-1111-4111-8111-111111111111",
