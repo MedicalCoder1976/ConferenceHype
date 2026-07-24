@@ -426,6 +426,12 @@ repository. See `public/music/README.md`.
 - Drag review cards into exact content slots.
 - Preview and place any of the 20 three-minute Funk/Latin music cards into a selected presentation slot.
 - Approve, reject, discard, or atomically replace cards.
+- The top of the Broadcast tab has one collapsed **Cards awaiting approval**
+  center showing the complete pending queue across all sources. Operators can
+  open it to review or edit individual cards, approve or reject them one at a
+  time, or use the confirmed **Approve all** action. Bulk approval still runs
+  deduplication and the normal quality validator; duplicates and cards that
+  fail source or structure checks are skipped rather than force-approved.
 - Manage source URLs, X follows, social items, and emergency overrides.
 - Approve conference coverage by slot, day, or week.
 - Two explicit, always-visible buttons control continuous YouTube delivery

@@ -446,6 +446,16 @@ assert.equal(
   0
 );
 
+const reviewQueueSource = readFileSync(
+  path.join(process.cwd(), "components", "ReviewQueue.tsx"),
+  "utf8"
+);
+assert.match(reviewQueueSource, /Cards awaiting approval/);
+assert.match(reviewQueueSource, /\/api\/admin\/approve\/release-all/);
+assert.match(reviewQueueSource, /window\.confirm/);
+assert.match(reviewQueueSource, /View all cards/);
+const adminPageSource = readFileSync(path.join(process.cwd(), "app", "admin", "page.tsx"), "utf8");
+assert.match(adminPageSource, /<ReviewQueue segments=\{snapshot\.pendingSegments\} \/>/);
 const youtubeFrameSource = readFileSync(
   path.join(process.cwd(), "components", "YoutubeFrame.tsx"),
   "utf8"

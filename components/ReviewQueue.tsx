@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Clapperboard, Edit3, Trash2 } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Clapperboard, Edit3, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { cardTypeLabel } from "@/lib/broadcast/cardTypes";
@@ -28,6 +28,7 @@ export function ReviewQueue({ segments }: { segments: Segment[] }) {
     Object.fromEntries(segments.map((segment) => [segment.id, segment.script]))
   );
   const [message, setMessage] = useState("");
+  const [expanded, setExpanded] = useState(false);
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -61,10 +62,43 @@ export function ReviewQueue({ segments }: { segments: Segment[] }) {
     });
   };
 
+  const approveAll = () => {
+    if (!window.confirm(`Approve every quality-passing card in the full queue? ${visibleSegments.length} cards are currently awaiting review. Cards that fail validation or duplicate aired/approved material will be skipped.`)) return;
+    startTransition(async () => {
+      try {
+        const response = await fetch("/api/admin/approve/release-all", { method: "POST" });
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) throw new Error(payload.error ?? "Bulk approval failed");
+        setMessage(
+          `Approved ${payload.approved} of ${payload.totalPending} pending cards. ` +
+          `${payload.failedQualityFilter + payload.failedValidation} failed quality checks; ` +
+          `${payload.alreadyBroadcastOrQueued + payload.duplicateWithinPending} duplicates were skipped.`
+        );
+        router.refresh();
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : "Bulk approval failed");
+      }
+    });
+  };
   return (
     <section className="border border-ink/10 bg-white shadow-panel">
       <div className="border-b border-ink/10 p-5">
-        <h2 className="text-2xl font-black text-ink">Human review queue</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-2xl font-black text-ink">Cards awaiting approval</h2>
+            <p className="mt-1 text-sm font-black uppercase text-broadcast">{visibleSegments.length} pending</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button className="inline-flex min-h-11 items-center justify-center gap-2 bg-mint px-4 text-sm font-black uppercase text-white disabled:opacity-50" disabled={pending || visibleSegments.length === 0} onClick={approveAll}>
+              <Check className="h-4 w-4" />
+              {pending ? "Approving…" : "Approve all"}
+            </button>
+            <button className="inline-flex min-h-11 items-center justify-center gap-2 border border-ink px-4 text-sm font-black uppercase text-ink" onClick={() => setExpanded((current) => !current)} aria-expanded={expanded}>
+              {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              {expanded ? "Hide cards" : "View all cards"}
+            </button>
+          </div>
+        </div>
         <p className="mt-2 text-sm font-semibold text-ink/60">
           Approve before placement. Broadcast-ready items must come from
           source-backed sources, articles, monitored X voices, operator
@@ -76,7 +110,8 @@ export function ReviewQueue({ segments }: { segments: Segment[] }) {
           </div>
         ) : null}
       </div>
-      <div className="grid gap-5 p-5">
+      {expanded ? (
+        <div className="grid gap-5 p-5">
         {visibleSegments.length === 0 ? (
           <div className="border border-dashed border-ink/20 bg-paper/60 p-5">
             <h3 className="text-lg font-black text-ink">
@@ -147,7 +182,8 @@ export function ReviewQueue({ segments }: { segments: Segment[] }) {
             </div>
           </article>
         ))}
-      </div>
+        </div>
+      ) : null}
     </section>
   );
 }

@@ -17,6 +17,7 @@ import { OncologyReporterGrid } from "@/components/OncologyReporterGrid";
 import { MeetingWatchDesk } from "@/components/MeetingWatchDesk";
 import { PlatformSmokeHistory } from "@/components/PlatformSmokeHistory";
 import { RecordingLibrary } from "@/components/RecordingLibrary";
+import { ReviewQueue } from "@/components/ReviewQueue";
 import { RunRealAiBatchButton } from "@/components/RunRealAiBatchButton";
 import { RunWeeklyBatchButton } from "@/components/RunWeeklyBatchButton";
 import { SocialVoiceCompetition } from "@/components/SocialVoiceCompetition";
@@ -329,6 +330,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         initialActive={params?.section}
         broadcast={
           <div className="grid gap-6">
+            <ReviewQueue segments={snapshot.pendingSegments} />
             <StationSchedulePanel schedules={stationSchedules ?? []} breakIns={stationBreakIns ?? []} />
             <DailyCoveragePlanner
               key={activePlanningKey}
