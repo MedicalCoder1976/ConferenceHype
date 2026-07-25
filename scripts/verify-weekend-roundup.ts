@@ -49,6 +49,10 @@ assert.match(metadata.description, /Specialties: Neurology/);
 assert.match(metadata.description, /Journals: Neurology/);
 assert.ok(metadata.studyNames.some((name) => /RESOLUTION Trial/i.test(name)));
 
+const renderSource = readFileSync(path.join(process.cwd(), "scripts", "render-hour-broadcast.ts"), "utf8");
+assert.match(renderSource, /Measured 30-minute frame reconciled/);
+assert.match(renderSource, /cardCacheKeys\.splice\(insertAt, 0, undefined\)/);
+
 const workflow = readFileSync(path.join(process.cwd(), ".github", "workflows", "weekend-medical-roundup.yml"), "utf8");
 assert.match(workflow, /cron: "0 12 \* \* 0,6"/);
 assert.match(workflow, /cron: "0 13 \* \* 0,6"/);

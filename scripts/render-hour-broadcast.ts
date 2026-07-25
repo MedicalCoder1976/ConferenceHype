@@ -1729,6 +1729,51 @@ async function main() {
     }
   }
 
+  // Real Kokoro durations replace estimates after the first frame pass. Reconcile
+  // the music tail again so journal/weekend programs still end at exactly 1800s
+  // with the final spoken outro at the true end, never a silent video tail.
+  if (isJournalMode || isWeekendMode) {
+    let delta = JOURNAL_SHOW_SECONDS - totalCardSeconds(cards);
+    const outroIndex = cards.findLastIndex((card) => card.riskFlags?.some((flag) => flag === "journal_show_outro" || flag === "weekend_roundup_outro"));
+    const insertionIndex = outroIndex >= 0 ? outroIndex : cards.length;
+    if (delta < 0) {
+      let excess = -delta;
+      for (let index = insertionIndex - 1; index >= 0 && excess > 0; index -= 1) {
+        if (!cards[index].isMusic) continue;
+        const removable = Math.min(cards[index].duration, excess);
+        cards[index].duration -= removable;
+        excess -= removable;
+        if (cards[index].duration <= 0.001) {
+          cards.splice(index, 1);
+          cardCacheKeys.splice(index, 1);
+        }
+      }
+      if (excess > 0.001) throw new Error("Measured narration exceeds the 30-minute weekend/journal frame after all music was removed.");
+    } else if (delta > 0.001) {
+      let insertAt = insertionIndex;
+      const priorMusic = cards[insertAt - 1];
+      if (priorMusic?.isMusic && priorMusic.duration < OPERATOR_MUSIC_SECONDS) {
+        const added = Math.min(OPERATOR_MUSIC_SECONDS - priorMusic.duration, delta);
+        priorMusic.duration += added;
+        delta -= added;
+      }
+      let musicIndex = cards.filter((card) => card.isMusic).length;
+      while (delta > 0.001) {
+        const chunk = Math.min(OPERATOR_MUSIC_SECONDS, delta);
+        const musicCard = musicTransitionCard(chunk, musicIndex);
+        const track = OPERATOR_MUSIC_TRACKS[musicIndex % OPERATOR_MUSIC_TRACKS.length];
+        musicCard.gapClipPath = `public${track.publicPath}`;
+        musicCard.title = `${track.title} music break`;
+        cards.splice(insertAt, 0, musicCard);
+        cardCacheKeys.splice(insertAt, 0, undefined);
+        insertAt += 1;
+        musicIndex += 1;
+        delta -= chunk;
+      }
+    }
+    const reconciled = totalCardSeconds(cards);
+    if (Math.abs(reconciled - JOURNAL_SHOW_SECONDS) > 0.01) throw new Error(`Measured 30-minute frame reconciled to ${reconciled}s instead of 1800s.`);
+  }
   const concatLines: string[] = [];
 
   for (let index = 0; index < cards.length; index += 1) {
