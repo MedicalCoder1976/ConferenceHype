@@ -15,7 +15,13 @@ export type StationProgram = {
   specialty: string;
   journalId?: string;
   journalName: string;
-  programType: "new" | "journal_replay" | "specialty_replay" | "fallback";
+  programType:
+    | "new"
+    | "journal_replay"
+    | "specialty_replay"
+    | "fallback"
+    | "weekend_roundup"
+    | "weekend_replay";
   sourceProgramId?: string;
   startsAtOffsetMinutes: number;
   durationMinutes: 30;

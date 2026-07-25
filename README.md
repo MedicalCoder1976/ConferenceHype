@@ -853,6 +853,32 @@ and provide the affected YouTube video ID.
 
 ## 30-Minute Single-Journal Broadcasts
 
+### Weekend roundup wheel
+
+Saturday and Sunday use a separate, additive station-planning lane. At 8:00 AM
+`America/New_York`, the recurring GitHub Actions workflow ranks only quality-
+passed card IDs stored on verified Monday-Friday station programs. Ranking is
+deterministic and cost-free: explicit trial or study names, registry IDs,
+randomized or phase-trial language, clinically meaningful outcomes, structured
+article quality, and numerical results receive additional weight. No LLM is
+called. Saturday receives the top 24 cards split evenly across two balanced
+30-minute programs; Sunday excludes Saturday's cards when at least 24 other
+eligible cards remain.
+
+The two programs begin at 9:00 and 9:30 AM Eastern. After both distinct YouTube
+uploads verify, an isolated weekend-only database function repeats those two
+canonical videos across the six-position station wheel for that day. It never
+changes weekday selection, weekday card status, or the weekday workflow. A
+failed render cannot activate a partial weekend schedule, so the previously
+verified public player remains available. Monday's normal weekday activation
+supersedes the weekend wheel.
+
+YouTube metadata uses the title `Weekend Roundup of Top Medical Journal Articles
+of the Week`, plus part number and date. The description and tags list explicit
+trial/study names found in approved PubMed-grounded content, specialties,
+journals, article chapters, and source context; names are omitted rather than
+invented. Each program ends with one roundup conclusion and uses full-length
+Funk/Latin music blocks for any unused portion of the 30-minute frame.
 A second broadcast format, additive to the existing 60-minute mixed-content
 hourly show: a `journal_broadcast_slots` row picks one journal for a
 30-minute, single-persona show that narrates only that journal's approved

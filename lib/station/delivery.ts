@@ -39,6 +39,7 @@ export async function updateStationProgramDeliveryInDb(
     youtubeUrl?: string;
     title?: string;
     description?: string;
+    tags?: string[];
     cardIds?: string[];
     writeoutCards?: StationProgram["writeoutCards"];
     failureReason?: string | null;
@@ -57,6 +58,7 @@ export async function updateStationProgramDeliveryInDb(
       youtube_url: patch.youtubeUrl ?? undefined,
       title: patch.title ?? undefined,
       description: patch.description ?? undefined,
+      tags: patch.tags ?? undefined,
       card_ids: persistedCardIds ?? undefined,
       writeout_cards: patch.writeoutCards ?? undefined,
       failure_reason: patch.failureReason ?? null,

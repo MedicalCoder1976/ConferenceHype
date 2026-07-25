@@ -1,0 +1,106 @@
+name: Weekend medical journal roundup
+
+on:
+  workflow_dispatch:
+    inputs:
+      schedule_date:
+        description: "Saturday or Sunday America/New_York date (YYYY-MM-DD); blank means today"
+        required: false
+        default: ""
+  schedule:
+    # GitHub cron is UTC. Run at both possible 8 AM Eastern UTC hours and let
+    # the resolve job keep exactly the DST-correct invocation.
+    - cron: "0 12 * * 0,6"
+    - cron: "0 13 * * 0,6"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: weekend-medical-roundup
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.day.outputs.should_run }}
+      target: ${{ steps.day.outputs.target }}
+    steps:
+      - name: Resolve 8 AM Eastern weekend preparation window
+        id: day
+        shell: bash
+        run: |
+          TARGET="${{ inputs.schedule_date }}"
+          if [ -n "$TARGET" ]; then
+            DOW=$(TZ=America/New_York date -d "$TARGET" +%u)
+            if [ "$DOW" -lt 6 ]; then echo "Weekend date required: $TARGET"; exit 1; fi
+            echo "target=$TARGET" >> "$GITHUB_OUTPUT"
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          TARGET=$(TZ=America/New_York date +%F)
+          DOW=$(TZ=America/New_York date +%u)
+          HOUR=$(TZ=America/New_York date +%H)
+          echo "target=$TARGET" >> "$GITHUB_OUTPUT"
+          if [ "$DOW" -ge 6 ] && [ "$HOUR" = "08" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  prepare:
+    needs: resolve
+    if: needs.resolve.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.prepare.outputs.matrix }}
+      schedule_id: ${{ steps.prepare.outputs.schedule_id }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Rank cards actually broadcast Monday-Friday and reserve two weekend programs
+        id: prepare
+        run: npx tsx scripts/prepare-weekend-roundup.ts
+        env:
+          STATION_SCHEDULE_DATE: ${{ needs.resolve.outputs.target }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+  render:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        program: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    uses: ./.github/workflows/station-program.yml
+    with:
+      station_program_id: ${{ matrix.program.station_program_id }}
+      journal_id: ""
+      program_mode: ${{ matrix.program.program_mode }}
+      weekend_roundup_part: ${{ matrix.program.part }}
+      stream_start_time: ${{ matrix.program.stream_start_time }}
+    secrets: inherit
+
+  activate:
+    needs: [prepare, render]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Activate two-video weekend wheel only after both uploads verify
+        env:
+          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SCHEDULE_ID: ${{ needs.prepare.outputs.schedule_id }}
+        shell: bash
+        run: |
+          curl --fail --silent --show-error "${SUPABASE_URL}/rest/v1/rpc/activate_weekend_station_schedule" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "{\"p_schedule_id\":\"${SCHEDULE_ID}\"}" | jq -e '.status == "active"'

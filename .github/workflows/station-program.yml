@@ -7,8 +7,17 @@ on:
         required: true
         type: string
       journal_id:
-        required: true
+        required: false
         type: string
+        default: ""
+      program_mode:
+        required: false
+        type: string
+        default: journal30
+      weekend_roundup_part:
+        required: false
+        type: string
+        default: ""
       stream_start_time:
         required: true
         type: string
@@ -25,8 +34,17 @@ on:
         required: true
         description: "station_programs UUID"
       journal_id:
-        required: true
-        description: "Journal UUID"
+        required: false
+        default: ""
+        description: "Journal UUID; blank for a weekend roundup"
+      program_mode:
+        required: false
+        default: journal30
+        description: "journal30 or weekend30"
+      weekend_roundup_part:
+        required: false
+        default: ""
+        description: "Weekend roundup part number"
       stream_start_time:
         required: true
         description: "Scheduled program start"
@@ -50,7 +68,8 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          HOUR_BROADCAST_MODE: journal30
+          HOUR_BROADCAST_MODE: ${{ inputs.program_mode }}
+          WEEKEND_ROUNDUP_PART: ${{ inputs.weekend_roundup_part }}
           HOUR_BROADCAST_SECONDS: "1800"
           HOUR_BROADCAST_START: ${{ inputs.stream_start_time }}
           JOURNAL_ID: ${{ inputs.journal_id }}

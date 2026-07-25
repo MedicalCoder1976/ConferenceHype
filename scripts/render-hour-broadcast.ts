@@ -418,7 +418,7 @@ function enforceOneHourFrame(
   preserveJournalOutro = false
 ) {
   const finalOutro = preserveJournalOutro
-    ? cards.findLast((card) => card.riskFlags?.includes("journal_show_outro"))
+    ? cards.findLast((card) => card.riskFlags?.some((flag) => flag === "journal_show_outro" || flag === "weekend_roundup_outro"))
     : undefined;
   const framedCards = finalOutro ? cards.filter((card) => card !== finalOutro) : [...cards];
   const contentFrameSeconds = finalOutro ? frameSeconds - finalOutro.duration : frameSeconds;
@@ -780,6 +780,35 @@ async function buildJournalCards(): Promise<{ cards: Card[]; unusedApproved: Seg
   }
 
   return { cards, unusedApproved };
+}
+async function buildWeekendRoundupCards(): Promise<{ cards: Card[]; unusedApproved: Segment[] }> {
+  const [{ filterBroadcastReadySegments }, { getSegmentsByIdsFromDb }, { getStationProgramFromDb }, { buildWeekendRoundupSlots }] =
+    await Promise.all([
+      import("@/lib/data"),
+      import("@/lib/db"),
+      import("@/lib/station/db"),
+      import("@/lib/rundown/weekendRoundupSlots")
+    ]);
+  const stationProgramId = process.env.STATION_PROGRAM_ID;
+  if (!stationProgramId) throw new Error("STATION_PROGRAM_ID is required when HOUR_BROADCAST_MODE=weekend30");
+  const stationProgram = await getStationProgramFromDb(stationProgramId);
+  if (!stationProgram || stationProgram.programType !== "weekend_roundup") {
+    throw new Error("The selected station program is not a weekend roundup.");
+  }
+  const part = Number(process.env.WEEKEND_ROUNDUP_PART ?? stationProgram.position + 1);
+  if (!Number.isInteger(part) || part < 1 || part > 2) throw new Error("WEEKEND_ROUNDUP_PART must be 1 or 2.");
+  const selected = await getSegmentsByIdsFromDb(stationProgram.cardIds);
+  const retryEligible = (selected ?? []).map((segment) => ({
+    ...segment,
+    status: "approved" as const,
+    approvedAt: segment.approvedAt ?? stationProgram.createdAt
+  }));
+  const renderSegments = filterBroadcastReadySegments(retryEligible);
+  const baseTime = process.env.HOUR_BROADCAST_START ? new Date(process.env.HOUR_BROADCAST_START) : new Date();
+  const slots = buildWeekendRoundupSlots({ segments: renderSegments, baseTime, part }).filter(
+    (slot) => slot.at < new Date(baseTime.getTime() + durationSeconds * 1000)
+  );
+  return { cards: slotsToCards(slots), unusedApproved: [] };
 }
 async function buildBreakingNewsCards(): Promise<{ cards: Card[]; unusedApproved: Segment[] }> {
   const [{ getSegmentByIdFromDb }, { withAssignedVoice }, { getPersona }] = await Promise.all([
@@ -1169,9 +1198,10 @@ async function saveBroadcastWriteout(
 async function uploadRenderedBroadcast(
   cards: Card[],
   usedSegmentIds: string[],
-  mode: "presentation" | "journal30" | "breaking15"
+  mode: "presentation" | "journal30" | "weekend30" | "breaking15"
 ) {
   const isJournalMode = mode === "journal30";
+  const isWeekendMode = mode === "weekend30";
   const isBreakingMode = mode === "breaking15";
   const hourStart = process.env.HOUR_BROADCAST_START
     ? new Date(process.env.HOUR_BROADCAST_START)
@@ -1242,6 +1272,18 @@ async function uploadRenderedBroadcast(
           studySourceTextBySegmentId = new Map((articleRows ?? []).map((row) => [row.card_segment_id, row.abstract_text ?? ""]));
         } catch (error) {
           console.log(`::warning::Could not load linked PubMed text for study-name metadata: ${describeError(error)}`);
+        }
+        if (isWeekendMode) {
+          const { buildWeekendRoundupMetadata, assertWeekendRoundupMetadata } = await import("@/lib/youtube/weekendRoundupMetadata");
+          const part = Number(process.env.WEEKEND_ROUNDUP_PART);
+          if (!Number.isInteger(part) || part < 1 || part > 2) throw new Error("WEEKEND_ROUNDUP_PART must be 1 or 2.");
+          return assertWeekendRoundupMetadata(buildWeekendRoundupMetadata({
+            hourStart,
+            slots,
+            journalsById,
+            part,
+            studySourceTextBySegmentId
+          }));
         }
         const metadata = buildBroadcastMetadata({
           hourStart,
@@ -1326,7 +1368,7 @@ async function uploadRenderedBroadcast(
     }
   }
 
-  if (!isJournalMode && !isBreakingMode) {
+  if (!process.env.STATION_PROGRAM_ID && !isJournalMode && !isBreakingMode) {
     await withRetry(() => saveBroadcastWriteout(cards, youtubeVideoId, youtubeUrl, title));
   }
 
@@ -1352,6 +1394,7 @@ async function uploadRenderedBroadcast(
         youtubeUrl,
         title,
         description,
+        tags,
         cardIds: usedSegmentIds,
         writeoutCards: buildWriteoutCards(cards, hourStart)
       })
@@ -1393,23 +1436,26 @@ async function main() {
   const ffmpeg = process.env.FFMPEG_PATH ?? ffmpegPath ?? "ffmpeg";
   const useBlockMode = process.env.HOUR_BROADCAST_MODE === "blocks";
   const isJournalMode = process.env.HOUR_BROADCAST_MODE === "journal30";
+  const isWeekendMode = process.env.HOUR_BROADCAST_MODE === "weekend30";
   const { applySpokenPronunciations } = await import("@/lib/media/tts");
   const { getPersona } = await import("@/lib/generation/personas");
   const isBreakingMode = process.env.HOUR_BROADCAST_MODE === "breaking15";
-  const broadcastMode = isBreakingMode ? "breaking15" : isJournalMode ? "journal30" : "presentation";
+  const broadcastMode = isBreakingMode ? "breaking15" : isWeekendMode ? "weekend30" : isJournalMode ? "journal30" : "presentation";
   const { cards: rawCards, unusedApproved } = useBlockMode
     ? { cards: await buildBlockCards(), unusedApproved: [] as Segment[] }
     : isBreakingMode
       ? await buildBreakingNewsCards()
       : isJournalMode
       ? await buildJournalCards()
+      : isWeekendMode
+      ? await buildWeekendRoundupCards()
       : await buildCards();
   const cards = enforceOneHourFrame(
     await fillLeftoverGapsWithBonusCards(
       expandContentDurations(
         replaceEmptyContentCardsWithMusic(
           replaceMissingIntakeCardsWithMusic(
-            applyPresentationPolicy(rawCards, isJournalMode || isBreakingMode ? Infinity : DISCLAIMER_INTERVAL_SECONDS)
+            applyPresentationPolicy(rawCards, isJournalMode || isWeekendMode || isBreakingMode ? Infinity : DISCLAIMER_INTERVAL_SECONDS)
           )
         )
       ),
@@ -1417,9 +1463,9 @@ async function main() {
       applySpokenPronunciations,
       getPersona
     ),
-    isBreakingMode ? 15 * 60 : isJournalMode ? JOURNAL_SHOW_SECONDS : 3600,
-    isJournalMode,
-    isJournalMode
+    isBreakingMode ? 15 * 60 : isJournalMode || isWeekendMode ? JOURNAL_SHOW_SECONDS : 3600,
+    isJournalMode || isWeekendMode,
+    isJournalMode || isWeekendMode
   );
 
   // Opt-in, no-op-by-default escape hatch for sanity-checking the full card
@@ -1460,6 +1506,8 @@ async function main() {
   if (contentCardCount === 0) {
     const reason = isBreakingMode
       ? "The selected breaking-news card was unavailable at render time; the current public broadcast remains unchanged."
+      : isWeekendMode
+      ? "No quality-passed cards actually broadcast this week were available for the weekend roundup; refusing to publish a music-only broadcast."
       : isJournalMode
       ? "No approved segments were available for this journal at render time -- 0 content cards scheduled, refusing to publish a music-only broadcast."
       : "No approved (or fallback schedule/social) content was available at render time -- 0 content cards scheduled, refusing to publish a music-only broadcast.";
