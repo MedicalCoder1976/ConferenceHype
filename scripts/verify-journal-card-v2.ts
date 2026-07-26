@@ -122,6 +122,7 @@ assert.match(unlabeledCard.segment.script, /Discussion: Increased left atrial st
 
 assert.equal(classifyJournalArticle({ ...article, abstract: "" }).status, "awaiting_abstract");
 assert.equal(classifyJournalArticle({ ...article, publicationTypes: ["Published Erratum"] }).status, "excluded_erratum");
+assert.equal(classifyJournalArticle({ ...article, publicationTypes: ["Editorial"] }).status, "excluded_insufficient_content");
 assert.equal(resolveJournalArticleLedgerStatus({
   sourceStatus: "eligible",
   existingStatus: "quality_failed",

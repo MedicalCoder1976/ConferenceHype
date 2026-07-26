@@ -43,6 +43,9 @@ export function classifyJournalArticle(article: PubMedJournalArticle): JournalAr
   if (exclusionType(article.publicationTypes, /erratum|published erratum|correction/i)) {
     return { status: "excluded_erratum", reason: "PubMed publication type identifies an erratum or correction." };
   }
+  if (exclusionType(article.publicationTypes, /editorial|comment|letter|news|biography/i)) {
+    return { status: "excluded_insufficient_content", reason: "Publication type is non-research narrative material; no four-section research card created." };
+  }
   if (!article.abstract.trim()) {
     return { status: "awaiting_abstract", reason: "PubMed record exists but no abstract is currently available." };
   }
