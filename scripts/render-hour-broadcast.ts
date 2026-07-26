@@ -1419,6 +1419,21 @@ async function uploadRenderedBroadcast(
     );
   }
 
+  try {
+    const { postBroadcastTweetForBroadcast } = await import("@/lib/sources/xPost");
+    const posted = await postBroadcastTweetForBroadcast({
+      title,
+      youtubeUrl,
+      cards,
+      specialty: actualMetadata?.specialty
+    });
+    if (posted) {
+      console.log(`Posted announcement tweet: ${posted.url}`);
+    }
+  } catch (error) {
+    console.log(`::warning::Could not post the announcement tweet to X: ${describeError(error)}`);
+  }
+
   if (!process.env.STATION_PROGRAM_ID && !isJournalMode && !isBreakingMode) {
     await withRetry(() => saveBroadcastWriteout(cards, youtubeVideoId, youtubeUrl, title));
   }
