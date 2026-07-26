@@ -29,7 +29,8 @@ import { XVoiceCallouts } from "@/components/XVoiceCallouts";
 import {
   buildConferenceCardDecks,
   buildJournalCardDecks,
-  buildSourceCardDecks
+  buildSourceCardDecks,
+  isJournalVerticalSegment
 } from "@/lib/cardDeck";
 import { isOperatorMusicSegment } from "@/lib/broadcast/operatorMusic";
 import { getAdminSnapshot } from "@/lib/data";
@@ -237,6 +238,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     snapshot.sources
   );
   const journalCardDecks = buildJournalCardDecks(allDeckSegments, snapshot.oncologyJournals);
+  const journalIds = new Set(snapshot.oncologyJournals.map((journal) => journal.id));
+  const journalReviewSegments = snapshot.pendingSegments.filter((segment) =>
+    isJournalVerticalSegment(segment, journalIds)
+  );
   const sourceCardDecks = buildSourceCardDecks(allDeckSegments, snapshot.sources);
   const socialVoiceSegments = hasSelectedSources(selectedSources)
     ? []
@@ -328,7 +333,6 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         initialActive={params?.section}
         broadcast={
           <div className="grid gap-6">
-            <ReviewQueue segments={snapshot.pendingSegments} />
             <StationSchedulePanel schedules={stationSchedules ?? []} breakIns={stationBreakIns ?? []} />
             <DailyCoveragePlanner
               key={activePlanningKey}
@@ -372,10 +376,13 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           </div>
         }
         journalWatch={
-          <JournalWatchDesk
-            initialJournals={snapshot.oncologyJournals}
-            cardDecks={journalCardDecks}
-          />
+          <div className="grid gap-6">
+            <ReviewQueue segments={journalReviewSegments} />
+            <JournalWatchDesk
+              initialJournals={snapshot.oncologyJournals}
+              cardDecks={journalCardDecks}
+            />
+          </div>
         }
         meetingWatch={
           <div className="grid gap-6">

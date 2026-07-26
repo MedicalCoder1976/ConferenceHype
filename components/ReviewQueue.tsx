@@ -21,7 +21,13 @@ async function submitAction(segmentId: string, action: Action, script: string) {
   }
 }
 
-export function ReviewQueue({ segments }: { segments: Segment[] }) {
+export function ReviewQueue({
+  segments,
+  title = "Journal cards awaiting approval"
+}: {
+  segments: Segment[];
+  title?: string;
+}) {
   const router = useRouter();
   const [visibleSegments, setVisibleSegments] = useState(segments);
   const [drafts, setDrafts] = useState(
@@ -66,7 +72,11 @@ export function ReviewQueue({ segments }: { segments: Segment[] }) {
     if (!window.confirm(`Approve every quality-passing card in the full queue? ${visibleSegments.length} cards are currently awaiting review. Cards that fail validation or duplicate aired/approved material will be skipped.`)) return;
     startTransition(async () => {
       try {
-        const response = await fetch("/api/admin/approve/release-all", { method: "POST" });
+        const response = await fetch("/api/admin/approve/release-all", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ segmentIds: visibleSegments.map((segment) => segment.id) })
+        });
         const payload = await response.json();
         if (!response.ok || !payload.ok) throw new Error(payload.error ?? "Bulk approval failed");
         setMessage(
@@ -85,7 +95,7 @@ export function ReviewQueue({ segments }: { segments: Segment[] }) {
       <div className="border-b border-ink/10 p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-2xl font-black text-ink">Cards awaiting approval</h2>
+            <h2 className="text-2xl font-black text-ink">{title}</h2>
             <p className="mt-1 text-sm font-black uppercase text-broadcast">{visibleSegments.length} pending</p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -100,9 +110,9 @@ export function ReviewQueue({ segments }: { segments: Segment[] }) {
           </div>
         </div>
         <p className="mt-2 text-sm font-semibold text-ink/60">
-          Approve before placement. Broadcast-ready items must come from
-          source-backed sources, articles, monitored X voices, operator
-          statements, or sponsor messages.
+          This queue is restricted to source-grounded journal articles linked
+          to a journal in the Journal catalog. Conference and newspaper cards
+          belong to their own broadcast verticals.
         </p>
         {message ? (
           <div className="mt-3 border border-cyanline/30 bg-cyanline/10 p-3 text-sm font-bold text-ink">

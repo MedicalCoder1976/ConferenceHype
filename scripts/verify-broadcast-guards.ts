@@ -9,7 +9,7 @@ import { applySpokenPronunciations } from "@/lib/media/tts";
 import { getUnsafeGeneratedSourceErrors } from "@/lib/generation/sourceSafety";
 import { validateSegmentForApproval } from "@/lib/generation/validator";
 import { assertMinimumSubstantiveCards, minimumSubstantiveCards, parseVolumeDetect } from "@/lib/media/broadcastQuality";
-import { buildConferenceCardDecks, buildJournalCardDecks, buildSourceCardDecks } from "@/lib/cardDeck";
+import { buildConferenceCardDecks, buildJournalCardDecks, buildSourceCardDecks, isJournalVerticalSegment } from "@/lib/cardDeck";
 import { buildRequiredSectionSummary } from "@/lib/segments/sectionSummary";
 import {
   buildBatchSegment,
@@ -453,12 +453,13 @@ const reviewQueueSource = readFileSync(
   path.join(process.cwd(), "components", "ReviewQueue.tsx"),
   "utf8"
 );
-assert.match(reviewQueueSource, /Cards awaiting approval/);
+assert.match(reviewQueueSource, /Journal cards awaiting approval/);
 assert.match(reviewQueueSource, /\/api\/admin\/approve\/release-all/);
 assert.match(reviewQueueSource, /window\.confirm/);
 assert.match(reviewQueueSource, /View all cards/);
 const adminPageSource = readFileSync(path.join(process.cwd(), "app", "admin", "page.tsx"), "utf8");
-assert.match(adminPageSource, /<ReviewQueue segments=\{snapshot\.pendingSegments\} \/>/);
+assert.doesNotMatch(adminPageSource, /<ReviewQueue segments=\{snapshot\.pendingSegments\}/);
+assert.match(adminPageSource, /<ReviewQueue segments=\{journalReviewSegments\}/);
 assert.match(adminPageSource, /fullDeckInventory: false/);
 assert.equal(
   readFileSync(path.join(process.cwd(), "app", "admin", "loading.tsx"), "utf8").includes("Opening admin"), true
@@ -1216,6 +1217,27 @@ const realClinicalCard: Segment = {
   citations: [{ label: "The Lancet: CARTITUDE-4", url: "https://example.com/cartitude", sourceType: "media" }],
   riskFlags: [WEEKLY_SOURCE_POOL_FLAG, `weekly_key:${weeklySourceWeekKey()}`, `source_id:daily-journal-${selectedJournal.id}`]
 };
+assert.equal(
+  isJournalVerticalSegment(
+    {
+      ...realClinicalCard,
+      citations: realClinicalCard.citations.map((citation) => ({ ...citation, journalId: selectedJournal.id }))
+    },
+    new Set([selectedJournal.id])
+  ),
+  true,
+  "A catalog-linked journal card must enter the Journal approval vertical"
+);
+assert.equal(
+  isJournalVerticalSegment(sourceAnnouncementCard, new Set([selectedJournal.id])),
+  false,
+  "A newspaper card must never enter the Journal approval vertical"
+);
+assert.equal(
+  isJournalVerticalSegment(journalAnnouncementCard, new Set([selectedJournal.id])),
+  false,
+  "A card without a catalog journal citation must never enter the Journal approval vertical"
+);
 const journalDeckWithReal = buildJournalCardDecks([realClinicalCard], [selectedJournal]);
 assert.equal(journalDeckWithReal[selectedJournal.id]?.total, 1, "Real clinical content must still appear in the journal deck");
 

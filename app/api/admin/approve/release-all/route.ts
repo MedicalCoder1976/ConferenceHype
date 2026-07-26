@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { assertAdminRequest } from "@/lib/auth";
 import {
   bulkApproveSegmentsInDb,
@@ -11,6 +12,8 @@ import { validateSegmentForApproval } from "@/lib/generation/validator";
 import { contentSignature } from "@/lib/segments/contentSignature";
 import { errorMessage } from "@/lib/errors";
 import { WEEKLY_SOURCE_POOL_FLAG } from "@/lib/weeklySourceCards";
+
+const schema = z.object({ segmentIds: z.array(z.string().uuid()).min(1).max(2000) });
 
 // Bulk-releases every pending_review segment that has not been broadcast
 // (no approved or rendered sibling citing the same source) into the
@@ -25,13 +28,15 @@ import { WEEKLY_SOURCE_POOL_FLAG } from "@/lib/weeklySourceCards";
 export async function POST(request: NextRequest) {
   try {
     assertAdminRequest(request);
+    const { segmentIds } = schema.parse(await request.json());
+    const requestedIds = new Set(segmentIds);
 
-    const [pending, alreadyCovered] = await Promise.all([
+    const [allPending, alreadyCovered] = await Promise.all([
       getAllPendingSegmentsFromDb(),
       getAllApprovedOrRenderedSegmentsFromDb()
     ]);
 
-    if (pending === null || alreadyCovered === null) {
+    if (allPending === null || alreadyCovered === null) {
       return NextResponse.json(
         {
           ok: false,
@@ -41,6 +46,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const pending = allPending.filter((segment) => requestedIds.has(segment.id));
     const coveredSignatures = new Set(alreadyCovered.map((segment) => contentSignature(segment)));
     const weeklyPool = pending.filter((segment) =>
       segment.riskFlags.includes(WEEKLY_SOURCE_POOL_FLAG)

@@ -23,6 +23,30 @@ export const EMPTY_CARD_DECK: EntityCardDeck = {
   cards: []
 };
 
+export function isJournalVerticalSegment(
+  segment: Pick<Segment, "citations" | "riskFlags">,
+  validJournalIds: ReadonlySet<string>
+) {
+  const citationJournalIds = segment.citations
+    .map((citation) => citation.journalId)
+    .filter((journalId): journalId is string => Boolean(journalId));
+  if (
+    citationJournalIds.length === 0 ||
+    !citationJournalIds.every((journalId) => validJournalIds.has(journalId))
+  ) {
+    return false;
+  }
+  const sourceIds = sourceIdsFromSegment(segment);
+  return (
+    sourceIds.length === 0 ||
+    sourceIds.every((sourceId) =>
+      Array.from(validJournalIds).some((journalId) =>
+        sourceIdMatchesJournal(sourceId, { id: journalId })
+      )
+    )
+  );
+}
+
 function dedupeSegments(segments: Segment[]) {
   const seen = new Set<string>();
   return segments.filter((segment) => {
