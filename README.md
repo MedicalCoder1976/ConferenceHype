@@ -831,6 +831,24 @@ code, so an unverified channel just means the thumbnail step silently no-ops
 with a logged warning; the upload itself and
 title/description/tags/category are all unaffected either way.
 
+### In-video opening title rule
+
+Every newly rendered ConferenceHype video displays its exciting 1280x720
+metadata-driven YouTube thumbnail over the first eight seconds of playback.
+Narration begins normally underneath it: the opening visual does not add time,
+move a card, change audio synchronization, shorten the true-end outro, or alter
+the exact 15-, 30-, or 60-minute broadcast frame. The same resolved thumbnail
+bytes are then uploaded to YouTube, so the promise viewers click and the title
+they see when playback begins cannot drift apart.
+
+This is enforced once in the shared final-render path and therefore applies to
+presentation broadcasts, weekday station programs, single-journal broadcasts,
+weekend roundups, and manual breaking-news broadcasts. Thumbnail rendering is
+retried before publication; a video is not published without its required
+opening title visual. Failure of YouTube's separate `thumbnails.set` operation
+continues to follow the existing station versus non-station delivery policy and
+does not change the already-burned in-video opening.
+
 ## YouTube Embed Protection
 
 The main workflow runs `scripts/enable-youtube-embed.ts` immediately after

@@ -954,7 +954,11 @@ assert.match(renderHourSource, /Uploaded \$\{youtubeUrl\}, public immediately/);
 assert.match(renderHourSource, /useFullLengthMusicPadding/);
 assert.match(renderHourSource, /OPERATOR_MUSIC_TRACKS\[musicIndex % OPERATOR_MUSIC_TRACKS\.length\]/);
 assert.match(renderHourSource, /buildBroadcastMetadata\(\{/);
-assert.match(renderHourSource, /headline:\s*actualMetadata\.thumbnailHeadline/);
+assert.match(renderHourSource, /headline: actualMetadata\?\.thumbnailHeadline \?\? title/);
+assert.match(renderHourSource, /const OPENING_TITLE_SECONDS = 8/);
+assert.match(renderHourSource, /burnOpeningThumbnailIntoVideo/);
+assert.match(renderHourSource, /overlay=0:0:enable='between\(t,0,\$\{OPENING_TITLE_SECONDS\}\)'/);
+assert.match(renderHourSource, /thumbnailBytes: openingThumbnailBytes/);
 assert.match(renderHourSource, /assertSearchOptimizedBroadcastMetadata/);
 assert.match(renderHourSource, /if \(isJournalMode \|\| process\.env\.STATION_PROGRAM_ID\) throw error/);
 const thumbnailRouteSource = readFileSync(path.join(process.cwd(), "app", "api", "youtube-thumbnail", "route.tsx"), "utf8");
@@ -971,6 +975,7 @@ const uploadBroadcastVideoSource = readFileSync(
   path.join(process.cwd(), "lib", "youtube", "uploadBroadcastVideo.ts"),
   "utf8"
 );
+assert.match(uploadBroadcastVideoSource, /downloadYoutubeThumbnail/);
 assert.match(uploadBroadcastVideoSource, /uploadType=resumable&part=snippet,status/);
 // Changed 2026-07-17: uploads go public immediately, not private+publishAt
 // scheduled -- guard against a future edit silently reintroducing the

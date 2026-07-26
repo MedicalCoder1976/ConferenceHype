@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, rename, rm, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { spawn } from "node:child_process";
@@ -77,6 +77,46 @@ function run(command: string, args: string[]) {
   });
 }
 
+const OPENING_TITLE_SECONDS = 8;
+
+async function burnOpeningThumbnailIntoVideo(
+  ffmpeg: string,
+  videoPath: string,
+  thumbnailBytes: Uint8Array<ArrayBuffer>
+) {
+  const thumbnailPath = path.join(renderDir, "opening-title-thumbnail.png");
+  const titledVideoPath = path.join(renderDir, "opening-title-video.mp4");
+  await writeFile(thumbnailPath, thumbnailBytes);
+  await run(ffmpeg, [
+    "-y",
+    "-i",
+    videoPath,
+    "-loop",
+    "1",
+    "-i",
+    thumbnailPath,
+    "-filter_complex",
+    `[1:v]scale=1280:720[title];[0:v][title]overlay=0:0:enable='between(t,0,${OPENING_TITLE_SECONDS})'[vout]`,
+    "-map",
+    "[vout]",
+    "-map",
+    "0:a:0",
+    "-c:v",
+    "libx264",
+    "-preset",
+    "ultrafast",
+    "-pix_fmt",
+    "yuv420p",
+    "-c:a",
+    "copy",
+    "-shortest",
+    "-movflags",
+    "+faststart",
+    titledVideoPath
+  ]);
+  await rm(videoPath);
+  await rename(titledVideoPath, videoPath);
+}
 // No ffprobe binary is guaranteed to be on PATH (ffmpeg-static ships only
 // ffmpeg locally; CI installs the apt "ffmpeg" package, which does bundle
 // ffprobe, but nothing here should depend on that). Decoding with
@@ -1319,12 +1359,23 @@ async function uploadRenderedBroadcast(
   const tags = actualMetadata?.tags ?? [];
   const categoryId = actualMetadata?.categoryId ?? "27";
 
+  const thumbnailSpec = {
+    tier: actualMetadata?.tier ?? "generic",
+    journalName: actualMetadata?.journalName,
+    specialty: actualMetadata?.specialty,
+    dateLabel: actualMetadata?.dateLabel ?? fallbackLabel,
+    headline: actualMetadata?.thumbnailHeadline ?? title,
+    siteUrl: process.env.PUBLIC_SITE_URL
+  };
+  const { downloadYoutubeThumbnail, getYoutubeAccessToken, uploadVideoToYoutube, uploadYoutubeThumbnail } = await import(
+    "@/lib/youtube/uploadBroadcastVideo"
+  );
+  const openingThumbnailBytes = await withRetry(() => downloadYoutubeThumbnail(thumbnailSpec));
+  await burnOpeningThumbnailIntoVideo(process.env.FFMPEG_PATH ?? ffmpegPath ?? "ffmpeg", outputPath, openingThumbnailBytes);
+
   const { assertMediaGenerated } = await import("@/lib/media/youtubeDeliveryVerifier");
   await assertMediaGenerated(outputPath);
 
-  const { getYoutubeAccessToken, uploadVideoToYoutube, uploadYoutubeThumbnail } = await import(
-    "@/lib/youtube/uploadBroadcastVideo"
-  );
   const accessToken = await getYoutubeAccessToken();
   const uploaded = await withRetry(() =>
     uploadVideoToYoutube({
@@ -1348,24 +1399,18 @@ async function uploadRenderedBroadcast(
     );
   }
 
-  if (actualMetadata) {
-    try {
-      await uploadYoutubeThumbnail({
-        videoId: youtubeVideoId,
-        accessToken,
-        tier: actualMetadata.tier,
-        journalName: actualMetadata.journalName,
-        specialty: actualMetadata.specialty,
-        dateLabel: actualMetadata.dateLabel,
-        headline: actualMetadata.thumbnailHeadline,
-        siteUrl: process.env.PUBLIC_SITE_URL
-      });
-    } catch (error) {
-      if (process.env.STATION_PROGRAM_ID) throw error;
-      console.log(
-        `::warning::Could not set a custom YouTube thumbnail (channel may not be phone-verified yet): ${describeError(error)}`
-      );
-    }
+  try {
+    await uploadYoutubeThumbnail({
+      videoId: youtubeVideoId,
+      accessToken,
+      ...thumbnailSpec,
+      thumbnailBytes: openingThumbnailBytes
+    });
+  } catch (error) {
+    if (process.env.STATION_PROGRAM_ID) throw error;
+    console.log(
+      `::warning::Could not set the custom YouTube thumbnail (channel may not be phone-verified yet): ${describeError(error)}`
+    );
   }
 
   if (!process.env.STATION_PROGRAM_ID && !isJournalMode && !isBreakingMode) {

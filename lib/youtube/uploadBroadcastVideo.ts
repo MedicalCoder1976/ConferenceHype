@@ -140,9 +140,7 @@ export async function updateYoutubeVideoMetadata({
     throw new Error(`YouTube metadata update failed: ${updateResponse.status} ${await updateResponse.text()}`);
   }
 }
-export async function uploadYoutubeThumbnail({
-  videoId,
-  accessToken,
+export async function downloadYoutubeThumbnail({
   tier,
   journalName,
   specialty,
@@ -150,8 +148,6 @@ export async function uploadYoutubeThumbnail({
   headline,
   siteUrl
 }: {
-  videoId: string;
-  accessToken: string;
   tier: string;
   journalName?: string;
   specialty?: string;
@@ -168,13 +164,44 @@ export async function uploadYoutubeThumbnail({
   if (!thumbnailResponse.ok) {
     throw new Error(`Thumbnail render failed: ${thumbnailResponse.status} ${await thumbnailResponse.text()}`);
   }
-  const thumbnailBytes = await thumbnailResponse.arrayBuffer();
+  return new Uint8Array(await thumbnailResponse.arrayBuffer());
+}
+
+export async function uploadYoutubeThumbnail({
+  videoId,
+  accessToken,
+  tier,
+  journalName,
+  specialty,
+  dateLabel,
+  headline,
+  siteUrl,
+  thumbnailBytes
+}: {
+  videoId: string;
+  accessToken: string;
+  tier: string;
+  journalName?: string;
+  specialty?: string;
+  dateLabel: string;
+  headline?: string;
+  siteUrl?: string;
+  thumbnailBytes?: Uint8Array<ArrayBuffer>;
+}) {
+  const resolvedThumbnailBytes = thumbnailBytes ?? await downloadYoutubeThumbnail({
+    tier,
+    journalName,
+    specialty,
+    dateLabel,
+    headline,
+    siteUrl
+  });
   const uploadResponse = await fetch(
     `https://www.googleapis.com/upload/youtube/v3/thumbnails/set?videoId=${encodeURIComponent(videoId)}`,
     {
       method: "POST",
       headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "image/png" },
-      body: thumbnailBytes
+      body: resolvedThumbnailBytes.buffer
     }
   );
   if (!uploadResponse.ok) {
