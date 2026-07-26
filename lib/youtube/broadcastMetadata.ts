@@ -35,6 +35,8 @@ export type BroadcastMetadata = {
   dateLabel: string;
   studyNames: string[];
   thumbnailHeadline?: string;
+  thumbnailJournalNames?: string[];
+  thumbnailJournalCount?: number;
 };
 
 const TITLE_MAX_LENGTH = 100;
@@ -336,6 +338,7 @@ export function assertSearchOptimizedBroadcastMetadata(
     if (metadata.tier !== "dominant" || !metadata.journalName) throw new Error("A station journal program must resolve one dominant journal.");
     if (!metadata.specialty || metadata.specialty === "Medical Journal") throw new Error("A station journal program must resolve a specific specialty.");
     if (!metadata.description.includes(metadata.journalName)) throw new Error("The description must name the journal.");
+    if (metadata.thumbnailJournalNames?.[0] !== metadata.journalName) throw new Error("The thumbnail must identify the journal.");
     if (!metadata.description.includes("Journals and publication dates covered:") || metadata.description.includes("publication date unavailable")) {
       throw new Error("The description must include the journal's source publication month and year.");
     }
@@ -367,6 +370,12 @@ export function buildBroadcastMetadata(input: BroadcastMetadataInput): Broadcast
         Number(/^(?:NCT|ISRCTN|ACTRN)/i.test(left)) - Number(/^(?:NCT|ISRCTN|ACTRN)/i.test(right))
       ).slice(0, 5)
     : [];
+  const thumbnailJournalNames = [...cards.reduce((counts, card) => {
+    if (card.journal) counts.set(card.journal.name, (counts.get(card.journal.name) ?? 0) + 1);
+    return counts;
+  }, new Map<string, number>()).entries()]
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+    .map(([name]) => name);
   const title = buildTitle({ resolved, conferenceName: input.conferenceName, label, studyName: studyNames[0], optimized });
   const tags = buildTags(cards, studyNames);
   const description = buildDescription({
@@ -393,6 +402,8 @@ export function buildBroadcastMetadata(input: BroadcastMetadataInput): Broadcast
     specialty: resolved.specialty,
     dateLabel: label,
     studyNames,
-    thumbnailHeadline: optimized ? (studyNames[0] ? `${studyNames[0]}: What Did It Find?` : "What Did This Research Find?") : undefined
+    thumbnailHeadline: optimized ? (studyNames[0] ? `${studyNames[0]}: What Did It Find?` : "What Did This Research Find?") : undefined,
+    thumbnailJournalNames: thumbnailJournalNames.slice(0, 2),
+    thumbnailJournalCount: thumbnailJournalNames.length
   };
 }

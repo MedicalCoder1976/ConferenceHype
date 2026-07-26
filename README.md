@@ -831,6 +831,29 @@ code, so an unverified channel just means the thumbnail step silently no-ops
 with a logged warning; the upload itself and
 title/description/tags/category are all unaffected either way.
 
+### Journal-recognition and CTR thumbnail rule
+
+The thumbnail right panel uses publication recognition instead of a large generic
+question mark. Single-journal broadcasts show the full journal name. Mixed
+programs show no more than the two journals with the most covered cards and an
+accurate `+ N JOURNALS` count for the remainder. Weekend roundups use the same
+two-name/count rule across their selected cards. Manual breaking-news videos
+show `BREAKING MEDICAL RESEARCH` instead of journal names. When no journal can
+be source-resolved, the safe fallback is `MEDICAL RESEARCH`. Journal names are
+plain text; the system does not copy publisher logos or imply journal endorsement.
+
+The smaller question-mark badge remains as a curiosity cue. The left side keeps
+the short source-grounded study/result question, specialty, date, and consistent
+ConferenceHype colors. The main headline and journal panel must remain readable
+at mobile size and accurately represent the cards that actually rendered.
+
+CTR is not optimized by misleading copy. When YouTube Studio Test & Compare is
+used, compare no more than three truthful variants: journal recognition,
+study-result curiosity, and specialty emphasis. Select based on YouTube watch-
+time share and first-30-second retention, not raw clicks alone. Automated
+YouTube APIs do not expose Test & Compare, so experiments remain an operator
+action in YouTube Studio.
+
 ### In-video opening title rule
 
 Every newly rendered ConferenceHype video displays its exciting 1280x720

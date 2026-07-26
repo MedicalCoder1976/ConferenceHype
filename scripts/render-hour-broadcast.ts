@@ -1365,6 +1365,9 @@ async function uploadRenderedBroadcast(
     specialty: actualMetadata?.specialty,
     dateLabel: actualMetadata?.dateLabel ?? fallbackLabel,
     headline: actualMetadata?.thumbnailHeadline ?? title,
+    journalNames: isBreakingMode ? [] : actualMetadata?.thumbnailJournalNames,
+    journalCount: isBreakingMode ? 0 : actualMetadata?.thumbnailJournalCount,
+    panelLabel: isBreakingMode ? "BREAKING MEDICAL RESEARCH" : undefined,
     siteUrl: process.env.PUBLIC_SITE_URL
   };
   const { downloadYoutubeThumbnail, getYoutubeAccessToken, uploadVideoToYoutube, uploadYoutubeThumbnail } = await import(

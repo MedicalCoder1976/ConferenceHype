@@ -403,6 +403,8 @@ assert.match(optimizedStudyMetadata.title, /^V-NE Ulcer Study 6:/);
 assert.match(optimizedStudyMetadata.description, /^Studies covered: V-NE Ulcer Study 6\./);
 assert.equal(optimizedStudyMetadata.tags[0], "V-NE Ulcer Study 6");
 assert.equal(optimizedStudyMetadata.thumbnailHeadline, "V-NE Ulcer Study 6: What Did It Find?");
+assert.deepEqual(optimizedStudyMetadata.thumbnailJournalNames, [journalShowTestJournal.name]);
+assert.equal(optimizedStudyMetadata.thumbnailJournalCount, 1);
 assert.doesNotThrow(() => assertSearchOptimizedBroadcastMetadata(optimizedStudyMetadata));
 assert.throws(() => assertSearchOptimizedBroadcastMetadata(optimizedStudyMetadata, { requireJournalContext: true }), /publication month and year/);
 assert.throws(
@@ -959,11 +961,15 @@ assert.match(renderHourSource, /const OPENING_TITLE_SECONDS = 8/);
 assert.match(renderHourSource, /burnOpeningThumbnailIntoVideo/);
 assert.match(renderHourSource, /overlay=0:0:enable='between\(t,0,\$\{OPENING_TITLE_SECONDS\}\)'/);
 assert.match(renderHourSource, /thumbnailBytes: openingThumbnailBytes/);
+assert.match(renderHourSource, /panelLabel: isBreakingMode \? "BREAKING MEDICAL RESEARCH"/);
 assert.match(renderHourSource, /assertSearchOptimizedBroadcastMetadata/);
 assert.match(renderHourSource, /if \(isJournalMode \|\| process\.env\.STATION_PROGRAM_ID\) throw error/);
 const thumbnailRouteSource = readFileSync(path.join(process.cwd(), "app", "api", "youtube-thumbnail", "route.tsx"), "utf8");
 assert.match(thumbnailRouteSource, /params\.get\("headline"\)/);
-assert.match(thumbnailRouteSource, /STUDY RESULTS/);
+assert.match(thumbnailRouteSource, /params\.getAll\("journalName"\)/);
+assert.match(thumbnailRouteSource, /FEATURED JOURNALS/);
+assert.match(thumbnailRouteSource, /SOURCE-GROUNDED/);
+assert.match(thumbnailRouteSource, /remainingJournalCount/);
 const stationMetadataSource = readFileSync(path.join(process.cwd(), "scripts", "refresh-station-video-metadata.ts"), "utf8");
 assert.match(stationMetadataSource, /updateYoutubeVideoMetadata/);
 assert.match(stationMetadataSource, /uploadYoutubeThumbnail/);
@@ -976,6 +982,8 @@ const uploadBroadcastVideoSource = readFileSync(
   "utf8"
 );
 assert.match(uploadBroadcastVideoSource, /downloadYoutubeThumbnail/);
+assert.match(uploadBroadcastVideoSource, /params\.append\("journalName", name\)/);
+assert.match(uploadBroadcastVideoSource, /params\.set\("journalCount"/);
 assert.match(uploadBroadcastVideoSource, /uploadType=resumable&part=snippet,status/);
 // Changed 2026-07-17: uploads go public immediately, not private+publishAt
 // scheduled -- guard against a future edit silently reintroducing the

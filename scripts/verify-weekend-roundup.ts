@@ -54,6 +54,8 @@ assert.match(metadata.description, /Featured trials and studies:/);
 assert.match(metadata.description, /Specialties: Neurology/);
 assert.match(metadata.description, /Journals: Neurology/);
 assert.ok(metadata.studyNames.some((name) => /RESOLUTION Trial/i.test(name)));
+assert.deepEqual(metadata.thumbnailJournalNames, ["Neurology", "Nature Medicine"]);
+assert.equal(metadata.thumbnailJournalCount, 2);
 
 const renderSource = readFileSync(path.join(process.cwd(), "scripts", "render-hour-broadcast.ts"), "utf8");
 assert.match(renderSource, /Measured 30-minute frame reconciled/);

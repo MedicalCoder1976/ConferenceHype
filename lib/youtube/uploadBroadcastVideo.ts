@@ -140,26 +140,37 @@ export async function updateYoutubeVideoMetadata({
     throw new Error(`YouTube metadata update failed: ${updateResponse.status} ${await updateResponse.text()}`);
   }
 }
+export type YoutubeThumbnailSpec = {
+  tier: string;
+  journalName?: string;
+  specialty?: string;
+  dateLabel: string;
+  headline?: string;
+  journalNames?: string[];
+  journalCount?: number;
+  panelLabel?: string;
+  siteUrl?: string;
+};
+
 export async function downloadYoutubeThumbnail({
   tier,
   journalName,
   specialty,
   dateLabel,
   headline,
+  journalNames,
+  journalCount,
+  panelLabel,
   siteUrl
-}: {
-  tier: string;
-  journalName?: string;
-  specialty?: string;
-  dateLabel: string;
-  headline?: string;
-  siteUrl?: string;
-}) {
+}: YoutubeThumbnailSpec) {
   const resolvedSiteUrl = siteUrl || "https://conferencehype.com";
   const params = new URLSearchParams({ tier, date: dateLabel });
   if (journalName) params.set("journal", journalName);
   if (specialty) params.set("specialty", specialty);
   if (headline) params.set("headline", headline);
+  journalNames?.slice(0, 2).forEach((name) => params.append("journalName", name));
+  if (journalCount) params.set("journalCount", String(journalCount));
+  if (panelLabel) params.set("panelLabel", panelLabel);
   const thumbnailResponse = await fetch(`${resolvedSiteUrl}/api/youtube-thumbnail?${params.toString()}`);
   if (!thumbnailResponse.ok) {
     throw new Error(`Thumbnail render failed: ${thumbnailResponse.status} ${await thumbnailResponse.text()}`);
@@ -170,32 +181,14 @@ export async function downloadYoutubeThumbnail({
 export async function uploadYoutubeThumbnail({
   videoId,
   accessToken,
-  tier,
-  journalName,
-  specialty,
-  dateLabel,
-  headline,
-  siteUrl,
-  thumbnailBytes
-}: {
+  thumbnailBytes,
+  ...thumbnailSpec
+}: YoutubeThumbnailSpec & {
   videoId: string;
   accessToken: string;
-  tier: string;
-  journalName?: string;
-  specialty?: string;
-  dateLabel: string;
-  headline?: string;
-  siteUrl?: string;
   thumbnailBytes?: Uint8Array<ArrayBuffer>;
 }) {
-  const resolvedThumbnailBytes = thumbnailBytes ?? await downloadYoutubeThumbnail({
-    tier,
-    journalName,
-    specialty,
-    dateLabel,
-    headline,
-    siteUrl
-  });
+  const resolvedThumbnailBytes = thumbnailBytes ?? await downloadYoutubeThumbnail(thumbnailSpec);
   const uploadResponse = await fetch(
     `https://www.googleapis.com/upload/youtube/v3/thumbnails/set?videoId=${encodeURIComponent(videoId)}`,
     {

@@ -65,6 +65,8 @@ async function main() {
       specialty: metadata.specialty,
       dateLabel: metadata.dateLabel,
       headline: metadata.thumbnailHeadline,
+      journalNames: metadata.thumbnailJournalNames,
+      journalCount: metadata.thumbnailJournalCount,
       siteUrl: process.env.PUBLIC_SITE_URL
     });
     const { error } = await supabase.from("station_programs").update({

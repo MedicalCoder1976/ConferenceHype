@@ -26,6 +26,22 @@ export async function GET(request: NextRequest) {
   const journal = params.get("journal") ? truncate(params.get("journal")!, 62) : undefined;
   const specialty = params.get("specialty") ? truncate(params.get("specialty")!, 36) : undefined;
   const date = params.get("date") ?? "";
+  const suppliedJournalNames = params.getAll("journalName").map((name) => truncate(name, 58)).filter(Boolean);
+  const journalNames = suppliedJournalNames.length ? suppliedJournalNames.slice(0, 2) : journal ? [journal] : [];
+  const suppliedJournalCount = Number(params.get("journalCount"));
+  const journalCount = Number.isFinite(suppliedJournalCount) && suppliedJournalCount > 0
+    ? Math.max(journalNames.length, Math.floor(suppliedJournalCount))
+    : journalNames.length;
+  const remainingJournalCount = Math.max(0, journalCount - journalNames.length);
+  const suppliedPanelLabel = params.get("panelLabel");
+  const panelEyebrow = suppliedPanelLabel ? "CONFERENCEHYPE ALERT" : undefined;
+  const panelLabel = suppliedPanelLabel
+    ? truncate(suppliedPanelLabel.toUpperCase(), 42)
+    : journalNames.length > 1
+      ? "FEATURED JOURNALS"
+      : journalNames.length === 1
+        ? "FEATURED JOURNAL"
+        : "MEDICAL RESEARCH";
   const suppliedHeadline = params.get("headline");
   const headline = suppliedHeadline
     ? truncate(suppliedHeadline, 68)
@@ -34,7 +50,7 @@ export async function GET(request: NextRequest) {
       : tier === "roundup" && specialty
         ? `${specialty} Roundup`
         : "ConferenceHype";
-  const context = tier === "dominant" ? journal : tier === "roundup" ? "Medical Journal Coverage" : "Medical Research Broadcast";
+  const context = tier === "dominant" ? "Peer-Reviewed Journal Coverage" : tier === "roundup" ? "Medical Journal Coverage" : "Medical Research Broadcast";
 
   return new ImageResponse(
     (
@@ -49,14 +65,20 @@ export async function GET(request: NextRequest) {
           {context ? <div style={{ display: "flex", marginTop: 27, color: COLORS.gold, fontSize: 28, fontWeight: 650 }}>{context}</div> : null}
           {date ? <div style={{ display: "flex", marginTop: 18, color: "#aeb8ca", fontSize: 24, fontWeight: 500 }}>{date}</div> : null}
         </div>
-        <div style={{ display: "flex", width: "28%", backgroundColor: COLORS.panel, padding: "80px 55px 60px", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ display: "flex", width: 175, height: 175, borderRadius: 88, backgroundColor: COLORS.broadcast, alignItems: "center", justifyContent: "center", fontSize: 116, fontWeight: 900 }}>?</div>
-          <div style={{ display: "flex", flexDirection: "column", width: "100%", marginTop: 55, gap: 16 }}>
-            <div style={{ display: "flex", height: 18, width: "92%", borderRadius: 9, backgroundColor: COLORS.cyan }} />
-            <div style={{ display: "flex", height: 18, width: "70%", borderRadius: 9, backgroundColor: COLORS.mint }} />
-            <div style={{ display: "flex", height: 18, width: "82%", borderRadius: 9, backgroundColor: COLORS.gold }} />
-          </div>
-          <div style={{ display: "flex", marginTop: 30, color: COLORS.paper, fontSize: 21, fontWeight: 700, letterSpacing: 1.5 }}>STUDY RESULTS</div>
+        <div style={{ display: "flex", width: "28%", backgroundColor: COLORS.panel, padding: "52px 34px 48px", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
+          <div style={{ display: "flex", width: 82, height: 82, borderRadius: 41, backgroundColor: COLORS.broadcast, alignItems: "center", justifyContent: "center", fontSize: 54, fontWeight: 900 }}>?</div>
+          <div style={{ display: "flex", marginTop: 28, color: COLORS.gold, fontSize: 18, fontWeight: 800, letterSpacing: 1.6 }}>{panelEyebrow ?? panelLabel}</div>
+          {journalNames.length ? (
+            <div style={{ display: "flex", flexDirection: "column", width: "100%", marginTop: 20, gap: 18, alignItems: "center" }}>
+              {journalNames.map((name) => (
+                <div key={name} style={{ display: "flex", color: COLORS.paper, fontSize: name.length > 34 ? 25 : 29, fontWeight: 850, lineHeight: 1.08, justifyContent: "center" }}>{name}</div>
+              ))}
+              {remainingJournalCount > 0 ? <div style={{ display: "flex", color: COLORS.cyan, fontSize: 22, fontWeight: 800 }}>+ {remainingJournalCount} JOURNALS</div> : null}
+            </div>
+          ) : (
+            <div style={{ display: "flex", marginTop: 24, color: COLORS.paper, fontSize: suppliedPanelLabel ? 30 : 25, fontWeight: 850, lineHeight: 1.1 }}>{panelLabel}</div>
+          )}
+          <div style={{ display: "flex", marginTop: 28, color: COLORS.mint, fontSize: 17, fontWeight: 750, letterSpacing: 1.3 }}>SOURCE-GROUNDED</div>
         </div>
         <div style={{ display: "flex", position: "absolute", bottom: 0, left: 0, width: "100%", height: 18, backgroundColor: COLORS.mint }} />
       </div>

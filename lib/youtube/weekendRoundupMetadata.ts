@@ -102,7 +102,9 @@ export function buildWeekendRoundupMetadata({
     specialty: "Multispecialty",
     dateLabel,
     studyNames,
-    thumbnailHeadline: "Top Medical Studies This Week"
+    thumbnailHeadline: "Top Medical Studies This Week",
+    thumbnailJournalNames: journals.slice(0, 2),
+    thumbnailJournalCount: journals.length
   };
 }
 
@@ -113,5 +115,6 @@ export function assertWeekendRoundupMetadata(metadata: BroadcastMetadata) {
   }
   if (!metadata.tags.includes("Weekend Medical Roundup")) throw new Error("Weekend roundup SEO tag is missing.");
   if (metadata.thumbnailHeadline !== "Top Medical Studies This Week") throw new Error("Weekend roundup thumbnail headline is missing.");
+  if (!metadata.thumbnailJournalNames?.length || !metadata.thumbnailJournalCount) throw new Error("Weekend roundup thumbnail journals are missing.");
   return metadata;
 }
