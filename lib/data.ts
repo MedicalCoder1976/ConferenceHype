@@ -5,6 +5,7 @@ import {
 } from "@/lib/jobs/upcomingEvents";
 import {
   getAnalyticsFromDb,
+  getRecentApprovedSegmentsFromDb,
   getAllApprovedSegmentsFromDb,
   getAllPendingSegmentsFromDb,
   getAiredSegmentsFromDb,
@@ -465,7 +466,10 @@ export async function getStreamState(): Promise<StreamState> {
   };
 }
 
-export async function getAdminSnapshot(baseTime = new Date(), planningHours = 1) {
+export async function getAdminSnapshot(
+  baseTime = new Date(), planningHours = 1,
+  options: { fullDeckInventory?: boolean } = {}
+) {
   const coverageDate = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/New_York",
     year: "numeric",
@@ -520,7 +524,9 @@ export async function getAdminSnapshot(baseTime = new Date(), planningHours = 1)
     // Deck inventory is intentionally separate from nextBroadcastSegments:
     // loading every approved card makes per-journal counts complete without
     // changing the bounded, ordered pool used to construct the broadcast.
-    getAllApprovedSegmentsFromDb(),
+    options.fullDeckInventory === false
+      ? getRecentApprovedSegmentsFromDb(400)
+      : getAllApprovedSegmentsFromDb(),
     // Use the same generous limit as the render script so recently-scheduled
     // cards (which sort to the end of the approved_at ASC order) are always
     // included. 42 was too small: if the pool had 43+ approved segments the

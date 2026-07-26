@@ -459,6 +459,10 @@ assert.match(reviewQueueSource, /window\.confirm/);
 assert.match(reviewQueueSource, /View all cards/);
 const adminPageSource = readFileSync(path.join(process.cwd(), "app", "admin", "page.tsx"), "utf8");
 assert.match(adminPageSource, /<ReviewQueue segments=\{snapshot\.pendingSegments\} \/>/);
+assert.match(adminPageSource, /fullDeckInventory: false/);
+assert.equal(
+  readFileSync(path.join(process.cwd(), "app", "admin", "loading.tsx"), "utf8").includes("Opening admin"), true
+);
 const youtubeFrameSource = readFileSync(
   path.join(process.cwd(), "components", "YoutubeFrame.tsx"),
   "utf8"
@@ -1234,6 +1238,11 @@ assert.match(
   dbSource,
   /\.eq\("status", "pending_review"\)/,
   "Returning cards to source decks must not alter non-pending cards"
+);
+assert.match(dbSource, /const pagesPerBatch = 10/);
+assert.match(dbSource, /entire historical approved inventory \(9,000\+ rows/);
+assert.match(
+  readFileSync(path.join(process.cwd(), "supabase/migrations/20260726125730_admin_segment_status_created_index.sql"), "utf8"), /segments_status_created_at_idx/
 );
 
 (async () => {

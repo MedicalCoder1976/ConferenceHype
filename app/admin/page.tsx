@@ -193,17 +193,15 @@ function filterSegmentsForSelectedSources(
 export default async function AdminPage({ searchParams }: AdminPageProps) {
   const params = await searchParams;
   const baseDate = resolvePreviewStart(params?.start);
-  const [snapshot, cachedRecordings] = await Promise.all([
-    getAdminSnapshot(baseDate, PLANNING_WINDOW_HOURS),
-    getCachedRecordings()
-  ]);
-  const baseTime = baseDate.toISOString();
   const stationWindowStart = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const stationWindowEnd = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
-  const [stationSchedules, stationBreakIns] = await Promise.all([
+  const [snapshot, cachedRecordings, stationSchedules, stationBreakIns] = await Promise.all([
+    getAdminSnapshot(baseDate, PLANNING_WINDOW_HOURS, { fullDeckInventory: false }),
+    getCachedRecordings(),
     getStationSchedulesFromDb(14).catch(() => []),
     getStationBreakInsFromDb(stationWindowStart, stationWindowEnd).catch(() => [])
   ]);
+  const baseTime = baseDate.toISOString();
 
   const hourlySocialVoiceSegments = buildHourlySocialVoiceRundownSegments({
     leaders: snapshot.socialVoiceLeaderboard,

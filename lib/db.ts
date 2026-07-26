@@ -562,21 +562,29 @@ export async function getPendingSegmentsFromDb(limit = 120) {
 async function getAllSegmentsByStatusFromDb(status: string) {
   const supabase = createAdminClient();
   const pageSize = 1000;
+  const pagesPerBatch = 10;
   const rows: SegmentRow[] = [];
-  for (let offset = 0; ; offset += pageSize) {
-    const { data, error } = await supabase
-      .from("segments")
-      .select("*")
-      .eq("status", status)
-      .order("created_at", { ascending: false })
-      .range(offset, offset + pageSize - 1);
-    if (error) {
-      throw error;
-    }
-    rows.push(...(data as SegmentRow[]));
-    if (!data || data.length < pageSize) {
-      break;
-    }
+  // Approved inventory has grown past 9,000 rows. Fetching ten PostgREST
+  // pages one after another made every force-dynamic /admin render wait for
+  // ten full network round trips before login could finish. The pages are
+  // independent, so fetch ten at a time. Avoid count:"exact" here: the
+  // production segments count can exceed Supabase's statement timeout.
+  for (let batchStart = 0; ; batchStart += pageSize * pagesPerBatch) {
+    const pages = await Promise.all(
+      Array.from({ length: pagesPerBatch }, (_, index) => {
+        const offset = batchStart + index * pageSize;
+        return supabase
+          .from("segments")
+          .select("*")
+          .eq("status", status)
+          .order("created_at", { ascending: false })
+          .range(offset, offset + pageSize - 1);
+      })
+    );
+    const pageError = pages.find((page) => page.error)?.error;
+    if (pageError) throw pageError;
+    rows.push(...pages.flatMap((page) => (page.data ?? []) as SegmentRow[]));
+    if (pages.some((page) => !page.data || page.data.length < pageSize)) break;
   }
   return rows.map(toSegment);
 }
@@ -593,6 +601,23 @@ export async function getAllApprovedSegmentsFromDb() {
     return null;
   }
   return getAllSegmentsByStatusFromDb("approved");
+}
+
+// Interactive admin pages need representative ready cards immediately, but
+// should not transfer the entire historical approved inventory (9,000+ rows
+// and growing) before the operator can enter the dashboard. Automated station
+// planning continues to use getAllApprovedSegmentsFromDb so its six-program
+// selection remains complete.
+export async function getRecentApprovedSegmentsFromDb(limit = 1000) {
+  if (!hasSupabase()) return null;
+  const { data, error } = await createAdminClient()
+    .from("segments")
+    .select("*")
+    .eq("status", "approved")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data as SegmentRow[]).map(toSegment);
 }
 
 // Every segment whose content has already been approved (queued for a
