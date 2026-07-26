@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { rankWeekendCandidates, splitWeekendPrograms } from "@/lib/station/weekendRoundup";
-import { buildWeekendRoundupSlots } from "@/lib/rundown/weekendRoundupSlots";
+import { WEEKEND_CARDS_PER_PROGRAM, rankWeekendCandidates, splitWeekendPrograms } from "@/lib/station/weekendRoundup";
+import { WEEKEND_CONTENT_SECONDS, buildWeekendRoundupSlots } from "@/lib/rundown/weekendRoundupSlots";
 import { buildWeekendRoundupMetadata, assertWeekendRoundupMetadata } from "@/lib/youtube/weekendRoundupMetadata";
 import type { OncologyJournal, Segment } from "@/lib/types";
 
@@ -29,19 +29,25 @@ function segment(index: number, trial = false): Segment {
     createdAt: "2026-07-24T12:00:00Z"
   };
 }
-const segments = Array.from({ length: 30 }, (_, index) => segment(index, index < 4));
+const segments = Array.from({ length: 60 }, (_, index) => segment(index, index < 4));
 const journalsById = new Map([[journalA.id, journalA], [journalB.id, journalB]]);
 const ranked = rankWeekendCandidates({ segments, journalsById });
 assert.ok(ranked[0].studyNames.length > 0, "Explicitly named trials should rank first.");
 const programs = splitWeekendPrograms(ranked);
-assert.deepEqual(programs.map((program) => program.length), [12, 12]);
-assert.equal(new Set(programs.flat().map((item) => item.segment.id)).size, 24);
+assert.equal(WEEKEND_CARDS_PER_PROGRAM, 24);
+assert.equal(WEEKEND_CONTENT_SECONDS, 55);
+assert.deepEqual(programs.map((program) => program.length), [24, 24]);
+assert.equal(new Set(programs.flat().map((item) => item.segment.id)).size, 48);
 
 const baseTime = new Date("2026-07-25T13:00:00Z");
 const slots = buildWeekendRoundupSlots({ segments: programs[0].map((item) => ({ ...item.segment, status: "approved" as const })), baseTime, part: 1 });
 assert.equal(slots.filter((slot) => slot.segment?.riskFlags.includes("weekend_roundup_outro")).length, 1);
 assert.ok(slots.some((slot) => slot.kind === "music"));
-assert.equal(slots.filter((slot) => slot.segment && !slot.segment.riskFlags.includes("weekend_roundup_outro") && !slot.segment.riskFlags.includes("journal_show_disclaimer")).length, 12);
+assert.equal(slots.filter((slot) => slot.segment && !slot.segment.riskFlags.includes("weekend_roundup_outro") && !slot.segment.riskFlags.includes("journal_show_disclaimer")).length, 24);
+assert.ok(
+  slots.at(-1)!.at.getTime() + slots.at(-1)!.durationSeconds * 1000 <= baseTime.getTime() + 30 * 60 * 1000,
+  "The planned 24-card rundown must fit before measured render-time reconciliation."
+);
 const metadata = assertWeekendRoundupMetadata(buildWeekendRoundupMetadata({ hourStart: baseTime, slots, journalsById, part: 1 }));
 assert.match(metadata.title, /^Weekend Roundup of Top Medical Journal Articles of the Week \| Part 1/);
 assert.match(metadata.description, /Featured trials and studies:/);

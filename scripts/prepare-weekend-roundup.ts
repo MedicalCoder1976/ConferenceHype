@@ -50,7 +50,7 @@ async function main() {
   if (sourceError) throw sourceError;
   const broadcastCardIds = [...new Set((sourcePrograms ?? []).flatMap((program) => program.card_ids ?? []))];
   if (broadcastCardIds.length < WEEKEND_CARDS_PER_PROGRAM * 2) {
-    throw new Error(`Only ${broadcastCardIds.length} actually-broadcast weekday cards were found; 24 are required for two weekend programs.`);
+    throw new Error(`Only ${broadcastCardIds.length} actually-broadcast weekday cards were found; ${WEEKEND_CARDS_PER_PROGRAM * 2} are required for two weekend programs.`);
   }
   const [{ getSegmentsByIdsFromDb, getOncologyJournalsFromDb }] = await Promise.all([import("@/lib/db")]);
   const [segments, journals] = await Promise.all([
@@ -76,14 +76,19 @@ async function main() {
     for (const id of (saturdayPrograms ?? []).flatMap((program) => program.card_ids ?? [])) excludedSegmentIds.add(id);
   }
   const journalsById = new Map((journals ?? []).map((journal) => [journal.id, journal]));
+  const requiredCards = WEEKEND_CARDS_PER_PROGRAM * 2;
   let ranked = rankWeekendCandidates({ segments, journalsById, sourceTextBySegmentId, excludedSegmentIds });
-  if (ranked.length < WEEKEND_CARDS_PER_PROGRAM * 2 && excludedSegmentIds.size > 0) {
-    console.warn("Fewer than 24 unused Sunday cards remain; reusing the next-best Saturday cards to keep both slots complete.");
-    ranked = rankWeekendCandidates({ segments, journalsById, sourceTextBySegmentId });
+  if (ranked.length < requiredCards && excludedSegmentIds.size > 0) {
+    const selectedIds = new Set(ranked.map((candidate) => candidate.segment.id));
+    const repeatFill = rankWeekendCandidates({ segments, journalsById, sourceTextBySegmentId })
+      .filter((candidate) => !selectedIds.has(candidate.segment.id))
+      .slice(0, requiredCards - ranked.length);
+    console.warn(`Only ${ranked.length} Sunday cards were not used Saturday; filling ${repeatFill.length} remaining positions with the next-best weekly cards.`);
+    ranked = [...ranked, ...repeatFill];
   }
   const selected = splitWeekendPrograms(ranked);
   if (selected.some((program) => program.length < WEEKEND_CARDS_PER_PROGRAM)) {
-    throw new Error("Could not select 12 quality-passed, actually-broadcast cards for each weekend slot.");
+    throw new Error(`Could not select ${WEEKEND_CARDS_PER_PROGRAM} quality-passed, actually-broadcast cards for each weekend slot.`);
   }
   const summary = selected.map((program, index) => ({
     part: index + 1,

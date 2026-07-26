@@ -1,6 +1,5 @@
 import {
   JOURNAL_CARDS_PER_GROUP,
-  JOURNAL_CONTENT_SECONDS,
   JOURNAL_DISCLAIMER_EVERY_N_GROUPS,
   JOURNAL_DISCLAIMER_SECONDS,
   JOURNAL_MUSIC_SECONDS,
@@ -12,6 +11,8 @@ import { contentSignature } from "@/lib/segments/contentSignature";
 import { personaForJournalShow, withAssignedVoice } from "@/lib/rundown/slots";
 import type { BroadcastSlot } from "@/lib/rundown/slots";
 import type { Persona, Segment } from "@/lib/types";
+
+export const WEEKEND_CONTENT_SECONDS = 55;
 
 function addSeconds(date: Date, seconds: number) {
   return new Date(date.getTime() + seconds * 1000);
@@ -80,13 +81,13 @@ export function buildWeekendRoundupSlots({
       slots.push({
         at,
         kind: "statement",
-        durationMinutes: JOURNAL_CONTENT_SECONDS / 60,
-        durationSeconds: JOURNAL_CONTENT_SECONDS,
+        durationMinutes: WEEKEND_CONTENT_SECONDS / 60,
+        durationSeconds: WEEKEND_CONTENT_SECONDS,
         label: `${persona.name} weekend roundup card`,
         segment,
         replaceable: false
       });
-      at = addSeconds(at, JOURNAL_CONTENT_SECONDS);
+      at = addSeconds(at, WEEKEND_CONTENT_SECONDS);
       contentIndex += 1;
     }
     slots.push({

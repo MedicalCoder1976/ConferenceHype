@@ -2,7 +2,7 @@ import { extractExplicitStudyNames } from "@/lib/youtube/broadcastMetadata";
 import type { OncologyJournal, Segment } from "@/lib/types";
 
 export const WEEKEND_PROGRAMS_PER_DAY = 2;
-export const WEEKEND_CARDS_PER_PROGRAM = 12;
+export const WEEKEND_CARDS_PER_PROGRAM = 24;
 export const WEEKEND_CYCLE_START_MINUTES = 9 * 60;
 
 export type WeekendCandidate = {

@@ -861,9 +861,10 @@ passed card IDs stored on verified Monday-Friday station programs. Ranking is
 deterministic and cost-free: explicit trial or study names, registry IDs,
 randomized or phase-trial language, clinically meaningful outcomes, structured
 article quality, and numerical results receive additional weight. No LLM is
-called. Saturday receives the top 24 cards split evenly across two balanced
-30-minute programs; Sunday excludes Saturday's cards when at least 24 other
-eligible cards remain.
+called. Saturday receives the top 48 cards split into two balanced 24-card,
+30-minute programs. Sunday uses 48 cards not selected Saturday when available;
+if weekly inventory is lower, it keeps every unused card first and fills only
+the remaining positions with the next-best cards already used Saturday.
 
 The two programs begin at 9:00 and 9:30 AM Eastern. After both distinct YouTube
 uploads verify, an isolated weekend-only database function repeats those two
@@ -878,7 +879,18 @@ of the Week`, plus part number and date. The description and tags list explicit
 trial/study names found in approved PubMed-grounded content, specialties,
 journals, article chapters, and source context; names are omitted rather than
 invented. Each program ends with one roundup conclusion and uses full-length
-Funk/Latin music blocks for any unused portion of the 30-minute frame.
+Funk/Latin music blocks for any unused portion of the 30-minute frame. Weekend
+planning budgets 55 seconds per article card, based on measured production
+narration, so 24 articles fit without the pre-render planner discarding them;
+the measured post-narration reconciler still makes the finished video exactly
+30 minutes.
+
+On July 25, 2026, video `6qKRZ1JJG44` exposed the earlier 12-card capacity cap:
+its selected cards finished after roughly 12 to 15 minutes and the renderer
+correctly filled the remainder with music. The source week contained 72
+eligible, actually-broadcast cards, so this was a selection-capacity defect,
+not missing intake. The 24-card-per-program invariant and verifier prevent that
+failure from recurring.
 A second broadcast format, additive to the existing 60-minute mixed-content
 hourly show: a `journal_broadcast_slots` row picks one journal for a
 30-minute, single-persona show that narrates only that journal's approved
