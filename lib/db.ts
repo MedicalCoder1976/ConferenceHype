@@ -2073,7 +2073,7 @@ export async function upsertAdminCatalogSeedsToDb() {
         abbreviation: journal.abbreviation,
         rss_url: journal.rssUrl,
         official_url: journal.officialUrl,
-        enabled: true,
+        enabled: journal.enabled ?? true,
         specialty: journal.specialty ?? null
       })),
       { onConflict: "rss_url" }

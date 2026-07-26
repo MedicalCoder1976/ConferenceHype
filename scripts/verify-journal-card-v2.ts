@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { classifyJournalArticle, resolveJournalArticleLedgerStatus, validateJournalCardCopy } from "@/lib/journalCardsV2/quality";
 import {
   buildDeterministicJournalCard,
@@ -98,6 +99,27 @@ const duplicated = validateJournalCardCopy({
 assert.equal(duplicated.passed, false);
 assert.match(duplicated.errors.join(" "), /duplicated/i);
 
+const unlabeledResearch = {
+  ...article,
+  pmid: "42501883",
+  title: "Association between left atrial stiffness and clinical outcomes",
+  abstract: [
+    "Left atrial stiffness integrates information related to mechanical properties and left ventricular filling dynamics in chronic heart failure.",
+    "Its clinical significance in patients with chronic heart failure and impaired systolic function remains unclear.",
+    "We retrospectively analyzed 1,147 patients with chronic heart failure and left ventricular ejection fraction below 50 percent.",
+    "Left atrial stiffness was calculated and stratified into tertiles.",
+    "During a median follow-up of 34 months, 218 primary endpoint events occurred and the highest tertile had an adjusted hazard ratio of 2.41.",
+    "Increased left atrial stiffness was independently associated with cardiovascular death or heart-failure hospitalization and may provide a practical echocardiographic marker."
+  ].join(" "),
+  publicationTypes: ["Journal Article"]
+};
+const unlabeledCard = buildDeterministicJournalCard({ article: unlabeledResearch, journal });
+assert.equal(unlabeledCard.structured, true);
+assert.equal(unlabeledCard.quality.passed, true, unlabeledCard.quality.errors.join("; "));
+assert.match(unlabeledCard.segment.script, /Methods: We retrospectively analyzed 1,147 patients/);
+assert.match(unlabeledCard.segment.script, /Results: During a median follow-up of 34 months/);
+assert.match(unlabeledCard.segment.script, /Discussion: Increased left atrial stiffness was independently associated/);
+
 assert.equal(classifyJournalArticle({ ...article, abstract: "" }).status, "awaiting_abstract");
 assert.equal(classifyJournalArticle({ ...article, publicationTypes: ["Published Erratum"] }).status, "excluded_erratum");
 assert.equal(resolveJournalArticleLedgerStatus({
@@ -121,4 +143,19 @@ assert.equal(new Set(oncologyJournalSeeds.map((item) => item.rssUrl)).size, onco
 for (const required of ["Blood", "Circulation", "Journal of the American College of Cardiology", "Gastroenterology", "Radiology", "Pediatrics", "Annals of Surgery"]) {
   assert.ok(oncologyJournalSeeds.some((item) => item.name === required), `${required} must be in the journal catalog`);
 }
+const newProfessionalJournals = oncologyJournalSeeds.filter(
+  (item) => item.specialty === "Pharmacy" || item.specialty === "Social Work"
+);
+assert.equal(newProfessionalJournals.length, 10);
+assert.ok(newProfessionalJournals.every((item) => item.enabled === false));
+const journalJobSource = readFileSync("scripts/journal-card-v2.ts", "utf8");
+assert.match(journalJobSource, /onlyJournal \? journal\.id === onlyJournal : journal\.enabled/);
+const dbSource = readFileSync("lib/db.ts", "utf8");
+assert.match(dbSource, /enabled: journal\.enabled \?\? true/);
+const professionalJournalMigration = readFileSync(
+  "supabase/migrations/20260726155321_add_pharmacy_social_work_journals.sql",
+  "utf8"
+);
+assert.equal((professionalJournalMigration.match(/false, '(?:Pharmacy|Social Work)'/g) ?? []).length, 10);
+assert.doesNotMatch(professionalJournalMigration, /journal_broadcast_slots|station_daily_schedules|station_programs|stream_state/);
 console.log("Journal card V2 verification passed.");

@@ -22,6 +22,10 @@ async function loadDependencies() {
 }
 
 const enabled = process.env.JOURNAL_CARD_V2_SHADOW === "true";
+const requestedMaxCards = Number(process.env.JOURNAL_CARD_V2_MAX_CARDS ?? 0);
+const maxCards = Number.isFinite(requestedMaxCards) && requestedMaxCards > 0
+  ? Math.floor(requestedMaxCards)
+  : Number.POSITIVE_INFINITY;
 const createPending = process.env.JOURNAL_CARD_V2_CREATE_PENDING === "true";
 const days = Math.max(1, Math.min(Number(process.env.JOURNAL_CARD_V2_LOOKBACK_DAYS ?? 14), 90));
 const onlyJournal = process.env.JOURNAL_CARD_V2_JOURNAL_ID;
@@ -387,6 +391,7 @@ async function processJournal(journal: OncologyJournal, since: string) {
         const article = articles[index];
         const ledger = ledgerByPmid.get(article.pmid);
         if (!ledger) continue;
+        if (cardsCreated >= maxCards) break;
         const built = buildDeterministicJournalCard({ article, journal, index });
         if (!built.quality.passed) {
           qualityFailed += 1;
@@ -531,7 +536,9 @@ async function main() {
     return;
   }
   const journals = ((await getOncologyJournalsFromDb()) ?? [])
-    .filter((journal) => journal.enabled && (!onlyJournal || journal.id === onlyJournal));
+    // An explicit canary may inspect a disabled catalog row without exposing
+    // that journal to automated station or weekly-card selection.
+    .filter((journal) => onlyJournal ? journal.id === onlyJournal : journal.enabled);
   const since = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
   // Reconcile existing PMID-backed cards before inventory creation so the
   // catch-up cannot create a duplicate and only discover the older card later.

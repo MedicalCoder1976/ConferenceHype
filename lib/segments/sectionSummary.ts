@@ -21,6 +21,24 @@ function sentenceAt(value: string, index: number) {
   );
 }
 
+function sentenceMatching(value: string, pattern: RegExp) {
+  return clean(value)
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .find((sentence) => sentence.length > 20 && pattern.test(sentence)) ?? "";
+}
+
+function lastSentence(value: string) {
+  const sentences = clean(value)
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter((sentence) => sentence.length > 20);
+  return sentences.at(-1) ?? "";
+}
+
+const METHODS_SENTENCE = /\b(?:we\s+(?:(?:retrospectively|prospectively)\s+)?(?:studied|investigated|analy[sz]ed|evaluated|conducted|surveyed|interviewed)|cohort|randomi[sz]ed|retrospectiv|prospectiv|data\s+(?:were|was)|study\s+(?:included|used|examined))\b/i;
+const RESULTS_SENTENCE = /\b(?:median|hazard ratio|confidence interval|odds ratio|risk ratio|associated with|significantly|increased|decreased|improved|worse|higher|lower|\d+(?:\.\d+)?\s*(?:%|events?))\b/i;
+
 function matchSection(text: string, labels: string[]) {
   for (const label of labels) {
     const match = text.match(
@@ -93,19 +111,19 @@ export function buildRequiredSectionSummary({
     `The available ${sourceName} record identifies ${topic} as the article topic.`;
   const methods =
     matchSection(sourceText, ["Materials and Methods", "Material and Methods", "Methods", "Design"]) ||
-    sentenceAt(sourceText, 1) ||
+    sentenceMatching(sourceText, METHODS_SENTENCE) || sentenceAt(sourceText, 1) ||
     (/\bphase\s?(?:i|ii|iii|iv|1|2|3|4)|trial|cohort|randomized|study\b/i.test(topic)
       ? `The source record signals a study or trial design; complete methods detail needs PubMed or full-record confirmation before broadcast.`
       : `Complete methods detail needs PubMed or full-record confirmation before broadcast.`);
   const results =
     matchSection(sourceText, ["Results", "Findings"]) ||
-    sentenceAt(sourceText, 2) ||
+    sentenceMatching(sourceText, RESULTS_SENTENCE) || sentenceAt(sourceText, 2) ||
     (/\bresults?|survival|response|expansion|cohort|risk|diagnos|treatment\b/i.test(topic)
       ? `The source record signals reported findings; complete numeric results need PubMed or full-record confirmation before broadcast.`
       : `Complete results detail needs PubMed or full-record confirmation before broadcast.`);
   const discussion =
     matchSection(sourceText, ["Discussion", "Conclusion", "Conclusions"]) ||
-    sentenceAt(sourceText, 3) ||
+    lastSentence(sourceText) || sentenceAt(sourceText, 3) ||
     (issueDetails
       ? `Discussion remains limited to the cited source record: ${issueDetails}.`
       : `Discussion remains limited to the source-described topic until PubMed or full-record detail is available.`);

@@ -1,6 +1,7 @@
 import type { OncologyJournal } from "@/lib/types";
 
-type JournalSeed = Omit<OncologyJournal, "id" | "enabled" | "lastIssueKey">;
+type JournalSeed = Omit<OncologyJournal, "id" | "enabled" | "lastIssueKey"> &
+  Pick<Partial<OncologyJournal>, "enabled">;
 
 export const oncologyJournalSeeds: JournalSeed[] = [
   {
@@ -736,5 +737,15 @@ export const oncologyJournalSeeds: JournalSeed[] = [
   { name: "The Lancet Gastroenterology & Hepatology", abbreviation: "Lancet Gastroenterol Hepatol", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Lancet+Gastroenterol+Hepatol%22%5BJournal%5D", officialUrl: "https://www.thelancet.com/journals/langas/home", specialty: "Gastroenterology" },
   { name: "The Lancet Rheumatology", abbreviation: "Lancet Rheumatol", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Lancet+Rheumatol%22%5BJournal%5D", officialUrl: "https://www.thelancet.com/journals/lanrhe/home", specialty: "Rheumatology" },
   { name: "Cancer Discovery", abbreviation: "Cancer Discov", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Cancer+Discov%22%5BJournal%5D", officialUrl: "https://aacrjournals.org/cancerdiscovery", specialty: "Oncology" },
-  { name: "Cancer Cell", abbreviation: "Cancer Cell", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Cancer+Cell%22%5BJournal%5D", officialUrl: "https://www.cell.com/cancer-cell/home", specialty: "Oncology" }
+  { name: "Cancer Cell", abbreviation: "Cancer Cell", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Cancer+Cell%22%5BJournal%5D", officialUrl: "https://www.cell.com/cancer-cell/home", specialty: "Oncology" },
+  { name: "American Journal of Health-System Pharmacy", abbreviation: "Am J Health Syst Pharm", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Am+J+Health+Syst+Pharm%22%5BJournal%5D", officialUrl: "https://academic.oup.com/ajhp", specialty: "Pharmacy", enabled: false },
+  { name: "Pharmacotherapy", abbreviation: "Pharmacotherapy", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Pharmacotherapy%22%5BJournal%5D", officialUrl: "https://accpjournals.onlinelibrary.wiley.com/journal/18759114", specialty: "Pharmacy", enabled: false },
+  { name: "Journal of the American Pharmacists Association", abbreviation: "J Am Pharm Assoc (2003)", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22J+Am+Pharm+Assoc+%282003%29%22%5BJournal%5D", officialUrl: "https://www.japha.org/", specialty: "Pharmacy", enabled: false },
+  { name: "Annals of Pharmacotherapy", abbreviation: "Ann Pharmacother", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Ann+Pharmacother%22%5BJournal%5D", officialUrl: "https://journals.sagepub.com/home/aop", specialty: "Pharmacy", enabled: false },
+  { name: "Research in Social and Administrative Pharmacy", abbreviation: "Res Social Adm Pharm", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Res+Social+Adm+Pharm%22%5BJournal%5D", officialUrl: "https://www.sciencedirect.com/journal/research-in-social-and-administrative-pharmacy", specialty: "Pharmacy", enabled: false },
+  { name: "Social Work in Health Care", abbreviation: "Soc Work Health Care", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Soc+Work+Health+Care%22%5BJournal%5D", officialUrl: "https://www.tandfonline.com/journals/wshc20", specialty: "Social Work", enabled: false },
+  { name: "Health & Social Work", abbreviation: "Health Soc Work", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Health+Soc+Work%22%5BJournal%5D", officialUrl: "https://academic.oup.com/hsw", specialty: "Social Work", enabled: false },
+  { name: "Social Work", abbreviation: "Soc Work", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Soc+Work%22%5BJournal%5D", officialUrl: "https://academic.oup.com/sw", specialty: "Social Work", enabled: false },
+  { name: "Social Work in Public Health", abbreviation: "Soc Work Public Health", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22Soc+Work+Public+Health%22%5BJournal%5D", officialUrl: "https://www.tandfonline.com/journals/whsp20", specialty: "Social Work", enabled: false },
+  { name: "Journal of Social Work in End-of-Life & Palliative Care", abbreviation: "J Soc Work End Life Palliat Care", rssUrl: "https://pubmed.ncbi.nlm.nih.gov/?term=%22J+Soc+Work+End+Life+Palliat+Care%22%5BJournal%5D", officialUrl: "https://www.tandfonline.com/journals/wswe20", specialty: "Social Work", enabled: false }
 ];

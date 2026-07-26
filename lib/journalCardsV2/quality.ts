@@ -1,4 +1,3 @@
-import { hasExplicitClinicalStructure } from "@/lib/segments/sectionSummary";
 import type { PubMedJournalArticle } from "@/lib/sources/pubmed";
 
 export type JournalArticleEligibility = {
@@ -123,5 +122,7 @@ export function validateJournalCardCopy({
 
 export function isStructuredJournalArticle(article: PubMedJournalArticle) {
   const narrativeType = exclusionType(article.publicationTypes, /editorial|comment|letter|news|biography/i);
-  return !narrativeType && hasExplicitClinicalStructure(article.abstract);
+  // Research abstracts must produce all required evidence sections even when
+  // PubMed supplies an unlabeled abstract.
+  return !narrativeType;
 }

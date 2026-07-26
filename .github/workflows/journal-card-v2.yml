@@ -21,6 +21,11 @@ on:
         required: true
         default: false
         type: boolean
+      max_cards:
+        description: "Maximum pending-review cards to create for this canary (0 means unlimited)"
+        required: true
+        default: "5"
+        type: string
 
 jobs:
   journal-card-v2:
@@ -43,6 +48,7 @@ jobs:
           JOURNAL_CARD_V2_CREATE_PENDING: ${{ inputs.create_pending_cards && 'true' || 'false' }}
           JOURNAL_CARD_V2_JOURNAL_ID: ${{ inputs.journal_id }}
           JOURNAL_CARD_V2_LOOKBACK_DAYS: ${{ inputs.lookback_days }}
+          JOURNAL_CARD_V2_MAX_CARDS: ${{ inputs.max_cards }}
       - name: Finalize interrupted journal state
         if: ${{ always() }}
         run: npm run job:journal-card-v2:finalize
