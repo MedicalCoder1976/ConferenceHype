@@ -8,6 +8,7 @@ import { assertSearchOptimizedBroadcastMetadata, buildBroadcastMetadata, extract
 import { applySpokenPronunciations } from "@/lib/media/tts";
 import { getUnsafeGeneratedSourceErrors } from "@/lib/generation/sourceSafety";
 import { validateSegmentForApproval } from "@/lib/generation/validator";
+import { assertMinimumSubstantiveCards, minimumSubstantiveCards, parseVolumeDetect } from "@/lib/media/broadcastQuality";
 import { buildConferenceCardDecks, buildJournalCardDecks, buildSourceCardDecks } from "@/lib/cardDeck";
 import { buildRequiredSectionSummary } from "@/lib/segments/sectionSummary";
 import {
@@ -1255,3 +1256,25 @@ assert.match(
   console.error(error);
   process.exitCode = 1;
 });
+
+assert.equal(minimumSubstantiveCards("presentation"), 6);
+assert.equal(minimumSubstantiveCards("journal30"), 8);
+assert.equal(minimumSubstantiveCards("journal30", "station-program"), 12);
+assert.equal(minimumSubstantiveCards("weekend30"), 12);
+assert.equal(minimumSubstantiveCards("breaking15"), 1);
+assert.throws(
+  () => assertMinimumSubstantiveCards({
+    mode: "presentation",
+    cards: [{ duration: 60, isMusic: false, segmentId: "only-card" }]
+  }),
+  /1 substantive source-backed card.*6 are required/
+);
+assert.equal(
+  assertMinimumSubstantiveCards({
+    mode: "presentation",
+    cards: Array.from({ length: 6 }, (_, index) => ({ duration: 60, isMusic: false, segmentId: `card-${index}` }))
+  }),
+  6
+);
+assert.deepEqual(parseVolumeDetect("mean_volume: -21.4 dB\nmax_volume: -3.0 dB"), { meanVolumeDb: -21.4, maxVolumeDb: -3 });
+assert.equal(parseVolumeDetect("mean_volume: -inf dB\nmax_volume: -inf dB").maxVolumeDb, Number.NEGATIVE_INFINITY);

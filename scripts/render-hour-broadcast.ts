@@ -1374,7 +1374,10 @@ async function uploadRenderedBroadcast(
     "@/lib/youtube/uploadBroadcastVideo"
   );
   const openingThumbnailBytes = await withRetry(() => downloadYoutubeThumbnail(thumbnailSpec));
-  await burnOpeningThumbnailIntoVideo(process.env.FFMPEG_PATH ?? ffmpegPath ?? "ffmpeg", outputPath, openingThumbnailBytes);
+  const finalFfmpeg = process.env.FFMPEG_PATH ?? ffmpegPath ?? "ffmpeg";
+  await burnOpeningThumbnailIntoVideo(finalFfmpeg, outputPath, openingThumbnailBytes);
+  const { assertMusicWindowsAudible } = await import("@/lib/media/broadcastQuality");
+  await assertMusicWindowsAudible({ ffmpeg: finalFfmpeg, mediaPath: outputPath, cards });
 
   const { assertMediaGenerated } = await import("@/lib/media/youtubeDeliveryVerifier");
   await assertMediaGenerated(outputPath);
@@ -1595,6 +1598,11 @@ async function main() {
     }
     throw new Error(reason);
   }
+
+  const { assertMinimumSubstantiveCards } = await import("@/lib/media/broadcastQuality");
+  assertMinimumSubstantiveCards({
+    cards, mode: broadcastMode, stationProgramId: process.env.STATION_PROGRAM_ID
+  });
 
   // Every real, DB-backed segment used in this hour's card list -- marked
   // rendered (and the writeout/delivery-status written with the real
