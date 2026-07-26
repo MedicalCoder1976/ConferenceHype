@@ -4,9 +4,13 @@ import { monitoredSocialTags } from "@/lib/sources/registry";
 import { specialtyVoiceSeeds } from "@/lib/catalog/specialtyVoiceSeeds";
 import type { SpecialtyXVoice } from "@/lib/types";
 
-const TWEET_URL_LENGTH = 23; // X shortens every URL in a tweet body to a fixed-width t.co link.
 const MAX_TWEET_LENGTH = 280;
 const MIN_TITLE_LENGTH = 20;
+// X's pay-per-use pricing bills a post $0.20 (vs $0.015) whenever its text
+// contains a URL -- deliberately never put a link in this text, even the
+// YouTube link, to stay on the cheap tier. Point at the channel by name
+// instead; the actual link belongs in the profile bio, set once, manually.
+const WATCH_CTA = "Watch now on our YouTube channel.";
 
 type SourcedCard = { sourceUrl?: string };
 
@@ -117,30 +121,28 @@ export function findQuoteTweetId(cards: SourcedCard[]): string | undefined {
 
 export function composeBroadcastTweetText({
   title,
-  youtubeUrl,
   orgHandle,
   hashtags
 }: {
   title: string;
-  youtubeUrl: string;
   orgHandle?: string;
   hashtags: string[];
 }): string {
   const buildText = (includeHandle: boolean, includeHashtags: string[], titleText: string) => {
     const tail = [includeHandle ? orgHandle : undefined, ...includeHashtags].filter(Boolean).join(" ");
-    return [titleText, youtubeUrl, tail].filter((line) => line && line.length > 0).join("\n");
+    return [titleText, WATCH_CTA, tail].filter((line) => line && line.length > 0).join("\n");
   };
-
-  // Budget everything except the title first, then see how much room is left.
-  const fixedLength = (text: string) => text.length - title.length + TWEET_URL_LENGTH - youtubeUrl.length;
 
   let includeHandle = Boolean(orgHandle);
   let includeHashtags = hashtags;
 
   for (;;) {
-    const probe = buildText(includeHandle, includeHashtags, title);
-    const budgetUsed = fixedLength(probe);
-    const titleBudget = MAX_TWEET_LENGTH - budgetUsed;
+    // Measure with a 1-char placeholder, not an empty title -- an empty
+    // title line gets filtered out of buildText entirely, which silently
+    // drops the newline that appears once a real (non-empty) title is
+    // present, undercounting the budget by exactly 1.
+    const fixedLength = buildText(includeHandle, includeHashtags, "X").length - 1;
+    const titleBudget = MAX_TWEET_LENGTH - fixedLength;
     if (titleBudget >= Math.min(title.length, MIN_TITLE_LENGTH) || (!includeHandle && includeHashtags.length === 0)) {
       const truncatedTitle =
         title.length > titleBudget && titleBudget >= MIN_TITLE_LENGTH
@@ -158,12 +160,10 @@ export function composeBroadcastTweetText({
 
 export async function postBroadcastTweetForBroadcast({
   title,
-  youtubeUrl,
   cards,
   specialty
 }: {
   title: string;
-  youtubeUrl: string;
   cards: SourcedCard[];
   specialty?: string;
 }): Promise<{ id: string; url: string } | undefined> {
@@ -175,7 +175,6 @@ export async function postBroadcastTweetForBroadcast({
   const quoteTweetId = findQuoteTweetId(cards);
   const text = composeBroadcastTweetText({
     title,
-    youtubeUrl,
     orgHandle: orgVoice?.handle,
     hashtags: [monitoredSocialTags.primaryHashtag, monitoredSocialTags.conferenceHashtag]
   });

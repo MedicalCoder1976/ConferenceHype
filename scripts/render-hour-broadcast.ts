@@ -1423,7 +1423,6 @@ async function uploadRenderedBroadcast(
     const { postBroadcastTweetForBroadcast } = await import("@/lib/sources/xPost");
     const posted = await postBroadcastTweetForBroadcast({
       title,
-      youtubeUrl,
       cards,
       specialty: actualMetadata?.specialty
     });
