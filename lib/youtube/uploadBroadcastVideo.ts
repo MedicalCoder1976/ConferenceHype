@@ -149,6 +149,9 @@ export type YoutubeThumbnailSpec = {
   journalNames?: string[];
   journalCount?: number;
   panelLabel?: string;
+  seriesLabel?: string;
+  promiseLabel?: string;
+  variant?: "thumbnail" | "persistent-frame";
   siteUrl?: string;
 };
 
@@ -161,6 +164,9 @@ export async function downloadYoutubeThumbnail({
   journalNames,
   journalCount,
   panelLabel,
+  seriesLabel,
+  promiseLabel,
+  variant,
   siteUrl
 }: YoutubeThumbnailSpec) {
   const resolvedSiteUrl = siteUrl || "https://conferencehype.com";
@@ -171,6 +177,9 @@ export async function downloadYoutubeThumbnail({
   journalNames?.slice(0, 2).forEach((name) => params.append("journalName", name));
   if (journalCount) params.set("journalCount", String(journalCount));
   if (panelLabel) params.set("panelLabel", panelLabel);
+  if (seriesLabel) params.set("seriesLabel", seriesLabel);
+  if (promiseLabel) params.set("promiseLabel", promiseLabel);
+  if (variant) params.set("variant", variant);
   const thumbnailResponse = await fetch(`${resolvedSiteUrl}/api/youtube-thumbnail?${params.toString()}`);
   if (!thumbnailResponse.ok) {
     throw new Error(`Thumbnail render failed: ${thumbnailResponse.status} ${await thumbnailResponse.text()}`);

@@ -43,6 +43,9 @@ export async function GET(request: NextRequest) {
         ? "FEATURED JOURNAL"
         : "MEDICAL RESEARCH";
   const suppliedHeadline = params.get("headline");
+  const seriesLabel = params.get("seriesLabel") ? truncate(params.get("seriesLabel")!, 72) : undefined;
+  const promiseLabel = params.get("promiseLabel") ? truncate(params.get("promiseLabel")!, 48) : undefined;
+  const isPersistentFrame = params.get("variant") === "persistent-frame";
   const headline = suppliedHeadline
     ? truncate(suppliedHeadline, 68)
     : tier === "dominant" && journal
@@ -52,22 +55,43 @@ export async function GET(request: NextRequest) {
         : "ConferenceHype";
   const context = tier === "dominant" ? "Peer-Reviewed Journal Coverage" : tier === "roundup" ? "Medical Journal Coverage" : "Medical Research Broadcast";
 
+  if (isPersistentFrame) {
+    return new ImageResponse(
+      (
+        <div style={{ width: "100%", height: "100%", display: "flex", position: "relative", color: COLORS.paper, fontFamily: "sans-serif" }}>
+          <div style={{ display: "flex", position: "absolute", top: 0, left: 0, width: "100%", height: 82, backgroundColor: "rgba(16,20,31,0.94)", borderTop: `9px solid ${COLORS.broadcast}`, alignItems: "center", padding: "9px 34px 0" }}>
+            <div style={{ display: "flex", backgroundColor: COLORS.broadcast, borderRadius: 6, padding: "7px 12px", fontSize: 20, fontWeight: 900, letterSpacing: 1 }}>CONFERENCEHYPE</div>
+            <div style={{ display: "flex", marginLeft: 20, fontSize: 23, fontWeight: 850, letterSpacing: 0.4 }}>{seriesLabel ?? panelLabel}</div>
+            <div style={{ display: "flex", marginLeft: "auto", color: COLORS.gold, fontSize: 20, fontWeight: 800 }}>{date}</div>
+          </div>
+          <div style={{ display: "flex", position: "absolute", bottom: 0, left: 0, width: "100%", height: 72, backgroundColor: "rgba(16,20,31,0.94)", borderBottom: `9px solid ${COLORS.mint}`, alignItems: "center", padding: "0 34px 9px" }}>
+            <div style={{ display: "flex", color: COLORS.mint, fontSize: 19, fontWeight: 850, letterSpacing: 0.9 }}>{promiseLabel ?? "SOURCE-GROUNDED MEDICAL COVERAGE"}</div>
+            <div style={{ display: "flex", marginLeft: "auto", color: "#aeb8ca", fontSize: 17, fontWeight: 700 }}>conferencehype.com</div>
+          </div>
+        </div>
+      ),
+      { width: WIDTH, height: HEIGHT }
+    );
+  }
+
   return new ImageResponse(
     (
       <div style={{ width: "100%", height: "100%", display: "flex", backgroundColor: COLORS.ink, color: COLORS.paper, fontFamily: "sans-serif" }}>
         <div style={{ display: "flex", position: "absolute", top: 0, left: 0, width: "100%", height: 18, backgroundColor: COLORS.broadcast }} />
         <div style={{ display: "flex", flexDirection: "column", width: "72%", padding: "64px 42px 58px 76px", justifyContent: "center" }}>
-          <div style={{ display: "flex", alignItems: "center", marginBottom: 25 }}>
+          <div style={{ display: "flex", alignItems: "center", marginBottom: seriesLabel ? 14 : 25 }}>
             <div style={{ display: "flex", backgroundColor: COLORS.broadcast, borderRadius: 8, padding: "9px 17px", fontSize: 25, fontWeight: 800, letterSpacing: 1.5 }}>CONFERENCEHYPE</div>
             {specialty ? <div style={{ display: "flex", marginLeft: 15, color: COLORS.cyan, fontSize: 26, fontWeight: 700 }}>{specialty}</div> : null}
           </div>
-          <div style={{ display: "flex", fontSize: suppliedHeadline ? 58 : 68, fontWeight: 850, lineHeight: 1.07, maxWidth: 820 }}>{headline}</div>
-          {context ? <div style={{ display: "flex", marginTop: 27, color: COLORS.gold, fontSize: 28, fontWeight: 650 }}>{context}</div> : null}
+          {seriesLabel ? <div style={{ display: "flex", marginBottom: 18, color: COLORS.gold, fontSize: 30, fontWeight: 900, lineHeight: 1.05, letterSpacing: 0.6, maxWidth: 820 }}>{seriesLabel}</div> : null}
+          <div style={{ display: "flex", fontSize: suppliedHeadline ? (seriesLabel ? 49 : 58) : 68, fontWeight: 850, lineHeight: 1.07, maxWidth: 820 }}>{headline}</div>
+          {context ? <div style={{ display: "flex", marginTop: seriesLabel ? 18 : 27, color: COLORS.gold, fontSize: 28, fontWeight: 650 }}>{context}</div> : null}
           {date ? <div style={{ display: "flex", marginTop: 18, color: "#aeb8ca", fontSize: 24, fontWeight: 500 }}>{date}</div> : null}
         </div>
         <div style={{ display: "flex", width: "28%", backgroundColor: COLORS.panel, padding: "52px 34px 48px", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
           <div style={{ display: "flex", width: 82, height: 82, borderRadius: 41, backgroundColor: COLORS.broadcast, alignItems: "center", justifyContent: "center", fontSize: 54, fontWeight: 900 }}>?</div>
-          <div style={{ display: "flex", marginTop: 28, color: COLORS.gold, fontSize: 18, fontWeight: 800, letterSpacing: 1.6 }}>{panelEyebrow ?? panelLabel}</div>
+          {promiseLabel ? <div style={{ display: "flex", marginTop: 18, color: COLORS.paper, fontSize: 22, fontWeight: 900, lineHeight: 1.08 }}>{promiseLabel}</div> : null}
+          <div style={{ display: "flex", marginTop: promiseLabel ? 18 : 28, color: COLORS.gold, fontSize: 18, fontWeight: 800, letterSpacing: 1.6 }}>{panelEyebrow ?? panelLabel}</div>
           {journalNames.length ? (
             <div style={{ display: "flex", flexDirection: "column", width: "100%", marginTop: 20, gap: 18, alignItems: "center" }}>
               {journalNames.map((name) => (

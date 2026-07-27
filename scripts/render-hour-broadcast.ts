@@ -78,15 +78,35 @@ function run(command: string, args: string[]) {
 }
 
 const OPENING_TITLE_SECONDS = 8;
+const PERSISTENT_BRANDING_START_DATE = "2026-07-28";
+
+function newBrandingApplies(startsAt: Date) {
+  const dateParts = new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: "America/New_York"
+  }).formatToParts(startsAt);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    dateParts.find((candidate) => candidate.type === type)?.value ?? "";
+  return `${part("year")}-${part("month")}-${part("day")}` >= PERSISTENT_BRANDING_START_DATE;
+}
 
 async function burnOpeningThumbnailIntoVideo(
   ffmpeg: string,
   videoPath: string,
-  thumbnailBytes: Uint8Array<ArrayBuffer>
+  thumbnailBytes: Uint8Array<ArrayBuffer>,
+  persistentFrameBytes?: Uint8Array<ArrayBuffer>
 ) {
   const thumbnailPath = path.join(renderDir, "opening-title-thumbnail.png");
+  const persistentFramePath = path.join(renderDir, "persistent-brand-frame.png");
   const titledVideoPath = path.join(renderDir, "opening-title-video.mp4");
   await writeFile(thumbnailPath, thumbnailBytes);
+  if (persistentFrameBytes) await writeFile(persistentFramePath, persistentFrameBytes);
+  const frameInputArgs = persistentFrameBytes ? ["-loop", "1", "-i", persistentFramePath] : [];
+  const filterComplex = persistentFrameBytes
+    ? `[1:v]scale=1280:720[title];[2:v]scale=1280:720[frame];[0:a]showwaves=s=610x38:mode=cline:colors=0x35c5d8|0x49d39e|0xffbd45:rate=30,format=rgba[wave];[0:v][title]overlay=0:0:shortest=1:enable='between(t,0,${OPENING_TITLE_SECONDS})'[opened];[opened][frame]overlay=0:0:shortest=1:enable='gte(t,${OPENING_TITLE_SECONDS})'[framed];[framed][wave]overlay=(W-w)/2:H-h-16:shortest=1:enable='gte(t,${OPENING_TITLE_SECONDS})'[vout]`
+    : `[1:v]scale=1280:720[title];[0:v][title]overlay=0:0:shortest=1:enable='between(t,0,${OPENING_TITLE_SECONDS})'[vout]`;
   await run(ffmpeg, [
     "-y",
     "-i",
@@ -95,8 +115,9 @@ async function burnOpeningThumbnailIntoVideo(
     "1",
     "-i",
     thumbnailPath,
+    ...frameInputArgs,
     "-filter_complex",
-    `[1:v]scale=1280:720[title];[0:v][title]overlay=0:0:enable='between(t,0,${OPENING_TITLE_SECONDS})'[vout]`,
+    filterComplex,
     "-map",
     "[vout]",
     "-map",
@@ -1430,14 +1451,29 @@ async function uploadRenderedBroadcast(
       : isMeetingWatchMode
         ? `${(actualMetadata?.specialty ?? "MEETING").toUpperCase()} HIGHLIGHTS`
         : undefined,
+    seriesLabel: isJournalMode
+      ? "BECOME A SMARTER EVIDENCE-BASED MEDICINE DOCTOR SERIES"
+      : undefined,
+    promiseLabel: isJournalMode
+      ? "A NEW JOURNAL SUMMARY EVERYDAY"
+      : isWeekendMode
+        ? "WEEKLY MEDICAL JOURNAL ROUNDUP"
+        : isMeetingWatchMode
+          ? "NEW CONFERENCE HIGHLIGHTS"
+          : isBreakingMode
+            ? "BREAKING MEDICAL RESEARCH"
+            : "SOURCE-GROUNDED MEDICAL COVERAGE",
     siteUrl: process.env.PUBLIC_SITE_URL
   };
   const { downloadYoutubeThumbnail, getYoutubeAccessToken, uploadVideoToYoutube, uploadYoutubeThumbnail } = await import(
     "@/lib/youtube/uploadBroadcastVideo"
   );
   const openingThumbnailBytes = await withRetry(() => downloadYoutubeThumbnail(thumbnailSpec));
+  const persistentFrameBytes = newBrandingApplies(hourStart)
+    ? await withRetry(() => downloadYoutubeThumbnail({ ...thumbnailSpec, variant: "persistent-frame" as const }))
+    : undefined;
   const finalFfmpeg = process.env.FFMPEG_PATH ?? ffmpegPath ?? "ffmpeg";
-  await burnOpeningThumbnailIntoVideo(finalFfmpeg, outputPath, openingThumbnailBytes);
+  await burnOpeningThumbnailIntoVideo(finalFfmpeg, outputPath, openingThumbnailBytes, persistentFrameBytes);
   const { assertMusicWindowsAudible } = await import("@/lib/media/broadcastQuality");
   await assertMusicWindowsAudible({ ffmpeg: finalFfmpeg, mediaPath: outputPath, cards });
 
@@ -2101,12 +2137,19 @@ async function main() {
     ];
   }
 
-  // Bars loop is appended as the last input so it doesn't shift the numeric
-  // audio input indices referenced inside audioArgs's filter_complex.
+  // Keep the legacy center-screen decorative bars only for already-scheduled
+  // pre-launch renders. New branding uses the finished audio-driven waveform.
+  const renderStartsAt = process.env.HOUR_BROADCAST_START
+    ? new Date(process.env.HOUR_BROADCAST_START)
+    : new Date();
+  const includeLegacyHypeLine = !newBrandingApplies(renderStartsAt);
   const hypeLineLoopInputIndex = 1 + audioArgs.filter((arg) => arg === "-i").length;
-  const hypeLineLoopInputArgs = ["-stream_loop", "-1", "-i", path.resolve(HYPE_LINE_LOOP_PATH)];
-  audioArgs[audioArgs.length - 1] =
-    `${audioArgs[audioArgs.length - 1]};[0:v][${hypeLineLoopInputIndex}:v]overlay=0:0[vout]`;
+  const hypeLineLoopInputArgs = includeLegacyHypeLine
+    ? ["-stream_loop", "-1", "-i", path.resolve(HYPE_LINE_LOOP_PATH)]
+    : [];
+  audioArgs[audioArgs.length - 1] = includeLegacyHypeLine
+    ? `${audioArgs[audioArgs.length - 1]};[0:v][${hypeLineLoopInputIndex}:v]overlay=0:0[vout]`
+    : `${audioArgs[audioArgs.length - 1]};[0:v]null[vout]`;
 
   const args = [
     "-y",
