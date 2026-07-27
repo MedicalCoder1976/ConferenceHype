@@ -479,7 +479,7 @@ function enforceOneHourFrame(
   preserveJournalOutro = false
 ) {
   const finalOutro = preserveJournalOutro
-    ? cards.findLast((card) => card.riskFlags?.some((flag) => flag === "journal_show_outro" || flag === "weekend_roundup_outro"))
+    ? cards.findLast((card) => card.riskFlags?.some((flag) => flag === "journal_show_outro" || flag === "weekend_roundup_outro" || flag === "meeting_watch_outro" || flag === "prepared_closing"))
     : undefined;
   const framedCards = finalOutro ? cards.filter((card) => card !== finalOutro) : [...cards];
   const contentFrameSeconds = finalOutro ? frameSeconds - finalOutro.duration : frameSeconds;
@@ -644,7 +644,9 @@ function slotsToCards(slots: BroadcastSlot[]): Card[] {
         : formatCard({
             eyebrow: `${slot.segment?.personaName ?? "ConferenceHype"} / ${slot.segment ? cardTypeEyebrow(slot.segment) : "CONTENT"}`,
             title: slot.segment?.title ?? slot.label,
-            body: slot.segment?.script || slot.segment?.summary || slot.label,
+            body: slot.segment?.riskFlags.includes("prepared_narrative")
+              ? slot.segment.summary
+              : slot.segment?.script || slot.segment?.summary || slot.label,
             source: slot.segment?.citations[0]?.url
           })
     };
@@ -1641,7 +1643,7 @@ async function main() {
       applySpokenPronunciations,
       getPersona
     ),
-    isBreakingMode ? 15 * 60 : isJournalMode || isWeekendMode || isMeetingWatchMode ? JOURNAL_SHOW_SECONDS : 3600,
+    isBreakingMode ? 15 * 60 : isMeetingWatchMode ? durationSeconds : isJournalMode || isWeekendMode ? JOURNAL_SHOW_SECONDS : 3600,
     isJournalMode || isWeekendMode || isMeetingWatchMode,
     isJournalMode || isWeekendMode || isMeetingWatchMode
   );
@@ -1927,8 +1929,10 @@ async function main() {
   // the music tail again so journal/weekend programs still end at exactly 1800s
   // with the final spoken outro at the true end, never a silent video tail.
   if (isJournalMode || isWeekendMode || isMeetingWatchMode) {
-    let delta = JOURNAL_SHOW_SECONDS - totalCardSeconds(cards);
-    const outroIndex = cards.findLastIndex((card) => card.riskFlags?.some((flag) => flag === "journal_show_outro" || flag === "weekend_roundup_outro" || flag === "meeting_watch_outro"));
+    const targetFrameSeconds = isMeetingWatchMode ? durationSeconds : JOURNAL_SHOW_SECONDS;
+    let delta = targetFrameSeconds - totalCardSeconds(cards);
+    const preparedClosingIndex = cards.findIndex((card) => card.riskFlags?.includes("prepared_closing"));
+    const outroIndex = preparedClosingIndex >= 0 ? preparedClosingIndex : cards.findLastIndex((card) => card.riskFlags?.some((flag) => flag === "journal_show_outro" || flag === "weekend_roundup_outro" || flag === "meeting_watch_outro"));
     const insertionIndex = outroIndex >= 0 ? outroIndex : cards.length;
     if (delta < 0) {
       let excess = -delta;
@@ -1942,7 +1946,7 @@ async function main() {
           cardCacheKeys.splice(index, 1);
         }
       }
-      if (excess > 0.001) throw new Error("Measured narration exceeds the 30-minute weekend/journal frame after all music was removed.");
+      if (excess > 0.001) throw new Error(`Measured narration exceeds the ${targetFrameSeconds}-second broadcast frame after all music was removed.`);
     } else if (delta > 0.001) {
       let insertAt = insertionIndex;
       const priorMusic = cards[insertAt - 1];
@@ -1966,7 +1970,7 @@ async function main() {
       }
     }
     const reconciled = totalCardSeconds(cards);
-    if (Math.abs(reconciled - JOURNAL_SHOW_SECONDS) > 0.01) throw new Error(`Measured 30-minute frame reconciled to ${reconciled}s instead of 1800s.`);
+    if (Math.abs(reconciled - targetFrameSeconds) > 0.01) throw new Error(`Measured broadcast frame reconciled to ${reconciled}s instead of ${targetFrameSeconds}s.`);
   }
   const concatLines: string[] = [];
 

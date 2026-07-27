@@ -559,19 +559,20 @@ export async function getPendingSegmentsFromDb(limit = 120) {
 // rows alone, well past that cap) -- pages through with .range() until a
 // page comes back short. Used for bulk operations that need the *entire*
 // set, not the usual small display-page limit every other getter here uses.
-async function getAllSegmentsByStatusFromDb(status: string) {
+async function getAllSegmentsByStatusFromDb(status: string, serial = false) {
   const supabase = createAdminClient();
   const pageSize = 1000;
   const pagesPerBatch = 10;
+  const effectivePagesPerBatch = serial ? 1 : pagesPerBatch;
   const rows: SegmentRow[] = [];
   // Approved inventory has grown past 9,000 rows. Fetching ten PostgREST
   // pages one after another made every force-dynamic /admin render wait for
   // ten full network round trips before login could finish. The pages are
   // independent, so fetch ten at a time. Avoid count:"exact" here: the
   // production segments count can exceed Supabase's statement timeout.
-  for (let batchStart = 0; ; batchStart += pageSize * pagesPerBatch) {
+  for (let batchStart = 0; ; batchStart += pageSize * effectivePagesPerBatch) {
     const pages = await Promise.all(
-      Array.from({ length: pagesPerBatch }, (_, index) => {
+      Array.from({ length: effectivePagesPerBatch }, (_, index) => {
         const offset = batchStart + index * pageSize;
         return supabase
           .from("segments")
@@ -601,6 +602,12 @@ export async function getAllApprovedSegmentsFromDb() {
     return null;
   }
   return getAllSegmentsByStatusFromDb("approved");
+}
+// The station planner runs in a background workflow. Serial paging prevents ten
+// large approved-card queries from competing for the database statement budget.
+export async function getAllApprovedSegmentsForStationFromDb() {
+  if (!hasSupabase()) return null;
+  return getAllSegmentsByStatusFromDb("approved", true);
 }
 
 // Interactive admin pages need representative ready cards immediately, but

@@ -86,6 +86,27 @@ export function buildMeetingWatchSlots({
   });
   const persona = personaForJournalShow(baseTime, `meeting-watch-${meetingWatchBroadcastId}`);
   const slots: BroadcastSlot[] = [];
+  const prepared = eligible.length > 0 && eligible.every((segment) => segment.riskFlags.includes("prepared_narrative"));
+  if (prepared) {
+    const ordered = [...eligible].sort((left, right) => {
+      const sequence = (segment: Segment) => Number(segment.riskFlags.find((flag) => flag.startsWith("prepared_sequence:"))?.split(":")[1] ?? 0);
+      return sequence(left) - sequence(right);
+    });
+    let preparedAt = baseTime;
+    for (const segment of ordered) {
+      const words = (segment.script || segment.summary).trim().split(/\s+/).length;
+      const seconds = Math.max(15, Math.ceil(words / 2.25) + 2);
+      slots.push({ at: preparedAt, kind: "statement", durationMinutes: seconds / 60, durationSeconds: seconds, label: `${segment.personaName} prepared narrative`, segment, replaceable: false });
+      preparedAt = addSeconds(preparedAt, seconds);
+      const transition = segment.riskFlags.find((flag) => flag.startsWith("prepared_transition:"));
+      if (transition) {
+        const transitionSeconds = Math.max(10, Math.min(60, Number(transition.split(":")[1]) || JOURNAL_MUSIC_SECONDS));
+        slots.push({ at: preparedAt, kind: "music", durationMinutes: transitionSeconds / 60, durationSeconds: transitionSeconds, label: "prepared narrative music transition", replaceable: false });
+        preparedAt = addSeconds(preparedAt, transitionSeconds);
+      }
+    }
+    return slots;
+  }
   let at = baseTime;
   let contentIndex = 0;
   let groupIndex = 0;

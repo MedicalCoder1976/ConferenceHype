@@ -27,17 +27,21 @@ async function main() {
   if (!targetDate || !/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) throw new Error("STATION_SCHEDULE_DATE must be YYYY-MM-DD.");
   const weekday = new Date(`${targetDate}T12:00:00Z`).getUTCDay();
   if (weekday < 1 || weekday > 5) throw new Error("Weekday station schedules are Monday-Friday only.");
-  const [{ buildJournalCardDecks }, { getAdminSnapshot }, { buildStationDraft }, { getStationSchedulesFromDb, saveStationDraftToDb }] = await Promise.all([
-    import("@/lib/cardDeck"), import("@/lib/data"), import("@/lib/station/schedule"), import("@/lib/station/db")
+  const [{ buildJournalCardDecks }, { filterBroadcastReadySegments }, { getAllApprovedSegmentsForStationFromDb, getAllPendingSegmentsFromDb, getOncologyJournalsFromDb }, { buildStationDraft }, { getStationSchedulesFromDb, saveStationDraftToDb }] = await Promise.all([
+    import("@/lib/cardDeck"), import("@/lib/data"), import("@/lib/db"), import("@/lib/station/schedule"), import("@/lib/station/db")
   ]);
-  const snapshot = await getAdminSnapshot(new Date(`${targetDate}T12:00:00Z`), 24);
-  const decks = buildJournalCardDecks(snapshot.deckSegments, snapshot.oncologyJournals);
+  const [pendingSegments, approvedSegments, oncologyJournals] = await Promise.all([
+    getAllPendingSegmentsFromDb(), getAllApprovedSegmentsForStationFromDb(), getOncologyJournalsFromDb()
+  ]);
+  const journals = oncologyJournals ?? [];
+  const deckSegments = filterBroadcastReadySegments([...(pendingSegments ?? []), ...(approvedSegments ?? [])]);
+  const decks = buildJournalCardDecks(deckSegments, journals);
   const schedules = (await getStationSchedulesFromDb(90)) ?? [];
   const weekStart = mondayOf(targetDate);
   const used = schedules.filter((schedule) => schedule.scheduleDate >= weekStart && schedule.scheduleDate < targetDate).flatMap((schedule) => schedule.programs);
   const programs = buildStationDraft({
     scheduleDate: targetDate,
-    journals: snapshot.oncologyJournals,
+    journals,
     journalCardDecks: decks,
     excludedJournalIds: used.map((program) => program.journalId).filter((id): id is string => Boolean(id)),
     excludedCardIds: used.flatMap((program) => program.cardIds)

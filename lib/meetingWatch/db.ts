@@ -17,6 +17,9 @@ export type MeetingWatchBroadcast = {
   youtubeUrl?: string;
   failureReason?: string;
   retryCount: number;
+  durationSeconds: number;
+  sourceHash?: string;
+  preparedNarrative: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -37,6 +40,9 @@ type Row = {
   youtube_url?: string | null;
   failure_reason?: string | null;
   retry_count: number;
+  duration_seconds?: number;
+  source_hash?: string | null;
+  prepared_narrative?: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -58,6 +64,9 @@ function toBroadcast(row: Row): MeetingWatchBroadcast {
     youtubeUrl: row.youtube_url ?? undefined,
     failureReason: row.failure_reason ?? undefined,
     retryCount: row.retry_count,
+    durationSeconds: row.duration_seconds ?? 1800,
+    sourceHash: row.source_hash ?? undefined,
+    preparedNarrative: row.prepared_narrative ?? false,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };

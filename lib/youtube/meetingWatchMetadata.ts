@@ -57,12 +57,15 @@ export function buildMeetingWatchMetadata({
   specialty?: string;
   sourceUrl: string;
 }): BroadcastMetadata {
-  const cards = slots.filter(
-    (slot) =>
-      slot.segment &&
-      !slot.segment.riskFlags.includes("meeting_watch_outro") &&
-      !slot.segment.riskFlags.includes("meeting_watch_disclaimer")
-  );
+  const seenPreparedCards = new Set<string>();
+  const cards = slots.filter((slot) => {
+    if (!slot.segment || slot.segment.riskFlags.includes("meeting_watch_outro") || slot.segment.riskFlags.includes("meeting_watch_disclaimer") || slot.segment.riskFlags.includes("prepared_disclaimer") || slot.segment.riskFlags.includes("prepared_closing")) return false;
+    const preparedCard = slot.segment.riskFlags.find((flag) => flag.startsWith("prepared_card:"));
+    if (!preparedCard) return true;
+    if (seenPreparedCards.has(preparedCard)) return false;
+    seenPreparedCards.add(preparedCard);
+    return true;
+  });
   const resolved = cards.map((slot) => {
     const segment = slot.segment!;
     // Every Meeting Watch card title is generated as "TRIAL NAME: rest"

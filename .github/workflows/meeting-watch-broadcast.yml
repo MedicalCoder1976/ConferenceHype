@@ -43,7 +43,7 @@ jobs:
               --get "${NEXT_PUBLIC_SUPABASE_URL}/rest/v1/meeting_watch_broadcasts" \
               -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
               -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
-              --data-urlencode "select=id,starts_at,title,description" \
+              --data-urlencode "select=id,starts_at,title,description,duration_seconds" \
               --data-urlencode "id=eq.${{ inputs.meeting_watch_broadcast_id }}" | jq -c '.[0] // {}')
           else
             # Wide lookback deliberately: the schedule trigger above is not
@@ -59,7 +59,7 @@ jobs:
               --get "${NEXT_PUBLIC_SUPABASE_URL}/rest/v1/meeting_watch_broadcasts" \
               -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
               -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
-              --data-urlencode "select=id,starts_at,title,description" \
+              --data-urlencode "select=id,starts_at,title,description,duration_seconds" \
               --data-urlencode "status=eq.planned" \
               --data-urlencode "starts_at=gte.${FROM}" \
               --data-urlencode "starts_at=lt.${TO}" \
@@ -70,6 +70,7 @@ jobs:
           STARTS_AT=$(jq -r '.starts_at // empty' <<< "${RECORD}")
           TITLE=$(jq -r '.title // empty' <<< "${RECORD}")
           DESCRIPTION=$(jq -r '.description // empty' <<< "${RECORD}")
+          DURATION_SECONDS=$(jq -r '.duration_seconds // 1800' <<< "${RECORD}")
           if [ -z "${BROADCAST_ID}" ]; then
             echo "::notice::No due Meeting Watch broadcast found."
           fi
@@ -79,6 +80,7 @@ jobs:
             echo "title<<BROADCAST_TITLE_EOF"
             echo "${TITLE}"
             echo "BROADCAST_TITLE_EOF"
+            echo "duration_seconds=${DURATION_SECONDS}"
             echo "description<<BROADCAST_DESCRIPTION_EOF"
             echo "${DESCRIPTION}"
             echo "BROADCAST_DESCRIPTION_EOF"
@@ -121,7 +123,7 @@ jobs:
         id: render
         if: ${{ steps.resolve.outputs.broadcast_id != '' }}
         run: |
-          export HOUR_BROADCAST_SECONDS=1800
+          export HOUR_BROADCAST_SECONDS="${DURATION_SECONDS}"
           npx tsx scripts/render-hour-broadcast.ts
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
@@ -131,6 +133,7 @@ jobs:
           LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
           LLM_MODEL: ${{ secrets.LLM_MODEL }}
           HOUR_BROADCAST_MODE: meeting_watch30
+          DURATION_SECONDS: ${{ steps.resolve.outputs.duration_seconds }}
           MEETING_WATCH_BROADCAST_ID: ${{ steps.resolve.outputs.broadcast_id }}
           FFMPEG_PATH: /usr/bin/ffmpeg
           HOUR_BROADCAST_START: ${{ steps.resolve.outputs.starts_at }}
