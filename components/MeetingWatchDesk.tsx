@@ -1,11 +1,185 @@
 "use client";
 
-import { CalendarSearch, WandSparkles } from "lucide-react";
+import { CalendarSearch, Radio, WandSparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { CardDeckSummary } from "@/components/CardDeckSummary";
 import { EMPTY_CARD_DECK, type EntityCardDeck } from "@/lib/cardDeck";
 import type { MedicalConference } from "@/lib/types";
+
+type PreviewEpisode = {
+  index: number;
+  articleCount: number;
+  cardIds: string[];
+  cards: Array<{ id: string; title: string; script: string }>;
+  clusters: string[];
+};
+
+type Preview = {
+  sourceUrl: string;
+  meetingLabel: string;
+  specialty?: string;
+  episodes: PreviewEpisode[];
+};
+
+// Any meeting, any specialty: paste a URL, pick how many 30-minute episodes,
+// and the pipeline (lib/editorial/meetingWatchPipeline.ts) discovers,
+// dedupes, and generates enough real cards to fill each one. This desk
+// covers the general case; the per-conference "Develop material" section
+// below is the older Oncology/Hematology-only editorial-package path, kept
+// as-is since it feeds a different (Journal-Watch-style) package format.
+export function NewMeetingWatchBroadcast() {
+  const [sourceUrl, setSourceUrl] = useState("");
+  const [meetingLabel, setMeetingLabel] = useState("");
+  const [specialty, setSpecialty] = useState("");
+  const [episodeCount, setEpisodeCount] = useState(2);
+  const [startsAt, setStartsAt] = useState("");
+  const [preview, setPreview] = useState<Preview | null>(null);
+  const [episodeMeta, setEpisodeMeta] = useState<Array<{ title: string; description: string }>>([]);
+  const [message, setMessage] = useState("");
+  const [pending, startTransition] = useTransition();
+  const router = useRouter();
+
+  const develop = () => startTransition(async () => {
+    setMessage("");
+    setPreview(null);
+    try {
+      const response = await fetch("/api/admin/meeting-watch/develop", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sourceUrl, meetingLabel, specialty: specialty || undefined, episodeCount })
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) throw new Error(payload.error ?? "Could not develop this Meeting Watch broadcast.");
+      setPreview(payload);
+      setEpisodeMeta(
+        payload.episodes.map((episode: PreviewEpisode, index: number) => ({
+          title: `ConferenceHype: ${meetingLabel} Highlights - Part ${index + 1} of ${payload.episodes.length}`,
+          description: `Highlights from ${meetingLabel}${episode.clusters.length ? ` -- ${episode.clusters.join(", ")}` : ""}.\n\nWatch now on our YouTube channel.`
+        }))
+      );
+      setMessage(`Found enough real content for ${payload.episodes.length} episode(s) -- review the cards below, then set a start time and schedule.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not develop this Meeting Watch broadcast.");
+    }
+  });
+
+  const schedule = () => startTransition(async () => {
+    if (!preview) return;
+    try {
+      const response = await fetch("/api/admin/meeting-watch/schedule", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sourceUrl: preview.sourceUrl,
+          meetingLabel: preview.meetingLabel,
+          specialty: preview.specialty,
+          startsAt: new Date(startsAt).toISOString(),
+          episodes: preview.episodes.map((episode, index) => ({
+            cardIds: episode.cardIds,
+            title: episodeMeta[index]?.title ?? `${preview.meetingLabel} - Part ${index + 1}`,
+            description: episodeMeta[index]?.description ?? ""
+          }))
+        })
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) throw new Error(payload.error ?? "Could not schedule these broadcasts.");
+      setMessage(`Scheduled ${payload.broadcasts.length} broadcast(s). They'll render automatically at their start times.`);
+      setPreview(null);
+      router.refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not schedule these broadcasts.");
+    }
+  });
+
+  return (
+    <div className="border border-ink/10 bg-white p-5 shadow-panel">
+      <div className="flex items-center gap-2">
+        <Radio className="h-5 w-5 text-broadcast" />
+        <h2 className="text-2xl font-black">New Meeting Watch broadcast</h2>
+      </div>
+      <p className="mt-2 text-sm font-semibold leading-6 text-ink/65">
+        Paste a link to a meeting/issue page (any specialty), pick how many 30-minute episodes to produce, and we&apos;ll find enough real, source-attributed content to fill each one.
+      </p>
+      <div className="mt-4 grid gap-3 md:grid-cols-2">
+        <label className="grid gap-1 text-xs font-black uppercase text-ink/55">
+          Source URL
+          <input value={sourceUrl} onChange={(event) => setSourceUrl(event.target.value)} placeholder="https://..." className="min-h-11 border border-ink/20 px-3 text-sm font-semibold normal-case text-ink" />
+        </label>
+        <label className="grid gap-1 text-xs font-black uppercase text-ink/55">
+          Meeting label
+          <input value={meetingLabel} onChange={(event) => setMeetingLabel(event.target.value)} placeholder="e.g. ASH 2025" className="min-h-11 border border-ink/20 px-3 text-sm font-semibold normal-case text-ink" />
+        </label>
+        <label className="grid gap-1 text-xs font-black uppercase text-ink/55">
+          Specialty (optional)
+          <input value={specialty} onChange={(event) => setSpecialty(event.target.value)} placeholder="e.g. Hematology" className="min-h-11 border border-ink/20 px-3 text-sm font-semibold normal-case text-ink" />
+        </label>
+        <label className="grid gap-1 text-xs font-black uppercase text-ink/55">
+          Episode count
+          <input type="number" min={1} max={6} value={episodeCount} onChange={(event) => setEpisodeCount(Number(event.target.value))} className="min-h-11 border border-ink/20 px-3 text-sm font-semibold normal-case text-ink" />
+        </label>
+      </div>
+      <button
+        disabled={pending || !sourceUrl || !meetingLabel}
+        onClick={develop}
+        className="mt-4 inline-flex min-h-11 items-center gap-2 bg-ink px-4 text-xs font-black uppercase text-white disabled:opacity-50"
+      >
+        <WandSparkles className="h-4 w-4" />
+        {pending && !preview ? "Finding content..." : "Develop material"}
+      </button>
+      {message ? <div className="mt-3 border border-cyanline/30 bg-cyanline/10 p-3 text-sm font-bold">{message}</div> : null}
+
+      {preview ? (
+        <div className="mt-5 grid gap-4">
+          {preview.episodes.map((episode, index) => (
+            <div key={episode.index} className="border border-ink/10 p-3">
+              <div className="text-xs font-black uppercase text-broadcast">
+                Episode {index + 1}: {episode.cards.length} card(s) from {episode.articleCount} article(s) -- {episode.clusters.join(", ")}
+              </div>
+              <input
+                value={episodeMeta[index]?.title ?? ""}
+                onChange={(event) =>
+                  setEpisodeMeta((prev) => prev.map((meta, i) => (i === index ? { ...meta, title: event.target.value } : meta)))
+                }
+                className="mt-2 min-h-11 w-full border border-ink/20 px-3 text-sm font-bold text-ink"
+              />
+              <textarea
+                value={episodeMeta[index]?.description ?? ""}
+                onChange={(event) =>
+                  setEpisodeMeta((prev) => prev.map((meta, i) => (i === index ? { ...meta, description: event.target.value } : meta)))
+                }
+                rows={4}
+                className="mt-2 w-full border border-ink/20 px-3 py-2 text-sm font-semibold text-ink"
+              />
+              <details className="mt-2 text-xs font-semibold text-ink/70">
+                <summary className="cursor-pointer font-black uppercase text-ink/55">View {episode.cards.length} card script(s)</summary>
+                <ul className="mt-2 grid gap-2">
+                  {episode.cards.map((card) => (
+                    <li key={card.id} className="border border-ink/10 p-2">
+                      <div className="font-black">{card.title}</div>
+                      <div className="mt-1">{card.script}</div>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            </div>
+          ))}
+          <label className="grid gap-1 text-xs font-black uppercase text-ink/55">
+            First episode start time
+            <input type="datetime-local" value={startsAt} onChange={(event) => setStartsAt(event.target.value)} className="min-h-11 border border-ink/20 px-3 text-sm font-semibold normal-case text-ink" />
+          </label>
+          <button
+            disabled={pending || !startsAt}
+            onClick={schedule}
+            className="inline-flex min-h-11 items-center gap-2 bg-broadcast px-4 text-xs font-black uppercase text-white disabled:opacity-50"
+          >
+            {pending ? "Scheduling..." : `Schedule ${preview.episodes.length} broadcast(s)`}
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export function MeetingWatchDesk({
   conferences,
@@ -18,9 +192,6 @@ export function MeetingWatchDesk({
   const router = useRouter();
   const [activeId, setActiveId] = useState("");
   const [pending, startTransition] = useTransition();
-  const oncologyMeetings = conferences.filter((conference) =>
-    conference.specialties.some((specialty) => specialty === "Oncology" || specialty === "Hematology")
-  );
 
   const develop = (conference: MedicalConference) => startTransition(async () => {
     setActiveId(conference.id);
@@ -43,19 +214,20 @@ export function MeetingWatchDesk({
 
   return (
     <section className="grid gap-4">
+      <NewMeetingWatchBroadcast />
       <div className="border border-ink/10 bg-white p-5 shadow-panel">
         <div className="flex items-center gap-2">
           <CalendarSearch className="h-5 w-5 text-broadcast" />
-          <h2 className="text-2xl font-black">Oncology Meeting Watch</h2>
+          <h2 className="text-2xl font-black">Tracked-conference Meeting Watch (Memory packages)</h2>
         </div>
         <p className="mt-2 text-sm font-semibold leading-6 text-ink/65">
           Develop four-section packages covering abstracts, exhibition booths,
-          attributed conference chatter, and media reporting.
+          attributed conference chatter, and media reporting, from a conference already tracked in the system.
         </p>
         {message ? <div className="mt-3 border border-cyanline/30 bg-cyanline/10 p-3 text-sm font-bold">{message}</div> : null}
       </div>
       <div className="grid gap-3 md:grid-cols-2">
-        {oncologyMeetings.map((conference) => (
+        {conferences.map((conference) => (
           <article key={conference.id} className="border border-ink/10 bg-white p-4 shadow-panel">
             <div className="text-xs font-black uppercase text-broadcast">{conference.acronym ?? "Meeting Watch"}</div>
             <h3 className="mt-1 text-lg font-black">{conference.name}</h3>

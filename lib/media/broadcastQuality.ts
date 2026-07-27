@@ -1,12 +1,13 @@
 import { spawn } from "node:child_process";
 
-export type BroadcastQualityMode = "presentation" | "journal30" | "weekend30" | "breaking15";
+export type BroadcastQualityMode = "presentation" | "journal30" | "weekend30" | "breaking15" | "meeting_watch30";
 
 type QualityCard = { duration: number; isMusic: boolean; segmentId?: string };
 
 export function minimumSubstantiveCards(mode: BroadcastQualityMode, stationProgramId?: string) {
   if (mode === "breaking15") return 1;
   if (mode === "weekend30") return 12;
+  if (mode === "meeting_watch30") return 12;
   if (mode === "journal30") return stationProgramId ? 12 : 8;
   return 6;
 }

@@ -28,6 +28,47 @@ function isReadableText(value: string) {
   );
 }
 
+const BOILERPLATE_PATH_PATTERN = /\/(tag|tags|category|categories|author|authors|search|login|subscribe|cart|checkout|privacy|terms|about|contact|advertise)(\/|$)/i;
+
+// Cheap, deterministic same-hostname link harvest for a listing/issue page
+// (e.g. a meeting-highlights supplement with many individual articles).
+// Deliberately not exhaustive or smart about which links are "real
+// articles" -- that judgment call (dedup, richness) belongs to an LLM pass
+// downstream, same division of labor as fetchPageSummary above (cheap
+// scrape here, judgment elsewhere).
+export async function fetchArticleLinks(seedUrl: string, limit = 60): Promise<string[]> {
+  const response = await fetch(seedUrl, {
+    headers: { "User-Agent": "ConferenceHypeBot/0.1 source-attributed summaries" },
+    next: { revalidate: 1800 }
+  });
+  if (!response.ok) {
+    throw new Error(`Link fetch failed for ${seedUrl}: ${response.status}`);
+  }
+  const html = await response.text();
+  const seedHost = new URL(seedUrl).hostname;
+  const found = new Set<string>();
+  for (const match of html.matchAll(/<a[^>]+href=["']([^"'#]+)["']/gi)) {
+    let href = match[1];
+    try {
+      href = new URL(href, seedUrl).toString();
+    } catch {
+      continue;
+    }
+    const url = new URL(href);
+    if (url.hostname !== seedHost) continue;
+    if (url.toString() === seedUrl) continue;
+    if (BOILERPLATE_PATH_PATTERN.test(url.pathname)) continue;
+    // A real article path on a site like this is usually reasonably deep
+    // (the seed page's own path plus a slug, or a dated news/issue path) --
+    // this is a coarse filter, not a guarantee; downstream dedup/curation
+    // is the real filter.
+    if (url.pathname.split("/").filter(Boolean).length < 2) continue;
+    found.add(url.toString());
+    if (found.size >= limit) break;
+  }
+  return Array.from(found);
+}
+
 export async function fetchPageSummary(source: SourceConfig): Promise<IngestedItem[]> {
   const response = await fetch(source.url, {
     headers: {

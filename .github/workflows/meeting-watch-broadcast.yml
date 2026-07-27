@@ -1,0 +1,165 @@
+name: Meeting Watch broadcast
+
+on:
+  workflow_dispatch:
+    inputs:
+      meeting_watch_broadcast_id:
+        description: "meeting_watch_broadcasts UUID to render immediately, bypassing the due-time poll"
+        required: false
+        default: ""
+  schedule:
+    # Same bounded-window poll pattern as youtube-stream.yml's
+    # conference_coverage_slots check (runners can be delayed under load),
+    # kept as its own workflow/cron rather than folded into that one --
+    # meeting_watch_broadcasts is a structurally different content type and
+    # that poller already has enough of its own history to be risky to touch.
+    - cron: "*/15 * * * *"
+
+jobs:
+  broadcast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Resolve due Meeting Watch broadcast
+        id: resolve
+        run: |
+          if [ -n "${{ inputs.meeting_watch_broadcast_id }}" ]; then
+            RECORD=$(curl --fail --silent --show-error \
+              --get "${NEXT_PUBLIC_SUPABASE_URL}/rest/v1/meeting_watch_broadcasts" \
+              -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+              -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+              --data-urlencode "select=id,starts_at,title,description" \
+              --data-urlencode "id=eq.${{ inputs.meeting_watch_broadcast_id }}" | jq -c '.[0] // {}')
+          else
+            FROM=$(date -u -d "-15 minutes" +"%Y-%m-%dT%H:%M:%SZ")
+            TO=$(date -u -d "+30 minutes" +"%Y-%m-%dT%H:%M:%SZ")
+            RECORD=$(curl --fail --silent --show-error \
+              --get "${NEXT_PUBLIC_SUPABASE_URL}/rest/v1/meeting_watch_broadcasts" \
+              -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+              -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+              --data-urlencode "select=id,starts_at,title,description" \
+              --data-urlencode "status=eq.planned" \
+              --data-urlencode "starts_at=gte.${FROM}" \
+              --data-urlencode "starts_at=lt.${TO}" \
+              --data-urlencode "order=starts_at.asc" \
+              --data-urlencode "limit=1" | jq -c '.[0] // {}')
+          fi
+          BROADCAST_ID=$(jq -r '.id // empty' <<< "${RECORD}")
+          STARTS_AT=$(jq -r '.starts_at // empty' <<< "${RECORD}")
+          TITLE=$(jq -r '.title // empty' <<< "${RECORD}")
+          DESCRIPTION=$(jq -r '.description // empty' <<< "${RECORD}")
+          if [ -z "${BROADCAST_ID}" ]; then
+            echo "::notice::No due Meeting Watch broadcast found."
+          fi
+          {
+            echo "broadcast_id=${BROADCAST_ID}"
+            echo "starts_at=${STARTS_AT}"
+            echo "title<<BROADCAST_TITLE_EOF"
+            echo "${TITLE}"
+            echo "BROADCAST_TITLE_EOF"
+            echo "description<<BROADCAST_DESCRIPTION_EOF"
+            echo "${DESCRIPTION}"
+            echo "BROADCAST_DESCRIPTION_EOF"
+          } >> "$GITHUB_OUTPUT"
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Validate YouTube OAuth is configured
+        if: ${{ steps.resolve.outputs.broadcast_id != '' }}
+        run: |
+          if [ -z "${YOUTUBE_OAUTH_CLIENT_ID}" ] || [ -z "${YOUTUBE_OAUTH_CLIENT_SECRET}" ] || [ -z "${YOUTUBE_OAUTH_REFRESH_TOKEN}" ]; then
+            echo "::error::YouTube OAuth is not fully configured."
+            exit 1
+          fi
+        env:
+          YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
+          YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
+          YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
+
+      - name: Install Kokoro TTS dependencies
+        if: ${{ steps.resolve.outputs.broadcast_id != '' }}
+        run: pip install kokoro numpy soundfile
+
+      - name: Mark broadcast as rendering
+        if: ${{ steps.resolve.outputs.broadcast_id != '' }}
+        run: |
+          curl --fail --silent --show-error \
+            -X PATCH "${NEXT_PUBLIC_SUPABASE_URL}/rest/v1/meeting_watch_broadcasts?id=eq.${BROADCAST_ID}" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Content-Type: application/json" \
+            -d '{"status":"rendering"}'
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          BROADCAST_ID: ${{ steps.resolve.outputs.broadcast_id }}
+
+      - name: Render and upload Meeting Watch broadcast
+        id: render
+        if: ${{ steps.resolve.outputs.broadcast_id != '' }}
+        run: |
+          export HOUR_BROADCAST_SECONDS=1800
+          npx tsx scripts/render-hour-broadcast.ts
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+          LLM_MODEL: ${{ secrets.LLM_MODEL }}
+          HOUR_BROADCAST_MODE: meeting_watch30
+          MEETING_WATCH_BROADCAST_ID: ${{ steps.resolve.outputs.broadcast_id }}
+          FFMPEG_PATH: /usr/bin/ffmpeg
+          HOUR_BROADCAST_START: ${{ steps.resolve.outputs.starts_at }}
+          BROADCAST_TITLE: ${{ steps.resolve.outputs.title }}
+          BROADCAST_DESCRIPTION: ${{ steps.resolve.outputs.description }}
+          PUBLIC_SITE_URL: https://conferencehype.com
+          YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
+          YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
+          YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
+          HOUR_BROADCAST_OUTPUT: public/rendered/conferencehype-meeting-watch.mp4
+          KOKORO_PYTHON_CMD: python3
+          VOICE_AETHER_VALE: ${{ secrets.VOICE_AETHER_VALE }}
+          VOICE_AMARA_SOL: ${{ secrets.VOICE_AMARA_SOL }}
+          VOICE_BENJI_CROSS: ${{ secrets.VOICE_BENJI_CROSS }}
+          VOICE_DIEGO_VALE: ${{ secrets.VOICE_DIEGO_VALE }}
+          VOICE_ECHO_SAGE: ${{ secrets.VOICE_ECHO_SAGE }}
+          VOICE_ELENA_PARK: ${{ secrets.VOICE_ELENA_PARK }}
+          VOICE_GRANT_IVEY: ${{ secrets.VOICE_GRANT_IVEY }}
+          VOICE_KAI_LENNOX: ${{ secrets.VOICE_KAI_LENNOX }}
+          VOICE_LUNA_VALE: ${{ secrets.VOICE_LUNA_VALE }}
+          VOICE_MILES_CARTER: ${{ secrets.VOICE_MILES_CARTER }}
+          VOICE_NOVA_QUINN: ${{ secrets.VOICE_NOVA_QUINN }}
+          VOICE_ORION_REED: ${{ secrets.VOICE_ORION_REED }}
+          VOICE_RILEY_KNOX: ${{ secrets.VOICE_RILEY_KNOX }}
+          VOICE_SAGE_HARLAN: ${{ secrets.VOICE_SAGE_HARLAN }}
+          VOICE_SOFIA_REYES: ${{ secrets.VOICE_SOFIA_REYES }}
+          VOICE_TALIA_STONE: ${{ secrets.VOICE_TALIA_STONE }}
+          VOICE_VESPER_QUILL: ${{ secrets.VOICE_VESPER_QUILL }}
+
+      - name: Record failed Meeting Watch delivery
+        if: ${{ always() && steps.resolve.outputs.broadcast_id != '' && job.status == 'failure' && steps.render.outputs.no_content_failure_recorded != 'true' }}
+        run: |
+          curl --fail --silent --show-error \
+            -X PATCH "${NEXT_PUBLIC_SUPABASE_URL}/rest/v1/meeting_watch_broadcasts?id=eq.${BROADCAST_ID}" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Content-Type: application/json" \
+            -d '{"status":"failed","failure_reason":"GitHub Actions failed before the YouTube upload completed. Open the workflow run for the exact failing step."}'
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          BROADCAST_ID: ${{ steps.resolve.outputs.broadcast_id }}

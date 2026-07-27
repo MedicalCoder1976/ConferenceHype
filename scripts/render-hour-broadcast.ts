@@ -850,6 +850,41 @@ async function buildWeekendRoundupCards(): Promise<{ cards: Card[]; unusedApprov
   );
   return { cards: slotsToCards(slots), unusedApproved: [] };
 }
+// Standalone 30-minute Meeting Watch broadcast, built from an explicit,
+// pre-approved card_ids list on a meeting_watch_broadcasts row -- not tied
+// to any journal or the six-slot station daily schedule. Mirrors
+// buildWeekendRoundupCards intentionally.
+async function buildMeetingWatchCards(): Promise<{ cards: Card[]; unusedApproved: Segment[] }> {
+  const [{ filterBroadcastReadySegments }, { getSegmentsByIdsFromDb }, { getMeetingWatchBroadcastFromDb }, { buildMeetingWatchSlots }] =
+    await Promise.all([
+      import("@/lib/data"),
+      import("@/lib/db"),
+      import("@/lib/meetingWatch/db"),
+      import("@/lib/rundown/meetingWatchSlots")
+    ]);
+  const broadcastId = process.env.MEETING_WATCH_BROADCAST_ID;
+  if (!broadcastId) {
+    throw new Error("MEETING_WATCH_BROADCAST_ID is required when HOUR_BROADCAST_MODE=meeting_watch30");
+  }
+  const broadcast = await getMeetingWatchBroadcastFromDb(broadcastId);
+  if (!broadcast) throw new Error("Meeting Watch broadcast not found.");
+  const selected = await getSegmentsByIdsFromDb(broadcast.cardIds);
+  const retryEligible = (selected ?? []).map((segment) => ({
+    ...segment,
+    status: "approved" as const,
+    approvedAt: segment.approvedAt ?? broadcast.createdAt
+  }));
+  const renderSegments = filterBroadcastReadySegments(retryEligible);
+  const baseTime = process.env.HOUR_BROADCAST_START ? new Date(process.env.HOUR_BROADCAST_START) : new Date();
+  const slots = buildMeetingWatchSlots({
+    segments: renderSegments,
+    baseTime,
+    meetingWatchBroadcastId: broadcastId,
+    meetingLabel: broadcast.meetingLabel,
+    showSeconds: durationSeconds
+  }).filter((slot) => slot.at < new Date(baseTime.getTime() + durationSeconds * 1000));
+  return { cards: slotsToCards(slots), unusedApproved: [] };
+}
 async function buildBreakingNewsCards(): Promise<{ cards: Card[]; unusedApproved: Segment[] }> {
   const [{ getSegmentByIdFromDb }, { withAssignedVoice }, { getPersona }] = await Promise.all([
     import("@/lib/db"),
@@ -1238,11 +1273,12 @@ async function saveBroadcastWriteout(
 async function uploadRenderedBroadcast(
   cards: Card[],
   usedSegmentIds: string[],
-  mode: "presentation" | "journal30" | "weekend30" | "breaking15"
+  mode: "presentation" | "journal30" | "weekend30" | "breaking15" | "meeting_watch30"
 ) {
   const isJournalMode = mode === "journal30";
   const isWeekendMode = mode === "weekend30";
   const isBreakingMode = mode === "breaking15";
+  const isMeetingWatchMode = mode === "meeting_watch30";
   const hourStart = process.env.HOUR_BROADCAST_START
     ? new Date(process.env.HOUR_BROADCAST_START)
     : new Date();
@@ -1250,7 +1286,12 @@ async function uploadRenderedBroadcast(
   let actualMetadata:
     | Awaited<ReturnType<typeof import("@/lib/youtube/broadcastMetadata").buildBroadcastMetadata>>
     | undefined;
-  if (usedSegmentIds.length > 0) {
+  // Meeting Watch broadcasts carry their own admin/pipeline-authored
+  // title+description (set on the meeting_watch_broadcasts row) and aren't
+  // tied to a journal or conference, so the journal/conference-specific
+  // metadata builder below doesn't apply -- skip straight to the
+  // BROADCAST_TITLE/BROADCAST_DESCRIPTION override path.
+  if (usedSegmentIds.length > 0 && !isMeetingWatchMode) {
     try {
       actualMetadata = await withRetry(async () => {
         const {
@@ -1354,6 +1395,7 @@ async function uploadRenderedBroadcast(
     actualMetadata?.title ||
     `ConferenceHype live programming - ${fallbackLabel}`;
   const description =
+    process.env.BROADCAST_DESCRIPTION ||
     actualMetadata?.description ||
     "Source-attributed ConferenceHype medical-conference programming.";
   const tags = actualMetadata?.tags ?? [];
@@ -1433,7 +1475,7 @@ async function uploadRenderedBroadcast(
     console.log(`::warning::Could not post the announcement tweet to X: ${describeError(error)}`);
   }
 
-  if (!process.env.STATION_PROGRAM_ID && !isJournalMode && !isBreakingMode) {
+  if (!process.env.STATION_PROGRAM_ID && !isJournalMode && !isBreakingMode && !isMeetingWatchMode) {
     await withRetry(() => saveBroadcastWriteout(cards, youtubeVideoId, youtubeUrl, title));
   }
 
@@ -1478,6 +1520,18 @@ async function uploadRenderedBroadcast(
     );
     return;
   }
+  if (isMeetingWatchMode && process.env.MEETING_WATCH_BROADCAST_ID) {
+    const { updateMeetingWatchBroadcastDeliveryInDb } = await import("@/lib/meetingWatch/db");
+    await withRetry(() =>
+      updateMeetingWatchBroadcastDeliveryInDb(process.env.MEETING_WATCH_BROADCAST_ID!, {
+        status: "verified",
+        youtubeVideoId,
+        youtubeUrl,
+        failureReason: null
+      })
+    );
+    return;
+  }
 
   const workflowUrl =
     process.env.GITHUB_SERVER_URL && process.env.GITHUB_REPOSITORY && process.env.GITHUB_RUN_ID
@@ -1502,10 +1556,11 @@ async function main() {
   const useBlockMode = process.env.HOUR_BROADCAST_MODE === "blocks";
   const isJournalMode = process.env.HOUR_BROADCAST_MODE === "journal30";
   const isWeekendMode = process.env.HOUR_BROADCAST_MODE === "weekend30";
+  const isMeetingWatchMode = process.env.HOUR_BROADCAST_MODE === "meeting_watch30";
   const { applySpokenPronunciations } = await import("@/lib/media/tts");
   const { getPersona } = await import("@/lib/generation/personas");
   const isBreakingMode = process.env.HOUR_BROADCAST_MODE === "breaking15";
-  const broadcastMode = isBreakingMode ? "breaking15" : isWeekendMode ? "weekend30" : isJournalMode ? "journal30" : "presentation";
+  const broadcastMode = isBreakingMode ? "breaking15" : isWeekendMode ? "weekend30" : isJournalMode ? "journal30" : isMeetingWatchMode ? "meeting_watch30" : "presentation";
   const { cards: rawCards, unusedApproved } = useBlockMode
     ? { cards: await buildBlockCards(), unusedApproved: [] as Segment[] }
     : isBreakingMode
@@ -1514,13 +1569,15 @@ async function main() {
       ? await buildJournalCards()
       : isWeekendMode
       ? await buildWeekendRoundupCards()
+      : isMeetingWatchMode
+      ? await buildMeetingWatchCards()
       : await buildCards();
   const cards = enforceOneHourFrame(
     await fillLeftoverGapsWithBonusCards(
       expandContentDurations(
         replaceEmptyContentCardsWithMusic(
           replaceMissingIntakeCardsWithMusic(
-            applyPresentationPolicy(rawCards, isJournalMode || isWeekendMode || isBreakingMode ? Infinity : DISCLAIMER_INTERVAL_SECONDS)
+            applyPresentationPolicy(rawCards, isJournalMode || isWeekendMode || isBreakingMode || isMeetingWatchMode ? Infinity : DISCLAIMER_INTERVAL_SECONDS)
           )
         )
       ),
@@ -1528,9 +1585,9 @@ async function main() {
       applySpokenPronunciations,
       getPersona
     ),
-    isBreakingMode ? 15 * 60 : isJournalMode || isWeekendMode ? JOURNAL_SHOW_SECONDS : 3600,
-    isJournalMode || isWeekendMode,
-    isJournalMode || isWeekendMode
+    isBreakingMode ? 15 * 60 : isJournalMode || isWeekendMode || isMeetingWatchMode ? JOURNAL_SHOW_SECONDS : 3600,
+    isJournalMode || isWeekendMode || isMeetingWatchMode,
+    isJournalMode || isWeekendMode || isMeetingWatchMode
   );
 
   // Opt-in, no-op-by-default escape hatch for sanity-checking the full card
@@ -1575,6 +1632,8 @@ async function main() {
       ? "No quality-passed cards actually broadcast this week were available for the weekend roundup; refusing to publish a music-only broadcast."
       : isJournalMode
       ? "No approved segments were available for this journal at render time -- 0 content cards scheduled, refusing to publish a music-only broadcast."
+      : isMeetingWatchMode
+      ? "No approved segments were available for this Meeting Watch broadcast at render time -- 0 content cards scheduled, refusing to publish a music-only broadcast."
       : "No approved (or fallback schedule/social) content was available at render time -- 0 content cards scheduled, refusing to publish a music-only broadcast.";
     console.log(`::error::${reason}`);
     const { updateConferenceCoverageDeliveryInDb, updateJournalBroadcastDeliveryInDb } = await import("@/lib/db");
@@ -1589,6 +1648,15 @@ async function main() {
         failureReason: reason
       }).catch((error) => {
         console.warn(`Failed to record the breaking-news failure reason: ${describeError(error)}`);
+      });
+    }
+    if (isMeetingWatchMode && process.env.MEETING_WATCH_BROADCAST_ID) {
+      const { updateMeetingWatchBroadcastDeliveryInDb } = await import("@/lib/meetingWatch/db");
+      await updateMeetingWatchBroadcastDeliveryInDb(process.env.MEETING_WATCH_BROADCAST_ID, {
+        status: "failed",
+        failureReason: reason
+      }).catch((error) => {
+        console.warn(`Failed to record the Meeting Watch failure reason: ${describeError(error)}`);
       });
     }
     const failurePatch = {
@@ -1802,9 +1870,9 @@ async function main() {
   // Real Kokoro durations replace estimates after the first frame pass. Reconcile
   // the music tail again so journal/weekend programs still end at exactly 1800s
   // with the final spoken outro at the true end, never a silent video tail.
-  if (isJournalMode || isWeekendMode) {
+  if (isJournalMode || isWeekendMode || isMeetingWatchMode) {
     let delta = JOURNAL_SHOW_SECONDS - totalCardSeconds(cards);
-    const outroIndex = cards.findLastIndex((card) => card.riskFlags?.some((flag) => flag === "journal_show_outro" || flag === "weekend_roundup_outro"));
+    const outroIndex = cards.findLastIndex((card) => card.riskFlags?.some((flag) => flag === "journal_show_outro" || flag === "weekend_roundup_outro" || flag === "meeting_watch_outro"));
     const insertionIndex = outroIndex >= 0 ? outroIndex : cards.length;
     if (delta < 0) {
       let excess = -delta;
