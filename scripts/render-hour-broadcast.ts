@@ -1286,12 +1286,7 @@ async function uploadRenderedBroadcast(
   let actualMetadata:
     | Awaited<ReturnType<typeof import("@/lib/youtube/broadcastMetadata").buildBroadcastMetadata>>
     | undefined;
-  // Meeting Watch broadcasts carry their own admin/pipeline-authored
-  // title+description (set on the meeting_watch_broadcasts row) and aren't
-  // tied to a journal or conference, so the journal/conference-specific
-  // metadata builder below doesn't apply -- skip straight to the
-  // BROADCAST_TITLE/BROADCAST_DESCRIPTION override path.
-  if (usedSegmentIds.length > 0 && !isMeetingWatchMode) {
+  if (usedSegmentIds.length > 0) {
     try {
       actualMetadata = await withRetry(async () => {
         const {
@@ -1354,6 +1349,22 @@ async function uploadRenderedBroadcast(
         } catch (error) {
           console.log(`::warning::Could not load linked PubMed text for study-name metadata: ${describeError(error)}`);
         }
+        if (isMeetingWatchMode) {
+          const meetingWatchBroadcastId = process.env.MEETING_WATCH_BROADCAST_ID;
+          if (!meetingWatchBroadcastId) throw new Error("MEETING_WATCH_BROADCAST_ID is required when HOUR_BROADCAST_MODE=meeting_watch30");
+          const { getMeetingWatchBroadcastFromDb } = await import("@/lib/meetingWatch/db");
+          const broadcast = await getMeetingWatchBroadcastFromDb(meetingWatchBroadcastId);
+          if (!broadcast) throw new Error("Meeting Watch broadcast not found.");
+          const { buildMeetingWatchMetadata } = await import("@/lib/youtube/meetingWatchMetadata");
+          return buildMeetingWatchMetadata({
+            hourStart,
+            slots,
+            title: process.env.BROADCAST_TITLE || broadcast.title,
+            meetingLabel: broadcast.meetingLabel,
+            specialty: broadcast.specialty,
+            sourceUrl: broadcast.sourceUrl
+          });
+        }
         if (isWeekendMode) {
           const { buildWeekendRoundupMetadata, assertWeekendRoundupMetadata } = await import("@/lib/youtube/weekendRoundupMetadata");
           const part = Number(process.env.WEEKEND_ROUNDUP_PART);
@@ -1377,7 +1388,7 @@ async function uploadRenderedBroadcast(
         return assertSearchOptimizedBroadcastMetadata(metadata, { requireJournalContext: isJournalMode });
       });
     } catch (error) {
-      if (isJournalMode || process.env.STATION_PROGRAM_ID) throw error;
+      if (isJournalMode || isMeetingWatchMode || process.env.STATION_PROGRAM_ID) throw error;
       console.log(
         `::warning::Could not build YouTube metadata from actual rendered cards, falling back to generic: ${describeError(error)}`
       );
@@ -1395,7 +1406,12 @@ async function uploadRenderedBroadcast(
     actualMetadata?.title ||
     `ConferenceHype live programming - ${fallbackLabel}`;
   const description =
-    process.env.BROADCAST_DESCRIPTION ||
+    // actualMetadata is always freshly built from the real rendered cards
+    // for Meeting Watch (real timestamped chapters, real study names) --
+    // it should win over whatever placeholder description the admin UI
+    // stored on the row at scheduling time, unlike other modes where an
+    // explicit BROADCAST_DESCRIPTION override is meant to take priority.
+    (!isMeetingWatchMode && process.env.BROADCAST_DESCRIPTION) ||
     actualMetadata?.description ||
     "Source-attributed ConferenceHype medical-conference programming.";
   const tags = actualMetadata?.tags ?? [];
@@ -1409,7 +1425,11 @@ async function uploadRenderedBroadcast(
     headline: actualMetadata?.thumbnailHeadline ?? title,
     journalNames: isBreakingMode ? [] : actualMetadata?.thumbnailJournalNames,
     journalCount: isBreakingMode ? 0 : actualMetadata?.thumbnailJournalCount,
-    panelLabel: isBreakingMode ? "BREAKING MEDICAL RESEARCH" : undefined,
+    panelLabel: isBreakingMode
+      ? "BREAKING MEDICAL RESEARCH"
+      : isMeetingWatchMode
+        ? `${(actualMetadata?.specialty ?? "MEETING").toUpperCase()} HIGHLIGHTS`
+        : undefined,
     siteUrl: process.env.PUBLIC_SITE_URL
   };
   const { downloadYoutubeThumbnail, getYoutubeAccessToken, uploadVideoToYoutube, uploadYoutubeThumbnail } = await import(
