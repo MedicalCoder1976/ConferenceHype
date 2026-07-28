@@ -158,6 +158,27 @@ embedder.
 
 ## Broadcast Presentation
 
+### Persistent evidence dashboard
+
+Every newly rendered broadcast uses the shared evidence-dashboard slide
+renderer. The center of the video must never be an empty color field:
+
+- content cards show the source-grounded title, Key Finding, Study Snapshot,
+  Why It Matters, source attribution, and program progress;
+- explicit Background, Methods, Results, and Discussion text is reused when
+  present; otherwise the dashboard falls back to concise text already stored
+  in the approved card and never invents missing study details;
+- music cards show a branded Coming Next panel using the next approved card;
+- the persistent series header, footer, and narration-driven waveform remain
+  overlays and do not alter card timing, narration, music placement, upload,
+  scheduling, or activation;
+- if structured sections are unavailable, a populated branded evidence-summary
+  card is still rendered. A blank center screen is not an allowed fallback.
+
+This contract is implemented once in `scripts/render-hour-broadcast.ts`, so it
+applies to presentation, weekday station, single-journal, weekend roundup,
+Meeting Watch/prepared narrative, and breaking-news broadcasts going forward.
+
 - Created/ready cards are not automatically in the selected hour. A card only
   belongs to the broadcast presentation sequence after it is accepted and
   scheduled for that hour, dragged into a content slot, or used as a replacement.

@@ -22,6 +22,7 @@ import {
 import { isGenericConferenceLandingItem } from "@/lib/intakeSelection";
 import { filterBroadcastReadySegments } from "@/lib/data";
 import { buildOperatorMusicSegment, OPERATOR_MUSIC_TRACKS } from "@/lib/broadcast/operatorMusic";
+import { buildEvidenceDashboardSvg } from "@/lib/broadcast/evidenceDashboard";
 import { normalizeLegacyDailyCoverageDefaults } from "@/lib/dailyCoverage";
 import {
   segmentSourceMatchesSelection,
@@ -973,6 +974,23 @@ assert.match(renderHourSource, /thumbnailBytes: openingThumbnailBytes/);
 assert.match(renderHourSource, /"BREAKING MEDICAL RESEARCH"/);
 assert.match(renderHourSource, /assertSearchOptimizedBroadcastMetadata/);
 assert.match(renderHourSource, /if \(isJournalMode \|\| isMeetingWatchMode \|\| process\.env\.STATION_PROGRAM_ID\) throw error/);
+assert.match(renderHourSource, /buildEvidenceDashboardSvg/);
+assert.match(renderHourSource, /await sharp\(Buffer\.from\(evidenceDashboard\)\)\.png\(\)\.toFile\(imagePath\)/);
+assert.doesNotMatch(renderHourSource, /color=c=\$\{color\}:s=1280x720/);
+const evidenceDashboardSvg = buildEvidenceDashboardSvg({
+  title: "EMERALD-3 randomized trial",
+  text: "Background: TACE alone was standard care. Methods: Patients were randomized. Results: Progression-free survival improved. Discussion: Benefit must be balanced against toxicity.",
+  sourceLabel: "Journal of Clinical Oncology - July 2026",
+  contentType: "abstract_buzz",
+  isMusic: false,
+  index: 2,
+  total: 12
+});
+assert.match(evidenceDashboardSvg, /KEY FINDING/);
+assert.match(evidenceDashboardSvg, /STUDY SNAPSHOT/);
+assert.match(evidenceDashboardSvg, /WHY IT MATTERS/);
+assert.match(evidenceDashboardSvg, /Progression-free survival improved/);
+assert.match(evidenceDashboardSvg, /Journal of Clinical Oncology/);
 const thumbnailRouteSource = readFileSync(path.join(process.cwd(), "app", "api", "youtube-thumbnail", "route.tsx"), "utf8");
 assert.match(thumbnailRouteSource, /params\.get\("headline"\)/);
 assert.match(thumbnailRouteSource, /params\.getAll\("journalName"\)/);

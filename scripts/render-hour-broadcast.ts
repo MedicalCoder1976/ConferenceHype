@@ -5,7 +5,9 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { loadEnvConfig } from "@next/env";
 import ffmpegPath from "ffmpeg-static";
+import sharp from "sharp";
 import { cardTypeEyebrow, cardTypeLabel } from "@/lib/broadcast/cardTypes";
+import { buildEvidenceDashboardSvg } from "@/lib/broadcast/evidenceDashboard";
 import { hasMissingIntakeFailureLanguage, sanitizeBroadcastCopy } from "@/lib/broadcast/sanitizeCopy";
 import { HYPE_LINE_LOOP_PATH } from "@/lib/media/hypeLine";
 import {
@@ -1978,17 +1980,18 @@ async function main() {
     const slidePath = path.join(renderDir, `slide-${String(index + 1).padStart(2, "0")}.txt`);
     const imagePath = path.join(renderDir, `slide-${String(index + 1).padStart(2, "0")}.png`);
     await writeFile(slidePath, cards[index].text, "utf8");
-    const color = index % 2 === 0 ? "0x11151f" : "0x151a27";
-    await run(ffmpeg, [
-      "-y",
-      "-f",
-      "lavfi",
-      "-i",
-      `color=c=${color}:s=1280x720`,
-      "-frames:v",
-      "1",
-      imagePath
-    ]);
+    const nextContentCard = cards.slice(index + 1).find((candidate) => !candidate.isMusic);
+    const evidenceDashboard = buildEvidenceDashboardSvg({
+      title: cards[index].title,
+      text: cards[index].text,
+      sourceLabel: cards[index].sourceLabel,
+      contentType: cards[index].contentType,
+      isMusic: cards[index].isMusic,
+      nextTitle: nextContentCard?.title,
+      index,
+      total: cards.length
+    });
+    await sharp(Buffer.from(evidenceDashboard)).png().toFile(imagePath);
     const concatPath = path.resolve(imagePath).replace(/\\/g, "/");
     concatLines.push(`file '${concatPath}'`, `duration ${cards[index].duration}`);
   }
