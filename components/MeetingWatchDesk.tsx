@@ -38,6 +38,7 @@ type PreparedPreview = {
   spokenWords: number;
   durationMinutes: number;
   preambleRemoved: boolean;
+  trialOrderNormalized: boolean;
 };
 export function PreparedNarrativeBroadcast() {
   const [raw, setRaw] = useState("");
@@ -46,7 +47,7 @@ export function PreparedNarrativeBroadcast() {
   const [pending, startTransition] = useTransition();
   const validate = () => startTransition(async () => {
     setMessage(""); setPreview(null);
-    try { const response = await fetch("/api/admin/meeting-watch/prepared/preview", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ raw }) }); const payload = await response.json(); if (!response.ok || !payload.ok) throw new Error(payload.error ?? "Could not validate this package."); setPreview(payload); setMessage(payload.preambleRemoved ? "Validated. Introductory text outside the JSON was removed automatically." : "Validated and ready to render."); } catch (error) { setMessage(error instanceof Error ? error.message : "Could not validate this package."); }
+    try { const response = await fetch("/api/admin/meeting-watch/prepared/preview", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ raw }) }); const payload = await response.json(); if (!response.ok || !payload.ok) throw new Error(payload.error ?? "Could not validate this package."); setPreview(payload); setMessage(payload.trialOrderNormalized ? "Validated. Trial cards were automatically grouped so each trial is discussed once without interruption. Review the corrected sequence below." : payload.preambleRemoved ? "Validated. Introductory text outside the JSON was removed automatically." : "Validated and ready to render."); } catch (error) { setMessage(error instanceof Error ? error.message : "Could not validate this package."); }
   });
   const publish = () => startTransition(async () => {
     try { const response = await fetch("/api/admin/meeting-watch/prepared/publish", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ raw }) }); const payload = await response.json(); if (!response.ok || !payload.ok) throw new Error(payload.error ?? "Could not start this broadcast."); setRaw(""); setPreview(null); setMessage(payload.alreadyExists ? "This exact package already exists; no duplicate was dispatched. The form is ready for another narrative." : `Broadcast render started: ${payload.cardCount} cards, ${Math.round(payload.durationSeconds / 60)} estimated minutes, ${payload.speakerTurnCount} speaker turns. The form is ready for another narrative.`); } catch (error) { setMessage(error instanceof Error ? error.message : "Could not start this broadcast."); }

@@ -25,23 +25,49 @@ export function parsePreparedNarrative(raw: string) {
   const parsed = packageSchema.parse(JSON.parse(raw.slice(start, end + 1)));
   const positions = parsed.cards.map((card) => card.position);
   if (new Set(positions).size !== positions.length) throw new Error("Card positions must be unique.");
-  parsed.cards.sort((a, b) => a.position - b.position);
-  const completedStudies = new Set<string>();
-  let activeStudy = "";
-  for (const card of parsed.cards) {
-    const study = card.study_name.trim().toLowerCase();
-    if (!study || study === activeStudy) continue;
-    if (completedStudies.has(study)) throw new Error(`Trial ${card.study_name} is split into non-consecutive conversations. Keep every card for one trial together.`);
-    if (activeStudy) completedStudies.add(activeStudy);
-    activeStudy = study;
+  const positionOrdered = [...parsed.cards].sort((a, b) => a.position - b.position);
+  const conversations = new Map<string, typeof positionOrdered>();
+  const conversationKeyByOldPosition = new Map<number, string>();
+  for (const card of positionOrdered) {
+    const normalizedStudy = card.study_name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const conversationKey = normalizedStudy ? `study:${normalizedStudy}` : `standalone:${card.position}`;
+    conversationKeyByOldPosition.set(card.position, conversationKey);
+    const conversation = conversations.get(conversationKey) ?? [];
+    conversation.push(card);
+    conversations.set(conversationKey, conversation);
   }
+  const groupedCards = [...conversations.values()].flat();
+  const trialOrderNormalized = groupedCards.some((card, index) => card.position !== positionOrdered[index]?.position);
+  const newPositionByOld = new Map(groupedCards.map((card, index) => [card.position, index + 1]));
+  const lastPositionByConversation = new Map<string, number>();
+  groupedCards.forEach((card, index) => {
+    const key = conversationKeyByOldPosition.get(card.position);
+    if (key) lastPositionByConversation.set(key, index + 1);
+  });
+  const remapConversationBoundary = (oldPosition: number) => {
+    const key = conversationKeyByOldPosition.get(oldPosition);
+    if (key?.startsWith("study:")) return lastPositionByConversation.get(key) ?? newPositionByOld.get(oldPosition) ?? oldPosition;
+    return newPositionByOld.get(oldPosition) ?? oldPosition;
+  };
+  parsed.cards = groupedCards.map((card, index) => ({ ...card, position: index + 1 }));
+  const transitionByBoundary = new Map<number, (typeof parsed.transitions)[number]>();
+  for (const transition of parsed.transitions) {
+    const boundary = remapConversationBoundary(transition.after_card_position);
+    const existing = transitionByBoundary.get(boundary);
+    transitionByBoundary.set(boundary, existing && existing.duration_seconds >= transition.duration_seconds ? existing : { ...transition, after_card_position: boundary });
+  }
+  parsed.transitions = [...transitionByBoundary.values()].sort((a, b) => a.after_card_position - b.after_card_position);
+  parsed.disclaimer.after_card_position = remapConversationBoundary(parsed.disclaimer.after_card_position);
+  parsed.chapters = parsed.chapters
+    .map((chapter) => ({ ...chapter, card_position: newPositionByOld.get(chapter.card_position) ?? chapter.card_position }))
+    .sort((a, b) => a.card_position - b.card_position);
   const spokenWords = [...parsed.opening_hook.speaker_turns, ...parsed.cards.flatMap((card) => card.speaker_turns), ...parsed.closing.speaker_turns].reduce((sum, turn) => sum + turn.text.trim().split(/\s+/).length, 0);
   const transitionSeconds = parsed.transitions.reduce((sum, item) => sum + item.duration_seconds, 0);
   const disclaimerWords = parsed.disclaimer.text.trim().split(/\s+/).length;
   const estimatedSeconds = Math.ceil((spokenWords + disclaimerWords) / 2.1) + transitionSeconds + 15;
   const durationSeconds = Math.max(300, Math.min(7200, Math.ceil(estimatedSeconds / 15) * 15));
   const sourceHash = createHash("sha256").update(JSON.stringify(parsed)).digest("hex");
-  return { package: parsed, spokenWords, transitionSeconds, durationSeconds, sourceHash, preambleRemoved: raw.slice(0, start).trim().length > 0 };
+  return { package: parsed, spokenWords, transitionSeconds, durationSeconds, sourceHash, trialOrderNormalized, preambleRemoved: raw.slice(0, start).trim().length > 0 };
 }
 
 const HOSTS = { HOST_1: { id: "echo-sage", name: "TumorCrusher" }, HOST_2: { id: "luna-vale", name: "Luna Vale" } } as const;

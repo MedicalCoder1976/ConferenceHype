@@ -7,6 +7,7 @@ import { buildBroadcastSlots, buildJournalShowSlots } from "@/lib/rundown/slots"
 import { assertSearchOptimizedBroadcastMetadata, buildBroadcastMetadata, extractExplicitStudyName, extractExplicitStudyNames } from "@/lib/youtube/broadcastMetadata";
 import { applySpokenPronunciations } from "@/lib/media/tts";
 import { groupMeetingWatchSegmentsByTrial } from "@/lib/rundown/meetingWatchSlots";
+import { parsePreparedNarrative, preparedNarrativeSegments } from "@/lib/meetingWatch/preparedNarrative";
 import { getUnsafeGeneratedSourceErrors } from "@/lib/generation/sourceSafety";
 import { validateSegmentForApproval } from "@/lib/generation/validator";
 import { assertMinimumSubstantiveCards, minimumSubstantiveCards, parseVolumeDetect } from "@/lib/media/broadcastQuality";
@@ -1354,4 +1355,24 @@ assert.equal(parseVolumeDetect("mean_volume: -inf dB\nmax_volume: -inf dB").maxV
     makeTrial("a1", "Trial A: design", "a"), makeTrial("b1", "Trial B: design", "b"), makeTrial("a2", "Trial A: results", "a")
   ]);
   assert.deepEqual(ordered.map((segment) => segment.id), ["a1", "a2", "b1"]);
+}
+{
+  const trialNames = ["TRIANGLE", "BRUIN", "TRIANGLE", "MajesTEC", "ALPINE", "SEQUOIA"];
+  const preparedPackage = {
+    schema_version: "conferencehype_prepared_broadcast_v1", status: "ready", content_type: "CONFERENCE_ROUNDUP",
+    source: { publication: "Example Journal", article_title: "ASH review", url: "https://example.com/ash-review", publication_date: "2026-07-01", authors: [] },
+    program: { conference_name: "ASH", specialty: "Hematology", title: "ASH trial review", thumbnail_headline: "What changed?", description_opening: "A source-grounded review.", studies_covered: trialNames, estimated_spoken_words: 300, estimated_duration_minutes: 5, recommended_presenter_format: "two hosts" },
+    opening_hook: { visible_text: "The key findings", speaker_turns: [{ speaker: "HOST_1", text: "Here is the review." }], source_anchor: "Opening" },
+    cards: trialNames.map((study_name, index) => ({ position: index + 1, title: `${study_name}: finding ${index + 1}`, card_type: "evidence", visible_text: `Finding ${index + 1}`, speaker_turns: [{ speaker: index % 2 ? "HOST_2" : "HOST_1", text: `Discussion for ${study_name}.` }], source_anchor: `Paragraph ${index + 1}`, study_name, reported_numbers: [], limitations: [] })),
+    transitions: [{ after_card_position: 1, duration_seconds: 20, next_topic: "BRUIN" }],
+    disclaimer: { after_card_position: 4, text: "This is commentary, not medical advice." },
+    closing: { speaker_turns: [{ speaker: "HOST_1", text: "That concludes the review." }] }, chapters: [], youtube_tags: [], quality_report: {}
+  };
+  const normalized = parsePreparedNarrative(JSON.stringify(preparedPackage));
+  assert.equal(normalized.trialOrderNormalized, true);
+  assert.deepEqual(normalized.package.cards.slice(0, 2).map((card) => card.study_name), ["TRIANGLE", "TRIANGLE"]);
+  const normalizedSegments = preparedNarrativeSegments(normalized.package);
+  const firstTriangleEnd = normalizedSegments.findLast((segment) => segment.riskFlags.includes("prepared_study:triangle"));
+  assert.ok(firstTriangleEnd?.riskFlags.includes("prepared_transition:20"));
+  assert.ok(!normalizedSegments.find((segment) => segment.riskFlags.includes("prepared_study:triangle") && segment.riskFlags.includes("prepared_transition:20") && segment.title.endsWith("finding 1")));
 }
