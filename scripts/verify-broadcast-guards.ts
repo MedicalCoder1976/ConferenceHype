@@ -6,6 +6,7 @@ import { formatVoiceSegment, SEGMENT_CLOSE } from "@/lib/broadcast/voiceSegment"
 import { buildBroadcastSlots, buildJournalShowSlots } from "@/lib/rundown/slots";
 import { assertSearchOptimizedBroadcastMetadata, buildBroadcastMetadata, extractExplicitStudyName, extractExplicitStudyNames } from "@/lib/youtube/broadcastMetadata";
 import { applySpokenPronunciations } from "@/lib/media/tts";
+import { groupMeetingWatchSegmentsByTrial } from "@/lib/rundown/meetingWatchSlots";
 import { getUnsafeGeneratedSourceErrors } from "@/lib/generation/sourceSafety";
 import { validateSegmentForApproval } from "@/lib/generation/validator";
 import { assertMinimumSubstantiveCards, minimumSubstantiveCards, parseVolumeDetect } from "@/lib/media/broadcastQuality";
@@ -89,7 +90,11 @@ assert.equal(
 assert.equal(
   applySpokenPronunciations("Stage IA and Stage IIB were compared to Stage IIIA and Stage IVB."),
   "Stage 1 A and Stage 2 B were compared to Stage 3 A and Stage 4 B."
+);assert.equal(
+  applySpokenPronunciations("PFS was reported in Jul and updated in Aug.", "The article defined progression-free survival (PFS)."),
+  "progression-free survival was reported in July and updated in August."
 );
+assert.equal(applySpokenPronunciations("PFS was reported.", "The source does not define it."), "PFS was reported.");
 
 // Bug fixed 2026-07-18 (PMID 40729623): a Results section whose own prose
 // naturally contains the word "discussion" (e.g. "...prognostic discussion
@@ -933,6 +938,11 @@ const renderHourSource = readFileSync(
   "utf8"
 );
 assert.match(renderHourSource, /function enforceOneHourFrame/);
+assert.match(renderHourSource, /const NARRATION_START_DELAY_SECONDS = 2/);
+assert.match(renderHourSource, /reserveOpeningNarrationDelay/);
+assert.match(renderHourSource, /volume=0\.85,adelay=2000\|2000\[voice\]/);
+assert.match(renderHourSource, /Narration overlap detected/);
+assert.match(renderHourSource, /applySpokenPronunciations\(card\.script, narrationSourceContext\(cards, index\)\)/);
 assert.match(renderHourSource, /Removed \$\{removedContentCards\} trailing content card/);
 assert.match(renderHourSource, /while \(remainingSeconds > 0\)/);
 assert.match(renderHourSource, /Math\.min\(OPERATOR_MUSIC_SECONDS, remainingSeconds\)/);
@@ -1333,3 +1343,15 @@ assert.equal(
 );
 assert.deepEqual(parseVolumeDetect("mean_volume: -21.4 dB\nmax_volume: -3.0 dB"), { meanVolumeDb: -21.4, maxVolumeDb: -3 });
 assert.equal(parseVolumeDetect("mean_volume: -inf dB\nmax_volume: -inf dB").maxVolumeDb, Number.NEGATIVE_INFINITY);
+
+{
+  const makeTrial = (id: string, title: string, trial: string): Segment => ({
+    id, title, summary: title, script: title, contentType: "media_roundup", personaId: "echo-sage", personaName: "TumorCrusher",
+    hypeLevel: "restrained", language: "English", status: "approved", citations: [{ label: "Source", url: "https://example.com/article", sourceType: "media" }],
+    socialBuzzItems: [], riskFlags: ["meeting_watch", `meeting_trial:${trial}`], confidenceScore: 95, createdAt: "2026-07-28T00:00:00.000Z"
+  });
+  const ordered = groupMeetingWatchSegmentsByTrial([
+    makeTrial("a1", "Trial A: design", "a"), makeTrial("b1", "Trial B: design", "b"), makeTrial("a2", "Trial A: results", "a")
+  ]);
+  assert.deepEqual(ordered.map((segment) => segment.id), ["a1", "a2", "b1"]);
+}

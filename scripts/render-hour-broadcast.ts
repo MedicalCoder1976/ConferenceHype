@@ -333,6 +333,39 @@ function totalCardSeconds(cards: Card[]) {
   return cards.reduce((total, card) => total + card.duration, 0);
 }
 
+const NARRATION_START_DELAY_SECONDS = 2;
+
+function reserveOpeningNarrationDelay(cards: Card[], cardCacheKeys: (string | undefined)[]) {
+  const firstVoiceIndex = cardCacheKeys.findIndex(Boolean);
+  if (firstVoiceIndex < 0) return { cardIndex: -1, delayMs: 0 };
+  const secondsBeforeVoice = cards.slice(0, firstVoiceIndex).reduce((sum, card) => sum + card.duration, 0);
+  const delaySeconds = Math.max(0, NARRATION_START_DELAY_SECONDS - secondsBeforeVoice);
+  if (delaySeconds <= 0) return { cardIndex: -1, delayMs: 0 };
+  const donorMusicIndex = cards.findIndex((card, index) => index > firstVoiceIndex && card.isMusic && card.duration >= delaySeconds + 0.1);
+  if (donorMusicIndex < 0) {
+    throw new Error("A two-second narration lead-in could not be reserved without shortening spoken material.");
+  }
+  cards[firstVoiceIndex].duration += delaySeconds;
+  cards[donorMusicIndex].duration -= delaySeconds;
+  return { cardIndex: firstVoiceIndex, delayMs: delaySeconds * 1000 };
+}
+
+function narrationSourceContext(cards: Card[], index: number) {
+  const card = cards[index];
+  const preparedStudy = card.riskFlags?.find((flag) => flag.startsWith("prepared_study:"));
+  const preparedCard = card.riskFlags?.find((flag) => flag.startsWith("prepared_card:"));
+  const groupKey = preparedStudy ?? preparedCard ?? (card.sourceUrl ? `source:${card.sourceUrl}` : `segment:${card.segmentId ?? index}`);
+  return cards
+    .filter((candidate, candidateIndex) => {
+      const candidateStudy = candidate.riskFlags?.find((flag) => flag.startsWith("prepared_study:"));
+      const candidatePrepared = candidate.riskFlags?.find((flag) => flag.startsWith("prepared_card:"));
+      const candidateKey = candidateStudy ?? candidatePrepared ?? (candidate.sourceUrl ? `source:${candidate.sourceUrl}` : `segment:${candidate.segmentId ?? candidateIndex}`);
+      return candidateKey === groupKey;
+    })
+    .map((candidate) => `${candidate.title ?? ""} ${candidate.text} ${candidate.script ?? ""}`)
+    .join(" ");
+}
+
 function nextGapClipPath(index: number) {
   return GAP_CLIP_PATHS[index % GAP_CLIP_PATHS.length];
 }
@@ -1797,7 +1830,7 @@ async function main() {
     if (!voiceName) {
       continue;
     }
-    const processedScript = applySpokenPronunciations(card.script);
+    const processedScript = applySpokenPronunciations(card.script, narrationSourceContext(cards, index));
     // replaceEmptyContentCardsWithMusic already screened out cards whose RAW
     // script is empty, but applySpokenPronunciations (stripping URLs,
     // bracketed citations, and internal operator-language sentences) can
@@ -1974,6 +2007,7 @@ async function main() {
     const reconciled = totalCardSeconds(cards);
     if (Math.abs(reconciled - targetFrameSeconds) > 0.01) throw new Error(`Measured broadcast frame reconciled to ${reconciled}s instead of ${targetFrameSeconds}s.`);
   }
+  const narrationDelay = reserveOpeningNarrationDelay(cards, cardCacheKeys);
   const concatLines: string[] = [];
 
   for (let index = 0; index < cards.length; index += 1) {
@@ -2041,7 +2075,8 @@ async function main() {
     if (cacheKey) {
       const cachePath = path.join(voiceCacheDir, `${cacheKey}.mp3`);
       if (existsSync(cachePath)) {
-        voiceEntries.push({ path: cachePath, startMs: offsetMs, durationMs: card.duration * 1000 });
+        const delayMs = index === narrationDelay.cardIndex ? narrationDelay.delayMs : 0;
+        voiceEntries.push({ path: cachePath, startMs: offsetMs + delayMs, durationMs: card.duration * 1000 - delayMs });
       }
     }
 
@@ -2050,6 +2085,13 @@ async function main() {
 
   // Sort voice entries by start time so adelay values are ordered
   voiceEntries.sort((a, b) => a.startMs - b.startMs);
+  for (let index = 1; index < voiceEntries.length; index += 1) {
+    const previous = voiceEntries[index - 1];
+    const current = voiceEntries[index];
+    if (current.startMs < previous.startMs + previous.durationMs - 1) {
+      throw new Error(`Narration overlap detected between voice clips ${index} and ${index + 1}.`);
+    }
+  }
 
   const hasVoice = Boolean(voicePath) || voiceEntries.length > 0;
   const renderedDurationSeconds = totalCardSeconds(cards);
@@ -2135,7 +2177,7 @@ async function main() {
       "-stream_loop", "-1", "-i", musicPath,
       "-stream_loop", "-1", "-i", voicePath,
       "-filter_complex",
-      "[1:a]volume=0.25[music];[2:a]volume=0.85[voice];[music][voice]amix=inputs=2:duration=first:dropout_transition=0[a]"
+      "[1:a]volume=0.25[music];[2:a]volume=0.85,adelay=2000|2000[voice];[music][voice]amix=inputs=2:duration=first:dropout_transition=0[a]"
     ];
   } else {
     audioArgs = [

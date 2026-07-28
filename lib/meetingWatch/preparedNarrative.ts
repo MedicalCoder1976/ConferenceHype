@@ -26,6 +26,15 @@ export function parsePreparedNarrative(raw: string) {
   const positions = parsed.cards.map((card) => card.position);
   if (new Set(positions).size !== positions.length) throw new Error("Card positions must be unique.");
   parsed.cards.sort((a, b) => a.position - b.position);
+  const completedStudies = new Set<string>();
+  let activeStudy = "";
+  for (const card of parsed.cards) {
+    const study = card.study_name.trim().toLowerCase();
+    if (!study || study === activeStudy) continue;
+    if (completedStudies.has(study)) throw new Error(`Trial ${card.study_name} is split into non-consecutive conversations. Keep every card for one trial together.`);
+    if (activeStudy) completedStudies.add(activeStudy);
+    activeStudy = study;
+  }
   const spokenWords = [...parsed.opening_hook.speaker_turns, ...parsed.cards.flatMap((card) => card.speaker_turns), ...parsed.closing.speaker_turns].reduce((sum, turn) => sum + turn.text.trim().split(/\s+/).length, 0);
   const transitionSeconds = parsed.transitions.reduce((sum, item) => sum + item.duration_seconds, 0);
   const disclaimerWords = parsed.disclaimer.text.trim().split(/\s+/).length;
@@ -54,9 +63,11 @@ export function preparedNarrativeSegments(pkg: PreparedNarrativePackage): Segmen
     });
   };
   pushTurns(pkg.opening_hook.speaker_turns, { title: pkg.program.thumbnail_headline, visibleText: pkg.opening_hook.visible_text, sourceAnchor: pkg.opening_hook.source_anchor, flags: ["prepared_opening", "prepared_card:0"] });
-  for (const card of pkg.cards) {
-    const transition = pkg.transitions.find((item) => item.after_card_position === card.position)?.duration_seconds;
-    pushTurns(card.speaker_turns, { title: card.title, visibleText: card.visible_text, sourceAnchor: card.source_anchor, flags: [`prepared_card:${card.position}`, `prepared_type:${card.card_type}`], transitionSeconds: transition });
+  for (const [cardIndex, card] of pkg.cards.entries()) {
+    const studyKey = card.study_name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const nextStudyKey = pkg.cards[cardIndex + 1]?.study_name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") ?? "";
+    const transition = studyKey && studyKey === nextStudyKey ? undefined : pkg.transitions.find((item) => item.after_card_position === card.position)?.duration_seconds;
+    pushTurns(card.speaker_turns, { title: card.title, visibleText: card.visible_text, sourceAnchor: card.source_anchor, flags: [`prepared_card:${card.position}`, `prepared_type:${card.card_type}`, ...(studyKey ? [`prepared_study:${studyKey}`] : [])], transitionSeconds: transition });
     if (pkg.disclaimer.after_card_position === card.position) pushTurns([{ speaker: "HOST_1", text: pkg.disclaimer.text }], { title: "Important ConferenceHype notice", visibleText: pkg.disclaimer.text, sourceAnchor: "Prepared broadcast disclaimer", flags: ["prepared_disclaimer", `prepared_card:${card.position}.5`] });
   }
   pushTurns(pkg.closing.speaker_turns, { title: "What the evidence leaves unanswered", visibleText: "The ConferenceHype deep dive concludes with the principal finding, limitations, and the most important unanswered question.", sourceAnchor: "Prepared narrative closing synthesis", flags: ["prepared_closing", `prepared_card:${pkg.cards.length + 1}`] });

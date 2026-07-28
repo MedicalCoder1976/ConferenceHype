@@ -526,6 +526,9 @@ that no psychiatry journals or articles were missed.
 - Choose one-hour coverage slots.
 - Approve an individual slot, a day, or the next seven days.
 - Develop source-grounded meeting packages.
+- ASH-style and other Meeting Watch reviews are trial-atomic: every host turn and card for one trial stays consecutive, no music transition is inserted inside that trial, and a prepared package that leaves and later returns to the same trial is rejected before rendering. If the remaining frame cannot fit the entire next trial conversation, none of that trial is admitted.
+- Every newly rendered program reserves two seconds before its first narration. The renderer preserves the fixed program length by borrowing those two seconds from a later music block, never from speech, and fails closed if that is impossible. Measured voice clips are checked for timeline overlap before FFmpeg runs.
+- TTS reads `Jul` as `July` and `Aug` as `August`. Other abbreviations are expanded only when their full form is explicitly present in the reviewed source context; unknown abbreviations are not guessed.
 
 ### Weekly Source Cards
 

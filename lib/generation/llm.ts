@@ -152,7 +152,7 @@ export async function generateCardsFromSource({
       role: "user",
       content: `Create exactly ${cardCount} distinct spoken cards for a ConferenceHype Meeting Watch broadcast on ${meetingLabel}, all from this single source article. Each card is fresh, source-attributed spoken copy of about 70-85 words, covering a genuinely different fact from the source (e.g. one on trial design/population, one on the primary efficacy result with real numbers, one on safety or clinical implication) -- never repeat the same fact across two cards. Use only facts stated in the source below. Do not invent numbers, quotes, investigator names, or clinical significance not present in the source. Do not give medical advice. Do not copy long phrases verbatim from the source -- rewrite in new sentence structure for spoken narration.
 
-Every card's title must start with the trial/drug/study name from the source title (e.g. "BRUIN CLL-313: Primary Efficacy Result", "MajesTEC-3: Safety Outcomes") -- never a bare generic title like "Efficacy Results" or "Trial Design and Population" with no name attached. This is a hard requirement: when this broadcast's real cards get chaptered into the YouTube description with timestamps, a title-less card is indistinguishable from every other card's "Efficacy Results" chapter in the same video.
+Keep all cards about the same trial consecutive and complete that trial's design, results, safety, and interpretation before moving to another trial. Never mix two trials in one card and never return to an earlier trial after starting a new one. When the source states the full form of an abbreviation, introduce that full form before using the abbreviation; never infer an expansion that is absent from the source. Every card's title must start with the trial/drug/study name from the source title (e.g. "BRUIN CLL-313: Primary Efficacy Result", "MajesTEC-3: Safety Outcomes") -- never a bare generic title like "Efficacy Results" or "Trial Design and Population" with no name attached. This is a hard requirement: when this broadcast's real cards get chaptered into the YouTube description with timestamps, a title-less card is indistinguishable from every other card's "Efficacy Results" chapter in the same video.
 
 Return JSON: {"cards":[{"title":"...","script":"..."}]}
 
@@ -190,7 +190,7 @@ Facts: ${source.excerpt}`
       status: "pending_review" as const,
       citations: [{ label: `${source.sourceName}: ${source.title}`, url: source.url, sourceType: source.sourceType }],
       socialBuzzItems: [],
-      riskFlags: ["meeting_watch", "genuine_source_rewrite"],
+      riskFlags: ["meeting_watch", "genuine_source_rewrite", `meeting_trial:${(card.title?.split(":", 1)[0] || source.title).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80)}`],
       confidenceScore: 88,
       createdAt: new Date().toISOString()
     };

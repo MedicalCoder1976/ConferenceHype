@@ -1,5 +1,4 @@
 import {
-  JOURNAL_CARDS_PER_GROUP,
   JOURNAL_DISCLAIMER_EVERY_N_GROUPS,
   JOURNAL_DISCLAIMER_SECONDS,
   JOURNAL_MUSIC_SECONDS,
@@ -12,6 +11,35 @@ import type { BroadcastSlot } from "@/lib/rundown/slots";
 import type { Persona, Segment } from "@/lib/types";
 
 export const MEETING_WATCH_CONTENT_SECONDS = 75;
+
+function trialConversationKey(segment: Segment) {
+  const explicit = segment.riskFlags.find((flag) => flag.startsWith("meeting_trial:"));
+  if (explicit) return explicit;
+  const titlePrefix = segment.title.split(":", 1)[0]?.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return titlePrefix ? `meeting_trial:${titlePrefix}` : `meeting_source:${segment.citations[0]?.url ?? segment.id}`;
+}
+
+export function groupMeetingWatchSegmentsByTrial(segments: Segment[]) {
+  const groups = new Map<string, Segment[]>();
+  for (const segment of segments) {
+    const key = trialConversationKey(segment);
+    const group = groups.get(key) ?? [];
+    group.push(segment);
+    groups.set(key, group);
+  }
+  return [...groups.values()].flat();
+}
+
+function meetingWatchTrialGroups(segments: Segment[]) {
+  const ordered = groupMeetingWatchSegmentsByTrial(segments);
+  const groups: Segment[][] = [];
+  for (const segment of ordered) {
+    const previous = groups.at(-1);
+    if (!previous || trialConversationKey(previous[0]) !== trialConversationKey(segment)) groups.push([segment]);
+    else previous.push(segment);
+  }
+  return groups;
+}
 
 function addSeconds(date: Date, seconds: number) {
   return new Date(date.getTime() + seconds * 1000);
@@ -87,6 +115,7 @@ export function buildMeetingWatchSlots({
   const persona = personaForJournalShow(baseTime, `meeting-watch-${meetingWatchBroadcastId}`);
   const slots: BroadcastSlot[] = [];
   const prepared = eligible.length > 0 && eligible.every((segment) => segment.riskFlags.includes("prepared_narrative"));
+  const conversationGroups = prepared ? [] : meetingWatchTrialGroups(eligible);
   if (prepared) {
     const ordered = [...eligible].sort((left, right) => {
       const sequence = (segment: Segment) => Number(segment.riskFlags.find((flag) => flag.startsWith("prepared_sequence:"))?.split(":")[1] ?? 0);
@@ -109,7 +138,7 @@ export function buildMeetingWatchSlots({
   }
   let at = baseTime;
   let contentIndex = 0;
-  let groupIndex = 0;
+
   // Reserve the outro's time up front instead of relying on the caller's
   // outer time filter to happen to leave room for it. That filter operates
   // on these *nominal* per-slot durations (real Kokoro durations are only
@@ -120,10 +149,12 @@ export function buildMeetingWatchSlots({
   // a dry run once the content-signature dedup bug above was fixed and 23
   // real cards started actually filling the schedule.
   const contentDeadline = addSeconds(baseTime, showSeconds - JOURNAL_OUTRO_SECONDS);
-  for (let cursor = 0; cursor < eligible.length && at < contentDeadline; groupIndex += 1) {
-    for (let inGroup = 0; inGroup < JOURNAL_CARDS_PER_GROUP && cursor < eligible.length; inGroup += 1) {
-      const segment = withAssignedVoice(eligible[cursor], persona, contentIndex, contentIndex === 0, at, false);
-      cursor += 1;
+  for (const [groupIndex, conversation] of conversationGroups.entries()) {
+    const addDisclaimer = (groupIndex + 1) % JOURNAL_DISCLAIMER_EVERY_N_GROUPS === 0;
+    const requiredSeconds = conversation.length * MEETING_WATCH_CONTENT_SECONDS + JOURNAL_MUSIC_SECONDS + (addDisclaimer ? JOURNAL_DISCLAIMER_SECONDS : 0);
+    if (addSeconds(at, requiredSeconds) > contentDeadline) break;
+    for (const sourceSegment of conversation) {
+      const segment = withAssignedVoice(sourceSegment, persona, contentIndex, contentIndex === 0, at, false);
       slots.push({
         at,
         kind: "statement",
@@ -145,7 +176,7 @@ export function buildMeetingWatchSlots({
       replaceable: false
     });
     at = addSeconds(at, JOURNAL_MUSIC_SECONDS);
-    if ((groupIndex + 1) % JOURNAL_DISCLAIMER_EVERY_N_GROUPS === 0) {
+    if (addDisclaimer) {
       const disclaimer = syntheticSegment({
         id: "meeting-watch-disclaimer",
         title: "Important ConferenceHype notice",
