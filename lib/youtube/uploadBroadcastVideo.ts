@@ -151,6 +151,7 @@ export type YoutubeThumbnailSpec = {
   journalCount?: number;
   panelLabel?: string;
   seriesLabel?: string;
+  detailLabel?: string;
   promiseLabel?: string;
   variant?: "thumbnail" | "persistent-frame";
   siteUrl?: string;
@@ -166,6 +167,7 @@ export async function downloadYoutubeThumbnail({
   journalCount,
   panelLabel,
   seriesLabel,
+  detailLabel,
   promiseLabel,
   variant,
   siteUrl
@@ -179,6 +181,7 @@ export async function downloadYoutubeThumbnail({
   if (journalCount) params.set("journalCount", String(journalCount));
   if (panelLabel) params.set("panelLabel", panelLabel);
   if (seriesLabel) params.set("seriesLabel", seriesLabel);
+  if (detailLabel) params.set("detailLabel", detailLabel);
   if (promiseLabel) params.set("promiseLabel", promiseLabel);
   if (variant) params.set("variant", variant);
   const thumbnailResponse = await fetch(`${resolvedSiteUrl}/api/youtube-thumbnail?${params.toString()}`);

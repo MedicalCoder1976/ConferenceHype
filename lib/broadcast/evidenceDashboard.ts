@@ -9,6 +9,8 @@ type EvidenceDashboardInput = {
   index: number;
   total: number;
   isOpening?: boolean;
+  seriesHeadline?: string;
+  featureLabel?: string;
 };
 
 const COLORS = {
@@ -98,6 +100,8 @@ export function buildEvidenceDashboardSvg(input: EvidenceDashboardInput) {
   const methods = section(body, "Methods", ["Results", "Discussion"]);
   const focus = results || discussion || methods || firstSentences(body, 2) || "Continue listening for the evidence and clinical context.";
   const progress = Math.max(0, Math.min(1, input.total > 0 ? (input.index + 1) / input.total : 0));
+  const seriesHeadline = clean(input.seriesHeadline);
+  const featureLabel = clean(input.featureLabel) || source || title;
 
   if (input.isMusic) {
     const comingNext = clean(input.nextTitle);
@@ -124,15 +128,21 @@ export function buildEvidenceDashboardSvg(input: EvidenceDashboardInput) {
     <style>
       .eyebrow{font:800 17px Arial,sans-serif;letter-spacing:1.8px;fill:${COLORS.gold}}
       .title{font:900 38px Arial,sans-serif;fill:${COLORS.paper}}
+      .series{font:900 42px Arial,sans-serif;fill:${COLORS.paper}}
+      .feature{font:850 27px Arial,sans-serif;fill:${COLORS.gold}}
       .finding{font:650 28px Arial,sans-serif;fill:${COLORS.paper}}
       .source{font:600 17px Arial,sans-serif;fill:${COLORS.muted}}
     </style>
     <rect width="1280" height="720" fill="${COLORS.ink}"/>
     <rect x="74" y="130" width="1132" height="420" rx="24" fill="${COLORS.panel}" stroke="${COLORS.cyan}" stroke-opacity=".25" stroke-width="2"/>
     <rect x="74" y="130" width="9" height="420" rx="4.5" fill="${COLORS.broadcast}"/>
-    <text x="118" y="184" class="eyebrow">${input.isOpening ? "ARTICLE REVIEW" : "EVIDENCE"}</text>
-    ${repeatedTitle ? "" : textBlock(wrap(title, 50, 2), 118, 242, 46, "title")}
-    ${textBlock(wrap(focus, 68, 4), 118, repeatedTitle ? 292 : 365, 40, "finding")}
+    <text x="118" y="184" class="eyebrow">${seriesHeadline ? "PHYSICIAN EDUCATION" : input.isOpening ? "ARTICLE REVIEW" : "EVIDENCE"}</text>
+    ${seriesHeadline
+      ? `${textBlock(wrap(seriesHeadline, 49, 2), 118, 242, 48, "series")}
+         ${textBlock(wrap(featureLabel, 63, 2), 118, 350, 34, "feature")}
+         ${textBlock(wrap(focus, 72, 3), 118, 442, 36, "finding")}`
+      : `${repeatedTitle ? "" : textBlock(wrap(title, 50, 2), 118, 242, 46, "title")}
+         ${textBlock(wrap(focus, 68, 4), 118, repeatedTitle ? 292 : 365, 40, "finding")}`}
     ${input.isOpening && source ? `<text x="118" y="518" class="source">${escapeXml(truncate(source, 112))}</text>` : ""}
     <rect x="74" y="578" width="1132" height="5" rx="2.5" fill="#313b4b"/>
     <rect x="74" y="578" width="${Math.round(1132 * progress)}" height="5" rx="2.5" fill="${COLORS.broadcast}"/>

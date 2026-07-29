@@ -1003,7 +1003,10 @@ assert.match(renderHourSource, /Uploaded \$\{youtubeUrl\}, public immediately/);
 assert.match(renderHourSource, /useFullLengthMusicPadding/);
 assert.match(renderHourSource, /OPERATOR_MUSIC_TRACKS\[musicIndex % OPERATOR_MUSIC_TRACKS\.length\]/);
 assert.match(renderHourSource, /buildBroadcastMetadata\(\{/);
-assert.match(renderHourSource, /headline: actualMetadata\?\.thumbnailHeadline \?\? title/);
+assert.match(renderHourSource, /headline: isJournalMode \|\| isWeekendMode/);
+assert.match(renderHourSource, /Physician Education: Listen to One New Journal Everyday/);
+assert.match(renderHourSource, /detailLabel: isJournalMode \|\| isWeekendMode/);
+assert.match(renderHourSource, /seriesHeadline: isJournalMode \|\| isWeekendMode/);
 assert.match(renderHourSource, /const OPENING_TITLE_SECONDS = 8/);
 assert.match(renderHourSource, /const PERSISTENT_BRANDING_START_DATE = "2026-07-28"/);
 assert.match(renderHourSource, /burnOpeningThumbnailIntoVideo/);
@@ -1030,6 +1033,20 @@ assert.match(evidenceDashboardSvg, /EVIDENCE/);
 assert.match(evidenceDashboardSvg, /Progression-free survival improved/);
 assert.doesNotMatch(evidenceDashboardSvg, /KEY FINDING|STUDY SNAPSHOT|WHY IT MATTERS/);
 assert.doesNotMatch(evidenceDashboardSvg, /Journal of Clinical Oncology/);
+const journalEducationSvg = buildEvidenceDashboardSvg({
+  title: "EMERALD-3 randomized trial",
+  text: "Results: Progression-free survival improved.",
+  sourceLabel: "Journal of Clinical Oncology - July 2026",
+  contentType: "abstract_buzz",
+  isMusic: false,
+  index: 2,
+  total: 12,
+  seriesHeadline: "Physician Education: Listen to One New Journal Everyday",
+  featureLabel: "EMERALD-3 randomized trial"
+});
+assert.match(journalEducationSvg, /Physician Education: Listen to One New Journal/);
+assert.match(journalEducationSvg, />Everyday</);
+assert.match(journalEducationSvg, /EMERALD-3 randomized trial/);
 const evidenceOpeningSvg = buildEvidenceDashboardSvg({
   title: "TumorCrusher / Media Watch EMERALD-3 randomized trial",
   text: "Results: Progression-free survival improved.",
@@ -1068,6 +1085,7 @@ assert.match(thumbnailRouteSource, /FEATURED JOURNALS/);
 assert.match(thumbnailRouteSource, /SOURCE-GROUNDED/);
 assert.match(thumbnailRouteSource, /remainingJournalCount/);
 assert.match(thumbnailRouteSource, /seriesLabel/);
+assert.match(thumbnailRouteSource, /detailLabel/);
 assert.match(thumbnailRouteSource, /persistent-frame/);
 assert.match(thumbnailRouteSource, /promiseLabel/);
 const stationMetadataSource = readFileSync(path.join(process.cwd(), "scripts", "refresh-station-video-metadata.ts"), "utf8");

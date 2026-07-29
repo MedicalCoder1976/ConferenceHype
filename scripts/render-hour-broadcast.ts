@@ -1482,7 +1482,9 @@ async function uploadRenderedBroadcast(
     journalName: actualMetadata?.journalName,
     specialty: actualMetadata?.specialty,
     dateLabel: actualMetadata?.dateLabel ?? fallbackLabel,
-    headline: actualMetadata?.thumbnailHeadline ?? title,
+    headline: isJournalMode || isWeekendMode
+      ? "Physician Education: Listen to One New Journal Everyday"
+      : actualMetadata?.thumbnailHeadline ?? title,
     journalNames: isBreakingMode ? [] : actualMetadata?.thumbnailJournalNames,
     journalCount: isBreakingMode ? 0 : actualMetadata?.thumbnailJournalCount,
     panelLabel: isBreakingMode
@@ -1490,14 +1492,12 @@ async function uploadRenderedBroadcast(
       : isMeetingWatchMode
         ? `${(actualMetadata?.specialty ?? "MEETING").toUpperCase()} HIGHLIGHTS`
         : undefined,
-    seriesLabel: isJournalMode
-      ? "BECOME A SMARTER EVIDENCE-BASED MEDICINE DOCTOR SERIES"
+    detailLabel: isJournalMode || isWeekendMode
+      ? actualMetadata?.studyNames[0] ?? actualMetadata?.thumbnailJournalNames?.join(" | ") ?? actualMetadata?.journalName
       : undefined,
-    promiseLabel: isJournalMode
-      ? "A NEW JOURNAL SUMMARY EVERYDAY"
-      : isWeekendMode
-        ? "WEEKLY MEDICAL JOURNAL ROUNDUP"
-        : isMeetingWatchMode
+    promiseLabel: isJournalMode || isWeekendMode
+      ? "SOURCE-GROUNDED JOURNAL REVIEW"
+      : isMeetingWatchMode
           ? "NEW CONFERENCE HIGHLIGHTS"
           : isBreakingMode
             ? "BREAKING MEDICAL RESEARCH"
@@ -2047,7 +2047,13 @@ async function main() {
       nextTitle: nextContentCard?.title,
       index,
       total: cards.length,
-      isOpening: cards[index].riskFlags?.includes("prepared_opening")
+      isOpening: cards[index].riskFlags?.includes("prepared_opening"),
+      seriesHeadline: isJournalMode || isWeekendMode
+        ? "Physician Education: Listen to One New Journal Everyday"
+        : undefined,
+      featureLabel: isJournalMode || isWeekendMode
+        ? cards[index].sourceLabel ?? cards[index].title
+        : undefined
     });
     await sharp(Buffer.from(evidenceDashboard)).png().toFile(imagePath);
     const concatPath = path.resolve(imagePath).replace(/\\/g, "/");

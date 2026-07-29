@@ -44,6 +44,7 @@ export async function GET(request: NextRequest) {
         : "MEDICAL RESEARCH";
   const suppliedHeadline = params.get("headline");
   const seriesLabel = params.get("seriesLabel") ? truncate(params.get("seriesLabel")!, 72) : undefined;
+  const detailLabel = params.get("detailLabel") ? truncate(params.get("detailLabel")!, 96) : undefined;
   const promiseLabel = params.get("promiseLabel") ? truncate(params.get("promiseLabel")!, 48) : undefined;
   const isPersistentFrame = params.get("variant") === "persistent-frame";
   const headline = suppliedHeadline
@@ -84,8 +85,9 @@ export async function GET(request: NextRequest) {
             {specialty ? <div style={{ display: "flex", marginLeft: 15, color: COLORS.cyan, fontSize: 26, fontWeight: 700 }}>{specialty}</div> : null}
           </div>
           {seriesLabel ? <div style={{ display: "flex", marginBottom: 18, color: COLORS.gold, fontSize: 30, fontWeight: 900, lineHeight: 1.05, letterSpacing: 0.6, maxWidth: 820 }}>{seriesLabel}</div> : null}
-          <div style={{ display: "flex", fontSize: suppliedHeadline ? (seriesLabel ? 49 : 58) : 68, fontWeight: 850, lineHeight: 1.07, maxWidth: 820 }}>{headline}</div>
-          {context ? <div style={{ display: "flex", marginTop: seriesLabel ? 18 : 27, color: COLORS.gold, fontSize: 28, fontWeight: 650 }}>{context}</div> : null}
+          <div style={{ display: "flex", fontSize: detailLabel ? 54 : suppliedHeadline ? (seriesLabel ? 49 : 58) : 68, fontWeight: 900, lineHeight: 1.04, maxWidth: 820 }}>{headline}</div>
+          {detailLabel ? <div style={{ display: "flex", marginTop: 22, color: COLORS.gold, fontSize: 32, fontWeight: 850, lineHeight: 1.08, maxWidth: 820 }}>{detailLabel}</div> : null}
+          {!detailLabel && context ? <div style={{ display: "flex", marginTop: seriesLabel ? 18 : 27, color: COLORS.gold, fontSize: 28, fontWeight: 650 }}>{context}</div> : null}
           {date ? <div style={{ display: "flex", marginTop: 18, color: "#aeb8ca", fontSize: 24, fontWeight: 500 }}>{date}</div> : null}
         </div>
         <div style={{ display: "flex", width: "28%", backgroundColor: COLORS.panel, padding: "52px 34px 48px", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
