@@ -528,7 +528,8 @@ that no psychiatry journals or articles were missed.
 - Develop source-grounded meeting packages.
 - ASH-style and other Meeting Watch reviews are trial-atomic: every host turn and card for one trial stays consecutive, and no music transition or disclaimer is inserted inside that trial. If a pasted prepared package leaves and later returns to a trial, preview automatically groups that trial together, renumbers its cards, and moves its transition/disclaimer to the completed trial boundary; the preview explicitly reports the correction for operator review. If the remaining frame cannot fit the entire next trial conversation, none of that trial is admitted.
 - Every newly rendered program reserves two seconds before its first narration. The renderer preserves the fixed program length by borrowing those two seconds from a later music block, never from speech, and fails closed if that is impossible. Measured voice clips are checked for timeline overlap before FFmpeg runs.
-- TTS reads `Jul` as `July` and `Aug` as `August`. Other abbreviations are expanded only when their full form is explicitly present in the reviewed source context; unknown abbreviations are not guessed.
+- TTS reads `Jul` as `July` and `Aug` as `August`. Other abbreviations are expanded only when their full form is explicitly present in the reviewed source context; unknown abbreviations are not guessed. Definition extraction is bounded and performed once per trial/source, then reused by every turn; the 75-turn performance guard must remain under one second.
+- Meeting Watch render jobs have a 90-minute safety budget, cache Kokoro/Hugging Face/voice artifacts, and emit database-backed heartbeats at pronunciation, voice synthesis, encoding, and upload boundaries. A separate cleanup job marks cancelled or timed-out renders failed, and the scheduled poll expires any two-hour stale rendering lease before selecting new work.
 
 ### Weekly Source Cards
 

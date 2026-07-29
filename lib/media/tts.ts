@@ -54,12 +54,13 @@ function escapeRegExp(value: string) {
   return value.replace(/[\^$.*+?()[\]{}|]/g, "\\$&");
 }
 
-function definedAbbreviations(context: string) {
+export function extractSpokenAbbreviationDefinitions(context: string) {
   const definitions = new Map<string, string>();
-  const preceding = /((?:[A-Za-z][A-Za-z0-9-]*[ ,;:]*){2,10})\(([A-Z][A-Z0-9-]{1,9})\)/g;
+  const preceding = /\(([A-Z][A-Z0-9-]{1,9})\)/g;
   for (const match of context.matchAll(preceding)) {
-    const abbreviation = match[2];
-    const words = match[1].trim().replace(/[,:;]+$/, "").split(/\s+/);
+    const abbreviation = match[1];
+    const prefix = context.slice(Math.max(0, (match.index ?? 0) - 160), match.index);
+    const words = prefix.trim().replace(/[,:;]+$/, "").split(/\s+/);
     for (let length = 2; length <= Math.min(10, words.length); length += 1) {
       const phrase = words.slice(-length).join(" ");
       if (phraseInitials(phrase) === acronymLetters(abbreviation)) {
@@ -68,16 +69,16 @@ function definedAbbreviations(context: string) {
       }
     }
   }
-  const following = /\b([A-Z][A-Z0-9-]{1,9})\s*\(([A-Za-z][A-Za-z0-9-]*(?:\s+[A-Za-z][A-Za-z0-9-]*){1,9})\)/g;
+  const following = /\b([A-Z][A-Z0-9-]{1,9})\s*\(([^()\r\n]{3,120})\)/g;
   for (const match of context.matchAll(following)) {
     if (phraseInitials(match[2]) === acronymLetters(match[1])) definitions.set(match[1], match[2]);
   }
   return definitions;
 }
 
-function expandDefinedAbbreviations(script: string, context: string) {
+function expandDefinedAbbreviations(script: string, definitions: ReadonlyMap<string, string>) {
   let output = script;
-  for (const [abbreviation, fullForm] of definedAbbreviations(context)) {
+  for (const [abbreviation, fullForm] of definitions) {
     const escapedAbbreviation = escapeRegExp(abbreviation);
     const escapedFullForm = escapeRegExp(fullForm);
     output = output
@@ -87,7 +88,6 @@ function expandDefinedAbbreviations(script: string, context: string) {
   }
   return output;
 }
-
 // PubMed/NLM structured-abstract labels (Background, Methods, Results...)
 // arrive ALL CAPS straight from the source XML's `Label` attribute
 // (see abstractParts in lib/sources/pubmed.ts). Kokoro's G2P treats
@@ -98,8 +98,9 @@ function expandDefinedAbbreviations(script: string, context: string) {
 const STRUCTURED_ABSTRACT_LABELS =
   /\b(BACKGROUND|OBJECTIVES?|PURPOSE|IMPORTANCE|INTRODUCTION|METHODS?|DESIGN|SETTING|PARTICIPANTS|INTERVENTIONS?|RESULTS|FINDINGS|DISCUSSION|CONCLUSIONS?|LIMITATIONS|MEASURES|OUTCOMES?|PATIENTS|REGISTRATION)\b/g;
 
-export function applySpokenPronunciations(script: string, sourceContext = script) {
-  return expandRomanNumerals(expandDefinedAbbreviations(script, sourceContext))
+export function applySpokenPronunciations(script: string, sourceContext: string | ReadonlyMap<string, string> = script) {
+  const definitions = typeof sourceContext === "string" ? extractSpokenAbbreviationDefinitions(sourceContext) : sourceContext;
+  return expandRomanNumerals(expandDefinedAbbreviations(script, definitions))
     .replace(/\bJul\.?\b/gi, "July")
     .replace(/\bAug\.?\b/gi, "August")
     .replace(STRUCTURED_ABSTRACT_LABELS, (word) => word.charAt(0) + word.slice(1).toLowerCase())

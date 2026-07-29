@@ -350,22 +350,22 @@ function reserveOpeningNarrationDelay(cards: Card[], cardCacheKeys: (string | un
   return { cardIndex: firstVoiceIndex, delayMs: delaySeconds * 1000 };
 }
 
-function narrationSourceContext(cards: Card[], index: number) {
-  const card = cards[index];
+function narrationGroupKey(card: Card, index: number) {
   const preparedStudy = card.riskFlags?.find((flag) => flag.startsWith("prepared_study:"));
   const preparedCard = card.riskFlags?.find((flag) => flag.startsWith("prepared_card:"));
-  const groupKey = preparedStudy ?? preparedCard ?? (card.sourceUrl ? `source:${card.sourceUrl}` : `segment:${card.segmentId ?? index}`);
-  return cards
-    .filter((candidate, candidateIndex) => {
-      const candidateStudy = candidate.riskFlags?.find((flag) => flag.startsWith("prepared_study:"));
-      const candidatePrepared = candidate.riskFlags?.find((flag) => flag.startsWith("prepared_card:"));
-      const candidateKey = candidateStudy ?? candidatePrepared ?? (candidate.sourceUrl ? `source:${candidate.sourceUrl}` : `segment:${candidate.segmentId ?? candidateIndex}`);
-      return candidateKey === groupKey;
-    })
-    .map((candidate) => `${candidate.title ?? ""} ${candidate.text} ${candidate.script ?? ""}`)
-    .join(" ");
+  return preparedStudy ?? preparedCard ?? (card.sourceUrl ? `source:${card.sourceUrl}` : `segment:${card.segmentId ?? index}`);
 }
 
+function buildNarrationSourceContexts(cards: Card[]) {
+  const contexts = new Map<string, string[]>();
+  cards.forEach((card, index) => {
+    const key = narrationGroupKey(card, index);
+    const entries = contexts.get(key) ?? [];
+    entries.push(`${card.title ?? ""} ${card.text} ${card.script ?? ""}`);
+    contexts.set(key, entries);
+  });
+  return new Map([...contexts].map(([key, entries]) => [key, entries.join(" ")]));
+}
 function nextGapClipPath(index: number) {
   return GAP_CLIP_PATHS[index % GAP_CLIP_PATHS.length];
 }
@@ -1644,13 +1644,21 @@ async function uploadRenderedBroadcast(
   }
 }
 
+async function reportMeetingWatchPhase(phase: string) {
+  console.log(`[render-phase] ${phase}`);
+  const id = process.env.MEETING_WATCH_BROADCAST_ID;
+  if (!id) return;
+  const { heartbeatMeetingWatchRenderInDb } = await import("@/lib/meetingWatch/db");
+  await heartbeatMeetingWatchRenderInDb(id, phase).catch((error) => console.warn(`Meeting Watch heartbeat failed during ${phase}: ${describeError(error)}`));
+}
+
 async function main() {
   const ffmpeg = process.env.FFMPEG_PATH ?? ffmpegPath ?? "ffmpeg";
   const useBlockMode = process.env.HOUR_BROADCAST_MODE === "blocks";
   const isJournalMode = process.env.HOUR_BROADCAST_MODE === "journal30";
   const isWeekendMode = process.env.HOUR_BROADCAST_MODE === "weekend30";
   const isMeetingWatchMode = process.env.HOUR_BROADCAST_MODE === "meeting_watch30";
-  const { applySpokenPronunciations } = await import("@/lib/media/tts");
+  const { applySpokenPronunciations, extractSpokenAbbreviationDefinitions } = await import("@/lib/media/tts");
   const { getPersona } = await import("@/lib/generation/personas");
   const isBreakingMode = process.env.HOUR_BROADCAST_MODE === "breaking15";
   const broadcastMode = isBreakingMode ? "breaking15" : isWeekendMode ? "weekend30" : isJournalMode ? "journal30" : isMeetingWatchMode ? "meeting_watch30" : "presentation";
@@ -1796,6 +1804,8 @@ async function main() {
   await mkdir(renderDir, { recursive: true });
   await mkdir(path.dirname(outputPath), { recursive: true });
 
+  await reportMeetingWatchPhase("pronunciation-preprocessing");
+
   // Per-card Kokoro TTS with file caching — batch synthesis (model loaded
   // once). This now runs BEFORE slide generation and the offset/timeline
   // pass below (previously it ran after both): scheduling every card's
@@ -1819,6 +1829,8 @@ async function main() {
   // Synthesis itself is deduplicated by cacheKey below, but every occurrence
   // still needs its own scheduled slot, hence tracking this per card position.
   const cardCacheKeys: (string | undefined)[] = cards.map(() => undefined);
+  const narrationContexts = buildNarrationSourceContexts(cards);
+  const pronunciationDefinitions = new Map([...narrationContexts].map(([key, context]) => [key, extractSpokenAbbreviationDefinitions(context)]));
 
   for (let index = 0; index < cards.length; index += 1) {
     const card = cards[index];
@@ -1830,7 +1842,7 @@ async function main() {
     if (!voiceName) {
       continue;
     }
-    const processedScript = applySpokenPronunciations(card.script, narrationSourceContext(cards, index));
+    const processedScript = applySpokenPronunciations(card.script, pronunciationDefinitions.get(narrationGroupKey(card, index)) ?? new Map());
     // replaceEmptyContentCardsWithMusic already screened out cards whose RAW
     // script is empty, but applySpokenPronunciations (stripping URLs,
     // bracketed citations, and internal operator-language sentences) can
@@ -1879,6 +1891,7 @@ async function main() {
         : ["python3"];
 
     try {
+      await reportMeetingWatchPhase("voice-synthesis");
       console.log(`Synthesizing ${tasks.length} uncached voice card(s) via Kokoro batch...`);
       await run(pyCmd, [...pyPrefix, pyScript, "--mode", "batch", "--batch-file", batchJsonPath]);
     } catch (err) {
@@ -2248,7 +2261,9 @@ async function main() {
       2
     )
   );
+  await reportMeetingWatchPhase("video-encoding");
   await run(ffmpeg, args);
+  await reportMeetingWatchPhase("youtube-upload");
 
   await uploadRenderedBroadcast(cards, usedSegmentIds, broadcastMode);
 }

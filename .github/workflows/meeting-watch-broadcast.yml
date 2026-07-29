@@ -25,13 +25,24 @@ on:
 jobs:
   broadcast:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
+    outputs:
+      broadcast_id: ${{ steps.resolve.outputs.broadcast_id }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.cache/huggingface
+            public/rendered/hour-broadcast/voice-cache
+          key: ${{ runner.os }}-meeting-watch-render-${{ hashFiles('package-lock.json', 'scripts/generate-kokoro-dj-voice.py') }}-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-meeting-watch-render-${{ hashFiles('package-lock.json', 'scripts/generate-kokoro-dj-voice.py') }}-
       - run: npm ci
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
@@ -46,6 +57,16 @@ jobs:
               --data-urlencode "select=id,starts_at,title,description,duration_seconds" \
               --data-urlencode "id=eq.${{ inputs.meeting_watch_broadcast_id }}" | jq -c '.[0] // {}')
           else
+            # Recover abandoned renders. A timed-out runner cannot update its
+            # own row, so any rendering lease with no heartbeat for two hours
+            # is failed before the next due-broadcast poll.
+            STALE_BEFORE=$(date -u -d "-2 hours" +"%Y-%m-%dT%H:%M:%SZ")
+            curl --fail --silent --show-error -X PATCH \
+              "${NEXT_PUBLIC_SUPABASE_URL}/rest/v1/meeting_watch_broadcasts?status=eq.rendering&updated_at=lt.${STALE_BEFORE}" \
+              -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+              -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+              -H "Content-Type: application/json" \
+              -d '{"status":"failed","failure_reason":"Render heartbeat expired before YouTube upload completed."}'
             # Wide lookback deliberately: the schedule trigger above is not
             # reliably hourly in practice (see comment there), so a narrow
             # window here would silently miss a broadcast whenever GitHub
@@ -168,7 +189,7 @@ jobs:
           VOICE_VESPER_QUILL: ${{ secrets.VOICE_VESPER_QUILL }}
 
       - name: Record failed Meeting Watch delivery
-        if: ${{ always() && steps.resolve.outputs.broadcast_id != '' && job.status == 'failure' && steps.render.outputs.no_content_failure_recorded != 'true' }}
+        if: ${{ failure() && steps.resolve.outputs.broadcast_id != '' && steps.render.outputs.no_content_failure_recorded != 'true' }}
         run: |
           curl --fail --silent --show-error \
             -X PATCH "${NEXT_PUBLIC_SUPABASE_URL}/rest/v1/meeting_watch_broadcasts?id=eq.${BROADCAST_ID}" \
@@ -180,3 +201,21 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           BROADCAST_ID: ${{ steps.resolve.outputs.broadcast_id }}
+  cleanup:
+    needs: broadcast
+    if: ${{ always() && needs.broadcast.result != 'success' && needs.broadcast.outputs.broadcast_id != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Record cancelled or timed-out Meeting Watch delivery
+        run: |
+          curl --fail --silent --show-error \
+            -X PATCH "${NEXT_PUBLIC_SUPABASE_URL}/rest/v1/meeting_watch_broadcasts?id=eq.${BROADCAST_ID}" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Content-Type: application/json" \
+            -d '{"status":"failed","failure_reason":"GitHub Actions was cancelled or timed out before the YouTube upload completed. Open the workflow run for the last completed render phase."}'
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          BROADCAST_ID: ${{ needs.broadcast.outputs.broadcast_id }}

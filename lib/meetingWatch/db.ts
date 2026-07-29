@@ -147,6 +147,16 @@ export async function createMeetingWatchBroadcastInDb(input: {
   return toBroadcast(data as Row);
 }
 
+export async function heartbeatMeetingWatchRenderInDb(id: string, phase: string) {
+  if (!hasSupabase()) return;
+  const { error } = await createAdminClient()
+    .from("meeting_watch_broadcasts")
+    .update({ updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("status", "rendering");
+  if (error) throw error;
+  console.log(`[meeting-watch-phase] ${phase}`);
+}
 export async function updateMeetingWatchBroadcastDeliveryInDb(
   id: string,
   patch: {

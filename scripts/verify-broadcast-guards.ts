@@ -5,7 +5,7 @@ import { sanitizeBroadcastCopy } from "@/lib/broadcast/sanitizeCopy";
 import { formatVoiceSegment, SEGMENT_CLOSE } from "@/lib/broadcast/voiceSegment";
 import { buildBroadcastSlots, buildJournalShowSlots } from "@/lib/rundown/slots";
 import { assertSearchOptimizedBroadcastMetadata, buildBroadcastMetadata, extractExplicitStudyName, extractExplicitStudyNames } from "@/lib/youtube/broadcastMetadata";
-import { applySpokenPronunciations } from "@/lib/media/tts";
+import { applySpokenPronunciations, extractSpokenAbbreviationDefinitions } from "@/lib/media/tts";
 import { groupMeetingWatchSegmentsByTrial } from "@/lib/rundown/meetingWatchSlots";
 import { parsePreparedNarrative, preparedNarrativeSegments } from "@/lib/meetingWatch/preparedNarrative";
 import { getUnsafeGeneratedSourceErrors } from "@/lib/generation/sourceSafety";
@@ -96,6 +96,15 @@ assert.equal(
   "progression-free survival was reported in July and updated in August."
 );
 assert.equal(applySpokenPronunciations("PFS was reported.", "The source does not define it."), "PFS was reported.");
+{
+  const largeContext = Array.from({ length: 75 }, (_, index) => `Card ${index + 1}: progression-free survival (PFS) was assessed in Jul.`).join(" ");
+  const started = performance.now();
+  const definitions = extractSpokenAbbreviationDefinitions(largeContext);
+  for (let index = 0; index < 75; index += 1) applySpokenPronunciations(`PFS update ${index + 1} in Aug.`, definitions);
+  const elapsedMs = performance.now() - started;
+  assert.ok(elapsedMs < 1_000, `Pronunciation preprocessing took ${elapsedMs.toFixed(1)}ms for 75 turns.`);
+  assert.equal(definitions.get("PFS"), "progression-free survival");
+}
 
 // Bug fixed 2026-07-18 (PMID 40729623): a Results section whose own prose
 // naturally contains the word "discussion" (e.g. "...prognostic discussion
@@ -934,6 +943,15 @@ assert.match(broadcastRundownSource, /conferencehype:daily-coverage-selection/);
 assert.match(broadcastRundownSource, /filterSegmentsForSourceSelection/);
 
 
+const meetingWatchWorkflowSource = readFileSync(
+  path.join(process.cwd(), ".github", "workflows", "meeting-watch-broadcast.yml"),
+  "utf8"
+);
+assert.match(meetingWatchWorkflowSource, /timeout-minutes: 90/);
+assert.match(meetingWatchWorkflowSource, /actions\/cache@v4/);
+assert.match(meetingWatchWorkflowSource, /Render heartbeat expired before YouTube upload completed/);
+assert.match(meetingWatchWorkflowSource, /needs\.broadcast\.result != 'success'/);
+assert.match(meetingWatchWorkflowSource, /cancelled or timed-out Meeting Watch delivery/i);
 const renderHourSource = readFileSync(
   path.join(process.cwd(), "scripts", "render-hour-broadcast.ts"),
   "utf8"
@@ -943,7 +961,8 @@ assert.match(renderHourSource, /const NARRATION_START_DELAY_SECONDS = 2/);
 assert.match(renderHourSource, /reserveOpeningNarrationDelay/);
 assert.match(renderHourSource, /volume=0\.85,adelay=2000\|2000\[voice\]/);
 assert.match(renderHourSource, /Narration overlap detected/);
-assert.match(renderHourSource, /applySpokenPronunciations\(card\.script, narrationSourceContext\(cards, index\)\)/);
+assert.match(renderHourSource, /const pronunciationDefinitions = new Map/);
+assert.match(renderHourSource, /applySpokenPronunciations\(card\.script, pronunciationDefinitions\.get/);
 assert.match(renderHourSource, /Removed \$\{removedContentCards\} trailing content card/);
 assert.match(renderHourSource, /while \(remainingSeconds > 0\)/);
 assert.match(renderHourSource, /Math\.min\(OPERATOR_MUSIC_SECONDS, remainingSeconds\)/);
