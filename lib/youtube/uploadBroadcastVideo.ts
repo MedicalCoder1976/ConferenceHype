@@ -38,7 +38,8 @@ export async function uploadVideoToYoutube({
   title,
   description,
   tags,
-  categoryId
+  categoryId,
+  publishAt
 }: {
   filePath: string;
   accessToken: string;
@@ -46,7 +47,8 @@ export async function uploadVideoToYoutube({
   description: string;
   tags: string[];
   categoryId: string;
-}): Promise<{ id: string }> {
+  publishAt?: string;
+}): Promise<{ id: string; status?: { privacyStatus?: string; publishAt?: string } }> {
   const initResponse = await fetch(
     "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status",
     {
@@ -59,15 +61,10 @@ export async function uploadVideoToYoutube({
       body: JSON.stringify({
         snippet: { title, description, tags, categoryId },
         status: {
-          // Always public immediately on upload -- no more delayed-release
-          // scheduling. That added real complexity (a wall-clock "is this
-          // currently live" derivation, a stream_state singleton picking the
-          // wrong queued video when multiple slots were scheduled ahead of
-          // time) for a benefit that didn't hold up: render+upload already
-          // finishes close to the intended air time in the common
-          // cron-triggered case, so "public immediately" and "public at the
-          // scheduled time" rarely differed in practice.
-          privacyStatus: "public",
+          // Scheduled publishing is opt-in. All manual/admin uploads omit
+          // publishAt and retain their existing immediate-public behavior.
+          privacyStatus: publishAt ? "private" : "public",
+          ...(publishAt ? { publishAt } : {}),
           selfDeclaredMadeForKids: false,
           embeddable: true
         }
@@ -100,7 +97,11 @@ export async function uploadVideoToYoutube({
       `YouTube video upload failed: ${uploadResponse.status} ${await uploadResponse.text()}`
     );
   }
-  return (await uploadResponse.json()) as { id: string };
+  const uploaded = (await uploadResponse.json()) as { id: string; status?: { privacyStatus?: string; publishAt?: string } };
+  if (publishAt && (uploaded.status?.privacyStatus !== "private" || !uploaded.status.publishAt || new Date(uploaded.status.publishAt).getTime() !== new Date(publishAt).getTime())) {
+    throw new Error(`YouTube did not confirm scheduled publication for ${publishAt}.`);
+  }
+  return uploaded;
 }
 
 export async function updateYoutubeVideoMetadata({

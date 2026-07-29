@@ -1520,6 +1520,10 @@ async function uploadRenderedBroadcast(
   await assertMediaGenerated(outputPath);
 
   const accessToken = await getYoutubeAccessToken();
+  const requestedPublishAt = process.env.STATION_PROGRAM_ID ? process.env.YOUTUBE_PUBLISH_AT : undefined;
+  const youtubePublishAt = requestedPublishAt && new Date(requestedPublishAt).getTime() > Date.now() + 60_000
+    ? requestedPublishAt
+    : undefined;
   const uploaded = await withRetry(() =>
     uploadVideoToYoutube({
       filePath: outputPath,
@@ -1527,12 +1531,15 @@ async function uploadRenderedBroadcast(
       title,
       description,
       tags,
-      categoryId
+      categoryId,
+      publishAt: youtubePublishAt
     })
   );
   const youtubeVideoId = uploaded.id;
   const youtubeUrl = `https://www.youtube.com/watch?v=${youtubeVideoId}`;
-  console.log(`Uploaded ${youtubeUrl}, public immediately.`);
+  console.log(youtubePublishAt
+    ? `Uploaded ${youtubeUrl}, scheduled for ${youtubePublishAt}.`
+    : `Uploaded ${youtubeUrl}, public immediately.`);
 
   if (process.env.GITHUB_OUTPUT) {
     const { appendFile } = await import("node:fs/promises");

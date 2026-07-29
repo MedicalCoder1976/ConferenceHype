@@ -265,13 +265,19 @@ export async function activateStationScheduleInDb(scheduleId: string) {
     .eq("schedule_id", scheduleId);
   if (programError) throw programError;
   const rows = (programs ?? []) as ProgramRow[];
-  if (rows.length !== 6 || rows.some((row) => row.status !== "verified")) {
-    throw new Error("All six station programs must be verified before activation.");
+  const originals = rows.filter((row) => row.program_type === "new" && row.position <= 2);
+  if (originals.length !== 3 || originals.some((row) => row.status !== "verified" || !row.youtube_video_id)) {
+    throw new Error("All three weekday station releases must be verified before activation.");
   }
   const { data, error } = await supabase.rpc("activate_station_schedule", { p_schedule_id: scheduleId });
   if (error) throw error;
   const activated = Array.isArray(data) ? data[0] : data;
-  return toSchedule(activated as ScheduleRow, rows);
+  const { data: activatedPrograms, error: activatedProgramsError } = await supabase
+    .from("station_programs")
+    .select("*")
+    .eq("schedule_id", scheduleId);
+  if (activatedProgramsError) throw activatedProgramsError;
+  return toSchedule(activated as ScheduleRow, (activatedPrograms ?? []) as ProgramRow[]);
 }
 
 export async function createStationBreakInInDb(input: {

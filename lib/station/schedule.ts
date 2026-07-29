@@ -3,6 +3,7 @@ import type { OncologyJournal } from "@/lib/types";
 import type { StationProgram } from "@/lib/station/types";
 
 export const STATION_PROGRAMS_PER_CYCLE = 6;
+export const STATION_NEW_PROGRAMS_PER_WEEKDAY = 3;
 export const STATION_PROGRAM_MINUTES = 30;
 export const STATION_CYCLE_MINUTES = 180;
 export const STATION_BREAK_IN_MINUTES = 15;
@@ -95,7 +96,8 @@ export function buildStationDraft({
   journals,
   journalCardDecks,
   excludedJournalIds = [],
-  excludedCardIds = []
+  excludedCardIds = [],
+  programCount = STATION_PROGRAMS_PER_CYCLE
 }: {
   scheduleDate: string;
   journals: OncologyJournal[];
@@ -103,6 +105,7 @@ export function buildStationDraft({
   replayPrograms?: StationProgram[];
   excludedJournalIds?: string[];
   excludedCardIds?: string[];
+  programCount?: number;
 }): StationProgramDraft[] {
   const excludedJournals = new Set(excludedJournalIds);
   const excludedCards = new Set(excludedCardIds);
@@ -119,16 +122,16 @@ export function buildStationDraft({
   const selected: typeof candidates = [];
   const specialties = new Set<string>();
   for (const candidate of candidates) {
-    if (selected.length === STATION_PROGRAMS_PER_CYCLE) break;
+    if (selected.length === programCount) break;
     if (specialties.has(candidate.specialty)) continue;
     selected.push(candidate);
     specialties.add(candidate.specialty);
   }
   for (const candidate of candidates) {
-    if (selected.length === STATION_PROGRAMS_PER_CYCLE) break;
+    if (selected.length === programCount) break;
     if (!selected.some(({ journal }) => journal.id === candidate.journal.id)) selected.push(candidate);
   }
-  if (selected.length !== STATION_PROGRAMS_PER_CYCLE) return [];
+  if (selected.length !== programCount) return [];
 
   return selected.map(({ journal, specialty, readyCards }, position) => ({
     position,

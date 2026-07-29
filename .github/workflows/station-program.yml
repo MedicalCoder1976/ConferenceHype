@@ -21,6 +21,10 @@ on:
       stream_start_time:
         required: true
         type: string
+      youtube_publish_at:
+        required: false
+        type: string
+        default: ""
     secrets:
       NEXT_PUBLIC_SUPABASE_URL: { required: true }
       NEXT_PUBLIC_SUPABASE_ANON_KEY: { required: true }
@@ -74,6 +78,7 @@ jobs:
           HOUR_BROADCAST_START: ${{ inputs.stream_start_time }}
           JOURNAL_ID: ${{ inputs.journal_id }}
           STATION_PROGRAM_ID: ${{ inputs.station_program_id }}
+          YOUTUBE_PUBLISH_AT: ${{ inputs.youtube_publish_at }}
           PUBLIC_SITE_URL: https://conferencehype.com
           FFMPEG_PATH: /usr/bin/ffmpeg
           HOUR_BROADCAST_OUTPUT: public/rendered/conferencehype-station-program.mp4

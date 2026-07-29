@@ -565,7 +565,7 @@ const selectedConference = {
 // Conference/journal/source -> monitored X voice linking must be data-driven
 // (acronym/abbreviation/id keyed), not hardcoded to one conference, so every
 // conference, journal, or newspaper with a matching registry/seed entry
-// auto-links â€” and unrelated entities must not get a false-positive match.
+// auto-links Ã¢â‚¬â€ and unrelated entities must not get a false-positive match.
 assert.equal(monitoredXVoiceForEntity({ acronym: "EHA" })?.handle, "@EHA_Hematology");
 assert.equal(monitoredXVoiceForEntity({ id: "nejm" })?.handle, "@NEJM");
 assert.equal(monitoredXVoiceForEntity({ id: "onclive" })?.handle, "@OncLive");
@@ -1074,6 +1074,22 @@ const stationMetadataSource = readFileSync(path.join(process.cwd(), "scripts", "
 assert.match(stationMetadataSource, /updateYoutubeVideoMetadata/);
 assert.match(stationMetadataSource, /uploadYoutubeThumbnail/);
 assert.doesNotMatch(stationMetadataSource, /uploadVideoToYoutube/);
+
+const weekdayReleaseSource = readFileSync(path.join(process.cwd(), "scripts", "prepare-weekday-station.ts"), "utf8");
+const weekdayReleaseWorkflow = readFileSync(path.join(process.cwd(), ".github", "workflows", "weekday-station-wheel.yml"), "utf8");
+const stationProgramWorkflow = readFileSync(path.join(process.cwd(), ".github", "workflows", "station-program.yml"), "utf8");
+const youtubeUploaderSource = readFileSync(path.join(process.cwd(), "lib", "youtube", "uploadBroadcastVideo.ts"), "utf8");
+assert.match(weekdayReleaseSource, /STATION_NEW_PROGRAMS_PER_WEEKDAY/);
+assert.match(weekdayReleaseSource, /7 \* 60 \+ 15, 17 \* 60 \+ 10, 20 \* 60 \+ 45/);
+assert.match(weekdayReleaseWorkflow, /max-parallel: 3/);
+assert.match(weekdayReleaseWorkflow, /youtube_publish_at: \$\{\{ matrix\.program\.youtube_publish_at \}\}/);
+assert.match(stationProgramWorkflow, /youtube_publish_at:[\s\S]*default: ""/);
+assert.match(youtubeUploaderSource, /privacyStatus: publishAt \? "private" : "public"/);
+assert.match(youtubeUploaderSource, /publishAt\?: string/);
+assert.match(
+  readFileSync(path.join(process.cwd(), "supabase", "migrations", "20260729153608_weekday_three_release_schedule.sql"), "utf8"),
+  /new_youtube_videos', 3[\s\S]*unused_cards_preserved', true/
+);
 const weekdayWheelSource = readFileSync(path.join(process.cwd(), ".github", "workflows", "weekday-station-wheel.yml"), "utf8");
 assert.match(weekdayWheelSource, /uses: \.\/\.github\/workflows\/station-program\.yml/);
 assert.match(weekdayWheelSource, /prepare-weekday-station/);
@@ -1085,12 +1101,10 @@ assert.match(uploadBroadcastVideoSource, /downloadYoutubeThumbnail/);
 assert.match(uploadBroadcastVideoSource, /params\.append\("journalName", name\)/);
 assert.match(uploadBroadcastVideoSource, /params\.set\("journalCount"/);
 assert.match(uploadBroadcastVideoSource, /uploadType=resumable&part=snippet,status/);
-// Changed 2026-07-17: uploads go public immediately, not private+publishAt
-// scheduled -- guard against a future edit silently reintroducing the
-// private/scheduled behavior (and its wall-clock-derivation complexity)
-// without it being a deliberate decision.
-assert.match(uploadBroadcastVideoSource, /privacyStatus:\s*"public"/);
-assert.doesNotMatch(uploadBroadcastVideoSource, /publishAt/);
+// Scheduled publication is explicit and opt-in for the automatic weekday
+// wheel. Manual/admin callers omit publishAt and remain public immediately.
+assert.match(uploadBroadcastVideoSource, /privacyStatus: publishAt \? "private" : "public"/);
+assert.match(uploadBroadcastVideoSource, /publishAt\?: string/);
 const streamWorkflowSource = readFileSync(
   path.join(process.cwd(), ".github", "workflows", "youtube-stream.yml"),
   "utf8"
@@ -1201,9 +1215,9 @@ assert.deepEqual(validateSegmentForApproval(verifiedSocialSegment), [], "a corre
 // filterBroadcastReadySegments so they appear in the pending pool and can be
 // picked up by sortWeeklyReadySegmentsForSelection. Previously they were
 // silently excluded because hasVerifiedBroadcastSource did not accept
-// general_social â€” meaning all X conference fallback cards were invisible
+// general_social Ã¢â‚¬â€ meaning all X conference fallback cards were invisible
 // to "create 1 hour batch cards".
-// Note: these cards do NOT have weekly_source_context â€” that flag is only
+// Note: these cards do NOT have weekly_source_context Ã¢â‚¬â€ that flag is only
 // added by buildAnnouncementSegment (the final "nothing found" fallback).
 const xTopicSearchCard: Segment = {
   ...sponsorBase,
@@ -1244,7 +1258,7 @@ const announcementCard: Segment = {
 const conferenceDeckWithAnnouncement = buildConferenceCardDecks([announcementCard], [selectedConference]);
 assert.equal(conferenceDeckWithAnnouncement[selectedConference.id]?.total, 0, "Announcement cards with weekly_source_context must be hidden from the conference deck");
 
-// 2. Conference context shells (buildConferenceContextItem output â†’ buildBatchSegment)
+// 2. Conference context shells (buildConferenceContextItem output Ã¢â€ â€™ buildBatchSegment)
 const contextShellSegment: Segment = {
   ...sponsorBase,
   id: "context-shell-deck-test",
