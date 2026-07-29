@@ -5,7 +5,7 @@ import type { Segment } from "@/lib/types";
 const turnSchema = z.object({ speaker: z.enum(["HOST_1", "HOST_2"]), text: z.string().trim().min(1) });
 const packageSchema = z.object({
   schema_version: z.literal("conferencehype_prepared_broadcast_v1"), status: z.literal("ready"),
-  content_type: z.enum(["INDIVIDUAL_RESEARCH", "REVIEW_ARTICLE", "CONFERENCE_ROUNDUP"]),
+  content_type: z.enum(["INDIVIDUAL_RESEARCH", "REVIEW_ARTICLE", "CONFERENCE_ROUNDUP", "OPINION_COMMENTARY", "TREATMENT_ALGORITHM"]),
   source: z.object({ publication: z.string().trim().min(1), article_title: z.string().trim().min(1), url: z.string().url(), publication_date: z.string().optional().default(""), authors: z.array(z.string()).optional().default([]) }),
   program: z.object({ conference_name: z.string().optional().default(""), specialty: z.string().optional().default(""), title: z.string().trim().min(1).max(150), thumbnail_headline: z.string().trim().min(1), description_opening: z.string().trim().min(1), studies_covered: z.array(z.string()).default([]), estimated_spoken_words: z.number().optional(), estimated_duration_minutes: z.number().optional(), recommended_presenter_format: z.string().optional() }),
   opening_hook: z.object({ visible_text: z.string().trim().min(1), speaker_turns: z.array(turnSchema).min(1), source_anchor: z.string().trim().min(1) }),
@@ -71,6 +71,22 @@ export function parsePreparedNarrative(raw: string) {
 }
 
 const HOSTS = { HOST_1: { id: "echo-sage", name: "TumorCrusher" }, HOST_2: { id: "luna-vale", name: "Luna Vale" } } as const;
+
+function stripPreparedDescriptors(value: string) {
+  return value
+    .replace(/\b(?:Tumor\s*Crusher|Luna Vale)\b\s*(?:\/|:|-)?\s*/gi, "")
+    .replace(/\b(?:Media Watch|Pharma Watch|Journal Coverage|Conference Coverage)\s*[:\-��]?\s*/gi, "")
+    .replace(/\bA new ASCO Educational Book review\b\s*[:\-��]?\s*/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function openingAttribution(pkg: PreparedNarrativePackage) {
+  const authorText = pkg.source.authors.length
+    ? ` by ${pkg.source.authors.join(", ")}`
+    : "";
+  return `We are reviewing "${pkg.source.article_title}"${authorText}, published in ${pkg.source.publication}.`;
+}
 export function preparedNarrativeSegments(pkg: PreparedNarrativePackage): Segment[] {
   const now = new Date().toISOString();
   let sequence = 0;
@@ -80,15 +96,21 @@ export function preparedNarrativeSegments(pkg: PreparedNarrativePackage): Segmen
       const host = HOSTS[turn.speaker];
       sequence += 1;
       result.push({
-        id: `draft-${randomUUID()}`, title: input.title, summary: input.visibleText, script: turn.text,
+        id: `draft-${randomUUID()}`, title: stripPreparedDescriptors(input.title), summary: stripPreparedDescriptors(input.visibleText), script: input.flags.includes("prepared_disclaimer") ? stripPreparedDescriptors(turn.text) : stripPreparedDescriptors(turn.text).replaceAll(pkg.disclaimer.text, "").trim(),
         contentType: "media_roundup", personaId: host.id, personaName: host.name, hypeLevel: "restrained", language: "English", status: "approved",
-        citations: [{ label: `${pkg.source.publication}: ${pkg.source.article_title}`, url: pkg.source.url, sourceType: "media" }], socialBuzzItems: [],
+        citations: [{ label: `${pkg.source.publication}: ${pkg.source.article_title}${pkg.source.authors.length ? ` - ${pkg.source.authors.join(", ")}` : ""}`, url: pkg.source.url, sourceType: "media" }], socialBuzzItems: [],
         riskFlags: ["meeting_watch", "prepared_narrative", `prepared_sequence:${String(sequence).padStart(4, "0")}`, `source_anchor:${input.sourceAnchor.slice(0, 180)}`, ...input.flags, ...(turnIndex === turns.length - 1 && input.transitionSeconds ? [`prepared_transition:${input.transitionSeconds}`] : [])],
         confidenceScore: 95, createdAt: now, approvedAt: now, updatedAt: now
       });
     });
   };
-  pushTurns(pkg.opening_hook.speaker_turns, { title: pkg.program.thumbnail_headline, visibleText: pkg.opening_hook.visible_text, sourceAnchor: pkg.opening_hook.source_anchor, flags: ["prepared_opening", "prepared_card:0"] });
+  const openingTurns = pkg.opening_hook.speaker_turns.map((turn, index) => ({
+    ...turn,
+    text: index === 0
+      ? `${openingAttribution(pkg)} ${stripPreparedDescriptors(turn.text)}`
+      : stripPreparedDescriptors(turn.text)
+  }));
+  pushTurns(openingTurns, { title: pkg.program.thumbnail_headline, visibleText: pkg.opening_hook.visible_text, sourceAnchor: pkg.opening_hook.source_anchor, flags: ["prepared_opening", "prepared_card:0"] });
   for (const [cardIndex, card] of pkg.cards.entries()) {
     const studyKey = card.study_name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
     const nextStudyKey = pkg.cards[cardIndex + 1]?.study_name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") ?? "";

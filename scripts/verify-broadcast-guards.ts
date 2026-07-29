@@ -6,7 +6,7 @@ import { formatVoiceSegment, SEGMENT_CLOSE } from "@/lib/broadcast/voiceSegment"
 import { buildBroadcastSlots, buildJournalShowSlots } from "@/lib/rundown/slots";
 import { assertSearchOptimizedBroadcastMetadata, buildBroadcastMetadata, extractExplicitStudyName, extractExplicitStudyNames } from "@/lib/youtube/broadcastMetadata";
 import { applySpokenPronunciations, extractSpokenAbbreviationDefinitions } from "@/lib/media/tts";
-import { groupMeetingWatchSegmentsByTrial } from "@/lib/rundown/meetingWatchSlots";
+import { buildMeetingWatchSlots, groupMeetingWatchSegmentsByTrial } from "@/lib/rundown/meetingWatchSlots";
 import { parsePreparedNarrative, preparedNarrativeSegments } from "@/lib/meetingWatch/preparedNarrative";
 import { getUnsafeGeneratedSourceErrors } from "@/lib/generation/sourceSafety";
 import { validateSegmentForApproval } from "@/lib/generation/validator";
@@ -1026,11 +1026,31 @@ const evidenceDashboardSvg = buildEvidenceDashboardSvg({
   index: 2,
   total: 12
 });
-assert.match(evidenceDashboardSvg, /KEY FINDING/);
-assert.match(evidenceDashboardSvg, /STUDY SNAPSHOT/);
-assert.match(evidenceDashboardSvg, /WHY IT MATTERS/);
+assert.match(evidenceDashboardSvg, /EVIDENCE/);
 assert.match(evidenceDashboardSvg, /Progression-free survival improved/);
-assert.match(evidenceDashboardSvg, /Journal of Clinical Oncology/);
+assert.doesNotMatch(evidenceDashboardSvg, /KEY FINDING|STUDY SNAPSHOT|WHY IT MATTERS/);
+assert.doesNotMatch(evidenceDashboardSvg, /Journal of Clinical Oncology/);
+const evidenceOpeningSvg = buildEvidenceDashboardSvg({
+  title: "TumorCrusher / Media Watch EMERALD-3 randomized trial",
+  text: "Results: Progression-free survival improved.",
+  sourceLabel: "Journal of Clinical Oncology - July 2026",
+  contentType: "media_roundup",
+  isMusic: false,
+  isOpening: true,
+  index: 0,
+  total: 12
+});
+assert.match(evidenceOpeningSvg, /ARTICLE REVIEW/);
+assert.match(evidenceOpeningSvg, /Journal of Clinical Oncology/);
+assert.doesNotMatch(evidenceOpeningSvg, /TumorCrusher|Media Watch/);
+const closingMusicSvg = buildEvidenceDashboardSvg({
+  isMusic: true,
+  text: "",
+  index: 11,
+  total: 12
+});
+assert.match(closingMusicSvg, /Like and subscribe/);
+assert.match(closingMusicSvg, /recommend an article or trial/);
 const thumbnailRouteSource = readFileSync(path.join(process.cwd(), "app", "api", "youtube-thumbnail", "route.tsx"), "utf8");
 assert.match(thumbnailRouteSource, /params\.get\("headline"\)/);
 assert.match(thumbnailRouteSource, /params\.getAll\("journalName"\)/);
@@ -1389,9 +1409,9 @@ assert.equal(parseVolumeDetect("mean_volume: -inf dB\nmax_volume: -inf dB").maxV
   const trialNames = ["TRIANGLE", "BRUIN", "TRIANGLE", "MajesTEC", "ALPINE", "SEQUOIA"];
   const preparedPackage = {
     schema_version: "conferencehype_prepared_broadcast_v1", status: "ready", content_type: "CONFERENCE_ROUNDUP",
-    source: { publication: "Example Journal", article_title: "ASH review", url: "https://example.com/ash-review", publication_date: "2026-07-01", authors: [] },
+    source: { publication: "Example Journal", article_title: "ASH review", url: "https://example.com/ash-review", publication_date: "2026-07-01", authors: ["Ada Author"] },
     program: { conference_name: "ASH", specialty: "Hematology", title: "ASH trial review", thumbnail_headline: "What changed?", description_opening: "A source-grounded review.", studies_covered: trialNames, estimated_spoken_words: 300, estimated_duration_minutes: 5, recommended_presenter_format: "two hosts" },
-    opening_hook: { visible_text: "The key findings", speaker_turns: [{ speaker: "HOST_1", text: "Here is the review." }], source_anchor: "Opening" },
+    opening_hook: { visible_text: "The key findings", speaker_turns: [{ speaker: "HOST_1", text: "TumorCrusher / Media Watch: A new ASCO Educational Book review. Here is the review." }], source_anchor: "Opening" },
     cards: trialNames.map((study_name, index) => ({ position: index + 1, title: `${study_name}: finding ${index + 1}`, card_type: "evidence", visible_text: `Finding ${index + 1}`, speaker_turns: [{ speaker: index % 2 ? "HOST_2" : "HOST_1", text: `Discussion for ${study_name}.` }], source_anchor: `Paragraph ${index + 1}`, study_name, reported_numbers: [], limitations: [] })),
     transitions: [{ after_card_position: 1, duration_seconds: 20, next_topic: "BRUIN" }],
     disclaimer: { after_card_position: 4, text: "This is commentary, not medical advice." },
@@ -1404,4 +1424,17 @@ assert.equal(parseVolumeDetect("mean_volume: -inf dB\nmax_volume: -inf dB").maxV
   const firstTriangleEnd = normalizedSegments.findLast((segment) => segment.riskFlags.includes("prepared_study:triangle"));
   assert.ok(firstTriangleEnd?.riskFlags.includes("prepared_transition:20"));
   assert.ok(!normalizedSegments.find((segment) => segment.riskFlags.includes("prepared_study:triangle") && segment.riskFlags.includes("prepared_transition:20") && segment.title.endsWith("finding 1")));
+  assert.match(normalizedSegments[0].script, /^We are reviewing "ASH review" by Ada Author, published in Example Journal\./);
+  assert.doesNotMatch(normalizedSegments.map((segment) => segment.script).join(" "), /TumorCrusher \/ Media Watch|A new ASCO Educational Book review/i);
+  assert.equal(normalizedSegments.filter((segment) => segment.riskFlags.includes("prepared_disclaimer")).length, 1);
+  const preparedSlots = buildMeetingWatchSlots({
+    segments: normalizedSegments,
+    baseTime: new Date("2026-07-29T13:00:00.000Z"),
+    meetingWatchBroadcastId: "prepared-test",
+    meetingLabel: "ASH review",
+    showSeconds: normalized.durationSeconds
+  });
+  assert.equal(preparedSlots.at(-1)?.kind, "music");
+  assert.equal(preparedSlots.at(-1)?.durationSeconds, 15);
+  assert.match(preparedSlots.at(-1)?.label ?? "", /Like, subscribe, and recommend/);
 }

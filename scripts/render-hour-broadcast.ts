@@ -677,7 +677,9 @@ function slotsToCards(slots: BroadcastSlot[]): Card[] {
       text: isMusic
         ? formatTransitionCard()
         : formatCard({
-            eyebrow: `${slot.segment?.personaName ?? "ConferenceHype"} / ${slot.segment ? cardTypeEyebrow(slot.segment) : "CONTENT"}`,
+            eyebrow: slot.segment?.riskFlags.includes("prepared_narrative")
+              ? "ConferenceHype"
+              : `${slot.segment?.personaName ?? "ConferenceHype"} / ${slot.segment ? cardTypeEyebrow(slot.segment) : "CONTENT"}`,
             title: slot.segment?.title ?? slot.label,
             body: slot.segment?.riskFlags.includes("prepared_narrative")
               ? slot.segment.summary
@@ -2030,13 +2032,14 @@ async function main() {
     const nextContentCard = cards.slice(index + 1).find((candidate) => !candidate.isMusic);
     const evidenceDashboard = buildEvidenceDashboardSvg({
       title: cards[index].title,
-      text: cards[index].text,
+      text: cards[index].script ?? cards[index].text,
       sourceLabel: cards[index].sourceLabel,
       contentType: cards[index].contentType,
       isMusic: cards[index].isMusic,
       nextTitle: nextContentCard?.title,
       index,
-      total: cards.length
+      total: cards.length,
+      isOpening: cards[index].riskFlags?.includes("prepared_opening")
     });
     await sharp(Buffer.from(evidenceDashboard)).png().toFile(imagePath);
     const concatPath = path.resolve(imagePath).replace(/\\/g, "/");

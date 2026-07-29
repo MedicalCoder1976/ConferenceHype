@@ -7,6 +7,7 @@ type EvidenceDashboardInput = {
   nextTitle?: string;
   index: number;
   total: number;
+  isOpening?: boolean;
 };
 
 const COLORS = {
@@ -77,70 +78,60 @@ function textBlock(lines: string[], x: number, y: number, lineHeight: number, cl
     .join("")}</text>`;
 }
 
-function contentTypeLabel(value?: string) {
-  return clean(value).replaceAll("_", " ").toUpperCase() || "EVIDENCE SUMMARY";
+function stripSlideDescriptors(value: string) {
+  return clean(value)
+    .replace(/\b(?:Tumor\s*Crusher|Luna Vale)\b\s*(?:\/|:|-)?\s*/gi, "")
+    .replace(/\b(?:Media Watch|Pharma Watch|Journal Coverage|Conference Coverage)\s*[:\-��]?\s*/gi, "")
+    .replace(/\bA new ASCO Educational Book review\b\s*[:\-��]?\s*/gi, "")
+    .trim();
 }
 
 export function buildEvidenceDashboardSvg(input: EvidenceDashboardInput) {
-  const title = clean(input.title) || (input.isMusic ? "ConferenceHype evidence briefing" : "Key evidence summary");
-  const source = clean(input.sourceLabel) || "Source-grounded ConferenceHype coverage";
-  const body = clean(input.text);
-  const background = section(body, "Background", ["Methods", "Results", "Discussion"]);
-  const methods = section(body, "Methods", ["Results", "Discussion"]);
+  const title = stripSlideDescriptors(input.title ?? "") || (input.isMusic ? "ConferenceHype" : "Evidence update");
+  const source = clean(input.sourceLabel);
+  const body = stripSlideDescriptors(input.text);
   const results = section(body, "Results", ["Discussion"]);
   const discussion = section(body, "Discussion", []);
-  const keyFinding = results || discussion || firstSentences(body, 3) || "The next source-grounded evidence card is being prepared.";
-  const snapshot = methods || background || firstSentences(body, 1) || source;
-  const whyItMatters = discussion || (results ? firstSentences(results, 1) : firstSentences(body, 1)) || "Continue listening for the clinical interpretation.";
+  const methods = section(body, "Methods", ["Results", "Discussion"]);
+  const focus = results || discussion || methods || firstSentences(body, 2) || "Continue listening for the evidence and clinical context.";
   const progress = Math.max(0, Math.min(1, input.total > 0 ? (input.index + 1) / input.total : 0));
 
   if (input.isMusic) {
-    const comingNext = clean(input.nextTitle) || "More source-grounded medical evidence";
+    const comingNext = clean(input.nextTitle);
+    const isClosing = !comingNext;
+    const musicTitle = isClosing ? "Help shape the next evidence review" : stripSlideDescriptors(comingNext);
+    const musicBody = isClosing
+      ? "Like and subscribe, then recommend an article or trial you want ConferenceHype to cover next."
+      : "A brief music transition. The next article section begins shortly.";
     return `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
       <style>
-        .eyebrow{font:800 20px Arial,sans-serif;letter-spacing:2px;fill:${COLORS.cyan}}
-        .title{font:900 44px Arial,sans-serif;fill:${COLORS.paper}}
-        .body{font:600 25px Arial,sans-serif;fill:${COLORS.muted}}
-        .small{font:700 16px Arial,sans-serif;letter-spacing:1px;fill:${COLORS.muted}}
+        .eyebrow{font:800 18px Arial,sans-serif;letter-spacing:2px;fill:${COLORS.cyan}}
+        .title{font:900 46px Arial,sans-serif;fill:${COLORS.paper}}
+        .body{font:600 26px Arial,sans-serif;fill:${COLORS.muted}}
       </style>
       <rect width="1280" height="720" fill="${COLORS.ink}"/>
-      <rect x="54" y="122" width="1172" height="462" rx="24" fill="${COLORS.panel}" stroke="${COLORS.cyan}" stroke-opacity=".35" stroke-width="2"/>
-      <rect x="86" y="164" width="190" height="42" rx="21" fill="${COLORS.broadcast}"/>
-      <text x="181" y="192" text-anchor="middle" class="small" style="fill:${COLORS.paper}">COMING NEXT</text>
-      ${textBlock(wrap(comingNext, 38, 3), 88, 286, 54, "title")}
-      ${textBlock(wrap("A brief music transition while the next evidence card comes into view.", 68, 2), 88, 478, 35, "body")}
-      <circle cx="1124" cy="222" r="58" fill="${COLORS.panelSoft}" stroke="${COLORS.mint}" stroke-width="5"/>
-      <path d="M1095 222h58M1124 193v58" stroke="${COLORS.mint}" stroke-width="8" stroke-linecap="round"/>
-      <text x="88" y="548" class="small">${escapeXml(source)}</text>
+      <rect x="92" y="150" width="1096" height="390" rx="26" fill="${COLORS.panel}" stroke="${COLORS.cyan}" stroke-opacity=".35" stroke-width="2"/>
+      <text x="128" y="205" class="eyebrow">${isClosing ? "STAY CURIOUS" : "COMING NEXT"}</text>
+      ${textBlock(wrap(musicTitle, 37, 2), 128, 286, 58, "title")}
+      ${textBlock(wrap(musicBody, 66, 2), 128, 430, 38, "body")}
     </svg>`;
   }
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
     <style>
-      .eyebrow{font:800 17px Arial,sans-serif;letter-spacing:1.8px;fill:${COLORS.cyan}}
-      .title{font:900 32px Arial,sans-serif;fill:${COLORS.paper}}
-      .finding{font:750 25px Arial,sans-serif;fill:${COLORS.paper}}
-      .body{font:600 18px Arial,sans-serif;fill:${COLORS.paper}}
-      .muted{font:600 16px Arial,sans-serif;fill:${COLORS.muted}}
-      .label{font:850 16px Arial,sans-serif;letter-spacing:1.5px;fill:${COLORS.gold}}
-      .small{font:700 14px Arial,sans-serif;fill:${COLORS.muted}}
+      .eyebrow{font:800 17px Arial,sans-serif;letter-spacing:1.8px;fill:${COLORS.gold}}
+      .title{font:900 38px Arial,sans-serif;fill:${COLORS.paper}}
+      .finding{font:650 28px Arial,sans-serif;fill:${COLORS.paper}}
+      .source{font:600 17px Arial,sans-serif;fill:${COLORS.muted}}
     </style>
     <rect width="1280" height="720" fill="${COLORS.ink}"/>
-    <rect x="48" y="104" width="1184" height="506" rx="20" fill="${COLORS.panel}" stroke="${COLORS.cyan}" stroke-opacity=".25" stroke-width="2"/>
-    <rect x="48" y="104" width="10" height="506" rx="5" fill="${COLORS.broadcast}"/>
-    <text x="82" y="140" class="eyebrow">${escapeXml(contentTypeLabel(input.contentType))}</text>
-    ${textBlock(wrap(title, 57, 2), 82, 184, 38, "title")}
-    <rect x="82" y="255" width="724" height="208" rx="15" fill="${COLORS.panelSoft}"/>
-    <text x="108" y="290" class="label">KEY FINDING</text>
-    ${textBlock(wrap(keyFinding, 54, 5), 108, 332, 31, "finding")}
-    <rect x="830" y="255" width="364" height="208" rx="15" fill="${COLORS.panelSoft}"/>
-    <text x="856" y="290" class="label">STUDY SNAPSHOT</text>
-    ${textBlock(wrap(snapshot, 35, 6), 856, 326, 25, "body")}
-    <rect x="82" y="482" width="1112" height="92" rx="15" fill="#162b2b"/>
-    <text x="108" y="515" class="label" style="fill:${COLORS.mint}">WHY IT MATTERS</text>
-    ${textBlock(wrap(whyItMatters, 92, 2), 108, 548, 25, "body")}
-    <text x="82" y="598" class="small">${escapeXml(truncate(source, 120))}</text>
-    <rect x="48" y="624" width="1184" height="5" rx="2.5" fill="#313b4b"/>
-    <rect x="48" y="624" width="${Math.round(1184 * progress)}" height="5" rx="2.5" fill="${COLORS.broadcast}"/>
+    <rect x="74" y="130" width="1132" height="420" rx="24" fill="${COLORS.panel}" stroke="${COLORS.cyan}" stroke-opacity=".25" stroke-width="2"/>
+    <rect x="74" y="130" width="9" height="420" rx="4.5" fill="${COLORS.broadcast}"/>
+    <text x="118" y="184" class="eyebrow">${input.isOpening ? "ARTICLE REVIEW" : "EVIDENCE"}</text>
+    ${textBlock(wrap(title, 50, 2), 118, 242, 46, "title")}
+    ${textBlock(wrap(focus, 68, 4), 118, 365, 40, "finding")}
+    ${input.isOpening && source ? `<text x="118" y="518" class="source">${escapeXml(truncate(source, 112))}</text>` : ""}
+    <rect x="74" y="578" width="1132" height="5" rx="2.5" fill="#313b4b"/>
+    <rect x="74" y="578" width="${Math.round(1132 * progress)}" height="5" rx="2.5" fill="${COLORS.broadcast}"/>
   </svg>`;
 }
