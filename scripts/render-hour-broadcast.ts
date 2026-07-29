@@ -183,8 +183,8 @@ function cleanText(value: string) {
     .replace(/\bsource[- ]backed\s+\w+\s+narrative\b/gi, "")
     .replace(/\bapproved\s+for\s+broadcast\b/gi, "")
     .replace(/\baudience\s+tip\b/gi, "")
-    // Rule 4: ≈ → "approx." on slide (shorter than "approximately" for screen space)
-    .replace(/≈/g, "approx.")
+    // Rule 4: â‰ˆ â†’ "approx." on slide (shorter than "approximately" for screen space)
+    .replace(/â‰ˆ/g, "approx.")
     .replace(/\bwe verify\b/gi, "we attribute")
     .replace(/\bverify\b/gi, "check")
     .replace(/\bverified\b/gi, "sourced")
@@ -989,13 +989,13 @@ async function buildBreakingNewsCards(): Promise<{ cards: Card[]; unusedApproved
 
 
 // ---------------------------------------------------------------------------
-// Block-mode card builder — three 20-minute blocks per hour:
+// Block-mode card builder â€” three 20-minute blocks per hour:
 //   Block 1: 2 min schedule  +  2 min hype music  +  16 min Conference News
 //   Block 2: 2 min schedule  +  2 min hype music  +  16 min Social Desk (duo)
 //   Block 3: 2 min schedule  +  2 min hype music  +  16 min Pharma News
 //
 // Each "pair" = 40 s content card  +  20 s gap-clip music card  = 60 s.
-// 20 pairs × 60 s = 20 min per block; 3 blocks = 60 min = 1 h.
+// 20 pairs Ã— 60 s = 20 min per block; 3 blocks = 60 min = 1 h.
 // ---------------------------------------------------------------------------
 async function buildBlockCards(): Promise<Card[]> {
   const [
@@ -1044,9 +1044,9 @@ async function buildBlockCards(): Promise<Card[]> {
   // Timing constants
   const CONTENT_SECONDS = 40;
   const MUSIC_SECONDS = 20;
-  const BLOCK_SCHEDULE_PAIRS = 2;  // 2 × 60 s = 2 min schedule
-  const BLOCK_HYPE_PAIRS = 2;      // 2 × 60 s = 2 min hype music
-  const BLOCK_CONTENT_PAIRS = 16;  // 16 × 60 s = 16 min content
+  const BLOCK_SCHEDULE_PAIRS = 2;  // 2 Ã— 60 s = 2 min schedule
+  const BLOCK_HYPE_PAIRS = 2;      // 2 Ã— 60 s = 2 min hype music
+  const BLOCK_CONTENT_PAIRS = 16;  // 16 Ã— 60 s = 16 min content
   const BLOCKS_PER_HOUR = 3;
   const BLOCK_LABELS = ["Conference News", "Social Desk", "Pharma News"] as const;
 
@@ -1091,7 +1091,7 @@ async function buildBlockCards(): Promise<Card[]> {
         : blockIndex === 1 ? socialChunks
         : pharmaChunks;
 
-      // ── Phase 1: Schedule (BLOCK_SCHEDULE_PAIRS pairs) ──────────────────
+      // â”€â”€ Phase 1: Schedule (BLOCK_SCHEDULE_PAIRS pairs) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       for (let p = 0; p < BLOCK_SCHEDULE_PAIRS; p++) {
         const slotTime = new Date(baseTime.getTime() + slotMs);
         const seg = buildScheduleFallbackSegment(slotTime);
@@ -1111,7 +1111,7 @@ async function buildBlockCards(): Promise<Card[]> {
           title: seg.title,
           script,
           text: formatCard({
-            eyebrow: `Schedule — ${seg.personaName}`,
+            eyebrow: `Schedule â€” ${seg.personaName}`,
             title: seg.title,
             body: script
           })
@@ -1125,7 +1125,7 @@ async function buildBlockCards(): Promise<Card[]> {
         slotMs += (CONTENT_SECONDS + MUSIC_SECONDS) * 1000;
       }
 
-      // ── Phase 2: Hype Music (BLOCK_HYPE_PAIRS pairs — no TTS) ──────────
+      // â”€â”€ Phase 2: Hype Music (BLOCK_HYPE_PAIRS pairs â€” no TTS) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       for (let p = 0; p < BLOCK_HYPE_PAIRS; p++) {
         cards.push({
           duration: CONTENT_SECONDS,
@@ -1133,7 +1133,7 @@ async function buildBlockCards(): Promise<Card[]> {
           personaId: undefined,
           contentType: blockIndex === 2 ? "industry_floor" : "media_roundup",
           title: blockLabel,
-          script: null, // No TTS — music bed + gap clip play under silent slide
+          script: null, // No TTS â€” music bed + gap clip play under silent slide
           text: formatCard({
             eyebrow: cardTypeEyebrow({
               contentType: blockIndex === 2 ? "industry_floor" : "media_roundup",
@@ -1152,7 +1152,7 @@ async function buildBlockCards(): Promise<Card[]> {
         slotMs += (CONTENT_SECONDS + MUSIC_SECONDS) * 1000;
       }
 
-      // ── Phase 3: 16-minute Content Block ────────────────────────────────
+      // â”€â”€ Phase 3: 16-minute Content Block â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       for (let p = 0; p < BLOCK_CONTENT_PAIRS; p++) {
         const chunk = contentChunks[p];
         if (!chunk?.script?.trim()) {
@@ -1182,7 +1182,7 @@ async function buildBlockCards(): Promise<Card[]> {
             title: chunk.title,
             script,
             text: formatCard({
-              eyebrow: `${blockLabel} — ${chunk.personaName}`,
+              eyebrow: `${blockLabel} â€” ${chunk.personaName}`,
               title: chunk.title,
               body: script
             })
@@ -1582,7 +1582,7 @@ async function uploadRenderedBroadcast(
   if (usedSegmentIds.length > 0) {
     const { markSegmentsRenderedInDb } = await import("@/lib/db");
     await withRetry(() => markSegmentsRenderedInDb(usedSegmentIds)).catch((error) => {
-      console.warn(`Failed to mark segments as rendered — the broadcast still airs normally: ${describeError(error)}`);
+      console.warn(`Failed to mark segments as rendered â€” the broadcast still airs normally: ${describeError(error)}`);
     });
   }
 
@@ -1808,7 +1808,7 @@ async function main() {
 
   await reportMeetingWatchPhase("pronunciation-preprocessing");
 
-  // Per-card Kokoro TTS with file caching — batch synthesis (model loaded
+  // Per-card Kokoro TTS with file caching â€” batch synthesis (model loaded
   // once). This now runs BEFORE slide generation and the offset/timeline
   // pass below (previously it ran after both): scheduling every card's
   // slide duration and audio placement off expandContentDurations' word-count
@@ -1874,7 +1874,7 @@ async function main() {
 
   const tasks = [...taskByCacheKey.values()].filter((task) => !existsSync(task.cachePath));
 
-  // Synthesize all uncached cards in one Python call — loads KPipeline once
+  // Synthesize all uncached cards in one Python call â€” loads KPipeline once
   if (tasks.length > 0) {
     const batchJsonPath = path.join(renderDir, "voice-batch.json");
     await writeFile(
@@ -1905,7 +1905,7 @@ async function main() {
       // used to catch-and-return here, which meant one bad card (or any
       // transient failure) silenced every already-synthesized card too and
       // fell back to a music-only broadcast for the entire hour.
-      console.warn(`Kokoro batch TTS reported an error — salvaging any cards it did finish: ${err}`);
+      console.warn(`Kokoro batch TTS reported an error â€” salvaging any cards it did finish: ${err}`);
     }
 
     // Convert each unique WAV to MP3 exactly once. Runs regardless of
@@ -2032,6 +2032,7 @@ async function main() {
     const nextContentCard = cards.slice(index + 1).find((candidate) => !candidate.isMusic);
     const evidenceDashboard = buildEvidenceDashboardSvg({
       title: cards[index].title,
+      previousTitle: cards[index - 1]?.title,
       text: cards[index].script ?? cards[index].text,
       sourceLabel: cards[index].sourceLabel,
       contentType: cards[index].contentType,
@@ -2153,7 +2154,7 @@ async function main() {
       );
     });
     const gapOffset = voiceEntries.length + 2;
-    // Gap clips at 0.70 — prominent, above the bed but below the speaker voice
+    // Gap clips at 0.70 â€” prominent, above the bed but below the speaker voice
     gapEntries.forEach((e, i) => {
       filterParts.push(
         `[${gapOffset + i}:a]volume=0.70,adelay=${e.startMs}|${e.startMs}[g${i}]`

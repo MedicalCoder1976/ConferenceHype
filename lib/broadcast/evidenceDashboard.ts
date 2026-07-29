@@ -1,5 +1,6 @@
 type EvidenceDashboardInput = {
   title?: string;
+  previousTitle?: string;
   text: string;
   sourceLabel?: string;
   contentType?: string;
@@ -36,7 +37,7 @@ function clean(value?: string | null) {
 }
 
 function truncate(value: string, max: number) {
-  return value.length <= max ? value : `${value.slice(0, max - 1).trimEnd()}…`;
+  return value.length <= max ? value : `${value.slice(0, max - 1).trimEnd()}â€¦`;
 }
 
 function wrap(value: string, maxCharacters: number, maxLines: number) {
@@ -81,13 +82,15 @@ function textBlock(lines: string[], x: number, y: number, lineHeight: number, cl
 function stripSlideDescriptors(value: string) {
   return clean(value)
     .replace(/\b(?:Tumor\s*Crusher|Luna Vale)\b\s*(?:\/|:|-)?\s*/gi, "")
-    .replace(/\b(?:Media Watch|Pharma Watch|Journal Coverage|Conference Coverage)\s*[:\-��]?\s*/gi, "")
-    .replace(/\bA new ASCO Educational Book review\b\s*[:\-��]?\s*/gi, "")
+    .replace(/\b(?:Media Watch|Pharma Watch|Journal Coverage|Conference Coverage)\s*[:\-ï¿½ï¿½]?\s*/gi, "")
+    .replace(/\bA new ASCO Educational Book review\b\s*[:\-ï¿½ï¿½]?\s*/gi, "")
     .trim();
 }
 
 export function buildEvidenceDashboardSvg(input: EvidenceDashboardInput) {
   const title = stripSlideDescriptors(input.title ?? "") || (input.isMusic ? "ConferenceHype" : "Evidence update");
+  const previousTitle = stripSlideDescriptors(input.previousTitle ?? "");
+  const repeatedTitle = Boolean(previousTitle) && previousTitle.toLowerCase() === title.toLowerCase();
   const source = clean(input.sourceLabel);
   const body = stripSlideDescriptors(input.text);
   const results = section(body, "Results", ["Discussion"]);
@@ -128,8 +131,8 @@ export function buildEvidenceDashboardSvg(input: EvidenceDashboardInput) {
     <rect x="74" y="130" width="1132" height="420" rx="24" fill="${COLORS.panel}" stroke="${COLORS.cyan}" stroke-opacity=".25" stroke-width="2"/>
     <rect x="74" y="130" width="9" height="420" rx="4.5" fill="${COLORS.broadcast}"/>
     <text x="118" y="184" class="eyebrow">${input.isOpening ? "ARTICLE REVIEW" : "EVIDENCE"}</text>
-    ${textBlock(wrap(title, 50, 2), 118, 242, 46, "title")}
-    ${textBlock(wrap(focus, 68, 4), 118, 365, 40, "finding")}
+    ${repeatedTitle ? "" : textBlock(wrap(title, 50, 2), 118, 242, 46, "title")}
+    ${textBlock(wrap(focus, 68, 4), 118, repeatedTitle ? 292 : 365, 40, "finding")}
     ${input.isOpening && source ? `<text x="118" y="518" class="source">${escapeXml(truncate(source, 112))}</text>` : ""}
     <rect x="74" y="578" width="1132" height="5" rx="2.5" fill="#313b4b"/>
     <rect x="74" y="578" width="${Math.round(1132 * progress)}" height="5" rx="2.5" fill="${COLORS.broadcast}"/>
