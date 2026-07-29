@@ -38,6 +38,16 @@ import { sourceRegistry } from "@/lib/sources/registry";
 import { dedupeAgainstFreshSegments } from "@/lib/weeklySourceCardGeneration";
 import type { IngestedItem, Segment } from "@/lib/types";
 
+const youtubeDeliveryWorkflowSource = readFileSync(
+  path.join(process.cwd(), ".github", "workflows", "youtube-delivery-daily-verify.yml"),
+  "utf8"
+);
+assert.match(
+  youtubeDeliveryWorkflowSource,
+  /if \[ "\$\{YOUTUBE_STATUS\}" = "queued" \]; then[\s\S]*VERIFY_PHASE="queued"/,
+  "Daily delivery verification must accept queued as the terminal success state for render-then-upload broadcasts"
+);
+
 const source: IngestedItem = {
   id: "guard-source",
   title: "Conference program update",

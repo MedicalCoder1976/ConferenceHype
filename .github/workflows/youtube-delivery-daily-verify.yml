@@ -33,18 +33,24 @@ jobs:
             echo "unsupported_reason=conferencehype.com/api/stream/status does not report a YouTube video ID." >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          if [ "${YOUTUBE_STATUS}" = "completed" ]; then
+          if [ "${YOUTUBE_STATUS}" = "queued" ]; then
+            # Render-then-upload uses queued as its terminal stored success
+            # state. The verifier below independently confirms that the saved
+            # video is processed, public, present in stream_state, and exposed
+            # by the public site.
+            VERIFY_PHASE="queued"
+          elif [ "${YOUTUBE_STATUS}" = "completed" ]; then
             VERIFY_PHASE="completed"
           elif [ "${YOUTUBE_STATUS}" = "live" ]; then
             VERIFY_PHASE="live"
           else
-            echo "::warning::Current YouTube status is ${YOUTUBE_STATUS}; expected live or completed for daily verification."
+            echo "::warning::Current YouTube status is ${YOUTUBE_STATUS}; expected queued, live, or completed for daily verification."
             cat stream-status.json
             echo "video_id=${VIDEO_ID}" >> "$GITHUB_OUTPUT"
             echo "video_url=${VIDEO_URL}" >> "$GITHUB_OUTPUT"
             echo "youtube_status=${YOUTUBE_STATUS}" >> "$GITHUB_OUTPUT"
             echo "unsupported_state=true" >> "$GITHUB_OUTPUT"
-            echo "unsupported_reason=Current YouTube status is ${YOUTUBE_STATUS}; expected live or completed for daily verification." >> "$GITHUB_OUTPUT"
+            echo "unsupported_reason=Current YouTube status is ${YOUTUBE_STATUS}; expected queued, live, or completed for daily verification." >> "$GITHUB_OUTPUT"
             exit 0
           fi
           echo "video_id=${VIDEO_ID}" >> "$GITHUB_OUTPUT"
@@ -139,7 +145,7 @@ jobs:
         if: ${{ steps.stream.outputs.unsupported_state == 'true' }}
         run: |
           {
-            echo "Daily YouTube delivery verification could not run because the current public stream handoff is not ready for live/completed verification."
+            echo "Daily YouTube delivery verification could not run because the current public stream handoff is not ready for queued/live/completed verification."
             echo ""
             echo "Reason: ${{ steps.stream.outputs.unsupported_reason }}"
             echo "Video: ${{ steps.stream.outputs.video_url }}"

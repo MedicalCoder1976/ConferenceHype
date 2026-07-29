@@ -1142,7 +1142,9 @@ broadcasts through this new path:
 - `platform-smoke-loop.yml`: manual targeted randomized platform smoke repair.
   The daily schedule lives in `daily-verification-loop.yml`.
 - `youtube-delivery-daily-verify.yml`: manual targeted YouTube delivery repair.
-  The daily schedule lives in `daily-verification-loop.yml`.
+  It accepts the render-then-upload terminal `queued` state, then independently
+  verifies the saved YouTube video, public privacy, database handoff, and site
+  exposure before reporting success.
 - `youtube-enable-embed.yml`: manual repair for a specific video
 - `briefing.yml`: manual
 - `render-media.yml`: manual or configured media render
