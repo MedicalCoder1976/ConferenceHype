@@ -1482,8 +1482,10 @@ async function uploadRenderedBroadcast(
     journalName: actualMetadata?.journalName,
     specialty: actualMetadata?.specialty,
     dateLabel: actualMetadata?.dateLabel ?? fallbackLabel,
-    headline: isJournalMode || isWeekendMode
-      ? "Physician Education: Listen to One New Journal Everyday"
+    headline: isBreakingMode
+      ? "Physician Education: Breaking Paper"
+      : isJournalMode || isWeekendMode
+        ? "Physician Education: Listen to One New Journal Everyday"
       : actualMetadata?.thumbnailHeadline ?? title,
     journalNames: isBreakingMode ? [] : actualMetadata?.thumbnailJournalNames,
     journalCount: isBreakingMode ? 0 : actualMetadata?.thumbnailJournalCount,
@@ -1492,8 +1494,10 @@ async function uploadRenderedBroadcast(
       : isMeetingWatchMode
         ? `${(actualMetadata?.specialty ?? "MEETING").toUpperCase()} HIGHLIGHTS`
         : undefined,
-    detailLabel: isJournalMode || isWeekendMode
-      ? actualMetadata?.studyNames[0] ?? actualMetadata?.thumbnailJournalNames?.join(" | ") ?? actualMetadata?.journalName
+    detailLabel: isBreakingMode
+      ? [process.env.BREAKING_DISEASE_TYPE, process.env.BREAKING_PAPER_TITLE].filter(Boolean).join(" | ")
+      : isJournalMode || isWeekendMode
+        ? actualMetadata?.studyNames[0] ?? actualMetadata?.thumbnailJournalNames?.join(" | ") ?? actualMetadata?.journalName
       : undefined,
     promiseLabel: isJournalMode || isWeekendMode
       ? "SOURCE-GROUNDED JOURNAL REVIEW"
@@ -2048,12 +2052,16 @@ async function main() {
       index,
       total: cards.length,
       isOpening: cards[index].riskFlags?.includes("prepared_opening"),
-      seriesHeadline: isJournalMode || isWeekendMode
-        ? "Physician Education: Listen to One New Journal Everyday"
-        : undefined,
-      featureLabel: isJournalMode || isWeekendMode
-        ? cards[index].sourceLabel ?? cards[index].title
-        : undefined
+      seriesHeadline: isBreakingMode
+        ? "Physician Education: Breaking Paper"
+        : isJournalMode || isWeekendMode
+          ? "Physician Education: Listen to One New Journal Everyday"
+          : undefined,
+      featureLabel: isBreakingMode
+        ? [process.env.BREAKING_DISEASE_TYPE, cards[index].title].filter(Boolean).join(" | ")
+        : isJournalMode || isWeekendMode
+          ? cards[index].sourceLabel ?? cards[index].title
+          : undefined
     });
     await sharp(Buffer.from(evidenceDashboard)).png().toFile(imagePath);
     const concatPath = path.resolve(imagePath).replace(/\\/g, "/");

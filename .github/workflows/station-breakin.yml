@@ -12,6 +12,16 @@ on:
       stream_start_time:
         description: "Top (:00) or bottom (:30) of the next programming hour"
         required: true
+      broadcast_title:
+        description: "Source-grounded YouTube title"
+        required: false
+        default: "ConferenceHype Breaking Medical Research Update"
+      disease_type:
+        description: "Source-derived disease type"
+        required: false
+      paper_title:
+        description: "Source-extracted paper title"
+        required: false
 
 jobs:
   render:
@@ -37,7 +47,9 @@ jobs:
           HOUR_BROADCAST_START: ${{ inputs.stream_start_time }}
           BREAKING_SEGMENT_ID: ${{ inputs.breaking_segment_id }}
           STATION_BREAKIN_ID: ${{ inputs.station_breakin_id }}
-          BROADCAST_TITLE: "ConferenceHype Breaking Medical Research Update"
+          BROADCAST_TITLE: ${{ inputs.broadcast_title }}
+          BREAKING_DISEASE_TYPE: ${{ inputs.disease_type }}
+          BREAKING_PAPER_TITLE: ${{ inputs.paper_title }}
           PUBLIC_SITE_URL: https://conferencehype.com
           FFMPEG_PATH: /usr/bin/ffmpeg
           HOUR_BROADCAST_OUTPUT: public/rendered/conferencehype-breaking-news.mp4

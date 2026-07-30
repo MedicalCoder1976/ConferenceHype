@@ -5,6 +5,7 @@ import { AiredHistory } from "@/components/AiredHistory";
 import { AnalyticsPanel } from "@/components/AnalyticsPanel";
 import { BroadcastRundown } from "@/components/BroadcastRundown";
 import { BroadcastWriteoutArchive } from "@/components/BroadcastWriteoutArchive";
+import { BreakingPaperDesk } from "@/components/BreakingPaperDesk";
 import { ConferencePlanner } from "@/components/ConferencePlanner";
 import { DailyCoveragePlanner } from "@/components/DailyCoveragePlanner";
 import { EmergencyOverride } from "@/components/EmergencyOverride";
@@ -396,6 +397,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             />
           </div>
         }
+        breakingPaper={<BreakingPaperDesk />}
         writeouts={<BroadcastWriteoutArchive writeouts={snapshot.broadcastWriteouts} />}
         memory={<EditorialMemory initialPackages={snapshot.editorialPackages} />}
         history={<AiredHistory segments={snapshot.airedSegments} />}

@@ -25,6 +25,7 @@ import { isGenericConferenceLandingItem } from "@/lib/intakeSelection";
 import { filterBroadcastReadySegments } from "@/lib/data";
 import { buildOperatorMusicSegment, OPERATOR_MUSIC_TRACKS } from "@/lib/broadcast/operatorMusic";
 import { buildEvidenceDashboardSvg } from "@/lib/broadcast/evidenceDashboard";
+import { assertSafePaperUrl, parsePaperHtml, parsePubMedXml } from "@/lib/breakingPaper";
 import { normalizeLegacyDailyCoverageDefaults } from "@/lib/dailyCoverage";
 import {
   segmentSourceMatchesSelection,
@@ -1003,10 +1004,12 @@ assert.match(renderHourSource, /Uploaded \$\{youtubeUrl\}, public immediately/);
 assert.match(renderHourSource, /useFullLengthMusicPadding/);
 assert.match(renderHourSource, /OPERATOR_MUSIC_TRACKS\[musicIndex % OPERATOR_MUSIC_TRACKS\.length\]/);
 assert.match(renderHourSource, /buildBroadcastMetadata\(\{/);
-assert.match(renderHourSource, /headline: isJournalMode \|\| isWeekendMode/);
+assert.match(renderHourSource, /headline: isBreakingMode/);
+assert.match(renderHourSource, /: isJournalMode \|\| isWeekendMode/);
+assert.match(renderHourSource, /Physician Education: Breaking Paper/);
 assert.match(renderHourSource, /Physician Education: Listen to One New Journal Everyday/);
-assert.match(renderHourSource, /detailLabel: isJournalMode \|\| isWeekendMode/);
-assert.match(renderHourSource, /seriesHeadline: isJournalMode \|\| isWeekendMode/);
+assert.match(renderHourSource, /detailLabel: isBreakingMode/);
+assert.match(renderHourSource, /seriesHeadline: isBreakingMode/);
 assert.match(renderHourSource, /const OPENING_TITLE_SECONDS = 8/);
 assert.match(renderHourSource, /const PERSISTENT_BRANDING_START_DATE = "2026-07-28"/);
 assert.match(renderHourSource, /burnOpeningThumbnailIntoVideo/);
@@ -1408,7 +1411,25 @@ assert.match(
   assert.equal(xPostSegment.contentType, "social_signal");
   assert.deepEqual(validateSegmentForApproval(xPostSegment), []);
 
-  console.log("Broadcast guard verification passed.");
+  const breakingPaper = parsePaperHtml(`
+  <html><head>
+    <meta name="citation_title" content="A randomized breast cancer trial">
+    <meta name="citation_journal_title" content="Journal of Clinical Oncology">
+    <meta name="citation_abstract" content="Background: Treatment options remain limited. Methods: Patients were randomized to therapy or control. Results: Progression-free survival improved in the therapy group. Discussion: The authors concluded that benefit should be balanced against toxicity.">
+  </head></html>`, "https://pubmed.ncbi.nlm.nih.gov/12345678/");
+assert.equal(breakingPaper.diseaseType, "Breast Cancer");
+assert.equal(breakingPaper.title, "A randomized breast cancer trial");
+const pubmedPaper = parsePubMedXml(`<PubmedArticle><Article><Journal><Title>Neurology</Title></Journal><ArticleTitle>A stroke prevention trial</ArticleTitle><Abstract><AbstractText Label="METHODS">Adults were randomized to intervention or control.</AbstractText><AbstractText Label="RESULTS">Stroke incidence was reduced in the intervention group.</AbstractText><AbstractText Label="CONCLUSIONS">The authors reported a lower stroke incidence.</AbstractText></Abstract></Article></PubmedArticle>`, "https://pubmed.ncbi.nlm.nih.gov/12345678/");
+assert.equal(pubmedPaper.diseaseType, "Neurologic Disease");
+assert.match(pubmedPaper.script, /Adults were randomized/);
+assert.match(breakingPaper.script, /Physician Education: Breaking Paper/);
+assert.match(breakingPaper.script, /Methods: Patients were randomized/);
+assert.throws(() => assertSafePaperUrl("http://localhost/paper"), /public HTTPS|Private or local/);
+const breakingPaperRouteSource = readFileSync(path.join(process.cwd(), "app", "api", "admin", "breaking-paper", "route.ts"), "utf8");
+assert.match(breakingPaperRouteSource, /assertAdminRequest/);
+assert.match(breakingPaperRouteSource, /fetchBreakingPaper/);
+assert.doesNotMatch(breakingPaperRouteSource, /openai|generateText|chat\.completions/i);
+console.log("Broadcast guard verification passed.");
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;
