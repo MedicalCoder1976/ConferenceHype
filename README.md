@@ -169,6 +169,10 @@ renderer. The center of the video must never be an empty color field:
   present; otherwise the dashboard falls back to concise text already stored
   in the approved card and never invents missing study details;
 - music cards show a branded Coming Next panel using the next approved card;
+  its body text is always a like/subscribe + "suggest a journal in the
+  comments" call to action (`lib/broadcast/evidenceDashboard.ts`), never
+  inert filler like "A brief music transition..." or "The next article
+  section begins shortly";
 - the persistent series header, footer, and narration-driven waveform remain
   overlays and do not alter card timing, narration, music placement, upload,
   scheduling, or activation;

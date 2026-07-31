@@ -1081,6 +1081,21 @@ const closingMusicSvg = buildEvidenceDashboardSvg({
 });
 assert.match(closingMusicSvg, /Like and subscribe/);
 assert.match(closingMusicSvg, /recommend an article or trial/);
+// Coming Next transitions must show the approved next title and a useful CTA,
+// never inert filler describing the music transition itself.
+const comingNextMusicSvg = buildEvidenceDashboardSvg({
+  isMusic: true,
+  text: "",
+  nextTitle: "Stroke after aortic arch surgery with short circulatory arrest times",
+  index: 5,
+  total: 12
+});
+assert.match(comingNextMusicSvg, /COMING NEXT/);
+assert.match(comingNextMusicSvg, /Stroke after aortic arch surgery/);
+assert.match(comingNextMusicSvg, /Like and subscribe/);
+assert.match(comingNextMusicSvg, /which journals/);
+assert.doesNotMatch(comingNextMusicSvg, /brief music transition/i);
+assert.doesNotMatch(comingNextMusicSvg, /next article section begins shortly/i);
 const thumbnailRouteSource = readFileSync(path.join(process.cwd(), "app", "api", "youtube-thumbnail", "route.tsx"), "utf8");
 assert.match(thumbnailRouteSource, /params\.get\("headline"\)/);
 assert.match(thumbnailRouteSource, /params\.getAll\("journalName"\)/);

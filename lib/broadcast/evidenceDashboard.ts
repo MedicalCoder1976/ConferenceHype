@@ -109,7 +109,7 @@ export function buildEvidenceDashboardSvg(input: EvidenceDashboardInput) {
     const musicTitle = isClosing ? "Help shape the next evidence review" : stripSlideDescriptors(comingNext);
     const musicBody = isClosing
       ? "Like and subscribe, then recommend an article or trial you want ConferenceHype to cover next."
-      : "A brief music transition. The next article section begins shortly.";
+      : "Like and subscribe, then tell us in the comments which journals you'd like ConferenceHype to cover next.";
     return `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
       <style>
         .eyebrow{font:800 18px Arial,sans-serif;letter-spacing:2px;fill:${COLORS.cyan}}
