@@ -977,6 +977,11 @@ assert.match(renderHourSource, /applySpokenPronunciations\(card\.script, pronunc
 assert.match(renderHourSource, /Removed \$\{removedContentCards\} trailing content card/);
 assert.match(renderHourSource, /while \(remainingSeconds > 0\)/);
 assert.match(renderHourSource, /Math\.min\(OPERATOR_MUSIC_SECONDS, remainingSeconds\)/);
+// Single-journal shows use 30 minutes only as a ceiling; they must not add
+// trailing music merely to make the uploaded video exactly 30:00.
+assert.match(renderHourSource, /const shouldPadToFrame = !isJournalMode/);
+assert.match(renderHourSource, /remainingSeconds > 0 && padToFrame/);
+assert.match(renderHourSource, /delta > 0\.001 && !isJournalMode/);
 assert.match(renderHourSource, /durationSeconds = Math\.min\(Number\(process\.env\.HOUR_BROADCAST_SECONDS \?\? 3600\), 3600\)/);
 
 // Bug fixed 2026-07-12: the per-card audio amix must run for the length of

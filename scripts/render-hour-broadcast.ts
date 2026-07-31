@@ -511,7 +511,8 @@ function enforceOneHourFrame(
   cards: Card[],
   frameSeconds = 3600,
   useFullLengthMusicPadding = false,
-  preserveJournalOutro = false
+  preserveJournalOutro = false,
+  padToFrame = true
 ) {
   const finalOutro = preserveJournalOutro
     ? cards.findLast((card) => card.riskFlags?.some((flag) => flag === "journal_show_outro" || flag === "weekend_roundup_outro" || flag === "meeting_watch_outro" || flag === "prepared_closing"))
@@ -548,7 +549,7 @@ function enforceOneHourFrame(
   }
 
   let remainingSeconds = contentFrameSeconds - totalCardSeconds(framedCards);
-  if (remainingSeconds > 0) {
+  if (remainingSeconds > 0 && padToFrame) {
     let musicIndex = framedCards.filter((card) => card.isMusic).length;
     while (remainingSeconds > 0) {
       const chunkSeconds = useFullLengthMusicPadding
@@ -1686,6 +1687,9 @@ async function main() {
       : isMeetingWatchMode
       ? await buildMeetingWatchCards()
       : await buildCards();
+  // A journal review ends after its final narrated outro. The 30-minute value is
+  // a scheduling ceiling, not a target to reach with trailing music.
+  const shouldPadToFrame = !isJournalMode;
   const cards = enforceOneHourFrame(
     await fillLeftoverGapsWithBonusCards(
       expandContentDurations(
@@ -1701,7 +1705,8 @@ async function main() {
     ),
     isBreakingMode ? 15 * 60 : isMeetingWatchMode ? durationSeconds : isJournalMode || isWeekendMode ? JOURNAL_SHOW_SECONDS : 3600,
     isJournalMode || isWeekendMode || isMeetingWatchMode,
-    isJournalMode || isWeekendMode || isMeetingWatchMode
+    isJournalMode || isWeekendMode || isMeetingWatchMode,
+    shouldPadToFrame
   );
 
   // Opt-in, no-op-by-default escape hatch for sanity-checking the full card
@@ -2008,7 +2013,7 @@ async function main() {
         }
       }
       if (excess > 0.001) throw new Error(`Measured narration exceeds the ${targetFrameSeconds}-second broadcast frame after all music was removed.`);
-    } else if (delta > 0.001) {
+    } else if (delta > 0.001 && !isJournalMode) {
       let insertAt = insertionIndex;
       const priorMusic = cards[insertAt - 1];
       if (priorMusic?.isMusic && priorMusic.duration < OPERATOR_MUSIC_SECONDS) {
@@ -2031,7 +2036,10 @@ async function main() {
       }
     }
     const reconciled = totalCardSeconds(cards);
-    if (Math.abs(reconciled - targetFrameSeconds) > 0.01) throw new Error(`Measured broadcast frame reconciled to ${reconciled}s instead of ${targetFrameSeconds}s.`);
+    const invalidFrame = isJournalMode
+      ? reconciled - targetFrameSeconds > 0.01
+      : Math.abs(reconciled - targetFrameSeconds) > 0.01;
+    if (invalidFrame) throw new Error(`Measured broadcast frame reconciled to ${reconciled}s instead of ${targetFrameSeconds}s.`);
   }
   const narrationDelay = reserveOpeningNarrationDelay(cards, cardCacheKeys);
   const concatLines: string[] = [];
