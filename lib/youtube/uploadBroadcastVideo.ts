@@ -1,6 +1,18 @@
 import { createReadStream, statSync } from "node:fs";
 import { Readable } from "node:stream";
 
+const YOUTUBE_TITLE_MAX_LENGTH = 100;
+
+export function normalizeYoutubeTitle(value: string) {
+  const title = value.trim().replace(/\s+/g, " ");
+  if (Array.from(title).length <= YOUTUBE_TITLE_MAX_LENGTH) return title;
+  const available = YOUTUBE_TITLE_MAX_LENGTH - 1;
+  const prefix = Array.from(title).slice(0, available).join("");
+  const lastSpace = prefix.lastIndexOf(" ");
+  const wordSafePrefix = lastSpace >= Math.floor(available * 0.75) ? prefix.slice(0, lastSpace) : prefix;
+  return `${wordSafePrefix.trimEnd()}…`;
+}
+
 // Replaces the old live-broadcast + RTMP pipeline: instead of streaming a
 // pre-rendered file to YouTube in real time, upload the finished file
 // directly. Goes public immediately on upload (2026-07-17) -- an earlier
@@ -49,6 +61,7 @@ export async function uploadVideoToYoutube({
   categoryId: string;
   publishAt?: string;
 }): Promise<{ id: string; status?: { privacyStatus?: string; publishAt?: string } }> {
+  const youtubeTitle = normalizeYoutubeTitle(title);
   const initResponse = await fetch(
     "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status",
     {
@@ -59,7 +72,7 @@ export async function uploadVideoToYoutube({
         "X-Upload-Content-Type": "video/mp4"
       },
       body: JSON.stringify({
-        snippet: { title, description, tags, categoryId },
+        snippet: { title: youtubeTitle, description, tags, categoryId },
         status: {
           // Scheduled publishing is opt-in. All manual/admin uploads omit
           // publishAt and retain their existing immediate-public behavior.
@@ -119,6 +132,7 @@ export async function updateYoutubeVideoMetadata({
   tags: string[];
   categoryId: string;
 }) {
+  const youtubeTitle = normalizeYoutubeTitle(title);
   const currentResponse = await fetch(
     `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${encodeURIComponent(videoId)}`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
@@ -134,7 +148,7 @@ export async function updateYoutubeVideoMetadata({
     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       id: videoId,
-      snippet: { ...snippet, title, description, tags, categoryId }
+      snippet: { ...snippet, title: youtubeTitle, description, tags, categoryId }
     })
   });
   if (!updateResponse.ok) {
