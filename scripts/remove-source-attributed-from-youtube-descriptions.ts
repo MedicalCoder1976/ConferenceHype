@@ -38,16 +38,27 @@ async function recordedVideoIds() {
 async function main() {
   const apply = process.env.APPLY_YOUTUBE_DESCRIPTION_CLEANUP === "1";
   const accessToken = await getYoutubeAccessToken();
+  const channelLookup = await fetch("https://www.googleapis.com/youtube/v3/channels?part=id&mine=true", {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  if (!channelLookup.ok) throw new Error(`YouTube channel lookup failed: ${channelLookup.status} ${await channelLookup.text()}`);
+  const channelPayload = await channelLookup.json() as { items?: Array<{ id?: string }> };
+  const ownedChannelIds = new Set((channelPayload.items ?? []).map((item) => item.id).filter((id): id is string => Boolean(id)));
   const ids = await recordedVideoIds();
   const changed: Array<{ videoId: string; applied: boolean }> = [];
+  const skippedNotOwned: string[] = [];
   for (const videoId of ids) {
     const lookup = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${encodeURIComponent(videoId)}`, {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
     if (!lookup.ok) throw new Error(`YouTube metadata lookup failed for ${videoId}: ${lookup.status} ${await lookup.text()}`);
-    const payload = await lookup.json() as { items?: Array<{ snippet?: Record<string, unknown> & { description?: string } }> };
+    const payload = await lookup.json() as { items?: Array<{ snippet?: Record<string, unknown> & { channelId?: string; description?: string } }> };
     const snippet = payload.items?.[0]?.snippet;
     if (!snippet) continue;
+    if (!snippet.channelId || !ownedChannelIds.has(snippet.channelId)) {
+      skippedNotOwned.push(videoId);
+      continue;
+    }
     const description = snippet.description ?? "";
     if (!/\bsource-attributed\b/i.test(description)) continue;
     const cleaned = cleanDescription(description);
@@ -61,7 +72,7 @@ async function main() {
     }
     changed.push({ videoId, applied: apply });
   }
-  console.log(JSON.stringify({ ok: true, apply, recordedVideos: ids.length, changed: changed.length, videos: changed }, null, 2));
+  console.log(JSON.stringify({ ok: true, apply, recordedVideos: ids.length, changed: changed.length, skippedNotOwned: skippedNotOwned.length, videos: changed, skippedVideoIds: skippedNotOwned }, null, 2));
 }
 
 main().catch((error) => {
