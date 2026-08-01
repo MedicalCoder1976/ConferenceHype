@@ -269,11 +269,11 @@ function buildDescription({
     : "";
   if (dominantJournal && dominantJournal.count >= 2) {
     const specialty = specificSpecialty(dominantJournal.journal);
-    intro = `This ConferenceHype journal broadcast focuses on ${dominantJournal.journal.name} coverage in ${specialty}, source-attributed for physicians, NPs, and PAs following the literature.`;
+    intro = `This ConferenceHype journal broadcast focuses on ${dominantJournal.journal.name} coverage in ${specialty} for physicians, NPs, and PAs following the literature.`;
   } else if (anyJournalResolved) {
-    intro = `This hour of ConferenceHype covers ${dominantSpecialty ?? "medical journal"} literature across multiple journals, source-attributed for physicians, NPs, and PAs.`;
+    intro = `This hour of ConferenceHype covers ${dominantSpecialty ?? "medical journal"} literature across multiple journals for physicians, NPs, and PAs.`;
   } else {
-    intro = "Source-attributed ConferenceHype medical-conference programming.";
+    intro = "ConferenceHype medical-conference programming.";
   }
 
   const chapterLines = cards.map(({ slot, journal, publishedAt }) => {

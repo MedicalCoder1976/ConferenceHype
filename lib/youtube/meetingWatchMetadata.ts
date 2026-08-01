@@ -104,7 +104,7 @@ export function buildMeetingWatchMetadata({
   const headline = truncate(title.replace(/^ConferenceHype:\s*/, "").split(" - ")[0], MAX_HEADLINE_LENGTH);
   const description = [
     studyNames.length ? `Studies covered: ${featured}.` : "",
-    `This ConferenceHype Meeting Watch broadcast recaps real ${meetingLabel} findings${specialty ? ` in ${specialty}` : ""} -- source-attributed, no fabricated claims, built for physicians, NPs, and PAs who don't have time to read every abstract themselves.`,
+    `This ConferenceHype Meeting Watch broadcast recaps real ${meetingLabel} findings${specialty ? ` in ${specialty}` : ""} -- no fabricated claims, built for physicians, NPs, and PAs who don't have time to read every abstract themselves.`,
     `Full source: ${sourceUrl}`,
     "",
     ...chapters,

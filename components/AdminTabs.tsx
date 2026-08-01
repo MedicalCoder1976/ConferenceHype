@@ -1,15 +1,16 @@
 "use client";
 
-import { BookOpen, BookOpenText, CalendarDays, FileText, Library, Mic2, Radio, ScrollText } from "lucide-react";
+import { BookOpen, BookOpenText, CalendarDays, FileText, Library, Mic2, Radio, ScrollText, Sparkles } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
-type TabId = "broadcast" | "journal-watch" | "meeting-watch" | "breaking-paper" | "writeouts" | "memory" | "voices" | "history";
+type TabId = "broadcast" | "journal-watch" | "meeting-watch" | "breaking-paper" | "create-story" | "writeouts" | "memory" | "voices" | "history";
 
 const tabs: Array<{ id: TabId; label: string; icon: typeof Radio }> = [
   { id: "broadcast", label: "Broadcast", icon: Radio },
   { id: "journal-watch", label: "Journal Watch", icon: BookOpen },
   { id: "meeting-watch", label: "Meeting Watch", icon: CalendarDays },
   { id: "breaking-paper", label: "Breaking Paper", icon: BookOpenText },
+  { id: "create-story", label: "Create a Story", icon: Sparkles },
   { id: "writeouts", label: "Writeouts", icon: FileText },
   { id: "memory", label: "Memory", icon: Library },
   { id: "voices", label: "Specialty X Voices", icon: Mic2 },
@@ -22,6 +23,7 @@ export function AdminTabs({
   journalWatch,
   meetingWatch,
   breakingPaper,
+  createStory,
   writeouts,
   memory,
   history,
@@ -32,6 +34,7 @@ export function AdminTabs({
   journalWatch: ReactNode;
   meetingWatch: ReactNode;
   breakingPaper: ReactNode;
+  createStory: ReactNode;
   writeouts: ReactNode;
   memory: ReactNode;
   history: ReactNode;
@@ -74,6 +77,8 @@ export function AdminTabs({
         return meetingWatch;
       case "breaking-paper":
         return breakingPaper;
+      case "create-story":
+        return createStory;
       case "writeouts":
         return writeouts;
       case "memory":

@@ -1474,7 +1474,7 @@ async function uploadRenderedBroadcast(
     // explicit BROADCAST_DESCRIPTION override is meant to take priority.
     (!isMeetingWatchMode && process.env.BROADCAST_DESCRIPTION) ||
     actualMetadata?.description ||
-    "Source-attributed ConferenceHype medical-conference programming.";
+    "ConferenceHype medical-conference programming.";
   const tags = actualMetadata?.tags ?? [];
   const categoryId = actualMetadata?.categoryId ?? "27";
 

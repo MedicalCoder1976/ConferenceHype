@@ -25,6 +25,7 @@ import { SocialVoiceCompetition } from "@/components/SocialVoiceCompetition";
 import { SourceManager } from "@/components/SourceManager";
 import { StartStreamButton } from "@/components/StartStreamButton";
 import { StationSchedulePanel } from "@/components/StationSchedulePanel";
+import { StoryDesk } from "@/components/StoryDesk";
 import { SpecialtyVoiceDirectory } from "@/components/SpecialtyVoiceDirectory";
 import { XVoiceCallouts } from "@/components/XVoiceCallouts";
 import {
@@ -398,6 +399,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           </div>
         }
         breakingPaper={<BreakingPaperDesk />}
+        createStory={<StoryDesk />}
         writeouts={<BroadcastWriteoutArchive writeouts={snapshot.broadcastWriteouts} />}
         memory={<EditorialMemory initialPackages={snapshot.editorialPackages} />}
         history={<AiredHistory segments={snapshot.airedSegments} />}

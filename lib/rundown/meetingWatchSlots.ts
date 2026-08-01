@@ -134,15 +134,18 @@ export function buildMeetingWatchSlots({
         preparedAt = addSeconds(preparedAt, transitionSeconds);
       }
     }
-    const closingMusicSeconds = 15;
-    slots.push({
-      at: preparedAt,
-      kind: "music",
-      durationMinutes: closingMusicSeconds / 60,
-      durationSeconds: closingMusicSeconds,
-      label: "Like, subscribe, and recommend the next article",
-      replaceable: false
-    });
+    const isPreparedStory = ordered.every((segment) => segment.riskFlags.includes("prepared_story"));
+    if (!isPreparedStory) {
+      const closingMusicSeconds = 15;
+      slots.push({
+        at: preparedAt,
+        kind: "music",
+        durationMinutes: closingMusicSeconds / 60,
+        durationSeconds: closingMusicSeconds,
+        label: "Like, subscribe, and recommend the next article",
+        replaceable: false
+      });
+    }
     return slots;
   }
   let at = baseTime;

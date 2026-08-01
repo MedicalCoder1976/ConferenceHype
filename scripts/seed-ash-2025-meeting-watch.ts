@@ -312,7 +312,7 @@ async function main() {
     title: "ConferenceHype: ASH 2025 Leukemia Highlights - Pirtobrutinib, CLL17 & Venetoclax Breakthroughs",
     description: `Studies covered: BRUIN CLL-313; CLL17; GIMEMA ALL2820.
 
-This ConferenceHype broadcast recaps leukemia highlights from the 2025 ASH Annual Meeting -- chronic lymphocytic leukemia, acute myeloid leukemia, and acute lymphoblastic leukemia data, source-attributed for physicians, NPs, and PAs following the literature.
+This ConferenceHype broadcast recaps leukemia highlights from the 2025 ASH Annual Meeting -- chronic lymphocytic leukemia, acute myeloid leukemia, and acute lymphoblastic leukemia data for physicians, NPs, and PAs following the literature.
 
 Source: The ASCO Post, "ASH Meeting Highlights 2025" supplement (February 25, 2026).
 
@@ -332,7 +332,7 @@ Watch now on our YouTube channel.
     title: "ConferenceHype: ASH 2025 Highlights - Teclistamab, Epcoritamab & Myeloma Breakthroughs",
     description: `Studies covered: MajesTEC-3; INCA033989; KLN-1010.
 
-This ConferenceHype broadcast recaps lymphoma, myelofibrosis, and multiple myeloma highlights from the 2025 ASH Annual Meeting, source-attributed for physicians, NPs, and PAs following the literature.
+This ConferenceHype broadcast recaps lymphoma, myelofibrosis, and multiple myeloma highlights from the 2025 ASH Annual Meeting for physicians, NPs, and PAs following the literature.
 
 Source: The ASCO Post, "ASH Meeting Highlights 2025" supplement (February 25, 2026).
 
