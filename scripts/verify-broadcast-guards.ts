@@ -1105,6 +1105,8 @@ const journalEducationSvg = buildEvidenceDashboardSvg({
   featureLabel: "EMERALD-3 randomized trial"
 });
 assert.match(journalEducationSvg, /Clinical Evidence Brief/);
+assert.match(journalEducationSvg, /CONFERENCEHYPE/);
+assert.doesNotMatch(journalEducationSvg, new RegExp(["PHYSICIAN", "EDUCATION"].join("\s+"), "i"));
 assert.match(journalEducationSvg, /EMERALD-3 randomized trial/);
 const evidenceOpeningSvg = buildEvidenceDashboardSvg({
   title: "TumorCrusher / Media Watch EMERALD-3 randomized trial",

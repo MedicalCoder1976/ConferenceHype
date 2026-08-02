@@ -159,7 +159,7 @@ export function buildEvidenceDashboardSvg(input: EvidenceDashboardInput) {
     <rect width="1280" height="720" fill="${COLORS.ink}"/>
     <rect x="74" y="130" width="1132" height="420" rx="24" fill="${COLORS.panel}" stroke="${COLORS.cyan}" stroke-opacity=".25" stroke-width="2"/>
     <rect x="74" y="130" width="9" height="420" rx="4.5" fill="${COLORS.broadcast}"/>
-    <text x="118" y="184" class="eyebrow">${seriesHeadline ? "PHYSICIAN EDUCATION" : input.isOpening ? "ARTICLE REVIEW" : "EVIDENCE"}</text>
+    <text x="118" y="184" class="eyebrow">${seriesHeadline ? "CONFERENCEHYPE" : input.isOpening ? "ARTICLE REVIEW" : "EVIDENCE"}</text>
     ${seriesHeadline
       ? `${textBlock(wrap(seriesHeadline, 49, 2), 118, 242, 48, "series")}
          ${textBlock(wrap(featureLabel, 63, 2), 118, 350, 34, "feature")}
