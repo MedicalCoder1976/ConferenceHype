@@ -18,7 +18,7 @@ function isSourceLimitedScienceFailure(errors: string[]) {
   return errors.some(
     (error) =>
       error.includes("only listing metadata") ||
-      error.includes("source-grounded Background, Methods, Results, and Discussion") ||
+      error.includes("evidence-based Background, Methods, Results, and Discussion") ||
       error.includes("only registration, platform, welcome, or context-shell information")
   );
 }

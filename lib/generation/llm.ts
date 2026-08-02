@@ -95,7 +95,12 @@ export async function generateSegmentFromSources({
     id: `draft-${randomUUID()}`,
     title: parsed.title ?? "Generated ConferenceHype segment",
     summary: parsed.summary ?? "Generated reporter-style segment for review.",
-    script: withSpokenDisclaimer(applySpokenPronunciations(parsed.script ?? "")),
+    script: withSpokenDisclaimer(
+      applySpokenPronunciations(
+        parsed.script ?? "",
+        `${parsed.script ?? ""} ${sources.map((item) => `${item.title} ${item.excerpt}`).join(" ")}`
+      )
+    ),
     contentType: resolvedContentType,
     personaId: persona.id,
     personaName: persona.name,
@@ -181,7 +186,9 @@ Facts: ${source.excerpt}`
       id: `draft-${randomUUID()}`,
       title: card.title?.trim() || `${source.title} - card ${index + 1}`,
       summary: script,
-      script: withSpokenDisclaimer(applySpokenPronunciations(script)),
+      script: withSpokenDisclaimer(
+        applySpokenPronunciations(script, `${script} ${source.title} ${source.excerpt}`)
+      ),
       contentType: "media_roundup" as const,
       personaId: persona.id,
       personaName: persona.name,

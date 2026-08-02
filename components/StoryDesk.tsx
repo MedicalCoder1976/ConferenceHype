@@ -69,7 +69,7 @@ export function StoryDesk() {
           <h2 className="text-2xl font-black">Create a Story</h2>
         </div>
         <p className="mt-2 text-sm font-semibold leading-6 text-ink/65">
-          Ask Claude to write a source-grounded narrative about your topic, then paste the finished prose here. ConferenceHype does not call an AI model in this step, so the in-app generation cost is zero. We divide the prose into 12 narrated story cards and use the existing verified YouTube broadcast pipeline.
+          Ask Claude to write a evidence-based narrative about your topic, then paste the finished prose here. ConferenceHype does not call an AI model in this step, so the in-app generation cost is zero. We divide the prose into 12 narrated story cards and use the existing verified YouTube broadcast pipeline.
         </p>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <label className="grid gap-1 text-xs font-black uppercase text-ink/55">

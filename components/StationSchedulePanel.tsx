@@ -94,7 +94,7 @@ export function StationSchedulePanel({
           <input required name="sourceLabel" placeholder="Source label" className="border border-ink/20 p-3 text-sm" />
           <input required type="url" name="sourceUrl" placeholder="https://source..." className="border border-ink/20 p-3 text-sm" />
         </div>
-        <textarea required name="summary" placeholder="Source-grounded summary" className="min-h-24 border border-ink/20 p-3 text-sm" />
+        <textarea required name="summary" placeholder="evidence-based summary" className="min-h-24 border border-ink/20 p-3 text-sm" />
         <textarea required name="script" placeholder="Complete narration script" className="min-h-48 border border-ink/20 p-3 text-sm" />
         <button disabled={busy} className="w-fit bg-broadcast px-4 py-3 text-xs font-black uppercase text-white disabled:opacity-50">Validate, render and upload break-in</button>
       </form>

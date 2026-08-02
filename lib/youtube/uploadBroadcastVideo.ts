@@ -3,8 +3,17 @@ import { Readable } from "node:stream";
 
 const YOUTUBE_TITLE_MAX_LENGTH = 100;
 
+export function removeViewerGroundingLabels(value: string) {
+  return value
+    .replace(/\bsource[- ]grounded\b/gi, "")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\s+([,.;:!?])/g, "$1")
+    .replace(/[ \t]+$/gm, "")
+    .trim();
+}
+
 export function normalizeYoutubeTitle(value: string) {
-  const title = value.trim().replace(/\s+/g, " ");
+  const title = removeViewerGroundingLabels(value).replace(/\s+/g, " ");
   if (Array.from(title).length <= YOUTUBE_TITLE_MAX_LENGTH) return title;
   const available = YOUTUBE_TITLE_MAX_LENGTH - 1;
   const prefix = Array.from(title).slice(0, available).join("");
@@ -72,7 +81,7 @@ export async function uploadVideoToYoutube({
         "X-Upload-Content-Type": "video/mp4"
       },
       body: JSON.stringify({
-        snippet: { title: youtubeTitle, description, tags, categoryId },
+        snippet: { title: youtubeTitle, description: removeViewerGroundingLabels(description), tags, categoryId },
         status: {
           // Scheduled publishing is opt-in. All manual/admin uploads omit
           // publishAt and retain their existing immediate-public behavior.
@@ -148,7 +157,7 @@ export async function updateYoutubeVideoMetadata({
     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       id: videoId,
-      snippet: { ...snippet, title: youtubeTitle, description, tags, categoryId }
+      snippet: { ...snippet, title: youtubeTitle, description: removeViewerGroundingLabels(description), tags, categoryId }
     })
   });
   if (!updateResponse.ok) {
@@ -161,6 +170,8 @@ export type YoutubeThumbnailSpec = {
   specialty?: string;
   dateLabel: string;
   headline?: string;
+  topicLabel?: string;
+  entityLabel?: string;
   journalNames?: string[];
   journalCount?: number;
   panelLabel?: string;
@@ -178,6 +189,8 @@ export async function downloadYoutubeThumbnail({
   dateLabel,
   headline,
   journalNames,
+  topicLabel,
+  entityLabel,
   journalCount,
   panelLabel,
   seriesLabel,
@@ -193,6 +206,8 @@ export async function downloadYoutubeThumbnail({
   if (headline) params.set("headline", headline);
   journalNames?.slice(0, 2).forEach((name) => params.append("journalName", name));
   if (journalCount) params.set("journalCount", String(journalCount));
+  if (topicLabel) params.set("topicLabel", topicLabel);
+  if (entityLabel) params.set("entityLabel", entityLabel);
   if (panelLabel) params.set("panelLabel", panelLabel);
   if (seriesLabel) params.set("seriesLabel", seriesLabel);
   if (detailLabel) params.set("detailLabel", detailLabel);

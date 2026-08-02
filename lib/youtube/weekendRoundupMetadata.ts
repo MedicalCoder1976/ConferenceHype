@@ -1,5 +1,6 @@
 import { extractExplicitStudyNames } from "@/lib/youtube/broadcastMetadata";
 import { specificWeekendSpecialty } from "@/lib/station/weekendRoundup";
+import { buildClinicalEvidencePackaging } from "@/lib/youtube/clinicalEvidencePackaging";
 import type { BroadcastSlot } from "@/lib/rundown/slots";
 import type { BroadcastMetadata } from "@/lib/youtube/broadcastMetadata";
 import type { OncologyJournal } from "@/lib/types";
@@ -65,7 +66,15 @@ export function buildWeekendRoundupMetadata({
   const specialties = unique(resolved.map((item) => item.specialty ?? ""));
   const journals = unique(resolved.map((item) => item.journal?.name ?? ""));
   const dateLabel = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "America/New_York" }).format(hourStart);
-  const title = `${TITLE} | Part ${part} | ${dateLabel}`;
+  const packaging = buildClinicalEvidencePackaging({
+    title: resolved[0]?.segment.title ?? TITLE,
+    specialty: specialties[0] ?? "Multispecialty",
+    explicitTopic: specialties[0],
+    sourceText: resolved.map(({ segment }) => [segment.title, segment.summary, segment.script].filter(Boolean).join("\n")).join("\n"),
+    studyNames,
+    multiTopic: specialties.length > 1
+  });
+  const title = packaging.youtubeTitle;
   const featured = studyNames.length ? studyNames.join("; ") : "Article titles and PubMed citations are listed in the chapters below";
   const chapters = resolved.map(({ slot, segment, journal, specialty }) => {
     const elapsed = (slot.at.getTime() - hourStart.getTime()) / 1000;
@@ -87,7 +96,7 @@ export function buildWeekendRoundupMetadata({
     `Featured trials and studies: ${featured}.`,
     `Specialties: ${specialties.join("; ")}.`,
     `Journals: ${journals.join("; ")}.`,
-    "ConferenceHype selected these source-grounded cards from journal articles actually covered during the Monday-Friday broadcast week.",
+    "ConferenceHype selected these evidence-rich cards from journal articles actually covered during the Monday-Friday broadcast week.",
     "",
     ...chapters,
     "",
@@ -102,19 +111,22 @@ export function buildWeekendRoundupMetadata({
     specialty: "Multispecialty",
     dateLabel,
     studyNames,
-    thumbnailHeadline: "Top Medical Studies This Week",
+    clinicalTopic: packaging.clinicalTopic,
+    thumbnailHeadline: packaging.thumbnailHook,
+    thumbnailHook: packaging.thumbnailHook,
+    thumbnailEntity: packaging.thumbnailEntity,
     thumbnailJournalNames: journals.slice(0, 2),
     thumbnailJournalCount: journals.length
   };
 }
 
 export function assertWeekendRoundupMetadata(metadata: BroadcastMetadata) {
-  if (!metadata.title.startsWith(TITLE)) throw new Error("Weekend roundup title is missing.");
+  if (!metadata.clinicalTopic || !metadata.title.startsWith(metadata.clinicalTopic + ":")) throw new Error("Weekend roundup title must begin with its disease or clinical topic.");
   for (const label of ["Featured trials and studies:", "Specialties:", "Journals:"]) {
     if (!metadata.description.includes(label)) throw new Error(`Weekend metadata is missing ${label}`);
   }
   if (!metadata.tags.includes("Weekend Medical Roundup")) throw new Error("Weekend roundup SEO tag is missing.");
-  if (metadata.thumbnailHeadline !== "Top Medical Studies This Week") throw new Error("Weekend roundup thumbnail headline is missing.");
+  if (!metadata.thumbnailHeadline) throw new Error("Weekend roundup thumbnail headline is missing.");
   if (!metadata.thumbnailJournalNames?.length || !metadata.thumbnailJournalCount) throw new Error("Weekend roundup thumbnail journals are missing.");
   return metadata;
 }

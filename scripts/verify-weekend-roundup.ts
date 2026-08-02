@@ -49,7 +49,9 @@ assert.ok(
   "The planned 24-card rundown must fit before measured render-time reconciliation."
 );
 const metadata = assertWeekendRoundupMetadata(buildWeekendRoundupMetadata({ hourStart: baseTime, slots, journalsById, part: 1 }));
-assert.match(metadata.title, /^Weekend Roundup of Top Medical Journal Articles of the Week \| Part 1/);
+assert.match(metadata.title, /^Neurology:/);
+assert.equal(metadata.clinicalTopic, "Neurology");
+assert.ok(metadata.thumbnailHeadline);
 assert.match(metadata.description, /Featured trials and studies:/);
 assert.match(metadata.description, /Specialties: Neurology/);
 assert.match(metadata.description, /Journals: Neurology/);
@@ -58,7 +60,7 @@ assert.deepEqual(metadata.thumbnailJournalNames, ["Neurology", "Nature Medicine"
 assert.equal(metadata.thumbnailJournalCount, 2);
 
 const renderSource = readFileSync(path.join(process.cwd(), "scripts", "render-hour-broadcast.ts"), "utf8");
-assert.match(renderSource, /Measured 30-minute frame reconciled/);
+assert.match(renderSource, /Measured broadcast frame reconciled/);
 assert.match(renderSource, /cardCacheKeys\.splice\(insertAt, 0, undefined\)/);
 
 const workflow = readFileSync(path.join(process.cwd(), ".github", "workflows", "weekend-medical-roundup.yml"), "utf8");
@@ -68,7 +70,7 @@ assert.match(workflow, /HOUR.*08/);
 assert.match(workflow, /max-parallel: 2/);
 assert.match(workflow, /activate_weekend_station_schedule/);
 const weekdayWorkflow = readFileSync(path.join(process.cwd(), ".github", "workflows", "weekday-station-wheel.yml"), "utf8");
-assert.match(weekdayWorkflow, /cron: "30 11 \* \* 1-5"/);
+assert.match(weekdayWorkflow, /cron: "30 9 \* \* 1-5"/);
 assert.doesNotMatch(weekdayWorkflow, /weekend30/);
 const migration = readFileSync(path.join(process.cwd(), "supabase", "migrations", "20260725120000_weekend_roundup_station.sql"), "utf8");
 assert.match(migration, /extract\(isodow from candidate\.schedule_date\) not in \(6, 7\)/);

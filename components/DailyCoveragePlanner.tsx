@@ -429,7 +429,7 @@ export function DailyCoveragePlanner({
         setBatchStatus({
           state: "creating",
           text:
-            "Creating source-grounded ready cards for the selected one-hour slot. If stored prior-day matches are empty, the server will fetch the selected sources now."
+            "Creating evidence-based ready cards for the selected one-hour slot. If stored prior-day matches are empty, the server will fetch the selected sources now."
         });
 
         const batchResponse = await fetch("/api/admin/intake-cards/hour", {

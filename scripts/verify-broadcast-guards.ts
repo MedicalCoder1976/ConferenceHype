@@ -6,6 +6,7 @@ import { formatVoiceSegment, SEGMENT_CLOSE } from "@/lib/broadcast/voiceSegment"
 import { buildBroadcastSlots, buildJournalShowSlots } from "@/lib/rundown/slots";
 import { assertSearchOptimizedBroadcastMetadata, buildBroadcastMetadata, extractExplicitStudyName, extractExplicitStudyNames } from "@/lib/youtube/broadcastMetadata";
 import { applySpokenPronunciations, extractSpokenAbbreviationDefinitions } from "@/lib/media/tts";
+import { buildClinicalEvidencePackaging } from "@/lib/youtube/clinicalEvidencePackaging";
 import { buildMeetingWatchSlots, groupMeetingWatchSegmentsByTrial } from "@/lib/rundown/meetingWatchSlots";
 import { parsePreparedNarrative, preparedNarrativeSegments } from "@/lib/meetingWatch/preparedNarrative";
 import { getUnsafeGeneratedSourceErrors } from "@/lib/generation/sourceSafety";
@@ -107,6 +108,15 @@ assert.equal(
   "progression-free survival was reported in July and updated in August."
 );
 assert.equal(applySpokenPronunciations("PFS was reported.", "The source does not define it."), "PFS was reported.");
+// Bug fixed 2026-07-30: only Jul/Aug were expanded to full month names;
+// Jun (and every other short-form month) was left for Kokoro to mis-read
+// instead of saying "June". All 12 abbreviations must expand; May is a
+// no-op since the short and long forms are identical.
+assert.equal(
+  applySpokenPronunciations("Jan Feb Mar Apr May Jun Jul Aug Sep Sept Oct Nov Dec"),
+  "January February March April May June July August September September October November December"
+);
+assert.equal(applySpokenPronunciations("Published Jun. 2026."), "Published June. 2026.");
 {
   const largeContext = Array.from({ length: 75 }, (_, index) => `Card ${index + 1}: progression-free survival (PFS) was assessed in Jul.`).join(" ");
   const started = performance.now();
@@ -385,15 +395,15 @@ const metadataWithOverrideOmittedAgain = buildBroadcastMetadata({
   journalsById: journalShowJournalsById
 });
 assert.deepEqual(metadataWithoutOverride, metadataWithOverrideOmittedAgain);
-assert.match(metadataWithoutOverride.title, /Jul 13, 2026/);
+assert.match(metadataWithoutOverride.title, /^Internal Medicine:/);
 const metadataWithOverride = buildBroadcastMetadata({
   hourStart: metadataHourStart,
   slots: journalShowSlots,
   journalsById: journalShowJournalsById,
   titleDateOverride: "2026-03-15"
 });
-assert.match(metadataWithOverride.title, /Mar 2026/);
-assert.doesNotMatch(metadataWithOverride.title, /Jul 13, 2026/);
+assert.equal(metadataWithOverride.dateLabel, "Mar 2026");
+assert.doesNotMatch(metadataWithOverride.title, /ConferenceHype|2026/);
 assert.match(
   metadataWithOverride.description,
   /Journals and publication dates covered: Test Journal \(publication date unavailable\)\./
@@ -403,7 +413,7 @@ const legacyNeurologyMetadata = buildBroadcastMetadata({
   slots: journalShowSlots,
   journalsById: new Map([[journalShowJournalId, { ...journalShowTestJournal, name: "Neurology", specialty: "Others" }]])
 });
-assert.match(legacyNeurologyMetadata.title, /Neurology - Neurology/);
+assert.match(legacyNeurologyMetadata.title, /^Neurology:/);
 assert.doesNotMatch(`${legacyNeurologyMetadata.title} ${legacyNeurologyMetadata.description} ${legacyNeurologyMetadata.tags.join(" ")}`, /\bOthers\b/);
 
 assert.equal(extractExplicitStudyName("V-NE Ulcer Study 6: randomized findings"), "V-NE Ulcer Study 6");
@@ -417,6 +427,32 @@ assert.deepEqual(
 );
 assert.equal(extractExplicitStudyName("AI triage in the LungIMPACT randomized controlled trial"), "LungIMPACT trial");
 assert.equal(extractExplicitStudyName("The LungIMPACT trial evaluated AI triage"), "LungIMPACT trial");
+const oncologyPackaging = buildClinicalEvidencePackaging({
+  title: "FLAURA2 trial: overall survival results with osimertinib",
+  specialty: "Oncology",
+  sourceText: "The FLAURA2 trial evaluated osimertinib in EGFR-mutated non-small cell lung cancer.",
+  studyNames: ["FLAURA2 trial"]
+});
+assert.equal(oncologyPackaging.clinicalTopic, "Lung Cancer");
+assert.match(oncologyPackaging.youtubeTitle, /^Lung Cancer: FLAURA2 trial/);
+assert.equal(oncologyPackaging.thumbnailEntity, "FLAURA2 trial");
+assert.doesNotMatch(oncologyPackaging.youtubeTitle, /^ConferenceHype|Physician Education/);
+const cardiologyPackaging = buildClinicalEvidencePackaging({
+  title: "Novo Nordisk heart medicine fails trial: ZEUS cut inflammation, not heart attacks",
+  specialty: "Cardiology",
+  sourceText: "ZEUS evaluated cardiovascular events and heart attacks.",
+  studyNames: ["ZEUS trial"]
+});
+assert.equal(cardiologyPackaging.clinicalTopic, "Coronary Artery Disease");
+assert.match(cardiologyPackaging.youtubeTitle, /^Coronary Artery Disease: ZEUS trial/);
+const storyPackaging = buildClinicalEvidencePackaging({
+  title: "How GLP-1 medicines changed obesity care",
+  specialty: "Story",
+  explicitTopic: "Obesity Care",
+  sourceText: "A narrative about obesity treatment."
+});
+assert.equal(storyPackaging.clinicalTopic, "Obesity");
+assert.match(storyPackaging.youtubeTitle, /^Obesity:/);
 const firstStudySlotIndex = journalShowSlots.findIndex((slot) => slot.segment && !slot.segment.riskFlags.includes("journal_show_outro"));
 const studyNamedSlots = journalShowSlots.map((slot, index) => index === firstStudySlotIndex && slot.segment
   ? { ...slot, segment: { ...slot.segment, title: "V-NE Ulcer Study 6: randomized findings" } }
@@ -427,10 +463,11 @@ const optimizedStudyMetadata = buildBroadcastMetadata({
   journalsById: journalShowJournalsById,
   titleDateOverride: "2026-07-01"
 });
-assert.match(optimizedStudyMetadata.title, /^V-NE Ulcer Study 6:/);
+assert.match(optimizedStudyMetadata.title, /^Internal Medicine: V-NE Ulcer Study 6/);
 assert.match(optimizedStudyMetadata.description, /^Studies covered: V-NE Ulcer Study 6\./);
 assert.equal(optimizedStudyMetadata.tags[0], "V-NE Ulcer Study 6");
-assert.equal(optimizedStudyMetadata.thumbnailHeadline, "V-NE Ulcer Study 6: What Did It Find?");
+assert.equal(optimizedStudyMetadata.thumbnailHeadline, "randomized findings");
+assert.equal(optimizedStudyMetadata.thumbnailEntity, "V-NE Ulcer Study 6");
 assert.deepEqual(optimizedStudyMetadata.thumbnailJournalNames, [journalShowTestJournal.name]);
 assert.equal(optimizedStudyMetadata.thumbnailJournalCount, 1);
 assert.doesNotThrow(() => assertSearchOptimizedBroadcastMetadata(optimizedStudyMetadata));
@@ -456,10 +493,11 @@ const abstractNamedMetadata = buildBroadcastMetadata({
   titleDateOverride: "2026-07-01",
   studySourceTextBySegmentId: new Map([[firstStudySegmentId, "Methods from the PREDICT study were prespecified."]])
 });
-assert.match(abstractNamedMetadata.title, /^PREDICT study:/);
+assert.match(abstractNamedMetadata.title, /^Internal Medicine: PREDICT study/);
 assert.equal(abstractNamedMetadata.tags[0], "PREDICT study");
 assert.match(abstractNamedMetadata.description.split("\n")[0], /PREDICT study/);
-assert.equal(metadataWithoutOverride.thumbnailHeadline, undefined);
+assert.equal(metadataWithoutOverride.thumbnailHeadline, "Journal show topic 0");
+assert.equal(metadataWithoutOverride.clinicalTopic, "Internal Medicine");
 assert.deepEqual(metadataWithoutOverride.studyNames, []);
 
 assert.ok(
@@ -968,20 +1006,24 @@ const renderHourSource = readFileSync(
   "utf8"
 );
 assert.match(renderHourSource, /function enforceOneHourFrame/);
+// Single-journal shows use 30 minutes only as a ceiling; they must not add
+// trailing music merely to make the uploaded video exactly 30:00.
+assert.match(renderHourSource, /const shouldPadToFrame = !isJournalMode/);
+assert.match(renderHourSource, /remainingSeconds > 0 && padToFrame/);
+assert.match(renderHourSource, /delta > 0\.001 && !isJournalMode/);
 assert.match(renderHourSource, /const NARRATION_START_DELAY_SECONDS = 2/);
 assert.match(renderHourSource, /reserveOpeningNarrationDelay/);
 assert.match(renderHourSource, /volume=0\.85,adelay=2000\|2000\[voice\]/);
 assert.match(renderHourSource, /Narration overlap detected/);
 assert.match(renderHourSource, /const pronunciationDefinitions = new Map/);
 assert.match(renderHourSource, /applySpokenPronunciations\(card\.script, pronunciationDefinitions\.get/);
+assert.match(renderHourSource, /const STORY_NARRATION_SPEED = 1\.05/);
+assert.match(renderHourSource, /card\.riskFlags\?\.includes\("prepared_story"\) \? STORY_NARRATION_SPEED : 1\.15/);
+assert.match(renderHourSource, /\$\{persona\.voiceEnvKey\}\|\$\{speed\}\|\$\{processedScript\}/);
+assert.match(readFileSync(path.resolve("lib/story/preparedStory.ts"), "utf8"), /STORY_WORDS_PER_SECOND_AT_MEASURED_PACE = 1\.95/);
 assert.match(renderHourSource, /Removed \$\{removedContentCards\} trailing content card/);
 assert.match(renderHourSource, /while \(remainingSeconds > 0\)/);
 assert.match(renderHourSource, /Math\.min\(OPERATOR_MUSIC_SECONDS, remainingSeconds\)/);
-// Single-journal shows use 30 minutes only as a ceiling; they must not add
-// trailing music merely to make the uploaded video exactly 30:00.
-assert.match(renderHourSource, /const shouldPadToFrame = !isJournalMode/);
-assert.match(renderHourSource, /remainingSeconds > 0 && padToFrame/);
-assert.match(renderHourSource, /delta > 0\.001 && !isJournalMode/);
 assert.match(renderHourSource, /durationSeconds = Math\.min\(Number\(process\.env\.HOUR_BROADCAST_SECONDS \?\? 3600\), 3600\)/);
 
 // Bug fixed 2026-07-12: the per-card audio amix must run for the length of
@@ -1009,12 +1051,14 @@ assert.match(renderHourSource, /Uploaded \$\{youtubeUrl\}, public immediately/);
 assert.match(renderHourSource, /useFullLengthMusicPadding/);
 assert.match(renderHourSource, /OPERATOR_MUSIC_TRACKS\[musicIndex % OPERATOR_MUSIC_TRACKS\.length\]/);
 assert.match(renderHourSource, /buildBroadcastMetadata\(\{/);
-assert.match(renderHourSource, /headline: isBreakingMode/);
-assert.match(renderHourSource, /: isJournalMode \|\| isWeekendMode/);
-assert.match(renderHourSource, /Physician Education: Breaking Paper/);
-assert.match(renderHourSource, /Physician Education: Listen to One New Journal Everyday/);
-assert.match(renderHourSource, /detailLabel: isBreakingMode/);
-assert.match(renderHourSource, /seriesHeadline: isBreakingMode/);
+assert.match(renderHourSource, /headline: actualMetadata\?\.thumbnailHook/);
+assert.match(renderHourSource, /topicLabel: isBreakingMode/);
+assert.match(renderHourSource, /entityLabel: actualMetadata\?\.thumbnailEntity/);
+assert.match(renderHourSource, /seriesLabel: "CLINICAL EVIDENCE BRIEF"/);
+assert.match(renderHourSource, /seriesHeadline: isBreakingMode \? "Clinical Evidence Brief: Breaking Paper" : "Clinical Evidence Brief"/);
+assert.match(renderHourSource, /actualMetadata\?\.title \|\|\s+process\.env\.BROADCAST_TITLE/);
+assert.doesNotMatch(renderHourSource, /Physician Education/);
+assert.doesNotMatch(renderHourSource, /headline: isBreakingMode/);
 assert.match(renderHourSource, /const OPENING_TITLE_SECONDS = 8/);
 assert.match(renderHourSource, /const PERSISTENT_BRANDING_START_DATE = "2026-07-28"/);
 assert.match(renderHourSource, /burnOpeningThumbnailIntoVideo/);
@@ -1049,11 +1093,10 @@ const journalEducationSvg = buildEvidenceDashboardSvg({
   isMusic: false,
   index: 2,
   total: 12,
-  seriesHeadline: "Physician Education: Listen to One New Journal Everyday",
+  seriesHeadline: "Clinical Evidence Brief",
   featureLabel: "EMERALD-3 randomized trial"
 });
-assert.match(journalEducationSvg, /Physician Education: Listen to One New Journal/);
-assert.match(journalEducationSvg, />Everyday</);
+assert.match(journalEducationSvg, /Clinical Evidence Brief/);
 assert.match(journalEducationSvg, /EMERALD-3 randomized trial/);
 const evidenceOpeningSvg = buildEvidenceDashboardSvg({
   title: "TumorCrusher / Media Watch EMERALD-3 randomized trial",
@@ -1086,8 +1129,10 @@ const closingMusicSvg = buildEvidenceDashboardSvg({
 });
 assert.match(closingMusicSvg, /Like and subscribe/);
 assert.match(closingMusicSvg, /recommend an article or trial/);
-// Coming Next transitions must show the approved next title and a useful CTA,
-// never inert filler describing the music transition itself.
+// Bug fixed 2026-07-30: the non-closing "Coming Next" transition slide used
+// to show inert filler ("A brief music transition...") instead of asking
+// viewers to like/subscribe/suggest journals -- only the final closing slide
+// of the whole broadcast carried that CTA. Every transition slide should.
 const comingNextMusicSvg = buildEvidenceDashboardSvg({
   isMusic: true,
   text: "",
@@ -1096,21 +1141,55 @@ const comingNextMusicSvg = buildEvidenceDashboardSvg({
   total: 12
 });
 assert.match(comingNextMusicSvg, /COMING NEXT/);
-assert.match(comingNextMusicSvg, /Stroke after aortic arch surgery/);
 assert.match(comingNextMusicSvg, /Like and subscribe/);
 assert.match(comingNextMusicSvg, /which journals/);
-assert.doesNotMatch(comingNextMusicSvg, /brief music transition/i);
-assert.doesNotMatch(comingNextMusicSvg, /next article section begins shortly/i);
+assert.match(comingNextMusicSvg, /cover next/);
+assert.doesNotMatch(comingNextMusicSvg, /brief music transition/);
+// Bug fixed 2026-07-30: stripSlideDescriptors' "Journal Coverage" label-strip
+// regex was unanchored, so it deleted that phrase anywhere it appeared --
+// including as real title content. The outro card title "End of journal
+// coverage" (lib/rundown/slots.ts) lost everything after "End of" on a real
+// aired broadcast. Confirmed fixed by anchoring the strip to the start (^).
+const outroCardMusicSvg = buildEvidenceDashboardSvg({
+  isMusic: true,
+  text: "",
+  nextTitle: "End of journal coverage",
+  index: 10,
+  total: 12
+});
+assert.match(outroCardMusicSvg, />End of journal coverage</);
+// Bug fixed 2026-07-30: wrap()'s line-break loop dropped the overflow word
+// silently when it landed exactly on a maxCharacters boundary (no ellipsis,
+// title just stopped mid-thought), and truncate() appended a mojibake
+// "â€¦" instead of a real ellipsis and could cut mid-word. Long titles must
+// now always end in a real "…" when truncated, never a bare cutoff.
+const longTitleMusicSvg = buildEvidenceDashboardSvg({
+  isMusic: true,
+  text: "",
+  nextTitle: "Stroke after aortic arch surgery with short circulatory arrest times: The effect of deep hypothermic circulatory arrest on neurologic outcomes",
+  index: 5,
+  total: 12
+});
+assert.match(longTitleMusicSvg, /…<\/tspan><\/text>/);
+assert.doesNotMatch(longTitleMusicSvg, /â€¦/);
+assert.doesNotMatch(longTitleMusicSvg, /times: The<\/tspan>/);
 const thumbnailRouteSource = readFileSync(path.join(process.cwd(), "app", "api", "youtube-thumbnail", "route.tsx"), "utf8");
 assert.match(thumbnailRouteSource, /params\.get\("headline"\)/);
 assert.match(thumbnailRouteSource, /params\.getAll\("journalName"\)/);
 assert.match(thumbnailRouteSource, /FEATURED JOURNALS/);
-assert.match(thumbnailRouteSource, /SOURCE-GROUNDED/);
+assert.doesNotMatch(thumbnailRouteSource, new RegExp(["source", "grounded"].join("[- ]"), "i"));
+assert.match(thumbnailRouteSource, /WHY THIS RESULT MATTERS/);
 assert.match(thumbnailRouteSource, /remainingJournalCount/);
 assert.match(thumbnailRouteSource, /seriesLabel/);
 assert.match(thumbnailRouteSource, /detailLabel/);
 assert.match(thumbnailRouteSource, /persistent-frame/);
 assert.match(thumbnailRouteSource, /promiseLabel/);
+assert.match(thumbnailRouteSource, /params\.get\("topicLabel"\)/);
+assert.match(thumbnailRouteSource, /params\.get\("entityLabel"\)/);
+assert.match(thumbnailRouteSource, /fontSize: headline\.length > 42 \? 64 : 78/);
+assert.match(thumbnailRouteSource, /color: COLORS\.gold/);
+assert.match(thumbnailRouteSource, /NEW EVIDENCE/);
+assert.doesNotMatch(thumbnailRouteSource, />\?<\/div>/);
 const stationMetadataSource = readFileSync(path.join(process.cwd(), "scripts", "refresh-station-video-metadata.ts"), "utf8");
 assert.match(stationMetadataSource, /updateYoutubeVideoMetadata/);
 assert.match(stationMetadataSource, /uploadYoutubeThumbnail/);
@@ -1442,13 +1521,38 @@ assert.equal(breakingPaper.title, "A randomized breast cancer trial");
 const pubmedPaper = parsePubMedXml(`<PubmedArticle><Article><Journal><Title>Neurology</Title></Journal><ArticleTitle>A stroke prevention trial</ArticleTitle><Abstract><AbstractText Label="METHODS">Adults were randomized to intervention or control.</AbstractText><AbstractText Label="RESULTS">Stroke incidence was reduced in the intervention group.</AbstractText><AbstractText Label="CONCLUSIONS">The authors reported a lower stroke incidence.</AbstractText></Abstract></Article></PubmedArticle>`, "https://pubmed.ncbi.nlm.nih.gov/12345678/");
 assert.equal(pubmedPaper.diseaseType, "Neurologic Disease");
 assert.match(pubmedPaper.script, /Adults were randomized/);
-assert.match(breakingPaper.script, /Physician Education: Breaking Paper/);
+assert.match(breakingPaper.script, /Clinical Evidence Brief: Breaking Paper/);
 assert.match(breakingPaper.script, /Methods: Patients were randomized/);
+assert.equal(breakingPaper.socialReaction, undefined);
 assert.throws(() => assertSafePaperUrl("http://localhost/paper"), /public HTTPS|Private or local/);
 const breakingPaperRouteSource = readFileSync(path.join(process.cwd(), "app", "api", "admin", "breaking-paper", "route.ts"), "utf8");
 assert.match(breakingPaperRouteSource, /assertAdminRequest/);
 assert.match(breakingPaperRouteSource, /fetchBreakingPaper/);
 assert.doesNotMatch(breakingPaperRouteSource, /openai|generateText|chat\.completions/i);
+// Feature added 2026-07-30: an optional operator-pasted X/Twitter reaction
+// (no X API call -- stays zero-cost) is spliced into the deterministic
+// script as a clearly attributed extra beat, never mixed into the paper's
+// own Background/Methods/Results/Discussion facts.
+const breakingPaperWithReaction = parsePaperHtml(`
+  <html><head>
+    <meta name="citation_title" content="A randomized breast cancer trial">
+    <meta name="citation_journal_title" content="Journal of Clinical Oncology">
+    <meta name="citation_abstract" content="Background: Treatment options remain limited. Methods: Patients were randomized to therapy or control. Results: Progression-free survival improved in the therapy group. Discussion: The authors concluded that benefit should be balanced against toxicity.">
+  </head></html>`, "https://pubmed.ncbi.nlm.nih.gov/12345678/", '  This trial could change practice overnight!! <b>huge</b> if confirmed  ');
+assert.match(breakingPaperWithReaction.script, /Also making the rounds on X: "This trial could change practice overnight!! huge if confirmed"/);
+assert.ok(breakingPaperWithReaction.script.indexOf("Also making the rounds on X") > breakingPaperWithReaction.script.indexOf("Discussion:"));
+assert.ok(breakingPaperWithReaction.script.indexOf("Also making the rounds on X") < breakingPaperWithReaction.script.indexOf("This broadcast is educational"));
+assert.match(breakingPaperWithReaction.socialReaction ?? "", /Also making the rounds on X/);
+const breakingPaperLongReaction = parsePaperHtml(`
+  <html><head>
+    <meta name="citation_title" content="A randomized breast cancer trial">
+    <meta name="citation_journal_title" content="Journal of Clinical Oncology">
+    <meta name="citation_abstract" content="Background: Treatment options remain limited. Methods: Patients were randomized to therapy or control. Results: Progression-free survival improved in the therapy group. Discussion: The authors concluded that benefit should be balanced against toxicity.">
+  </head></html>`, "https://pubmed.ncbi.nlm.nih.gov/12345678/", "x".repeat(600));
+assert.match(breakingPaperLongReaction.socialReaction ?? "", /…"$/);
+const breakingPaperDeskSource = readFileSync(path.join(process.cwd(), "components", "BreakingPaperDesk.tsx"), "utf8");
+assert.match(breakingPaperDeskSource, /socialReaction/);
+assert.match(breakingPaperDeskSource, /no X API call/);
 console.log("Broadcast guard verification passed.");
 })().catch((error) => {
   console.error(error);
@@ -1493,7 +1597,7 @@ assert.equal(parseVolumeDetect("mean_volume: -inf dB\nmax_volume: -inf dB").maxV
   const preparedPackage = {
     schema_version: "conferencehype_prepared_broadcast_v1", status: "ready", content_type: "CONFERENCE_ROUNDUP",
     source: { publication: "Example Journal", article_title: "ASH review", url: "https://example.com/ash-review", publication_date: "2026-07-01", authors: ["Ada Author"] },
-    program: { conference_name: "ASH", specialty: "Hematology", title: "ASH trial review", thumbnail_headline: "What changed?", description_opening: "A source-grounded review.", studies_covered: trialNames, estimated_spoken_words: 300, estimated_duration_minutes: 5, recommended_presenter_format: "two hosts" },
+    program: { conference_name: "ASH", specialty: "Hematology", title: "ASH trial review", thumbnail_headline: "What changed?", description_opening: "A evidence-based review.", studies_covered: trialNames, estimated_spoken_words: 300, estimated_duration_minutes: 5, recommended_presenter_format: "two hosts" },
     opening_hook: { visible_text: "The key findings", speaker_turns: [{ speaker: "HOST_1", text: "TumorCrusher / Media Watch: A new ASCO Educational Book review. Here is the review." }], source_anchor: "Opening" },
     cards: trialNames.map((study_name, index) => ({ position: index + 1, title: `${study_name}: finding ${index + 1}`, card_type: "evidence", visible_text: `Finding ${index + 1}`, speaker_turns: [{ speaker: index % 2 ? "HOST_2" : "HOST_1", text: `Discussion for ${study_name}.` }], source_anchor: `Paragraph ${index + 1}`, study_name, reported_numbers: [], limitations: [] })),
     transitions: [{ after_card_position: 1, duration_seconds: 20, next_topic: "BRUIN" }],

@@ -163,7 +163,7 @@ embedder.
 Every newly rendered broadcast uses the shared evidence-dashboard slide
 renderer. The center of the video must never be an empty color field:
 
-- content cards show the source-grounded title, Key Finding, Study Snapshot,
+- content cards show the source-verified title, Key Finding, Study Snapshot,
   Why It Matters, source attribution, and program progress;
 - explicit Background, Methods, Results, and Discussion text is reused when
   present; otherwise the dashboard falls back to concise text already stored
@@ -171,8 +171,25 @@ renderer. The center of the video must never be an empty color field:
 - music cards show a branded Coming Next panel using the next approved card;
   its body text is always a like/subscribe + "suggest a journal in the
   comments" call to action (`lib/broadcast/evidenceDashboard.ts`), never
-  inert filler like "A brief music transition..." or "The next article
-  section begins shortly";
+  inert filler like "A brief music transition..." — fixed 2026-07-30, that
+  filler used to show on every transition slide except the final closing one;
+- slide titles (including the Coming Next panel's next-title) must never be
+  silently cut off. Two distinct bugs were fixed 2026-07-30 after a live
+  broadcast showed a Coming Next slide reading just "End of" with nothing
+  after it: (1) `stripSlideDescriptors()`'s "strip a leading label prefix"
+  regexes (`TumorCrusher / Media Watch EMERALD-3 trial` -> `EMERALD-3 trial`)
+  were unanchored, so they deleted the same phrase anywhere it appeared —
+  the outro card titled "End of journal coverage" (`lib/rundown/slots.ts`)
+  lost "journal coverage" to the "Journal Coverage" label pattern; fixed by
+  anchoring every pattern to the start of the string (`^`), both in
+  `evidenceDashboard.ts` and the identical `stripPreparedDescriptors()` in
+  `lib/meetingWatch/preparedNarrative.ts`, which had the same unanchored bug
+  applied to spoken narration text. (2) `wrap()`'s line-wrapping loop could
+  drop the final overflow word with no ellipsis when it landed exactly on a
+  line-count boundary, and `truncate()`'s ellipsis character was mojibake
+  (`â€¦` instead of `…`) and could cut mid-word; rewritten so a truncated
+  title always ends in a real `…`, cut at a word boundary when reasonably
+  close to the limit.
 - the persistent series header, footer, and narration-driven waveform remain
   overlays and do not alter card timing, narration, music placement, upload,
   scheduling, or activation;
@@ -365,7 +382,7 @@ Meeting Watch/prepared narrative, and breaking-news broadcasts going forward.
   If a "the same card played twice" report recurs, check for duplicate rows
   sharing a citation URL or script text first, before assuming a scheduling
   bug.
-- Narration style: pronounce `ASCO` as `ASKho`/`Ask-ho`, never as the individual letters A-S-C-O. Pronounce `cholangiocarcinoma` as `COLANGIOCARCINOMA` ("colangio-carcinoma"); the `ch` is a hard `k` sound and must not be read as "cho". Pronounce `Ib` and `1b` as `one B`. Pronounce `ECOG` as a word (`EE-kog`), not individual letters. Expand `PR` to "partial response", `CR` to "complete response", `pCR` to "pathologic complete response", and `WHO` to "World Health Organization" when spoken. Spell `NCI` out as individual letters ("N-C-I"). Cancer-staging notation (Roman numeral immediately followed by a letter, e.g. `IA`, `IIA`, `IIIB`, `IVA`) is read as the cardinal number plus the letter — `IA` as "one A", `IIA` as "two A", and so on.
+- Narration style: pronounce `ASCO` as `ASKho`/`Ask-ho`, never as the individual letters A-S-C-O. Pronounce `cholangiocarcinoma` as `COLANGIOCARCINOMA` ("colangio-carcinoma"); the `ch` is a hard `k` sound and must not be read as "cho". Pronounce `Ib` and `1b` as `one B`. Pronounce `ECOG` as a word (`EE-kog`), not individual letters. Expand `PR` to "partial response", `CR` to "complete response", `pCR` to "pathologic complete response", and `WHO` to "World Health Organization" when spoken. Spell `NCI` out as individual letters ("N-C-I"). Cancer-staging notation (Roman numeral immediately followed by a letter, e.g. `IA`, `IIA`, `IIIB`, `IVA`) is read as the cardinal number plus the letter — `IA` as "one A", `IIA` as "two A", and so on. All 12 three/four-letter month abbreviations (`Jan`, `Feb`, `Mar`, `Apr`, `Jun`, `Jul`, `Aug`, `Sep`/`Sept`, `Oct`, `Nov`, `Dec` — PubMed citation dates commonly use these) expand to the full month name when spoken; `May` needs no rule since the short and long forms are identical. Fixed 2026-07-30: only `Jul`/`Aug` had a rule, so `Jun` (and every other month) was mis-read on air. Any abbreviation the source abstract defines in parentheses (e.g. "progression-free survival (PFS)") is expanded to its full form everywhere it's spoken, even if the generated script itself never restates the definition — `applySpokenPronunciations` is given the source excerpt as context at generation time (`lib/generation/llm.ts`), not just the script text, and is re-applied with the full card context again at render time as a second safety net.
 - Broadcast closing: never narrate "That is it for this segment." A single-journal program must say "That's it for now" and "If anything was missed" exactly once, in the dedicated final outro at the true end of the journal broadcast; content-card group boundaries must never repeat either phrase. The close identifies the journal and issue month/year and uses the complete X call to action: "Tag us on X @conferencehype."
 - Operator music cards are allow-listed original three-minute instrumentals in
   `public/music/fast-jazz-blocks`. The Admin Music cards panel may replace one
@@ -529,7 +546,8 @@ that no psychiatry journals or articles were missed.
 - Add exact dates only from official conference sources.
 - Choose one-hour coverage slots.
 - Approve an individual slot, a day, or the next seven days.
-- Develop source-grounded meeting packages.
+- Develop source-verified meeting packages.
+- Prepared-broadcast/Meeting Watch packages use only facts stated in the supplied source. One narrow exception: a drug's originating or marketing pharma company may be named even when the source itself doesn't name it, but only when that attribution is certain beyond doubt (e.g. the company's own press release). Otherwise the company slot is omitted rather than guessed.
 - ASH-style and other Meeting Watch reviews are trial-atomic: every host turn and card for one trial stays consecutive, and no music transition or disclaimer is inserted inside that trial. If a pasted prepared package leaves and later returns to a trial, preview automatically groups that trial together, renumbers its cards, and moves its transition/disclaimer to the completed trial boundary; the preview explicitly reports the correction for operator review. If the remaining frame cannot fit the entire next trial conversation, none of that trial is admitted.
 - Every newly rendered program reserves two seconds before its first narration. The renderer preserves the fixed program length by borrowing those two seconds from a later music block, never from speech, and fails closed if that is impossible. Measured voice clips are checked for timeline overlap before FFmpeg runs.
 - TTS reads `Jul` as `July` and `Aug` as `August`. Other abbreviations are expanded only when their full form is explicitly present in the reviewed source context; unknown abbreviations are not guessed. Definition extraction is bounded and performed once per trial/source, then reused by every turn; the 75-turn performance guard must remain under one second.
@@ -761,7 +779,7 @@ journals or specialties, instead of a generic always-identical title.
   ≥40%), falling through to the existing `roundup` tier otherwise.
 - **Study-name search optimization (effective July 24, 2026)**: study and trial names are extracted only when explicitly present in approved card text, citation labels, or the linked PubMed abstract. Recognizable names (for example `ILUSTRO study`, `PREDICT study`, or `RESOLUTION Trial`) outrank registry identifiers such as `NCT...`. The primary name begins the title; every detected name appears in the description's first line and in the leading tags. Generic phrases such as `this study`, `controlled trial`, or `ISRCTN registration` are rejected, and the system never invents a study name. The weekday station wheel refreshes metadata on the six canonical videos in place, without uploading duplicates.
 - **Description invariant**: when one or more explicit study names are detected, the first description line is `Studies covered: ...` and must contain every detected name retained in metadata. The broadcast's journal and source publication month/year remain immediately below it.
-- **Station search-metadata gate**: every newly rendered weekday journal program must pass one validation package before it can be marked verified. An explicit study/trial name begins the title, appears in the first description line, leads the tags, and appears on the curiosity thumbnail. When no explicit name is source-grounded, the approved `What Did This Research Find?` fallback is used. Journal name, specific specialty, and publication month/year are mandatory; generic metadata fallback and thumbnail-upload warnings are not accepted for station programs.
+- **Station search-metadata gate**: every newly rendered weekday journal program must pass one validation package before it can be marked verified. An explicit study/trial name begins the title, appears in the first description line, leads the tags, and appears on the curiosity thumbnail. When no explicit name is source-verified, the approved `What Did This Research Find?` fallback is used. Journal name, specific specialty, and publication month/year are mandatory; generic metadata fallback and thumbnail-upload warnings are not accepted for station programs.
 - **Description**: explicitly names every journal and its source publication month/year near the top, followed by one YouTube-chapter-formatted line per content card
   (`M:SS Journal - Specialty - Mon YYYY`), which YouTube auto-converts into
   clickable chapters, plus an intro sentence and a closing hashtag line.
@@ -872,7 +890,7 @@ be source-resolved, the safe fallback is `MEDICAL RESEARCH`. Journal names are
 plain text; the system does not copy publisher logos or imply journal endorsement.
 
 The smaller question-mark badge remains as a curiosity cue. The left side keeps
-the short source-grounded study/result question, specialty, date, and consistent
+the short source-verified study/result question, specialty, date, and consistent
 ConferenceHype colors. The main headline and journal panel must remain readable
 at mobile size and accurately represent the cards that actually rendered.
 

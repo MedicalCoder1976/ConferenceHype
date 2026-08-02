@@ -110,7 +110,7 @@ export function ReviewQueue({
           </div>
         </div>
         <p className="mt-2 text-sm font-semibold text-ink/60">
-          This queue is restricted to source-grounded journal articles linked
+          This queue is restricted to evidence-based journal articles linked
           to a journal in the Journal catalog. Conference and newspaper cards
           belong to their own broadcast verticals.
         </p>

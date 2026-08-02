@@ -45,6 +45,18 @@ function concise(value: string, max = 1600) {
   return clean.length <= max ? clean : `${clean.slice(0, max - 1).trimEnd()}…`;
 }
 
+// Operator pastes tweet text by hand (no X API call, keeping this broadcast
+// type zero-cost) -- this just cleans and caps it, then wraps it in an
+// explicit "on X" attribution so it can never be mistaken for a claim from
+// the paper itself. A thread pasted with line breaks is flattened to one
+// spoken line by concise()'s whitespace collapse; that's an accepted
+// simplification for this deterministic (non-LLM) broadcast type.
+function buildSocialReactionBeat(raw: string) {
+  const cleaned = decodeHtml(raw);
+  if (!cleaned) return "";
+  return `Also making the rounds on X: "${concise(cleaned, 500)}"`;
+}
+
 export function assertSafePaperUrl(value: string) {
   const url = new URL(value);
   if (url.protocol !== "https:") throw new Error("Use a public HTTPS paper link.");
@@ -56,7 +68,7 @@ export function assertSafePaperUrl(value: string) {
   return url;
 }
 
-export function parsePaperHtml(html: string, sourceUrl: string) {
+export function parsePaperHtml(html: string, sourceUrl: string, socialReaction?: string) {
   const title = meta(html, ["citation_title", "dc.title", "og:title", "twitter:title"]) || decodeHtml(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? "");
   const abstract = meta(html, ["citation_abstract", "dc.description", "description", "og:description"]);
   const journal = meta(html, ["citation_journal_title", "prism.publicationName", "citation_conference_title"]) || new URL(sourceUrl).hostname.replace(/^www\./, "");
@@ -68,28 +80,30 @@ export function parsePaperHtml(html: string, sourceUrl: string) {
   const results = section(abstract, "Results", ["Conclusions?", "Discussion"]);
   const discussion = section(abstract, "Discussion", ["Conclusions?"]) || section(abstract, "Conclusions?", []);
   const summary = concise(abstract, 1200);
+  const socialBeat = socialReaction ? buildSocialReactionBeat(socialReaction) : "";
   const script = [
-    "Good morning, wherever you are. This is Echo Sage from ConferenceHype.", "Physician Education: Breaking Paper.",
+    "Good morning, wherever you are. This is Echo Sage from ConferenceHype.", "Clinical Evidence Brief: Breaking Paper.",
     `Our segment will focus on ${title}, concerning ${diseaseType}.`, `The source is ${journal}.`,
     `Background: ${background || summary}`,
     `Methods: ${methods || "The paper's reported study design and analysis are described in the linked source."}`,
     `Results: ${results || summary}`,
     `Discussion: ${discussion || "Interpret the reported findings in the context, limitations, and conclusions provided by the authors."}`,
-    "This broadcast is educational and source-grounded. Review the linked paper before changing clinical practice.",
+    ...(socialBeat ? [socialBeat] : []),
+    "This broadcast is educational. Review the linked paper before changing clinical practice.",
     "Tag us on X @conferencehype."
   ].join("\n\n");
-  return { title: concise(title, 180), abstract: summary, journal: concise(journal, 180), diseaseType, script: concise(script, 7900) };
+  return { title: concise(title, 180), abstract: summary, journal: concise(journal, 180), diseaseType, script: concise(script, 7900), socialReaction: socialBeat || undefined };
 }
 
-export function parsePubMedXml(xml: string, sourceUrl: string) {
+export function parsePubMedXml(xml: string, sourceUrl: string, socialReaction?: string) {
   const title = decodeHtml(xml.match(/<ArticleTitle>([\s\S]*?)<\/ArticleTitle>/i)?.[1] ?? "");
   const journal = decodeHtml(xml.match(/<Journal>[\s\S]*?<Title>([\s\S]*?)<\/Title>/i)?.[1] ?? "PubMed");
   const abstractParts = [...xml.matchAll(/<AbstractText(?:\s+Label="([^"]+)")?[^>]*>([\s\S]*?)<\/AbstractText>/gi)]
     .map((match) => `${match[1] ? `${decodeHtml(match[1])}: ` : ""}${decodeHtml(match[2])}`);
   const syntheticHtml = `<meta name="citation_title" content="${title.replaceAll('"', '&quot;')}"><meta name="citation_journal_title" content="${journal.replaceAll('"', '&quot;')}"><meta name="citation_abstract" content="${abstractParts.join(" ").replaceAll('"', '&quot;')}">`;
-  return parsePaperHtml(syntheticHtml, sourceUrl);
+  return parsePaperHtml(syntheticHtml, sourceUrl, socialReaction);
 }
-export async function fetchBreakingPaper(sourceUrl: string) {
+export async function fetchBreakingPaper(sourceUrl: string, socialReaction?: string) {
   const url = assertSafePaperUrl(sourceUrl);
   const pubmedId = url.hostname.toLowerCase() === "pubmed.ncbi.nlm.nih.gov" ? url.pathname.match(/^\/(\d+)\/?/)?.[1] : undefined;
   if (pubmedId) {
@@ -98,7 +112,7 @@ export async function fetchBreakingPaper(sourceUrl: string) {
       headers: { "user-agent": "ConferenceHype/1.0 (+https://conferencehype.com)" }
     });
     if (!xmlResponse.ok) throw new Error(`PubMed returned HTTP ${xmlResponse.status}.`);
-    return parsePubMedXml(await xmlResponse.text(), sourceUrl);
+    return parsePubMedXml(await xmlResponse.text(), sourceUrl, socialReaction);
   }
   const response = await fetch(url, { redirect: "follow", signal: AbortSignal.timeout(15_000), headers: { "user-agent": "ConferenceHype/1.0 (+https://conferencehype.com)" } });
   if (!response.ok) throw new Error(`The paper page returned HTTP ${response.status}.`);
@@ -106,5 +120,5 @@ export async function fetchBreakingPaper(sourceUrl: string) {
   if (!(response.headers.get("content-type") ?? "").includes("text/html")) throw new Error("The link must open an HTML paper or PubMed page.");
   const html = await response.text();
   if (html.length > 5_000_000) throw new Error("The paper page is too large to process safely.");
-  return parsePaperHtml(html, response.url);
+  return parsePaperHtml(html, response.url, socialReaction);
 }

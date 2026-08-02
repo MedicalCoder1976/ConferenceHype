@@ -2,6 +2,7 @@
 import { z } from "zod";
 import { assertAdminRequest } from "@/lib/auth";
 import { fetchBreakingPaper } from "@/lib/breakingPaper";
+import { buildClinicalEvidencePackaging } from "@/lib/youtube/clinicalEvidencePackaging";
 import { saveGeneratedSegmentsToDb } from "@/lib/db";
 import { env } from "@/lib/env";
 import { validateSegmentForApproval } from "@/lib/generation/validator";
@@ -10,7 +11,7 @@ import { nextBreakInBoundary } from "@/lib/station/schedule";
 import type { Segment } from "@/lib/types";
 
 export const runtime = "nodejs";
-const bodySchema = z.object({ sourceUrl: z.string().url(), placement: z.enum(["top", "bottom"]) });
+const bodySchema = z.object({ sourceUrl: z.string().url(), placement: z.enum(["top", "bottom"]), socialReaction: z.string().max(2000).trim().optional() });
 
 async function dispatch(input: { breakInId: string; segmentId: string; targetAt: string; broadcastTitle: string; diseaseType: string; paperTitle: string }) {
   if (!env.GITHUB_DISPATCH_TOKEN) return { dispatched: false, error: "GITHUB_DISPATCH_TOKEN is not configured." };
@@ -26,14 +27,15 @@ export async function POST(request: NextRequest) {
   try {
     assertAdminRequest(request);
     const body = bodySchema.parse(await request.json());
-    const paper = await fetchBreakingPaper(body.sourceUrl);
+    const paper = await fetchBreakingPaper(body.sourceUrl, body.socialReaction || undefined);
     const targetAt = nextBreakInBoundary(new Date(), body.placement).toISOString();
     const now = new Date().toISOString();
     const segment: Segment = {
       id: crypto.randomUUID(), title: paper.title, summary: paper.abstract, script: paper.script, contentType: "abstract_buzz",
       personaId: "echo-sage", personaName: "ConferenceHype Breaking Paper Desk", hypeLevel: "high_energy", language: "English", status: "approved",
-      citations: [{ label: paper.journal, url: body.sourceUrl, sourceType: "manual" }], socialBuzzItems: [],
-      riskFlags: ["operator_breaking_news", "breaking_paper", "broadcast_ready"], confidenceScore: 100, createdAt: now, approvedAt: targetAt, updatedAt: now
+      citations: [{ label: paper.journal, url: body.sourceUrl, sourceType: "manual" }],
+      socialBuzzItems: paper.socialReaction ? [{ label: "Operator-pasted X reaction", url: "", sourceType: "general_social" }] : [],
+      riskFlags: ["operator_breaking_news", "breaking_paper", "broadcast_ready", ...(paper.socialReaction ? ["breaking_paper_social_reaction"] : [])], confidenceScore: 100, createdAt: now, approvedAt: targetAt, updatedAt: now
     };
     const errors = validateSegmentForApproval(segment);
     if (errors.length) return NextResponse.json({ ok: false, error: errors.join(" ") }, { status: 422 });
@@ -41,7 +43,13 @@ export async function POST(request: NextRequest) {
     if (!saved) return NextResponse.json({ ok: false, error: "Database is not configured." }, { status: 503 });
     const breakIn = await createStationBreakInInDb({ placement: body.placement, targetAt, title: paper.title, summary: paper.abstract, script: paper.script, specialty: paper.diseaseType, sourceLabel: paper.journal, sourceUrl: body.sourceUrl, segmentId: saved.id });
     if (!breakIn) return NextResponse.json({ ok: false, error: "Could not save the breaking-paper broadcast." }, { status: 503 });
-    const broadcastTitle = `Physician Education: Breaking Paper | ${paper.diseaseType} | ${paper.title}`.slice(0, 100);
+    const packaging = buildClinicalEvidencePackaging({
+      title: paper.title,
+      specialty: paper.diseaseType,
+      explicitTopic: paper.diseaseType,
+      sourceText: `${paper.title}\n${paper.abstract}`
+    });
+    const broadcastTitle = packaging.youtubeTitle;
     const dispatchResult = await dispatch({ breakInId: breakIn.id, segmentId: saved.id, targetAt, broadcastTitle, diseaseType: paper.diseaseType, paperTitle: paper.title });
     return NextResponse.json({ ok: true, dispatch: dispatchResult, paper: { title: paper.title, diseaseType: paper.diseaseType, journal: paper.journal, targetAt, dispatched: dispatchResult.dispatched } });
   } catch (error) {

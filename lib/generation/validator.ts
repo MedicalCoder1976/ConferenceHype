@@ -95,11 +95,11 @@ export function validateSegmentForApproval(segment: Pick<Segment, "title" | "sum
     if (hasSourceLimitedScienceLanguage(combinedText)) {
       errors.push("Science cards with only listing metadata must be replaced with music or regenerated from PubMed/full source text; do not infer Background, Methods, Results, or Discussion.");
     } else if (!isNarrativeReviewCard && !hasUsableClinicalSectionSource(`${segment.summary} ${segment.script}`)) {
-      errors.push("Science cards require source-grounded Background, Methods, Results, and Discussion before approval.");
+      errors.push("Science cards require evidence-based Background, Methods, Results, and Discussion before approval.");
     }
   }
   if (!isSmokeTestCard && isEmptyConferenceInformationCard(segment)) {
-    errors.push("Conference coverage cards with only registration, platform, welcome, or context-shell information must not enter the broadcast queue; use music unless substantive source-grounded material is available.");
+    errors.push("Conference coverage cards with only registration, platform, welcome, or context-shell information must not enter the broadcast queue; use music unless substantive evidence-based material is available.");
   }
   for (const pattern of bannedAdvicePatterns) {
     if (pattern.test(segment.script)) {

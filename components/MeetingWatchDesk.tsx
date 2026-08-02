@@ -88,7 +88,7 @@ export function NewMeetingWatchBroadcast() {
       setPreview(payload);
       setEpisodeMeta(
         payload.episodes.map((episode: PreviewEpisode, index: number) => ({
-          title: `ConferenceHype: ${meetingLabel} Highlights - Part ${index + 1} of ${payload.episodes.length}`,
+          title: `${episode.clusters[0] ?? specialty ?? "Clinical Research"}: ${meetingLabel} Evidence Brief - Part ${index + 1} of ${payload.episodes.length}`,
           description: `Highlights from ${meetingLabel}${episode.clusters.length ? ` -- ${episode.clusters.join(", ")}` : ""}.\n\nWatch now on our YouTube channel.`
         }))
       );

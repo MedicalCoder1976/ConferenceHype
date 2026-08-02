@@ -72,11 +72,17 @@ export function parsePreparedNarrative(raw: string) {
 
 const HOSTS = { HOST_1: { id: "echo-sage", name: "TumorCrusher" }, HOST_2: { id: "luna-vale", name: "Luna Vale" } } as const;
 
+// Same fix as evidenceDashboard.ts's stripSlideDescriptors (2026-07-30): these
+// patterns are meant to strip a leading label/host prefix only. Unanchored,
+// they also deleted the same words when they legitimately occurred mid-text
+// -- here that risk is worse than a slide title, since this runs on spoken
+// narration (e.g. "...concludes our journal coverage for today" would have
+// silently lost "journal coverage" from the audio script).
 function stripPreparedDescriptors(value: string) {
   return value
-    .replace(/\b(?:Tumor\s*Crusher|Luna Vale)\b\s*(?:\/|:|-)?\s*/gi, "")
-    .replace(/\b(?:Media Watch|Pharma Watch|Journal Coverage|Conference Coverage)\s*[:\-��]?\s*/gi, "")
-    .replace(/\bA new ASCO Educational Book review\b\s*[:\-��]?\s*/gi, "")
+    .replace(/^(?:Tumor\s*Crusher|Luna Vale)\b\s*(?:\/|:|-)?\s*/gi, "")
+    .replace(/^(?:Media Watch|Pharma Watch|Journal Coverage|Conference Coverage)\s*[:\-–—]?\s*/gi, "")
+    .replace(/^A new ASCO Educational Book review\b\s*[:\-–—]?\s*/gi, "")
     .replace(/\s+/g, " ")
     .trim();
 }

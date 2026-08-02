@@ -1,0 +1,51 @@
+name: Repackage an existing YouTube video
+
+on:
+  workflow_dispatch:
+    inputs:
+      video_id:
+        description: "Owned YouTube video ID"
+        required: true
+      title:
+        description: "Replacement YouTube title"
+        required: true
+      headline:
+        description: "Short thumbnail hook"
+        required: true
+      topic:
+        description: "Thumbnail topic label"
+        required: true
+      entity:
+        description: "Thumbnail supporting line"
+        required: true
+
+jobs:
+  repackage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Update title, description, thumbnail, and stored record
+        run: npx tsx scripts/repackage-youtube-video.ts
+        env:
+          YOUTUBE_VIDEO_ID: ${{ inputs.video_id }}
+          YOUTUBE_TITLE: ${{ inputs.title }}
+          THUMBNAIL_HEADLINE: ${{ inputs.headline }}
+          THUMBNAIL_TOPIC: ${{ inputs.topic }}
+          THUMBNAIL_ENTITY: ${{ inputs.entity }}
+          THUMBNAIL_SERIES: "THE RETATRUTIDE STORY"
+          THUMBNAIL_PANEL: "STORY HIGHLIGHTS"
+          THUMBNAIL_PROMISE: "HOW A TRIPLE AGONIST GOT HERE"
+          THUMBNAIL_SPECIALTY: "Obesity Medicine"
+          THUMBNAIL_DATE: "Aug 1, 2026"
+          PUBLIC_SITE_URL: "https://conferencehype.com"
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
+          YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
+          YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}

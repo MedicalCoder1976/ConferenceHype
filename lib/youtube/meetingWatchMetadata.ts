@@ -1,10 +1,10 @@
 import { extractExplicitStudyNames } from "@/lib/youtube/broadcastMetadata";
 import type { BroadcastSlot } from "@/lib/rundown/slots";
+import { buildClinicalEvidencePackaging } from "@/lib/youtube/clinicalEvidencePackaging";
 import type { BroadcastMetadata } from "@/lib/youtube/broadcastMetadata";
 
 const MAX_TAG_LENGTH = 30;
 const MAX_TAGS_TOTAL_CHARS = 500;
-const MAX_HEADLINE_LENGTH = 68;
 
 function unique(values: string[]) {
   return [...new Set(values.filter(Boolean))];
@@ -101,7 +101,18 @@ export function buildMeetingWatchMetadata({
     "Meeting Watch",
     "ConferenceHype"
   ]);
-  const headline = truncate(title.replace(/^ConferenceHype:\s*/, "").split(" - ")[0], MAX_HEADLINE_LENGTH);
+  const isPreparedStory = resolved.some(({ segment }) => segment.riskFlags.includes("prepared_story"));
+  const packaging = buildClinicalEvidencePackaging({
+    title: isPreparedStory ? title : resolved[0]?.segment.title ?? title,
+    specialty,
+    explicitTopic: meetingLabel.replace(/^Create a Story:\s*/i, ""),
+    sourceText: resolved.map(({ segment }) => [segment.title, segment.summary, segment.script].filter(Boolean).join("\n")).join("\n"),
+    studyNames,
+    multiTopic: studyNames.length > 1
+  });
+  const storyResult = isPreparedStory ? title.match(/^(.+?)\s+From\s+/i)?.[1]?.trim() : undefined;
+  const storyOrigin = isPreparedStory ? title.match(/\bFrom\s+(.+?)\?\s+The Story/i)?.[1]?.trim() : undefined;
+  const storyEntity = isPreparedStory ? title.match(/The Story of\s+(.+)$/i)?.[1]?.trim() : undefined;
   const description = [
     studyNames.length ? `Studies covered: ${featured}.` : "",
     `This ConferenceHype Meeting Watch broadcast recaps real ${meetingLabel} findings${specialty ? ` in ${specialty}` : ""} -- no fabricated claims, built for physicians, NPs, and PAs who don't have time to read every abstract themselves.`,
@@ -125,7 +136,7 @@ export function buildMeetingWatchMetadata({
     .filter((line, index, lines) => line || (index > 0 && lines[index - 1]))
     .join("\n");
   return {
-    title,
+    title: isPreparedStory ? truncate(title, 100) : packaging.youtubeTitle,
     description,
     tags,
     categoryId: "27",
@@ -133,7 +144,10 @@ export function buildMeetingWatchMetadata({
     specialty,
     dateLabel,
     studyNames,
-    thumbnailHeadline: headline,
+    clinicalTopic: storyResult ?? packaging.clinicalTopic,
+    thumbnailHeadline: storyOrigin ? "From " + storyOrigin + "?" : packaging.thumbnailHook,
+    thumbnailHook: storyOrigin ? "From " + storyOrigin + "?" : packaging.thumbnailHook,
+    thumbnailEntity: storyEntity ?? packaging.thumbnailEntity,
     thumbnailJournalNames: undefined,
     thumbnailJournalCount: undefined
   };

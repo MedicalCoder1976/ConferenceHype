@@ -56,6 +56,9 @@ type Card = {
 };
 
 const DISCLAIMER_INTERVAL_SECONDS = 15 * 60;
+// Create a Story is intentionally more measured than the 1.15x news-desk
+// delivery used elsewhere. Keep this scoped to prepared_story cards only.
+const STORY_NARRATION_SPEED = 1.05;
 const BROADCAST_DISCLAIMER = broadcastDisclaimer;
 const GAP_CLIP_PATHS = [
   "public/music/gap-clips/conferencehype-gap-elevate-to-fenrir-20s.mp3",
@@ -1463,9 +1466,9 @@ async function uploadRenderedBroadcast(
     timeZone: "America/New_York"
   }).format(hourStart);
   const title =
-    process.env.BROADCAST_TITLE ||
     actualMetadata?.title ||
-    `ConferenceHype live programming - ${fallbackLabel}`;
+    process.env.BROADCAST_TITLE ||
+    "Clinical Research: New Evidence Brief";
   const description =
     // actualMetadata is always freshly built from the real rendered cards
     // for Meeting Watch (real timestamped chapters, real study names) --
@@ -1483,11 +1486,12 @@ async function uploadRenderedBroadcast(
     journalName: actualMetadata?.journalName,
     specialty: actualMetadata?.specialty,
     dateLabel: actualMetadata?.dateLabel ?? fallbackLabel,
-    headline: isBreakingMode
-      ? "Physician Education: Breaking Paper"
-      : isJournalMode || isWeekendMode
-        ? "Physician Education: Listen to One New Journal Everyday"
-      : actualMetadata?.thumbnailHeadline ?? title,
+    headline: actualMetadata?.thumbnailHook ?? actualMetadata?.thumbnailHeadline ?? (isBreakingMode ? process.env.BREAKING_PAPER_TITLE : undefined) ?? title,
+    topicLabel: isBreakingMode
+      ? process.env.BREAKING_DISEASE_TYPE ?? actualMetadata?.clinicalTopic
+      : actualMetadata?.clinicalTopic,
+    entityLabel: actualMetadata?.thumbnailEntity,
+    seriesLabel: "CLINICAL EVIDENCE BRIEF",
     journalNames: isBreakingMode ? [] : actualMetadata?.thumbnailJournalNames,
     journalCount: isBreakingMode ? 0 : actualMetadata?.thumbnailJournalCount,
     panelLabel: isBreakingMode
@@ -1495,18 +1499,14 @@ async function uploadRenderedBroadcast(
       : isMeetingWatchMode
         ? `${(actualMetadata?.specialty ?? "MEETING").toUpperCase()} HIGHLIGHTS`
         : undefined,
-    detailLabel: isBreakingMode
-      ? [process.env.BREAKING_DISEASE_TYPE, process.env.BREAKING_PAPER_TITLE].filter(Boolean).join(" | ")
-      : isJournalMode || isWeekendMode
-        ? actualMetadata?.studyNames[0] ?? actualMetadata?.thumbnailJournalNames?.join(" | ") ?? actualMetadata?.journalName
-      : undefined,
+    detailLabel: undefined,
     promiseLabel: isJournalMode || isWeekendMode
-      ? "SOURCE-GROUNDED JOURNAL REVIEW"
+      ? "KEY RESULTS IN MINUTES"
       : isMeetingWatchMode
-          ? "NEW CONFERENCE HIGHLIGHTS"
+          ? "THE STORY BEHIND THE RESULT"
           : isBreakingMode
-            ? "BREAKING MEDICAL RESEARCH"
-            : "SOURCE-GROUNDED MEDICAL COVERAGE",
+            ? "WHAT THE PAPER FOUND"
+            : "THE FINDING THAT MATTERS",
     siteUrl: process.env.PUBLIC_SITE_URL
   };
   const { downloadYoutubeThumbnail, getYoutubeAccessToken, uploadVideoToYoutube, uploadYoutubeThumbnail } = await import(
@@ -1838,7 +1838,7 @@ async function main() {
   await mkdir(voiceCacheDir, { recursive: true });
   await mkdir(voiceWavDir, { recursive: true });
 
-  type SynthTask = { voice: string; text: string; wavPath: string; cachePath: string };
+  type SynthTask = { voice: string; text: string; speed: number; wavPath: string; cachePath: string };
   const taskByCacheKey = new Map<string, SynthTask>();
   // Parallel to `cards` -- which cacheKey (if any) each card resolves to.
   // Multiple distinct card slots can share an identical cacheKey -- most
@@ -1877,14 +1877,15 @@ async function main() {
       );
       continue;
     }
+    const speed = card.riskFlags?.includes("prepared_story") ? STORY_NARRATION_SPEED : 1.15;
     const cacheKey = createHash("sha256")
-      .update(`${persona.voiceEnvKey}|${processedScript}`)
+      .update(`${persona.voiceEnvKey}|${speed}|${processedScript}`)
       .digest("hex");
     cardCacheKeys[index] = cacheKey;
     if (!taskByCacheKey.has(cacheKey)) {
       const cachePath = path.join(voiceCacheDir, `${cacheKey}.mp3`);
       const wavPath = path.join(voiceWavDir, `${cacheKey}.wav`);
-      taskByCacheKey.set(cacheKey, { voice: voiceName, text: processedScript, wavPath, cachePath });
+      taskByCacheKey.set(cacheKey, { voice: voiceName, text: processedScript, speed, wavPath, cachePath });
     }
   }
 
@@ -1895,7 +1896,7 @@ async function main() {
     const batchJsonPath = path.join(renderDir, "voice-batch.json");
     await writeFile(
       batchJsonPath,
-      JSON.stringify(tasks.map((t) => ({ voice: t.voice, text: t.text, output: t.wavPath }))),
+      JSON.stringify(tasks.map((t) => ({ voice: t.voice, text: t.text, speed: t.speed, output: t.wavPath }))),
       "utf8"
     );
 
@@ -2060,11 +2061,7 @@ async function main() {
       index,
       total: cards.length,
       isOpening: cards[index].riskFlags?.includes("prepared_opening"),
-      seriesHeadline: isBreakingMode
-        ? "Physician Education: Breaking Paper"
-        : isJournalMode || isWeekendMode
-          ? "Physician Education: Listen to One New Journal Everyday"
-          : undefined,
+      seriesHeadline: isBreakingMode ? "Clinical Evidence Brief: Breaking Paper" : "Clinical Evidence Brief",
       featureLabel: isBreakingMode
         ? [process.env.BREAKING_DISEASE_TYPE, cards[index].title].filter(Boolean).join(" | ")
         : isJournalMode || isWeekendMode

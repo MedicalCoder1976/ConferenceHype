@@ -98,11 +98,34 @@ function expandDefinedAbbreviations(script: string, definitions: ReadonlyMap<str
 const STRUCTURED_ABSTRACT_LABELS =
   /\b(BACKGROUND|OBJECTIVES?|PURPOSE|IMPORTANCE|INTRODUCTION|METHODS?|DESIGN|SETTING|PARTICIPANTS|INTERVENTIONS?|RESULTS|FINDINGS|DISCUSSION|CONCLUSIONS?|LIMITATIONS|MEASURES|OUTCOMES?|PATIENTS|REGISTRATION)\b/g;
 
+// Three/four-letter month abbreviations as they appear in PubMed dates and
+// citations (e.g. "Jun 2026", "Sept. 12"). Kokoro's G2P reads unrecognized
+// short tokens like "Jun" letter-by-letter or as a mis-stressed nonsense
+// word instead of the month name -- confirmed for "JUN" 2026-07-30. May is
+// omitted because the abbreviation and full month name are identical.
+const MONTH_ABBREVIATIONS: Record<string, string> = {
+  Jan: "January", Feb: "February", Mar: "March", Apr: "April",
+  Jun: "June", Jul: "July", Aug: "August",
+  Sept: "September", Sep: "September",
+  Oct: "October", Nov: "November", Dec: "December"
+};
+const MONTH_ABBREVIATION_PATTERN = new RegExp(
+  `\\b(${Object.keys(MONTH_ABBREVIATIONS).join("|")})\\.?\\b`,
+  "gi"
+);
+function expandMonthAbbreviations(text: string): string {
+  return text.replace(MONTH_ABBREVIATION_PATTERN, (match) => {
+    const key = match.replace(/\./g, "");
+    const canonicalKey = Object.keys(MONTH_ABBREVIATIONS).find(
+      (candidate) => candidate.toLowerCase() === key.toLowerCase()
+    );
+    return canonicalKey ? MONTH_ABBREVIATIONS[canonicalKey] : match;
+  });
+}
+
 export function applySpokenPronunciations(script: string, sourceContext: string | ReadonlyMap<string, string> = script) {
   const definitions = typeof sourceContext === "string" ? extractSpokenAbbreviationDefinitions(sourceContext) : sourceContext;
-  return expandRomanNumerals(expandDefinedAbbreviations(script, definitions))
-    .replace(/\bJul\.?\b/gi, "July")
-    .replace(/\bAug\.?\b/gi, "August")
+  return expandMonthAbbreviations(expandRomanNumerals(expandDefinedAbbreviations(script, definitions)))
     .replace(STRUCTURED_ABSTRACT_LABELS, (word) => word.charAt(0) + word.slice(1).toLowerCase())
     // Rule 1: strip URLs — TTS would read out raw links character-by-character
     .replace(/https?:\/\/[^\s)\]}>]+/g, "")

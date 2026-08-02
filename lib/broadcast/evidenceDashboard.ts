@@ -38,28 +38,43 @@ function clean(value?: string | null) {
   return (value ?? "").replace(/\s+/g, " ").trim();
 }
 
+// Cuts at the last whole-word boundary within `max` characters when
+// reasonably close to the limit (avoids awkward mid-word ellipsis like
+// "Pulmonary Arte…"); falls back to a hard character slice only when the
+// final word itself is longer than the available space.
 function truncate(value: string, max: number) {
-  return value.length <= max ? value : `${value.slice(0, max - 1).trimEnd()}â€¦`;
+  if (value.length <= max) return `${value}…`;
+  const sliceLength = Math.max(1, max - 1);
+  const sliced = value.slice(0, sliceLength);
+  const lastSpace = sliced.lastIndexOf(" ");
+  const clipped = lastSpace > sliceLength * 0.6 ? sliced.slice(0, lastSpace) : sliced;
+  return `${clipped.trimEnd()}…`;
 }
 
 function wrap(value: string, maxCharacters: number, maxLines: number) {
   const words = clean(value).split(" ").filter(Boolean);
   const lines: string[] = [];
   let current = "";
+  let consumedWords = 0;
   for (const word of words) {
     const candidate = current ? `${current} ${word}` : word;
     if (candidate.length <= maxCharacters) {
       current = candidate;
+      consumedWords += 1;
       continue;
     }
-    if (current) lines.push(current);
+    // The last allowed line is already full -- stop consuming words here
+    // (instead of silently dropping this overflow word) so the truncation
+    // check below fires and shows an ellipsis rather than an abrupt cutoff.
+    if (lines.length === maxLines - 1) break;
+    lines.push(current);
     current = word;
-    if (lines.length === maxLines) break;
+    consumedWords += 1;
   }
   if (current && lines.length < maxLines) lines.push(current);
-  const consumed = lines.join(" ").length;
-  if (consumed < clean(value).length && lines.length) {
-    lines[lines.length - 1] = truncate(lines[lines.length - 1], Math.max(4, maxCharacters - 1));
+  const truncated = consumedWords < words.length;
+  if (truncated && lines.length) {
+    lines[lines.length - 1] = truncate(lines[lines.length - 1], maxCharacters);
   }
   return lines;
 }
@@ -81,11 +96,19 @@ function textBlock(lines: string[], x: number, y: number, lineHeight: number, cl
     .join("")}</text>`;
 }
 
+// Bug fixed 2026-07-30: these patterns strip a leading label/host prefix
+// off a title (e.g. "TumorCrusher / Media Watch EMERALD-3 trial" -> "EMERALD-3
+// trial"), but were unanchored, so they also matched -- and deleted -- the
+// same words anywhere they occurred, including as genuine title content.
+// Confirmed live: the "End of journal coverage" outro card title (see
+// lib/rundown/slots.ts) lost "journal coverage" to the second pattern,
+// leaving just "End of" on the Coming Next slide. Anchoring to the start
+// of the string (^) restricts these to their intended use as a prefix strip.
 function stripSlideDescriptors(value: string) {
   return clean(value)
-    .replace(/\b(?:Tumor\s*Crusher|Luna Vale)\b\s*(?:\/|:|-)?\s*/gi, "")
-    .replace(/\b(?:Media Watch|Pharma Watch|Journal Coverage|Conference Coverage)\s*[:\-ï¿½ï¿½]?\s*/gi, "")
-    .replace(/\bA new ASCO Educational Book review\b\s*[:\-ï¿½ï¿½]?\s*/gi, "")
+    .replace(/^(?:Tumor\s*Crusher|Luna Vale)\b\s*(?:\/|:|-)?\s*/gi, "")
+    .replace(/^(?:Media Watch|Pharma Watch|Journal Coverage|Conference Coverage)\s*[:\-–—]?\s*/gi, "")
+    .replace(/^A new ASCO Educational Book review\b\s*[:\-–—]?\s*/gi, "")
     .trim();
 }
 

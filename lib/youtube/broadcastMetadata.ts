@@ -1,4 +1,5 @@
 import type { BroadcastSlot } from "@/lib/rundown/slots";
+import { buildClinicalEvidencePackaging } from "@/lib/youtube/clinicalEvidencePackaging";
 import type { OncologyJournal } from "@/lib/types";
 
 export type BroadcastMetadataInput = {
@@ -37,6 +38,9 @@ export type BroadcastMetadata = {
   thumbnailHeadline?: string;
   thumbnailJournalNames?: string[];
   thumbnailJournalCount?: number;
+  clinicalTopic?: string;
+  thumbnailHook?: string;
+  thumbnailEntity?: string;
 };
 
 const TITLE_MAX_LENGTH = 100;
@@ -207,34 +211,6 @@ function resolveTier({
   return { tier: "generic" };
 }
 
-function buildTitle({
-  resolved,
-  conferenceName,
-  label,
-  studyName,
-  optimized
-}: {
-  resolved: { tier: BroadcastMetadataTier; journalName?: string; specialty?: string };
-  conferenceName?: string;
-  label: string;
-  studyName?: string;
-  optimized: boolean;
-}) {
-  let title: string;
-  if (optimized && studyName) {
-    const context = resolved.journalName ?? resolved.specialty ?? conferenceName ?? "Medical Research";
-    title = `${studyName}: ${context} - ${label}`;
-  } else if (resolved.tier === "dominant") {
-    const specialtyPart = resolved.specialty ? ` - ${resolved.specialty}` : "";
-    title = `ConferenceHype: ${resolved.journalName}${specialtyPart} - ${label}`;
-  } else if (resolved.tier === "roundup") {
-    title = `ConferenceHype: ${resolved.specialty ?? "Medical Journal"} Roundup - ${label}`;
-  } else {
-    title = `ConferenceHype: ${conferenceName ?? "Medical Conference"} live programming - ${label}`;
-  }
-  return truncate(title, TITLE_MAX_LENGTH);
-}
-
 function buildDescription({
   cards,
   hourStart,
@@ -320,19 +296,19 @@ export function assertSearchOptimizedBroadcastMetadata(
   { requireJournalContext = false }: { requireJournalContext?: boolean } = {}
 ) {
   if (!metadata.thumbnailHeadline) throw new Error("A search-optimized thumbnail headline is required.");
+  if (!metadata.clinicalTopic) throw new Error("A disease or specific clinical topic is required.");
+  if (!metadata.title.startsWith(metadata.clinicalTopic + ":")) throw new Error("The disease or clinical topic must begin the title.");
   if (/\bOthers\b/.test(`${metadata.title}\n${metadata.description}\n${metadata.tags.join(" ")}`)) {
     throw new Error("Search metadata must use a specific specialty, never Others.");
   }
   if (metadata.studyNames.length > 0) {
     const studiesLine = `Studies covered: ${metadata.studyNames.join("; ")}.`;
-    if (!metadata.title.startsWith(`${metadata.studyNames[0]}:`)) throw new Error("The primary explicit study name must begin the title.");
+    if (!metadata.title.includes(metadata.studyNames[0])) throw new Error("The primary explicit study name must appear in the disease-first title.");
     if (metadata.description.split("\n")[0] !== studiesLine) throw new Error("Every explicit study name must appear in the description's first line.");
     metadata.studyNames.forEach((name, index) => {
       if (metadata.tags[index] !== truncate(name, MAX_TAG_LENGTH)) throw new Error("Explicit study names must lead the YouTube tags.");
     });
-    if (metadata.thumbnailHeadline !== `${metadata.studyNames[0]}: What Did It Find?`) throw new Error("The thumbnail must use the primary explicit study name.");
-  } else if (metadata.thumbnailHeadline !== "What Did This Research Find?") {
-    throw new Error("A non-named study broadcast must use the approved curiosity thumbnail fallback.");
+    if (metadata.thumbnailEntity !== metadata.studyNames[0]) throw new Error("The thumbnail must identify the primary explicit study name.");
   }
   if (requireJournalContext) {
     if (metadata.tier !== "dominant" || !metadata.journalName) throw new Error("A station journal program must resolve one dominant journal.");
@@ -376,7 +352,17 @@ export function buildBroadcastMetadata(input: BroadcastMetadataInput): Broadcast
   }, new Map<string, number>()).entries()]
     .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
     .map(([name]) => name);
-  const title = buildTitle({ resolved, conferenceName: input.conferenceName, label, studyName: studyNames[0], optimized });
+  const primarySegment = cards.find((card) => studyNames[0] && [card.slot.segment?.title, card.slot.segment?.summary, card.slot.segment?.script].join(" ").includes(studyNames[0]))?.slot.segment ?? cards[0]?.slot.segment;
+  const sourceText = cards.map((card) => [card.slot.segment?.title, card.slot.segment?.summary, card.slot.segment?.script].filter(Boolean).join("\n")).join("\n");
+  const packaging = buildClinicalEvidencePackaging({
+    title: primarySegment?.title,
+    specialty: resolved.specialty,
+    explicitTopic: resolved.specialty,
+    sourceText,
+    studyNames,
+    multiTopic: new Set(cards.map((card) => card.journal ? specificSpecialty(card.journal) : "").filter(Boolean)).size > 1
+  });
+  const title = packaging.youtubeTitle;
   const tags = buildTags(cards, studyNames);
   const description = buildDescription({
     cards,
@@ -402,7 +388,10 @@ export function buildBroadcastMetadata(input: BroadcastMetadataInput): Broadcast
     specialty: resolved.specialty,
     dateLabel: label,
     studyNames,
-    thumbnailHeadline: optimized ? (studyNames[0] ? `${studyNames[0]}: What Did It Find?` : "What Did This Research Find?") : undefined,
+    clinicalTopic: packaging.clinicalTopic,
+    thumbnailHeadline: packaging.thumbnailHook,
+    thumbnailHook: packaging.thumbnailHook,
+    thumbnailEntity: packaging.thumbnailEntity,
     thumbnailJournalNames: thumbnailJournalNames.slice(0, 2),
     thumbnailJournalCount: thumbnailJournalNames.length
   };

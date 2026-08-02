@@ -465,7 +465,7 @@ export function BroadcastRundown({
         </div>
         <p className="mt-2 text-sm font-semibold leading-6 text-ink/60">
           Every hour runs twelve 5-minute blocks. Each block holds five
-          40-second source-grounded cards, each followed by a 20-second licensed
+          40-second evidence-based cards, each followed by a 20-second licensed
           transition. Voices are assigned across cards; every script starts with
           the voice name here from ConferenceHype, then moves directly into the
           narrative.

@@ -14,6 +14,7 @@ export type StoryInput = z.infer<typeof storyInputSchema>;
 
 const STORY_CARD_COUNT = 12;
 const STORY_TRANSITION_SECONDS = 15;
+const STORY_WORDS_PER_SECOND_AT_MEASURED_PACE = 1.95;
 
 function cleanNarrative(value: string) {
   return value
@@ -78,7 +79,7 @@ export function parsePreparedStory(input: StoryInput) {
   const cards = storyCards(parsed.narrative);
   const spokenWords = cards.reduce((sum, card) => sum + words(card).length, 0);
   const transitionSeconds = Math.floor((cards.length - 1) / 3) * STORY_TRANSITION_SECONDS;
-  const durationSeconds = Math.max(300, Math.ceil((spokenWords / 2.15 + transitionSeconds + 45) / 15) * 15);
+  const durationSeconds = Math.max(300, Math.ceil((spokenWords / STORY_WORDS_PER_SECOND_AT_MEASURED_PACE + transitionSeconds + 45) / 15) * 15);
   const sourceHash = createHash("sha256").update(JSON.stringify({ ...parsed, narrative: cleanNarrative(parsed.narrative) })).digest("hex");
   return {
     input: parsed,

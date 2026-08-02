@@ -140,7 +140,7 @@ async function buildSourceCard(item: IngestedItem, index: number): Promise<Segme
     contentType,
     status: autoApproved ? "approved" : "pending_review",
     editorialInstruction:
-      "Create one source-grounded card from this item. Genuinely rewrite it in fresh language rather than repeating the title or excerpt. Attribute the source clearly. Preserve only facts, names, numbers, and claims explicitly present in the supplied item. Do not infer outcomes, importance, causation, or clinical meaning."
+      "Create one evidence-based card from this item. Genuinely rewrite it in fresh language rather than repeating the title or excerpt. Attribute the source clearly. Preserve only facts, names, numbers, and claims explicitly present in the supplied item. Do not infer outcomes, importance, causation, or clinical meaning."
   });
   return {
     ...generated,
