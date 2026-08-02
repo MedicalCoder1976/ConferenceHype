@@ -20,7 +20,7 @@ export type ClinicalEvidencePackaging = {
 const TOPIC_PATTERNS: Array<[string, RegExp]> = [
   ["Chronic Lymphocytic Leukemia", /\b(?:chronic lymphocytic leukemia|CLL)\b/i],
   ["Acute Myeloid Leukemia", /\b(?:acute myeloid leukemia|AML)\b/i],
-  ["Acute Lymphoblastic Leukemia", /\b(?:acute lymphoblastic leukemia|ALL)\b/i],
+  ["Acute Lymphoblastic Leukemia", /\bacute lymphoblastic leukemia\b/i],
   ["Mantle Cell Lymphoma", /\bmantle cell lymphoma\b/i],
   ["Diffuse Large B-Cell Lymphoma", /\b(?:diffuse large B-cell lymphoma|DLBCL)\b/i],
   ["Follicular Lymphoma", /\bfollicular lymphoma\b/i],
@@ -106,6 +106,10 @@ function fallbackTopic(input: ClinicalEvidencePackagingInput) {
 
 export function extractClinicalTopic(value: string, fallback = "Clinical Research") {
   const matches = TOPIC_PATTERNS.filter(([, pattern]) => pattern.test(value)).map(([label]) => label);
+  // ALL is a collision-prone acronym: case-insensitive matching also catches
+  // the ordinary word "all" in unrelated stories. Accept the acronym only
+  // when the source actually uses the uppercase medical abbreviation.
+  if (/\bALL\b/.test(value)) matches.push("Acute Lymphoblastic Leukemia");
   const unique = [...new Set(matches)];
   if (unique.length === 1) return unique[0];
   if (unique.length > 1) {

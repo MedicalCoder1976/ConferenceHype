@@ -6,7 +6,7 @@ import { formatVoiceSegment, SEGMENT_CLOSE } from "@/lib/broadcast/voiceSegment"
 import { buildBroadcastSlots, buildJournalShowSlots } from "@/lib/rundown/slots";
 import { assertSearchOptimizedBroadcastMetadata, buildBroadcastMetadata, extractExplicitStudyName, extractExplicitStudyNames } from "@/lib/youtube/broadcastMetadata";
 import { applySpokenPronunciations, extractSpokenAbbreviationDefinitions } from "@/lib/media/tts";
-import { buildClinicalEvidencePackaging } from "@/lib/youtube/clinicalEvidencePackaging";
+import { buildClinicalEvidencePackaging, extractClinicalTopic } from "@/lib/youtube/clinicalEvidencePackaging";
 import { buildMeetingWatchSlots, groupMeetingWatchSegmentsByTrial } from "@/lib/rundown/meetingWatchSlots";
 import { parsePreparedNarrative, preparedNarrativeSegments } from "@/lib/meetingWatch/preparedNarrative";
 import { getUnsafeGeneratedSourceErrors } from "@/lib/generation/sourceSafety";
@@ -39,6 +39,14 @@ import { conferenceLinkedSourceIds, monitoredXVoiceForEntity } from "@/lib/sourc
 import { sourceRegistry } from "@/lib/sources/registry";
 import { dedupeAgainstFreshSegments } from "@/lib/weeklySourceCardGeneration";
 import type { IngestedItem, Segment } from "@/lib/types";
+
+assert.equal(
+  extractClinicalTopic("This all comes with real political weight attached.", "Big Pharma Merger Talks"),
+  "Big Pharma Merger Talks",
+  "ordinary lowercase all must never resolve as acute lymphoblastic leukemia"
+);
+assert.equal(extractClinicalTopic("An ALL trial update"), "Acute Lymphoblastic Leukemia");
+assert.equal(extractClinicalTopic("Acute lymphoblastic leukemia trial update"), "Acute Lymphoblastic Leukemia");
 
 const youtubeDeliveryWorkflowSource = readFileSync(
   path.join(process.cwd(), ".github", "workflows", "youtube-delivery-daily-verify.yml"),
