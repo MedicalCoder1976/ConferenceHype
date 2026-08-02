@@ -158,6 +158,13 @@ embedder.
 
 ## Broadcast Presentation
 
+### Create a Story editorial rule
+
+`Create a Story` broadcasts (`prepared_story`) must never show or narrate the
+words "Physician Education." This rule applies to opening artwork, thumbnails,
+all subsequent slides, transition panels, narration, and closing copy. Story
+programs use ConferenceHype branding and the story-specific topic instead.
+
 ### Persistent evidence dashboard
 
 Every newly rendered broadcast uses the shared evidence-dashboard slide
