@@ -4,11 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       schedule_date:
-        description: "America/New_York date (YYYY-MM-DD); blank means today"
+        description: "America/New_York release date (YYYY-MM-DD); blank means tomorrow"
         required: false
         default: ""
   schedule:
-    - cron: "30 9 * * 1-5"
+    # 10:30 PM Eastern Sunday-Thursday; the resolver keeps the DST-correct run.
+    - cron: "30 2 * * 1-5"
+    - cron: "30 3 * * 1-5"
 
 permissions:
   contents: read
@@ -29,17 +31,22 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Resolve Eastern weekday
+      - name: Resolve next Eastern weekday release
         id: day
         shell: bash
         run: |
           TARGET="${{ inputs.schedule_date }}"
-          if [ -z "$TARGET" ]; then TARGET=$(TZ=America/New_York date +%F); fi
+          if [ -z "$TARGET" ]; then
+            HOUR=$(TZ=America/New_York date +%H)
+            if [ "$HOUR" != "22" ]; then echo 'Not the DST-correct 10:30 PM Eastern invocation.'; exit 0; fi
+            TARGET=$(TZ=America/New_York date -d tomorrow +%F)
+          fi
           DOW=$(TZ=America/New_York date -d "$TARGET" +%u)
           if [ "$DOW" -gt 5 ]; then echo "Refusing weekend schedule for $TARGET"; exit 1; fi
           echo "target=$TARGET" >> "$GITHUB_OUTPUT"
-      - name: Reserve three new non-repeating journal programs
+      - name: Reserve one top-journal program for next-morning release
         id: prepare
+        if: steps.day.outputs.target != ''
         run: npx tsx scripts/prepare-weekday-station.ts
         env:
           STATION_SCHEDULE_DATE: ${{ steps.day.outputs.target }}
@@ -49,9 +56,10 @@ jobs:
 
   render:
     needs: prepare
+    if: needs.prepare.outputs.matrix != ''
     strategy:
       fail-fast: false
-      max-parallel: 3
+      max-parallel: 1
       matrix:
         program: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     uses: ./.github/workflows/station-program.yml

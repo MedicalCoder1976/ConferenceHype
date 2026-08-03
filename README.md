@@ -695,16 +695,25 @@ Each new program reserves at most twelve quality-passed cards. This bounds the
 approval transaction and render input while leaving excess cards in their
 journal deck for a later program.
 
-The production weekday wheel starts at 9:00 AM America/New_York. The
-`weekday-station-wheel.yml` runs at 11:30 UTC Monday-Friday (7:30 AM EDT / 6:30 AM EST). It reserves six card-backed journals not used earlier in the same work week, renders six new 30-minute videos, and activates only after all six verify. The six programs repeat every three hours within that date only. Database guards reject duplicate video IDs within a day and repeated journals within the Monday-Friday week; insufficient new programming fails closed.
+The regular Monday-Friday journal wheel releases exactly one new journal read
+per day at **6:15 AM America/New_York**, before the morning commute. The
+`weekday-station-wheel.yml` prepares the next day's program at 10:30 PM Eastern,
+uploads it privately, and asks YouTube to publish it the following morning. The
+assigned article must predate the broadcast date and be no more than eight days
+old. Selection follows the frequency-weighted 14-release flagship cadence in
+`lib/station/journalCadence.ts`. If the assigned journal has no fresh,
+substantive card, the planner may use only that file's ranked top-journal
+fallback list; it never drops to a lower-tier journal merely to fill the day.
+After the upload verifies, five station positions replay that same video while
+unused cards remain available. The separate weekend roundup is unchanged.
 
 
 This feature is additive and fail-closed:
 
 - The station tables are private service-role tables created by migration
   20260722170000_station_schedule_and_breakins.sql.
-- A daily wheel cannot become active until exactly six programs have status
-  verified; activation is one atomic database function.
+- A daily wheel cannot become active until its one new upload is verified;
+  activation atomically creates five replay positions using that same video.
 - The public page selects only an active schedule and a verified current
   program. If either is absent, it retains the existing working YouTube
   broadcast without changing stream_state.

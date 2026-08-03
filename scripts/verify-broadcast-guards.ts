@@ -1210,16 +1210,22 @@ const weekdayReleaseWorkflow = readFileSync(path.join(process.cwd(), ".github", 
 const stationProgramWorkflow = readFileSync(path.join(process.cwd(), ".github", "workflows", "station-program.yml"), "utf8");
 const youtubeUploaderSource = readFileSync(path.join(process.cwd(), "lib", "youtube", "uploadBroadcastVideo.ts"), "utf8");
 assert.match(weekdayReleaseSource, /STATION_NEW_PROGRAMS_PER_WEEKDAY/);
-assert.match(weekdayReleaseSource, /7 \* 60 \+ 15, 17 \* 60 \+ 10, 20 \* 60 \+ 45/);
-assert.match(weekdayReleaseWorkflow, /max-parallel: 3/);
+assert.match(weekdayReleaseSource, /6 \* 60 \+ 15/);
+assert.match(weekdayReleaseSource, /eligibleNextDayDeck/);
+assert.match(weekdayReleaseSource, /orderedCadenceJournals/);
+assert.match(weekdayReleaseWorkflow, /max-parallel: 1/);
+assert.match(weekdayReleaseWorkflow, /10:30 PM Eastern/);
 assert.match(weekdayReleaseWorkflow, /youtube_publish_at: \$\{\{ matrix\.program\.youtube_publish_at \}\}/);
 assert.match(stationProgramWorkflow, /youtube_publish_at:[\s\S]*default: ""/);
 assert.match(youtubeUploaderSource, /privacyStatus: publishAt \? "private" : "public"/);
 assert.match(youtubeUploaderSource, /publishAt\?: string/);
-assert.match(
-  readFileSync(path.join(process.cwd(), "supabase", "migrations", "20260729153608_weekday_three_release_schedule.sql"), "utf8"),
-  /new_youtube_videos', 3[\s\S]*unused_cards_preserved', true/
-);
+const oneDailyReleaseMigration = readFileSync(path.join(process.cwd(), "supabase", "migrations", "20260803120000_one_daily_journal_release.sql"), "utf8");
+assert.match(oneDailyReleaseMigration, /new_youtube_videos',1[\s\S]*prepared_previous_evening',true[\s\S]*unused_cards_preserved',true/);
+assert.match(oneDailyReleaseMigration, /exactly one new journal release per day/);
+const journalCadenceSource = readFileSync(path.join(process.cwd(), "lib", "station", "journalCadence.ts"), "utf8");
+assert.match(journalCadenceSource, /TOP_JOURNAL_RELEASE_CADENCE/);
+assert.match(journalCadenceSource, /TOP_JOURNAL_FALLBACK_ORDER/);
+assert.match(journalCadenceSource, /date < targetDate/);
 const weekdayWheelSource = readFileSync(path.join(process.cwd(), ".github", "workflows", "weekday-station-wheel.yml"), "utf8");
 assert.match(weekdayWheelSource, /uses: \.\/\.github\/workflows\/station-program\.yml/);
 assert.match(weekdayWheelSource, /prepare-weekday-station/);

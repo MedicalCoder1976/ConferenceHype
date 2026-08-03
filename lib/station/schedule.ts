@@ -3,7 +3,7 @@ import type { OncologyJournal } from "@/lib/types";
 import type { StationProgram } from "@/lib/station/types";
 
 export const STATION_PROGRAMS_PER_CYCLE = 6;
-export const STATION_NEW_PROGRAMS_PER_WEEKDAY = 3;
+export const STATION_NEW_PROGRAMS_PER_WEEKDAY = 1;
 export const STATION_PROGRAM_MINUTES = 30;
 export const STATION_CYCLE_MINUTES = 180;
 export const STATION_BREAK_IN_MINUTES = 15;

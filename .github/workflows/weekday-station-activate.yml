@@ -1,4 +1,4 @@
-name: Activate weekday station after scheduled releases
+name: Activate weekday station after morning release
 
 on:
   workflow_dispatch:
@@ -8,7 +8,8 @@ on:
         required: false
         default: ""
   schedule:
-    - cron: "15 2 * * 2-6"
+    - cron: "45 10 * * 1-5"
+    - cron: "45 11 * * 1-5"
 
 permissions:
   contents: read
@@ -21,7 +22,7 @@ jobs:
   activate:
     runs-on: ubuntu-latest
     steps:
-      - name: Activate three-release schedule after the final YouTube publication
+      - name: Activate one-release schedule after the 6:15 AM publication
         env:
           SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -29,7 +30,11 @@ jobs:
         shell: bash
         run: |
           TARGET_DATE="$REQUESTED_DATE"
-          if [ -z "$TARGET_DATE" ]; then TARGET_DATE=$(TZ=America/New_York date +%F); fi
+          if [ -z "$TARGET_DATE" ]; then
+            HOUR=$(TZ=America/New_York date +%H)
+            if [ "$HOUR" != "06" ]; then echo 'Not the DST-correct 6:45 AM Eastern invocation.'; exit 0; fi
+            TARGET_DATE=$(TZ=America/New_York date +%F)
+          fi
           DOW=$(TZ=America/New_York date -d "$TARGET_DATE" +%u)
           if [ "$DOW" -gt 5 ]; then echo "Refusing weekend activation for $TARGET_DATE"; exit 1; fi
           SCHEDULE_ID=$(curl --fail --silent --show-error --get "${SUPABASE_URL}/rest/v1/station_daily_schedules" -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" --data-urlencode "select=id" --data-urlencode "schedule_date=eq.${TARGET_DATE}" | jq -er '.[0].id')
