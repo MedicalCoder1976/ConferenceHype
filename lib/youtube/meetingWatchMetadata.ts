@@ -115,7 +115,7 @@ export function buildMeetingWatchMetadata({
   const storyEntity = isPreparedStory ? title.match(/The Story of\s+(.+)$/i)?.[1]?.trim() : undefined;
   const description = [
     studyNames.length ? `Studies covered: ${featured}.` : "",
-    `This ConferenceHype Meeting Watch broadcast recaps real ${meetingLabel} findings${specialty ? ` in ${specialty}` : ""} -- no fabricated claims, built for physicians, NPs, and PAs who don't have time to read every abstract themselves.`,
+    `This ConferenceHype Meeting Watch broadcast recaps real ${meetingLabel} findings${specialty ? ` in ${specialty}` : ""}, built for physicians, NPs, and PAs who don't have time to read every abstract themselves.`,
     `Full source: ${sourceUrl}`,
     "",
     ...chapters,

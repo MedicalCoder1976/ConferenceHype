@@ -16,6 +16,7 @@ function cleanDescription(description: string) {
   return description
     .replace(/\bsource-attributed\b/gi, "")
     .replace(/\bsource[- ]grounded\b/gi, "")
+    .replace(/\s*--\s*no fabricated claims\s*,?/gi, "")
     .replace(/[ \t]{2,}/g, " ")
     .replace(/,\s*,/g, ",")
     .replace(/,\s+for physicians/g, " for physicians")
@@ -61,7 +62,7 @@ async function main() {
       continue;
     }
     const description = snippet.description ?? "";
-    if (!/\b(?:source-attributed|source[- ]grounded)\b/i.test(description)) continue;
+    if (!/\b(?:source-attributed|source[- ]grounded|no fabricated claims)\b/i.test(description)) continue;
     const cleaned = cleanDescription(description);
     if (apply) {
       const update = await fetch("https://www.googleapis.com/youtube/v3/videos?part=snippet", {

@@ -6,6 +6,7 @@ const YOUTUBE_TITLE_MAX_LENGTH = 100;
 export function removeViewerGroundingLabels(value: string) {
   return value
     .replace(/\bsource[- ]grounded\b/gi, "")
+    .replace(/\s*--\s*no fabricated claims\s*,?/gi, "")
     .replace(/[ \t]{2,}/g, " ")
     .replace(/\s+([,.;:!?])/g, "$1")
     .replace(/[ \t]+$/gm, "")

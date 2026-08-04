@@ -1209,6 +1209,9 @@ const weekdayReleaseSource = readFileSync(path.join(process.cwd(), "scripts", "p
 const weekdayReleaseWorkflow = readFileSync(path.join(process.cwd(), ".github", "workflows", "weekday-station-wheel.yml"), "utf8");
 const stationProgramWorkflow = readFileSync(path.join(process.cwd(), ".github", "workflows", "station-program.yml"), "utf8");
 const youtubeUploaderSource = readFileSync(path.join(process.cwd(), "lib", "youtube", "uploadBroadcastVideo.ts"), "utf8");
+const meetingWatchMetadataSource = readFileSync(path.join(process.cwd(), "lib", "youtube", "meetingWatchMetadata.ts"), "utf8");
+assert.doesNotMatch(meetingWatchMetadataSource, /no fabricated claims/i);
+assert.match(youtubeUploaderSource, /no fabricated claims/);
 assert.match(weekdayReleaseSource, /STATION_NEW_PROGRAMS_PER_WEEKDAY/);
 assert.match(weekdayReleaseSource, /6 \* 60 \+ 15/);
 assert.match(weekdayReleaseSource, /eligibleNextDayDeck/);
