@@ -13,6 +13,8 @@ function easternDate() {
 
 async function main() {
   const targetDate = process.env.STATION_METADATA_DATE || easternDate();
+  const titleOverride = process.env.STATION_TITLE_OVERRIDE?.trim();
+  const thumbnailHeadlineOverride = process.env.STATION_THUMBNAIL_HEADLINE_OVERRIDE?.trim();
   if (targetDate < "2026-07-24") {
     console.log(JSON.stringify({ ok: true, skipped: true, targetDate, reason: "Optimization starts 2026-07-24" }));
     return;
@@ -52,7 +54,7 @@ async function main() {
     await updateYoutubeVideoMetadata({
       videoId: program.youtubeVideoId,
       accessToken,
-      title: metadata.title,
+      title: titleOverride || metadata.title,
       description: metadata.description,
       tags: metadata.tags,
       categoryId: metadata.categoryId
@@ -64,19 +66,21 @@ async function main() {
       journalName: metadata.journalName,
       specialty: metadata.specialty,
       dateLabel: metadata.dateLabel,
-      headline: metadata.thumbnailHeadline,
+      headline: thumbnailHeadlineOverride || metadata.thumbnailHeadline,
+      topicLabel: metadata.clinicalTopic,
+      entityLabel: metadata.thumbnailEntity,
       journalNames: metadata.thumbnailJournalNames,
       journalCount: metadata.thumbnailJournalCount,
       siteUrl: process.env.PUBLIC_SITE_URL
     });
     const { error } = await supabase.from("station_programs").update({
-      title: metadata.title,
+      title: titleOverride || metadata.title,
       description: metadata.description,
       tags: metadata.tags,
       updated_at: new Date().toISOString()
     }).eq("id", program.id);
     if (error) throw error;
-    results.push({ position: program.position, videoId: program.youtubeVideoId, title: metadata.title, studyNames: metadata.studyNames });
+    results.push({ position: program.position, videoId: program.youtubeVideoId, title: titleOverride || metadata.title, studyNames: metadata.studyNames });
   }
   console.log(JSON.stringify({ ok: true, targetDate, refreshed: results.length, results }, null, 2));
 }

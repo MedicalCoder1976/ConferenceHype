@@ -1,0 +1,45 @@
+name: Refresh station video metadata
+
+on:
+  workflow_dispatch:
+    inputs:
+      schedule_date:
+        description: Eastern station schedule date (YYYY-MM-DD)
+        required: true
+        type: string
+      title:
+        description: Optional exact YouTube title override
+        required: false
+        type: string
+      thumbnail_headline:
+        description: Optional exact thumbnail headline override
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Refresh title, description, tags, and thumbnail
+        run: npx tsx scripts/refresh-station-video-metadata.ts
+        env:
+          STATION_METADATA_DATE: ${{ inputs.schedule_date }}
+          STATION_TITLE_OVERRIDE: ${{ inputs.title }}
+          STATION_THUMBNAIL_HEADLINE_OVERRIDE: ${{ inputs.thumbnail_headline }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
+          YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
+          YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
+          PUBLIC_SITE_URL: https://conferencehype.com
