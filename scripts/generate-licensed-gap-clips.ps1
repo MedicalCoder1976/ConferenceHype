@@ -49,23 +49,9 @@ $clips = @(
 $manifestItems = @()
 foreach ($clip in $clips) {
   $musicClip = Join-Path $tmpDir "$($clip.Id)-music.wav"
-  $intro = Join-Path $tmpDir "$($clip.Id)-intro.wav"
   $output = Join-Path $clipDir $clip.Output
-  # Rule 11 (2026-07-04): do not name a specific "up next" speaker/persona in
-  # this intro. These 20-second gap clips rotate independently of the actual
-  # card scheduler (lib/rundown/slots.ts) -- nothing ties a given clip's
-  # position to any particular persona actually playing next, so a named
-  # promise ("Up next, Adam on the snarky social feed") reads as a real
-  # segment that never shows up when that persona/content-type doesn't exist
-  # in the current 17-persona roster (see lib/generation/personas.ts). Keep
-  # the intro generic, matching formatTransitionCard()'s copy.
-  $introText = "This is ConferenceHype. Stay with us -- coverage continues."
-
-  py -3.12 (Join-Path $root "scripts\generate-kokoro-dj-voice.py") `
-    --mode stinger `
-    --voice $clip.Voice `
-    --text $introText `
-    --output $intro
+  # Music handoffs are intentionally music-only. Do not add a spoken station
+  # ID, coverage promise, next-speaker promise, or subscription prompt here.
 
   if (Test-Path -LiteralPath $clip.Source) {
     & $ffmpeg -y `
@@ -93,9 +79,7 @@ foreach ($clip in $clips) {
   & $ffmpeg -y `
     -stream_loop 1 `
     -i $musicClip `
-    -i $intro `
-    -filter_complex "[0:a]volume=1.0[music];[1:a]volume=1.35,adelay=10500|10500,apad[intro];[music][intro]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.94[out]" `
-    -map "[out]" `
+    -filter:a "volume=1.0,alimiter=limit=0.94" `
     -t 20 `
     -ar 44100 `
     -ac 2 `
@@ -109,14 +93,13 @@ foreach ($clip in $clips) {
     sourceTrack = [IO.Path]::GetFileName($clip.Source)
     durationSeconds = 20
     audioPath = "/music/gap-clips/$($clip.Output)"
-    introText = $introText
   }
 }
 
 $manifest = [ordered]@{
   generatedAt = (Get-Date).ToUniversalTime().ToString("o")
   licenseNote = "User supplied these as purchased techno tracks for ConferenceHype broadcast use. Keep proof of purchase outside the repo."
-  rotationRule = "Use one 20-second clip between approved broadcast segments. The clip includes a generic ConferenceHype channel intro -- it must not name a specific upcoming speaker or persona, since gap-clip rotation is independent of the card scheduler and cannot guarantee who plays next."
+  rotationRule = "Use one music-only 20-second clip between approved broadcast segments. Never mix a spoken station ID, coverage promise, next-speaker promise, or subscription prompt into these handoffs."
   clips = $manifestItems
 }
 

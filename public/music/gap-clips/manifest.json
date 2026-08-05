@@ -1,39 +1,35 @@
 ﻿{
     "generatedAt":  "2026-07-04T15:01:01.3615093Z",
     "licenseNote":  "User supplied these as purchased techno tracks for ConferenceHype broadcast use. Keep proof of purchase outside the repo.",
-    "rotationRule":  "Use one 20-second clip between approved broadcast segments. The clip includes a generic ConferenceHype channel intro -- it must not name a specific upcoming speaker or persona, since gap-clip rotation is independent of the card scheduler and cannot guarantee who plays next.",
+    "rotationRule":  "Use one music-only 20-second clip between approved broadcast segments. Never mix a spoken station ID, coverage promise, next-speaker promise, or subscription prompt into these handoffs.",
     "clips":  [
                   {
                       "id":  "elevate-fenrir",
                       "title":  "Elevate into schedule desk",
                       "sourceTrack":  "Elevate.mp3",
                       "durationSeconds":  20,
-                      "audioPath":  "/music/gap-clips/conferencehype-gap-elevate-to-fenrir-20s.mp3",
-                      "introText":  "This is ConferenceHype. Stay with us -- coverage continues."
+                      "audioPath":  "/music/gap-clips/conferencehype-gap-elevate-to-fenrir-20s.mp3"
                   },
                   {
                       "id":  "nightclub-rebecca",
                       "title":  "Nightclub System Overload into reporter desk",
                       "sourceTrack":  "Nightclub_System_Overload.mp3",
                       "durationSeconds":  20,
-                      "audioPath":  "/music/gap-clips/conferencehype-gap-nightclub-to-rebecca-20s.mp3",
-                      "introText":  "This is ConferenceHype. Stay with us -- coverage continues."
+                      "audioPath":  "/music/gap-clips/conferencehype-gap-nightclub-to-rebecca-20s.mp3"
                   },
                   {
                       "id":  "subterranean-adam",
                       "title":  "Subterranean Pulse into social feed",
                       "sourceTrack":  "Subterranean_Pulse.mp3",
                       "durationSeconds":  20,
-                      "audioPath":  "/music/gap-clips/conferencehype-gap-subterranean-to-adam-20s.mp3",
-                      "introText":  "This is ConferenceHype. Stay with us -- coverage continues."
+                      "audioPath":  "/music/gap-clips/conferencehype-gap-subterranean-to-adam-20s.mp3"
                   },
                   {
                       "id":  "skyline-aussieonc",
                       "title":  "Skyline Echo into global hype desk",
                       "sourceTrack":  "Skyline_Echo.mp3",
                       "durationSeconds":  20,
-                      "audioPath":  "/music/gap-clips/conferencehype-gap-skyline-to-aussieonc-20s.mp3",
-                      "introText":  "This is ConferenceHype. Stay with us -- coverage continues."
+                      "audioPath":  "/music/gap-clips/conferencehype-gap-skyline-to-aussieonc-20s.mp3"
                   }
               ]
 }

@@ -11,7 +11,7 @@ export type GapMusicClip = {
   nextRole: string;
   durationSeconds: number;
   audioPath: string;
-  introText: string;
+  introText?: string;
 };
 
 type GapMusicManifest = {

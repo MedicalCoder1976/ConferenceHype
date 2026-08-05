@@ -37,6 +37,13 @@ import {
 import { oncologyJournalSeeds } from "@/lib/catalog/oncologyJournalSeeds";
 import { conferenceLinkedSourceIds, monitoredXVoiceForEntity } from "@/lib/sources/socialLinks";
 import { sourceRegistry } from "@/lib/sources/registry";
+
+const gapClipGeneratorSource = readFileSync(path.join(process.cwd(), "scripts", "generate-licensed-gap-clips.ps1"), "utf8");
+const gapClipManifestSource = readFileSync(path.join(process.cwd(), "public", "music", "gap-clips", "manifest.json"), "utf8");
+assert.doesNotMatch(gapClipGeneratorSource, /This is ConferenceHype\. Stay with us/i);
+assert.doesNotMatch(gapClipManifestSource, /This is ConferenceHype\. Stay with us/i);
+assert.match(gapClipGeneratorSource, /Music handoffs are intentionally music-only/);
+
 import { dedupeAgainstFreshSegments } from "@/lib/weeklySourceCardGeneration";
 import type { IngestedItem, Segment } from "@/lib/types";
 import { normalizeJournalPublicationDate } from "@/lib/station/journalCadence";
