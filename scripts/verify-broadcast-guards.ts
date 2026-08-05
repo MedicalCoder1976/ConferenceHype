@@ -1220,6 +1220,8 @@ assert.match(youtubeUploaderSource, /no fabricated claims/);
 assert.match(weekdayReleaseSource, /STATION_NEW_PROGRAMS_PER_WEEKDAY/);
 assert.match(weekdayReleaseSource, /6 \* 60 \+ 15/);
 assert.match(weekdayReleaseSource, /eligibleNextDayDeck/);
+assert.match(weekdayReleaseSource, /minimumSubstantiveCards\("journal30", "station-program"\)/);
+assert.match(weekdayReleaseSource, /eligibleDeck\.cards\.length < requiredCards/);
 assert.match(weekdayReleaseSource, /orderedCadenceJournals/);
 assert.match(weekdayReleaseWorkflow, /max-parallel: 1/);
 assert.match(weekdayReleaseWorkflow, /TARGET=\$\(date -u \+%F\)/);

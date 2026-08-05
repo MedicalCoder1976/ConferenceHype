@@ -20,8 +20,8 @@ async function main() {
   if (!targetDate || !/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) throw new Error("STATION_SCHEDULE_DATE must be YYYY-MM-DD.");
   const weekday = new Date(`${targetDate}T12:00:00Z`).getUTCDay();
   if (weekday < 1 || weekday > 5) throw new Error("Weekday station schedules are Monday-Friday only.");
-  const [{ buildJournalCardDecks }, { filterBroadcastReadySegments }, { getAllApprovedSegmentsForStationFromDb, getAllPendingSegmentsFromDb, getOncologyJournalsFromDb }, { buildStationDraft, STATION_NEW_PROGRAMS_PER_WEEKDAY }, { eligibleNextDayDeck, orderedCadenceJournals }, { saveStationDraftToDb }] = await Promise.all([
-    import("@/lib/cardDeck"), import("@/lib/data"), import("@/lib/db"), import("@/lib/station/schedule"), import("@/lib/station/journalCadence"), import("@/lib/station/db")
+  const [{ buildJournalCardDecks }, { filterBroadcastReadySegments }, { getAllApprovedSegmentsForStationFromDb, getAllPendingSegmentsFromDb, getOncologyJournalsFromDb }, { buildStationDraft, STATION_NEW_PROGRAMS_PER_WEEKDAY }, { eligibleNextDayDeck, orderedCadenceJournals }, { minimumSubstantiveCards }, { saveStationDraftToDb }] = await Promise.all([
+    import("@/lib/cardDeck"), import("@/lib/data"), import("@/lib/db"), import("@/lib/station/schedule"), import("@/lib/station/journalCadence"), import("@/lib/media/broadcastQuality"), import("@/lib/station/db")
   ]);
   const [pendingSegments, approvedSegments, oncologyJournals] = await Promise.all([
     getAllPendingSegmentsFromDb(), getAllApprovedSegmentsForStationFromDb(), getOncologyJournalsFromDb()
@@ -30,9 +30,10 @@ async function main() {
   const deckSegments = filterBroadcastReadySegments([...(pendingSegments ?? []), ...(approvedSegments ?? [])]);
   const decks = buildJournalCardDecks(deckSegments, journals);
   let programs: ReturnType<typeof buildStationDraft> = [];
+  const requiredCards = minimumSubstantiveCards("journal30", "station-program");
   for (const journal of orderedCadenceJournals(targetDate, journals)) {
     const eligibleDeck = eligibleNextDayDeck(decks[journal.id], targetDate);
-    if (eligibleDeck.cards.length === 0) continue;
+    if (eligibleDeck.cards.length < requiredCards) continue;
     programs = buildStationDraft({ scheduleDate: targetDate, journals: [journal], journalCardDecks: { [journal.id]: eligibleDeck }, programCount: 1 });
     if (programs.length === 1) break;
   }
