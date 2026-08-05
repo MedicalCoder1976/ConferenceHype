@@ -32,7 +32,7 @@ jobs:
           TARGET_DATE="$REQUESTED_DATE"
           if [ -z "$TARGET_DATE" ]; then
             HOUR=$(TZ=America/New_York date +%H)
-            if [ "$HOUR" != "06" ]; then echo 'Not the DST-correct 6:45 AM Eastern invocation.'; exit 0; fi
+            if [ "$((10#$HOUR))" -lt 6 ]; then echo 'Release window has not opened yet.'; exit 0; fi
             TARGET_DATE=$(TZ=America/New_York date +%F)
           fi
           DOW=$(TZ=America/New_York date -d "$TARGET_DATE" +%u)

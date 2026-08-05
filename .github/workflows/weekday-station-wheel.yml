@@ -8,8 +8,9 @@ on:
         required: false
         default: ""
   schedule:
-    # 10:30 PM Eastern Sunday-Thursday; the resolver keeps the DST-correct run.
-    - cron: "30 2 * * 1-5"
+    # One UTC cron avoids duplicate DST runs. At 03:30 UTC it is still the
+    # prior evening in New York in both EST and EDT. GitHub may start late,
+    # so the intended release date comes from the UTC cron date, not wall time.
     - cron: "30 3 * * 1-5"
 
 permissions:
@@ -37,9 +38,7 @@ jobs:
         run: |
           TARGET="${{ inputs.schedule_date }}"
           if [ -z "$TARGET" ]; then
-            HOUR=$(TZ=America/New_York date +%H)
-            if [ "$HOUR" != "22" ]; then echo 'Not the DST-correct 10:30 PM Eastern invocation.'; exit 0; fi
-            TARGET=$(TZ=America/New_York date -d tomorrow +%F)
+            TARGET=$(date -u +%F)
           fi
           DOW=$(TZ=America/New_York date -d "$TARGET" +%u)
           if [ "$DOW" -gt 5 ]; then echo "Refusing weekend schedule for $TARGET"; exit 1; fi
