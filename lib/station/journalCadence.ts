@@ -34,9 +34,19 @@ function weekdayReleaseIndex(targetDate: string) {
   return ((index % TOP_JOURNAL_RELEASE_CADENCE.length) + TOP_JOURNAL_RELEASE_CADENCE.length) % TOP_JOURNAL_RELEASE_CADENCE.length;
 }
 
+export function normalizeJournalPublicationDate(value: string | undefined) {
+  if (!value) return undefined;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? new Date(timestamp).toISOString().slice(0, 10) : undefined;
+}
+
 function articleDate(card: EntityCardDeck["cards"][number]) {
-  const published = card.segment.citations.map((citation) => citation.publishedAt).filter(Boolean).sort().at(-1);
-  return (published ?? card.segment.createdAt).slice(0, 10);
+  const published = card.segment.citations
+    .map((citation) => normalizeJournalPublicationDate(citation.publishedAt))
+    .filter((date): date is string => Boolean(date))
+    .sort()
+    .at(-1);
+  return published ?? normalizeJournalPublicationDate(card.segment.createdAt) ?? "";
 }
 
 export function eligibleNextDayDeck(deck: EntityCardDeck | undefined, targetDate: string): EntityCardDeck {

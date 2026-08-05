@@ -39,6 +39,7 @@ import { conferenceLinkedSourceIds, monitoredXVoiceForEntity } from "@/lib/sourc
 import { sourceRegistry } from "@/lib/sources/registry";
 import { dedupeAgainstFreshSegments } from "@/lib/weeklySourceCardGeneration";
 import type { IngestedItem, Segment } from "@/lib/types";
+import { normalizeJournalPublicationDate } from "@/lib/station/journalCadence";
 
 assert.equal(
   extractClinicalTopic("This all comes with real political weight attached.", "Big Pharma Merger Talks"),
@@ -47,6 +48,10 @@ assert.equal(
 );
 assert.equal(extractClinicalTopic("An ALL trial update"), "Acute Lymphoblastic Leukemia");
 assert.equal(extractClinicalTopic("Acute lymphoblastic leukemia trial update"), "Acute Lymphoblastic Leukemia");
+assert.equal(normalizeJournalPublicationDate("2026 Jul 31"), "2026-07-31");
+assert.equal(normalizeJournalPublicationDate("Tue, 28 Jul 2026 00:00:00 GMT"), "2026-07-28");
+assert.equal(normalizeJournalPublicationDate("2026-07-31T07:00:00Z"), "2026-07-31");
+assert.equal(normalizeJournalPublicationDate("not a date"), undefined);
 
 const youtubeDeliveryWorkflowSource = readFileSync(
   path.join(process.cwd(), ".github", "workflows", "youtube-delivery-daily-verify.yml"),
