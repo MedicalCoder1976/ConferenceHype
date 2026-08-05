@@ -707,6 +707,21 @@ fallback list; it never drops to a lower-tier journal merely to fill the day.
 After the upload verifies, five station positions replay that same video while
 unused cards remain available. The separate weekend roundup is unchanged.
 
+Morning-journal recovery is deliberately fail-closed. GitHub Actions runner
+delays must not silently turn a scheduled run into a successful no-op:
+`weekday-station-wheel.yml` retains the intended UTC release date, and
+`weekday-station-activate.yml` proceeds whenever the delayed run starts at or
+after its minimum activation hour. Publication dates from PubMed/RSS are
+normalized to ISO before freshness comparisons, including values such as
+`2026 Jul 31`. The planner skips an assigned flagship journal when fewer than
+the renderer's twelve substantive source-backed cards are eligible and tries
+only the approved flagship fallback list; it never lowers the render quality
+gate. After activation, `refresh-station-video-metadata.yml` can safely refresh
+the canonical video's title and high-contrast thumbnail in place, with exact
+operator overrides, without uploading a duplicate. This recovery policy was
+verified end to end on 2026-08-05 with one public 14:52 Blood broadcast reused
+across all six station positions.
+
 
 This feature is additive and fail-closed:
 
