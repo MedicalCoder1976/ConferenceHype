@@ -416,6 +416,7 @@ const metadataWithOverrideOmittedAgain = buildBroadcastMetadata({
 });
 assert.deepEqual(metadataWithoutOverride, metadataWithOverrideOmittedAgain);
 assert.match(metadataWithoutOverride.title, /^Internal Medicine:/);
+assert.match(metadataWithoutOverride.title, /\| Test Journal$/);
 const metadataWithOverride = buildBroadcastMetadata({
   hourStart: metadataHourStart,
   slots: journalShowSlots,
@@ -1225,7 +1226,8 @@ const meetingWatchMetadataSource = readFileSync(path.join(process.cwd(), "lib", 
 assert.doesNotMatch(meetingWatchMetadataSource, /no fabricated claims/i);
 assert.match(youtubeUploaderSource, /no fabricated claims/);
 assert.match(weekdayReleaseSource, /STATION_NEW_PROGRAMS_PER_WEEKDAY/);
-assert.match(weekdayReleaseSource, /6 \* 60 \+ 15/);
+assert.match(weekdayReleaseSource, /7 \* 60 \+ 15/);
+assert.match(weekdayReleaseSource, /17 \* 60 \+ 10/);
 assert.match(weekdayReleaseSource, /eligibleNextDayDeck/);
 assert.match(weekdayReleaseSource, /minimumSubstantiveCards\("journal30", "station-program"\)/);
 assert.match(weekdayReleaseSource, /eligibleDeck\.cards\.length < requiredCards/);
@@ -1234,15 +1236,15 @@ assert.match(weekdayReleaseWorkflow, /max-parallel: 1/);
 assert.match(weekdayReleaseWorkflow, /TARGET=\$\(date -u \+%F\)/);
 assert.doesNotMatch(weekdayReleaseWorkflow, /HOUR.*!=.*22/);
 const weekdayActivationWorkflow = readFileSync(path.join(process.cwd(), ".github", "workflows", "weekday-station-activate.yml"), "utf8");
-assert.match(weekdayActivationWorkflow, /10#\$HOUR.*-lt 6/);
+assert.match(weekdayActivationWorkflow, /10#\$HOUR.*-lt 7/);
 assert.doesNotMatch(weekdayActivationWorkflow, /HOUR.*!=.*06/);
 assert.match(weekdayReleaseWorkflow, /youtube_publish_at: \$\{\{ matrix\.program\.youtube_publish_at \}\}/);
 assert.match(stationProgramWorkflow, /youtube_publish_at:[\s\S]*default: ""/);
 assert.match(youtubeUploaderSource, /privacyStatus: publishAt \? "private" : "public"/);
 assert.match(youtubeUploaderSource, /publishAt\?: string/);
-const oneDailyReleaseMigration = readFileSync(path.join(process.cwd(), "supabase", "migrations", "20260803120000_one_daily_journal_release.sql"), "utf8");
-assert.match(oneDailyReleaseMigration, /new_youtube_videos',1[\s\S]*prepared_previous_evening',true[\s\S]*unused_cards_preserved',true/);
-assert.match(oneDailyReleaseMigration, /exactly one new journal release per day/);
+const twoDailyReleaseMigration = readFileSync(path.join(process.cwd(), "supabase", "migrations", "20260808190000_two_daily_journal_releases.sql"), "utf8");
+assert.match(twoDailyReleaseMigration, /new_youtube_videos', 2[\s\S]*unused_cards_preserved', true/);
+assert.match(twoDailyReleaseMigration, /exactly two new journal releases per day/);
 const journalCadenceSource = readFileSync(path.join(process.cwd(), "lib", "station", "journalCadence.ts"), "utf8");
 assert.match(journalCadenceSource, /TOP_JOURNAL_RELEASE_CADENCE/);
 assert.match(journalCadenceSource, /TOP_JOURNAL_FALLBACK_ORDER/);

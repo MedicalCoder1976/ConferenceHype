@@ -34,17 +34,20 @@ async function main() {
   for (const journal of orderedCadenceJournals(targetDate, journals)) {
     const eligibleDeck = eligibleNextDayDeck(decks[journal.id], targetDate);
     if (eligibleDeck.cards.length < requiredCards) continue;
-    programs = buildStationDraft({ scheduleDate: targetDate, journals: [journal], journalCardDecks: { [journal.id]: eligibleDeck }, programCount: 1 });
-    if (programs.length === 1) break;
+    const candidate = buildStationDraft({ scheduleDate: targetDate, journals: [journal], journalCardDecks: { [journal.id]: eligibleDeck }, programCount: 1 })[0];
+    if (!candidate) continue;
+    const position = programs.length;
+    programs.push({ ...candidate, position, startsAtOffsetMinutes: position * 30 });
+    if (programs.length === STATION_NEW_PROGRAMS_PER_WEEKDAY) break;
   }
-  if (programs.length !== STATION_NEW_PROGRAMS_PER_WEEKDAY || programs.some((program) => program.programType !== "new")) throw new Error("No fresh, substantive article from the approved top-journal cadence was available for next-day release.");
-  const schedule = await saveStationDraftToDb({ scheduleDate: targetDate, timezone: "America/New_York", cycleStartMinutes: 6 * 60 + 15, programs });
+  if (programs.length !== STATION_NEW_PROGRAMS_PER_WEEKDAY || programs.some((program) => program.programType !== "new")) throw new Error("Two fresh, substantive articles from distinct approved top journals are required for the next weekday release.");
+  const schedule = await saveStationDraftToDb({ scheduleDate: targetDate, timezone: "America/New_York", cycleStartMinutes: 7 * 60 + 15, programs });
   if (!schedule) throw new Error("Supabase is not configured.");
-  const releaseMinutes = [6 * 60 + 15];
-  // Reservation never changes segment status. Only this original is rendered;
+  const releaseMinutes = [7 * 60 + 15, 17 * 60 + 10];
+  // Reservation never changes segment status. Only these originals are rendered;
   // every unselected card remains approved in its journal queue.
   const scheduledOriginals = schedule.programs.filter((program) => program.programType === "new" && program.position < STATION_NEW_PROGRAMS_PER_WEEKDAY);
-  if (scheduledOriginals.length !== STATION_NEW_PROGRAMS_PER_WEEKDAY) throw new Error("Saved schedule did not contain exactly one weekday original.");
+  if (scheduledOriginals.length !== STATION_NEW_PROGRAMS_PER_WEEKDAY) throw new Error("Saved schedule did not contain exactly two weekday originals.");
   const matrix = scheduledOriginals.map((program) => {
     const publishAt = easternLocalToUtc(targetDate, releaseMinutes[program.position]);
     return { station_program_id: program.id, journal_id: program.journalId, stream_start_time: publishAt, youtube_publish_at: publishAt };

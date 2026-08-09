@@ -265,9 +265,9 @@ export async function activateStationScheduleInDb(scheduleId: string) {
     .eq("schedule_id", scheduleId);
   if (programError) throw programError;
   const rows = (programs ?? []) as ProgramRow[];
-  const originals = rows.filter((row) => row.program_type === "new" && row.position === 0);
-  if (originals.length !== 1 || originals.some((row) => row.status !== "verified" || !row.youtube_video_id)) {
-    throw new Error("The daily journal release must be verified before activation.");
+  const originals = rows.filter((row) => row.program_type === "new" && [0, 1].includes(row.position));
+  if (originals.length !== 2 || new Set(originals.map((row) => row.youtube_video_id).filter(Boolean)).size !== 2 || originals.some((row) => row.status !== "verified" || !row.youtube_video_id)) {
+    throw new Error("Both daily journal releases must be verified with distinct YouTube videos before activation.");
   }
   const { data, error } = await supabase.rpc("activate_station_schedule", { p_schedule_id: scheduleId });
   if (error) throw error;

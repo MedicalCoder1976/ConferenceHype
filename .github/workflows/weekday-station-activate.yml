@@ -22,7 +22,7 @@ jobs:
   activate:
     runs-on: ubuntu-latest
     steps:
-      - name: Activate one-release schedule after the 6:15 AM publication
+      - name: Activate two-release schedule after the 7:15 AM publication
         env:
           SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -32,7 +32,7 @@ jobs:
           TARGET_DATE="$REQUESTED_DATE"
           if [ -z "$TARGET_DATE" ]; then
             HOUR=$(TZ=America/New_York date +%H)
-            if [ "$((10#$HOUR))" -lt 6 ]; then echo 'Release window has not opened yet.'; exit 0; fi
+            if [ "$((10#$HOUR))" -lt 7 ]; then echo 'Release window has not opened yet.'; exit 0; fi
             TARGET_DATE=$(TZ=America/New_York date +%F)
           fi
           DOW=$(TZ=America/New_York date -d "$TARGET_DATE" +%u)

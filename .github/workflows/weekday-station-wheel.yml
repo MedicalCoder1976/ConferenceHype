@@ -43,7 +43,7 @@ jobs:
           DOW=$(TZ=America/New_York date -d "$TARGET" +%u)
           if [ "$DOW" -gt 5 ]; then echo "Refusing weekend schedule for $TARGET"; exit 1; fi
           echo "target=$TARGET" >> "$GITHUB_OUTPUT"
-      - name: Reserve one top-journal program for next-morning release
+      - name: Reserve two top-journal programs for weekday release
         id: prepare
         if: steps.day.outputs.target != ''
         run: npx tsx scripts/prepare-weekday-station.ts

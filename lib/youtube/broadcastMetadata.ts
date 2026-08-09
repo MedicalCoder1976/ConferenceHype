@@ -314,6 +314,7 @@ export function assertSearchOptimizedBroadcastMetadata(
     if (metadata.tier !== "dominant" || !metadata.journalName) throw new Error("A station journal program must resolve one dominant journal.");
     if (!metadata.specialty || metadata.specialty === "Medical Journal") throw new Error("A station journal program must resolve a specific specialty.");
     if (!metadata.description.includes(metadata.journalName)) throw new Error("The description must name the journal.");
+    if (!metadata.title.includes(metadata.journalName)) throw new Error("The title must name the journal.");
     if (metadata.thumbnailJournalNames?.[0] !== metadata.journalName) throw new Error("The thumbnail must identify the journal.");
     if (!metadata.description.includes("Journals and publication dates covered:") || metadata.description.includes("publication date unavailable")) {
       throw new Error("The description must include the journal's source publication month and year.");
@@ -362,7 +363,8 @@ export function buildBroadcastMetadata(input: BroadcastMetadataInput): Broadcast
     studyNames,
     multiTopic: new Set(cards.map((card) => card.journal ? specificSpecialty(card.journal) : "").filter(Boolean)).size > 1
   });
-  const title = packaging.youtubeTitle;
+  const journalSuffix = resolved.journalName ? ` | ${resolved.journalName}` : "";
+  const title = `${truncate(packaging.youtubeTitle, TITLE_MAX_LENGTH - journalSuffix.length)}${journalSuffix}`;
   const tags = buildTags(cards, studyNames);
   const description = buildDescription({
     cards,
