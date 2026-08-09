@@ -1239,6 +1239,7 @@ const weekdayReleaseSource = readFileSync(path.join(process.cwd(), "scripts", "p
 const weekdayReleaseWorkflow = readFileSync(path.join(process.cwd(), ".github", "workflows", "weekday-station-wheel.yml"), "utf8");
 const stationProgramWorkflow = readFileSync(path.join(process.cwd(), ".github", "workflows", "station-program.yml"), "utf8");
 const prepareWeekdayStationSource = readFileSync(path.join(process.cwd(), "scripts", "prepare-weekday-station.ts"), "utf8");
+const journalCardV2Workflow = readFileSync(path.join(process.cwd(), ".github", "workflows", "journal-card-v2.yml"), "utf8");
 const youtubeUploaderSource = readFileSync(path.join(process.cwd(), "lib", "youtube", "uploadBroadcastVideo.ts"), "utf8");
 const meetingWatchMetadataSource = readFileSync(path.join(process.cwd(), "lib", "youtube", "meetingWatchMetadata.ts"), "utf8");
 assert.doesNotMatch(meetingWatchMetadataSource, /no fabricated claims/i);
@@ -1271,6 +1272,8 @@ assert.match(prepareWeekdayStationSource, /weeklyDiversityOrder/);
 assert.match(prepareWeekdayStationSource, /schedule\.scheduleDate < targetDate/);
 assert.match(prepareWeekdayStationSource, /reusedExistingReservation: true/);
 assert.match(prepareWeekdayStationSource, /program\.status !== "verified" \|\| !program\.youtubeVideoId/);
+assert.match(journalCardV2Workflow, /cron: "0 1 \* \* 1-5"/);
+assert.match(journalCardV2Workflow, /github\.event_name == 'schedule'[\s\S]*JOURNAL_CARD_V2_MAX_CARDS/);
 assert.match(youtubeUploaderSource, /privacyStatus: publishAt \? "private" : "public"/);
 assert.match(youtubeUploaderSource, /publishAt\?: string/);
 const twoDailyReleaseMigration = readFileSync(path.join(process.cwd(), "supabase", "migrations", "20260808190000_two_daily_journal_releases.sql"), "utf8");

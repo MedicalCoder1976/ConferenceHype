@@ -26,6 +26,11 @@ on:
         required: true
         default: "5"
         type: string
+  schedule:
+    # Refresh PubMed before the 03:30 UTC weekday station reservation. This
+    # gives newly indexed papers time to become quality-passed cards without
+    # weakening the 12-card or 21-day station gates.
+    - cron: "0 1 * * 1-5"
 
 jobs:
   journal-card-v2:
@@ -45,10 +50,10 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           JOURNAL_CARD_V2_SHADOW: "true"
-          JOURNAL_CARD_V2_CREATE_PENDING: ${{ inputs.create_pending_cards && 'true' || 'false' }}
+          JOURNAL_CARD_V2_CREATE_PENDING: ${{ github.event_name == 'schedule' && 'true' || (inputs.create_pending_cards && 'true' || 'false') }}
           JOURNAL_CARD_V2_JOURNAL_ID: ${{ inputs.journal_id }}
-          JOURNAL_CARD_V2_LOOKBACK_DAYS: ${{ inputs.lookback_days }}
-          JOURNAL_CARD_V2_MAX_CARDS: ${{ inputs.max_cards }}
+          JOURNAL_CARD_V2_LOOKBACK_DAYS: ${{ inputs.lookback_days || '21' }}
+          JOURNAL_CARD_V2_MAX_CARDS: ${{ github.event_name == 'schedule' && '0' || inputs.max_cards }}
       - name: Finalize interrupted journal state
         if: ${{ always() }}
         run: npm run job:journal-card-v2:finalize
