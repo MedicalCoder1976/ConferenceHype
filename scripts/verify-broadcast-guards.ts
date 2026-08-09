@@ -1266,6 +1266,8 @@ assert.equal(
   "Both workflow_call and workflow_dispatch must accept youtube_publish_at"
 );
 assert.match(prepareWeekdayStationSource, /journalsAlreadyReservedThisWeek/);
+assert.match(prepareWeekdayStationSource, /cardsAlreadyReservedThisWeek/);
+assert.match(prepareWeekdayStationSource, /weeklyDiversityOrder/);
 assert.match(prepareWeekdayStationSource, /schedule\.scheduleDate < targetDate/);
 assert.match(youtubeUploaderSource, /privacyStatus: publishAt \? "private" : "public"/);
 assert.match(youtubeUploaderSource, /publishAt\?: string/);

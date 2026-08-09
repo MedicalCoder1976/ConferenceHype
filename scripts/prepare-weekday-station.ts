@@ -40,16 +40,27 @@ async function main() {
     .flatMap((schedule) => schedule.programs)
     .filter((program) => program.programType === "new" && Boolean(program.journalId))
     .map((program) => program.journalId!));
+  const cardsAlreadyReservedThisWeek = new Set(existingSchedules
+    .filter((schedule) => schedule.scheduleDate >= weekStart && schedule.scheduleDate < targetDate)
+    .flatMap((schedule) => schedule.programs)
+    .filter((program) => program.programType === "new")
+    .flatMap((program) => program.cardIds));
   const journals = oncologyJournals ?? [];
   const deckSegments = filterBroadcastReadySegments([...(pendingSegments ?? []), ...(approvedSegments ?? [])]);
   const decks = buildJournalCardDecks(deckSegments, journals);
   let programs: ReturnType<typeof buildStationDraft> = [];
   const requiredCards = minimumSubstantiveCards("journal30", "station-program");
+  const cadenceJournals = orderedCadenceJournals(targetDate, journals);
+  const weeklyDiversityOrder = [
+    ...cadenceJournals.filter((journal) => !journalsAlreadyReservedThisWeek.has(journal.id)),
+    ...cadenceJournals.filter((journal) => journalsAlreadyReservedThisWeek.has(journal.id))
+  ];
   for (const maxArticleAgeDays of [14, 21]) {
-    for (const journal of orderedCadenceJournals(targetDate, journals)) {
-      if (journalsAlreadyReservedThisWeek.has(journal.id)) continue;
+    for (const journal of weeklyDiversityOrder) {
       if (programs.some((program) => program.journalId === journal.id)) continue;
       const eligibleDeck = eligibleNextDayDeck(decks[journal.id], targetDate, maxArticleAgeDays);
+      eligibleDeck.cards = eligibleDeck.cards.filter((card) => !cardsAlreadyReservedThisWeek.has(card.segment.id));
+      eligibleDeck.total = eligibleDeck.cards.length;
       if (eligibleDeck.cards.length < requiredCards) continue;
       const candidate = buildStationDraft({ scheduleDate: targetDate, journals: [journal], journalCardDecks: { [journal.id]: eligibleDeck }, programCount: 1 })[0];
       if (!candidate) continue;
@@ -72,6 +83,6 @@ async function main() {
     return { station_program_id: program.id, journal_id: program.journalId, stream_start_time: publishAt, youtube_publish_at: publishAt };
   });
   if (process.env.GITHUB_OUTPUT) await appendFile(process.env.GITHUB_OUTPUT, `matrix=${JSON.stringify(matrix)}\n`);
-  console.log(JSON.stringify({ ok: true, scheduleDate: targetDate, scheduleId: schedule.id, excludedWeeklyJournalCount: journalsAlreadyReservedThisWeek.size, programs: schedule.programs.map((program) => ({ position: program.position, journalName: program.journalName, specialty: program.specialty, cardCount: program.cardIds.length })) }, null, 2));
+  console.log(JSON.stringify({ ok: true, scheduleDate: targetDate, scheduleId: schedule.id, priorWeeklyJournalCount: journalsAlreadyReservedThisWeek.size, excludedWeeklyCardCount: cardsAlreadyReservedThisWeek.size, programs: schedule.programs.map((program) => ({ position: program.position, journalName: program.journalName, specialty: program.specialty, cardCount: program.cardIds.length })) }, null, 2));
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
