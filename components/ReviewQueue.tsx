@@ -7,6 +7,16 @@ import { cardTypeLabel } from "@/lib/broadcast/cardTypes";
 import type { Segment } from "@/lib/types";
 
 type Action = "approve" | "reject" | "clip";
+const BULK_APPROVAL_REQUEST_SIZE = 1000;
+
+type BulkApprovalSummary = {
+  approved: number;
+  totalPending: number;
+  failedQualityFilter: number;
+  failedValidation: number;
+  alreadyBroadcastOrQueued: number;
+  duplicateWithinPending: number;
+};
 
 async function submitAction(segmentId: string, action: Action, script: string) {
   const endpoint =
@@ -72,20 +82,37 @@ export function ReviewQueue({
     if (!window.confirm(`Approve every quality-passing card in the full queue? ${visibleSegments.length} cards are currently awaiting review. Cards that fail validation or duplicate aired/approved material will be skipped.`)) return;
     startTransition(async () => {
       try {
-        const response = await fetch("/api/admin/approve/release-all", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ segmentIds: visibleSegments.map((segment) => segment.id) })
-        });
-        const responseText = await response.text();
-        const payload = responseText
-          ? JSON.parse(responseText)
-          : { ok: false, error: `Bulk approval failed with HTTP ${response.status}.` };
-        if (!response.ok || !payload.ok) throw new Error(payload.error ?? "Bulk approval failed");
+        const segmentIds = visibleSegments.map((segment) => segment.id);
+        const batchCount = Math.ceil(segmentIds.length / BULK_APPROVAL_REQUEST_SIZE);
+        const summary: BulkApprovalSummary = {
+          approved: 0,
+          totalPending: 0,
+          failedQualityFilter: 0,
+          failedValidation: 0,
+          alreadyBroadcastOrQueued: 0,
+          duplicateWithinPending: 0
+        };
+        for (let offset = 0; offset < segmentIds.length; offset += BULK_APPROVAL_REQUEST_SIZE) {
+          const batchNumber = Math.floor(offset / BULK_APPROVAL_REQUEST_SIZE) + 1;
+          setMessage(`Approving batch ${batchNumber} of ${batchCount}...`);
+          const response = await fetch("/api/admin/approve/release-all", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ segmentIds: segmentIds.slice(offset, offset + BULK_APPROVAL_REQUEST_SIZE) })
+          });
+          const responseText = await response.text();
+          const payload = responseText
+            ? JSON.parse(responseText)
+            : { ok: false, error: `Bulk approval failed with HTTP ${response.status}.` };
+          if (!response.ok || !payload.ok) throw new Error(payload.error ?? `Bulk approval batch ${batchNumber} failed`);
+          for (const key of Object.keys(summary) as Array<keyof BulkApprovalSummary>) {
+            summary[key] += payload[key] ?? 0;
+          }
+        }
         setMessage(
-          `Approved ${payload.approved} of ${payload.totalPending} pending cards. ` +
-          `${payload.failedQualityFilter + payload.failedValidation} failed quality checks; ` +
-          `${payload.alreadyBroadcastOrQueued + payload.duplicateWithinPending} duplicates were skipped.`
+          `Approved ${summary.approved} of ${summary.totalPending} pending cards. ` +
+          `${summary.failedQualityFilter + summary.failedValidation} failed quality checks; ` +
+          `${summary.alreadyBroadcastOrQueued + summary.duplicateWithinPending} duplicates were skipped.`
         );
         router.refresh();
       } catch (error) {
