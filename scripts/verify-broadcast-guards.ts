@@ -1238,6 +1238,7 @@ assert.doesNotMatch(stationMetadataSource, /uploadVideoToYoutube/);
 const weekdayReleaseSource = readFileSync(path.join(process.cwd(), "scripts", "prepare-weekday-station.ts"), "utf8");
 const weekdayReleaseWorkflow = readFileSync(path.join(process.cwd(), ".github", "workflows", "weekday-station-wheel.yml"), "utf8");
 const stationProgramWorkflow = readFileSync(path.join(process.cwd(), ".github", "workflows", "station-program.yml"), "utf8");
+const prepareWeekdayStationSource = readFileSync(path.join(process.cwd(), "scripts", "prepare-weekday-station.ts"), "utf8");
 const youtubeUploaderSource = readFileSync(path.join(process.cwd(), "lib", "youtube", "uploadBroadcastVideo.ts"), "utf8");
 const meetingWatchMetadataSource = readFileSync(path.join(process.cwd(), "lib", "youtube", "meetingWatchMetadata.ts"), "utf8");
 assert.doesNotMatch(meetingWatchMetadataSource, /no fabricated claims/i);
@@ -1264,6 +1265,8 @@ assert.equal(
   2,
   "Both workflow_call and workflow_dispatch must accept youtube_publish_at"
 );
+assert.match(prepareWeekdayStationSource, /journalsAlreadyReservedThisWeek/);
+assert.match(prepareWeekdayStationSource, /schedule\.scheduleDate < targetDate/);
 assert.match(youtubeUploaderSource, /privacyStatus: publishAt \? "private" : "public"/);
 assert.match(youtubeUploaderSource, /publishAt\?: string/);
 const twoDailyReleaseMigration = readFileSync(path.join(process.cwd(), "supabase", "migrations", "20260808190000_two_daily_journal_releases.sql"), "utf8");

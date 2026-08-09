@@ -67,10 +67,10 @@ const workflow = readFileSync(path.join(process.cwd(), ".github", "workflows", "
 assert.match(workflow, /cron: "0 12 \* \* 0,6"/);
 assert.match(workflow, /cron: "0 13 \* \* 0,6"/);
 assert.match(workflow, /HOUR.*08/);
-assert.match(workflow, /max-parallel: 2/);
+assert.match(workflow, /max-parallel: 1/);
 assert.match(workflow, /activate_weekend_station_schedule/);
 const weekdayWorkflow = readFileSync(path.join(process.cwd(), ".github", "workflows", "weekday-station-wheel.yml"), "utf8");
-assert.match(weekdayWorkflow, /cron: "30 9 \* \* 1-5"/);
+assert.match(weekdayWorkflow, /cron: "30 3 \* \* 1-5"/);
 assert.doesNotMatch(weekdayWorkflow, /weekend30/);
 const migration = readFileSync(path.join(process.cwd(), "supabase", "migrations", "20260725120000_weekend_roundup_station.sql"), "utf8");
 assert.match(migration, /extract\(isodow from candidate\.schedule_date\) not in \(6, 7\)/);

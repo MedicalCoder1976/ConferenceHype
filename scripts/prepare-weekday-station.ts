@@ -15,17 +15,31 @@ function easternLocalToUtc(date: string, minutes: number) {
   return guess.toISOString();
 }
 
+function mondayOf(date: string) {
+  const value = new Date(`${date}T12:00:00Z`);
+  const day = value.getUTCDay() || 7;
+  value.setUTCDate(value.getUTCDate() - day + 1);
+  return value.toISOString().slice(0, 10);
+}
+
 async function main() {
   const targetDate = process.env.STATION_SCHEDULE_DATE;
   if (!targetDate || !/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) throw new Error("STATION_SCHEDULE_DATE must be YYYY-MM-DD.");
   const weekday = new Date(`${targetDate}T12:00:00Z`).getUTCDay();
   if (weekday < 1 || weekday > 5) throw new Error("Weekday station schedules are Monday-Friday only.");
-  const [{ buildJournalCardDecks }, { filterBroadcastReadySegments }, { getAllApprovedSegmentsForStationFromDb, getAllPendingSegmentsFromDb, getOncologyJournalsFromDb }, { buildStationDraft, STATION_NEW_PROGRAMS_PER_WEEKDAY }, { eligibleNextDayDeck, orderedCadenceJournals }, { minimumSubstantiveCards }, { saveStationDraftToDb }] = await Promise.all([
+  const [{ buildJournalCardDecks }, { filterBroadcastReadySegments }, { getAllApprovedSegmentsForStationFromDb, getAllPendingSegmentsFromDb, getOncologyJournalsFromDb }, { buildStationDraft, STATION_NEW_PROGRAMS_PER_WEEKDAY }, { eligibleNextDayDeck, orderedCadenceJournals }, { minimumSubstantiveCards }, { getStationSchedulesFromDb, saveStationDraftToDb }] = await Promise.all([
     import("@/lib/cardDeck"), import("@/lib/data"), import("@/lib/db"), import("@/lib/station/schedule"), import("@/lib/station/journalCadence"), import("@/lib/media/broadcastQuality"), import("@/lib/station/db")
   ]);
   const [pendingSegments, approvedSegments, oncologyJournals] = await Promise.all([
     getAllPendingSegmentsFromDb(), getAllApprovedSegmentsForStationFromDb(), getOncologyJournalsFromDb()
   ]);
+  const weekStart = mondayOf(targetDate);
+  const existingSchedules = (await getStationSchedulesFromDb(30)) ?? [];
+  const journalsAlreadyReservedThisWeek = new Set(existingSchedules
+    .filter((schedule) => schedule.scheduleDate >= weekStart && schedule.scheduleDate < targetDate)
+    .flatMap((schedule) => schedule.programs)
+    .filter((program) => program.programType === "new" && Boolean(program.journalId))
+    .map((program) => program.journalId!));
   const journals = oncologyJournals ?? [];
   const deckSegments = filterBroadcastReadySegments([...(pendingSegments ?? []), ...(approvedSegments ?? [])]);
   const decks = buildJournalCardDecks(deckSegments, journals);
@@ -33,6 +47,7 @@ async function main() {
   const requiredCards = minimumSubstantiveCards("journal30", "station-program");
   for (const maxArticleAgeDays of [14, 21]) {
     for (const journal of orderedCadenceJournals(targetDate, journals)) {
+      if (journalsAlreadyReservedThisWeek.has(journal.id)) continue;
       if (programs.some((program) => program.journalId === journal.id)) continue;
       const eligibleDeck = eligibleNextDayDeck(decks[journal.id], targetDate, maxArticleAgeDays);
       if (eligibleDeck.cards.length < requiredCards) continue;
@@ -57,6 +72,6 @@ async function main() {
     return { station_program_id: program.id, journal_id: program.journalId, stream_start_time: publishAt, youtube_publish_at: publishAt };
   });
   if (process.env.GITHUB_OUTPUT) await appendFile(process.env.GITHUB_OUTPUT, `matrix=${JSON.stringify(matrix)}\n`);
-  console.log(JSON.stringify({ ok: true, scheduleDate: targetDate, scheduleId: schedule.id, programs: schedule.programs.map((program) => ({ position: program.position, journalName: program.journalName, specialty: program.specialty, cardCount: program.cardIds.length })) }, null, 2));
+  console.log(JSON.stringify({ ok: true, scheduleDate: targetDate, scheduleId: schedule.id, excludedWeeklyJournalCount: journalsAlreadyReservedThisWeek.size, programs: schedule.programs.map((program) => ({ position: program.position, journalName: program.journalName, specialty: program.specialty, cardCount: program.cardIds.length })) }, null, 2));
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

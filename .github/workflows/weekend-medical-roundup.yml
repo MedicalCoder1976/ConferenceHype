@@ -76,7 +76,9 @@ jobs:
     needs: prepare
     strategy:
       fail-fast: false
-      max-parallel: 2
+      # Serialize uploads so the shared stream handoff cannot be overwritten
+      # by two simultaneous YouTube verification receipts.
+      max-parallel: 1
       matrix:
         program: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     uses: ./.github/workflows/station-program.yml
