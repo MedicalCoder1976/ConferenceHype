@@ -660,8 +660,17 @@ export function DailyCoveragePlanner({
     setReleaseAllStatus({ state: "creating", text: "Checking every pending card against quality standards..." });
     startTransition(async () => {
       try {
-        const response = await fetch("/api/admin/approve/release-all", { method: "POST" });
-        const payload = await response.json();
+        const response = await fetch("/api/admin/approve/release-all", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            segmentIds: matchingWeeklyReadySegments.map((segment) => segment.id)
+          })
+        });
+        const responseText = await response.text();
+        const payload = responseText
+          ? JSON.parse(responseText)
+          : { ok: false, error: `Release request failed with HTTP ${response.status}.` };
         if (!response.ok || !payload.ok) {
           throw new Error(errorMessage(payload.error, "Could not release cards."));
         }
