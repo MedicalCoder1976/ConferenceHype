@@ -475,12 +475,14 @@ repository. See `public/music/README.md`.
 - Drag review cards into exact content slots.
 - Preview and place any of the 20 three-minute Funk/Latin music cards into a selected presentation slot.
 - Approve, reject, discard, or atomically replace cards.
-- The top of the Broadcast tab has one collapsed **Cards awaiting approval**
-  center showing the complete pending queue across all sources. Operators can
-  open it to review or edit individual cards, approve or reject them one at a
-  time, or use the confirmed **Approve all** action. Bulk approval still runs
-  deduplication and the normal quality validator; duplicates and cards that
-  fail source or structure checks are skipped rather than force-approved.
+- The top navigation includes a dedicated **Pending Review** tab showing the
+  complete quality-passing journal-card queue. Operators can review or edit
+  individual cards, approve or reject them one at a time, or use the confirmed
+  **Approve all** action. Large queues are submitted sequentially in 1,000-card
+  request batches, below the API's 2,000-ID safety limit, and the UI aggregates
+  the results. Every batch still runs server-side deduplication and the normal
+  quality validator; duplicates and cards that fail source or structure checks
+  are skipped rather than force-approved.
 - Manage source URLs, X follows, social items, and emergency overrides.
 - Approve conference coverage by slot, day, or week.
 - Two explicit, always-visible buttons control continuous YouTube delivery
@@ -503,6 +505,10 @@ repository. See `public/music/README.md`.
   which rendered as repeated identical tiles before this fix. The
   per-journal/conference deck view (`lib/cardDeck.ts`'s `buildDeck`) gets
   the same content-signature dedup.
+- **Release all ready cards** sends the visible segment IDs as a JSON request
+  and handles an empty HTTP response with an operator-readable error. This
+  prevents the former `Unexpected end of JSON input` failure while retaining
+  the server-side approval quality gates.
 - `getAdminSnapshot` (`lib/data.ts`) runs its ~20 independent Supabase calls
   via `Promise.all` instead of one after another, and the "one-hour planning
   slots" picker only spans 24h back through 48h forward (not a full week) —
@@ -674,8 +680,10 @@ Set the GitHub Actions variable `YOUTUBE_PRIVACY_STATUS` to `public` for
 production scheduled broadcasts so saved streams appear on the ConferenceHype
 YouTube channel. Use `unlisted` only for rehearsals or private tests.
 
-The OAuth consent screen must allow the Google account used to create the
-refresh token while the app is in testing. The OAuth client must include
+The ConferenceHype Google OAuth app is published **In production**. Refresh
+tokens issued after production authorization are no longer subject to Google's
+seven-day Testing-mode expiration rule, although they can still be revoked by
+the account owner or Google security controls. The OAuth client must include
 `https://developers.google.com/oauthplayground` as an authorized redirect URI
 when OAuth Playground is used to obtain that token.
 
@@ -695,17 +703,17 @@ Each new program reserves at most twelve quality-passed cards. This bounds the
 approval transaction and render input while leaving excess cards in their
 journal deck for a later program.
 
-The regular Monday-Friday journal wheel releases exactly one new journal read
-per day at **6:15 AM America/New_York**, before the morning commute. The
-`weekday-station-wheel.yml` prepares the next day's program at 10:30 PM Eastern,
-uploads it privately, and asks YouTube to publish it the following morning. The
-assigned article must predate the broadcast date and be no more than eight days
-old. Selection follows the frequency-weighted 14-release flagship cadence in
-`lib/station/journalCadence.ts`. If the assigned journal has no fresh,
-substantive card, the planner may use only that file's ranked top-journal
-fallback list; it never drops to a lower-tier journal merely to fill the day.
-After the upload verifies, five station positions replay that same video while
-unused cards remain available. The separate weekend roundup is unchanged.
+The regular Monday-Friday journal wheel releases exactly two distinct new
+journal videos per day at **7:15 AM and 5:10 PM America/New_York**. The
+`weekday-station-wheel.yml` prepares both programs in advance, uploads them
+privately, and asks YouTube to publish each at its assigned time. Each YouTube
+title includes the journal title. Assigned articles must predate the broadcast
+date and normally be no more than fourteen days old; a bounded twenty-one-day
+fallback is allowed only when two complete twelve-card decks cannot be assembled
+from the fourteen-day window. Selection stays within the approved flagship list
+and never lowers the twelve substantive, source-backed card floor. Activation
+fails closed until two distinct verified YouTube IDs exist. Unused cards remain
+available, and the separate weekend roundup is unchanged.
 
 Morning-journal recovery is deliberately fail-closed. GitHub Actions runner
 delays must not silently turn a scheduled run into a successful no-op:
@@ -727,8 +735,8 @@ This feature is additive and fail-closed:
 
 - The station tables are private service-role tables created by migration
   20260722170000_station_schedule_and_breakins.sql.
-- A daily wheel cannot become active until its one new upload is verified;
-  activation atomically creates five replay positions using that same video.
+- A weekday schedule cannot become active until both new uploads verify as two
+  distinct YouTube IDs; otherwise the existing public player remains unchanged.
 - The public page selects only an active schedule and a verified current
   program. If either is absent, it retains the existing working YouTube
   broadcast without changing stream_state.
@@ -740,10 +748,10 @@ This feature is additive and fail-closed:
   its verified 15-minute window. A failed render leaves the current player
   untouched.
 
-While the OAuth consent screen is in Testing publishing status, Google
-auto-revokes the refresh token after 7 days — this will recur until the app
-is verified and published to production. Two things make this manageable
-instead of a recurring multi-step manual ordeal:
+If the OAuth consent screen is returned to Testing status, Google can expire a
+YouTube-scope refresh token after seven days. Keep the app In production.
+The following tools provide renewal detection and recovery without exposing
+token values:
 
 1. **`npm run youtube:refresh-token`** opens your browser for one sign-in/
    approval click, exchanges the code for a new refresh token, and pushes it
