@@ -377,9 +377,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             </div>
           </div>
         }
+        pendingReview={<ReviewQueue segments={journalReviewSegments} />}
         journalWatch={
           <div className="grid gap-6">
-            <ReviewQueue segments={journalReviewSegments} />
             <JournalWatchDesk
               initialJournals={snapshot.oncologyJournals}
               cardDecks={journalCardDecks}

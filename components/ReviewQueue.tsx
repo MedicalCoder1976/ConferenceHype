@@ -77,7 +77,10 @@ export function ReviewQueue({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ segmentIds: visibleSegments.map((segment) => segment.id) })
         });
-        const payload = await response.json();
+        const responseText = await response.text();
+        const payload = responseText
+          ? JSON.parse(responseText)
+          : { ok: false, error: `Bulk approval failed with HTTP ${response.status}.` };
         if (!response.ok || !payload.ok) throw new Error(payload.error ?? "Bulk approval failed");
         setMessage(
           `Approved ${payload.approved} of ${payload.totalPending} pending cards. ` +
