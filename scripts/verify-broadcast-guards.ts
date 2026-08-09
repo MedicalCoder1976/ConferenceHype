@@ -502,6 +502,23 @@ assert.throws(
   /thumbnail headline/
 );
 assert.deepEqual(optimizedStudyMetadata.studyNames, ["V-NE Ulcer Study 6"]);
+const longStudyName = "Alpha Beta Gamma Delta HARMONi trial 123A";
+const longStudySlots = journalShowSlots.map((slot, index) => index === firstStudySlotIndex && slot.segment
+  ? { ...slot, segment: { ...slot.segment, title: `${longStudyName}: final results` } }
+  : slot);
+const longStudyMetadata = buildBroadcastMetadata({
+  hourStart: new Date("2026-07-24T13:00:00Z"),
+  slots: longStudySlots,
+  journalsById: journalShowJournalsById,
+  titleDateOverride: "2026-07-01"
+});
+assert.equal(longStudyMetadata.studyNames[0], longStudyName);
+assert.match(longStudyMetadata.thumbnailEntity ?? "", /^Alpha Beta Gamma Delta HARMONi\.\.\.$/);
+assert.doesNotThrow(() => assertSearchOptimizedBroadcastMetadata(longStudyMetadata));
+assert.throws(
+  () => assertSearchOptimizedBroadcastMetadata({ ...longStudyMetadata, thumbnailEntity: "Different trial" }),
+  /thumbnail must identify/
+);
 const optimizedDescriptionOpening = optimizedStudyMetadata.description.split("\n")[0];
 for (const studyName of optimizedStudyMetadata.studyNames) {
   assert.ok(optimizedDescriptionOpening.includes(studyName), `${studyName} must appear in the description opening line.`);

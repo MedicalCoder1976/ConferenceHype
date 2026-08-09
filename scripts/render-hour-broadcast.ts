@@ -1404,10 +1404,14 @@ async function uploadRenderedBroadcast(
         let studySourceTextBySegmentId = new Map<string, string>();
         try {
           const { createAdminClient } = await import("@/lib/supabase/admin");
+          const persistedSegmentIds = usedSegmentIds.filter((id) =>
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)
+          );
+          if (persistedSegmentIds.length === 0) throw new Error("No persisted segment IDs are available for linked PubMed metadata.");
           const { data: articleRows, error: articleError } = await createAdminClient()
             .from("journal_articles")
             .select("card_segment_id,abstract_text")
-            .in("card_segment_id", usedSegmentIds);
+            .in("card_segment_id", persistedSegmentIds);
           if (articleError) throw articleError;
           studySourceTextBySegmentId = new Map((articleRows ?? []).map((row) => [row.card_segment_id, row.abstract_text ?? ""]));
         } catch (error) {

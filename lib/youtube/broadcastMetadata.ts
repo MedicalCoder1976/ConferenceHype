@@ -308,7 +308,13 @@ export function assertSearchOptimizedBroadcastMetadata(
     metadata.studyNames.forEach((name, index) => {
       if (metadata.tags[index] !== truncate(name, MAX_TAG_LENGTH)) throw new Error("Explicit study names must lead the YouTube tags.");
     });
-    if (metadata.thumbnailEntity !== metadata.studyNames[0]) throw new Error("The thumbnail must identify the primary explicit study name.");
+    const primaryStudyName = metadata.studyNames[0];
+    const thumbnailEntity = metadata.thumbnailEntity;
+    const thumbnailIdentifiesPrimaryStudy = thumbnailEntity === primaryStudyName || (
+      Boolean(thumbnailEntity?.endsWith("...")) &&
+      primaryStudyName.startsWith(thumbnailEntity!.slice(0, -3).trimEnd())
+    );
+    if (!thumbnailIdentifiesPrimaryStudy) throw new Error("The thumbnail must identify the primary explicit study name.");
   }
   if (requireJournalContext) {
     if (metadata.tier !== "dominant" || !metadata.journalName) throw new Error("A station journal program must resolve one dominant journal.");
