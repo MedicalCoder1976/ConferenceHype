@@ -1248,6 +1248,7 @@ assert.match(twoDailyReleaseMigration, /exactly two new journal releases per day
 const journalCadenceSource = readFileSync(path.join(process.cwd(), "lib", "station", "journalCadence.ts"), "utf8");
 assert.match(journalCadenceSource, /TOP_JOURNAL_RELEASE_CADENCE/);
 assert.match(journalCadenceSource, /TOP_JOURNAL_FALLBACK_ORDER/);
+assert.match(journalCadenceSource, /MAX_ARTICLE_AGE_DAYS = 14/);
 assert.match(journalCadenceSource, /date < targetDate/);
 const weekdayWheelSource = readFileSync(path.join(process.cwd(), ".github", "workflows", "weekday-station-wheel.yml"), "utf8");
 assert.match(weekdayWheelSource, /uses: \.\/\.github\/workflows\/station-program\.yml/);

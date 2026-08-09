@@ -17,7 +17,7 @@ export const TOP_JOURNAL_FALLBACK_ORDER = [
 ] as const;
 
 const CADENCE_ANCHOR = "2026-08-03";
-const MAX_ARTICLE_AGE_DAYS = 8;
+const MAX_ARTICLE_AGE_DAYS = 14;
 
 function weekdayReleaseIndex(targetDate: string) {
   const start = new Date(`${CADENCE_ANCHOR}T12:00:00Z`);
