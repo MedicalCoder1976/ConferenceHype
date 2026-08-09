@@ -35,6 +35,30 @@ async function main() {
   ]);
   const weekStart = mondayOf(targetDate);
   const existingSchedules = (await getStationSchedulesFromDb(30)) ?? [];
+  const releaseMinutes = [7 * 60 + 15, 17 * 60 + 10];
+  const existingTargetSchedule = existingSchedules.find((schedule) => schedule.scheduleDate === targetDate);
+  const existingOriginals = existingTargetSchedule?.programs
+    .filter((program) => program.programType === "new" && program.position < STATION_NEW_PROGRAMS_PER_WEEKDAY)
+    .sort((left, right) => left.position - right.position) ?? [];
+  if (existingOriginals.length === STATION_NEW_PROGRAMS_PER_WEEKDAY) {
+    const missingDeliveries = existingOriginals.filter((program) => program.status !== "verified" || !program.youtubeVideoId);
+    const matrix = missingDeliveries.map((program) => {
+      const publishAt = easternLocalToUtc(targetDate, releaseMinutes[program.position]);
+      return { station_program_id: program.id, journal_id: program.journalId, stream_start_time: publishAt, youtube_publish_at: publishAt };
+    });
+    if (process.env.GITHUB_OUTPUT) {
+      await appendFile(process.env.GITHUB_OUTPUT, `matrix=${matrix.length ? JSON.stringify(matrix) : ""}\n`);
+    }
+    console.log(JSON.stringify({
+      ok: true,
+      reusedExistingReservation: true,
+      scheduleDate: targetDate,
+      scheduleId: existingTargetSchedule?.id,
+      pendingDeliveries: matrix.length,
+      programs: existingOriginals.map((program) => ({ position: program.position, journalName: program.journalName, status: program.status, cardCount: program.cardIds.length, youtubeVideoId: program.youtubeVideoId }))
+    }, null, 2));
+    return;
+  }
   const journalsAlreadyReservedThisWeek = new Set(existingSchedules
     .filter((schedule) => schedule.scheduleDate >= weekStart && schedule.scheduleDate < targetDate)
     .flatMap((schedule) => schedule.programs)
@@ -73,7 +97,6 @@ async function main() {
   if (programs.length !== STATION_NEW_PROGRAMS_PER_WEEKDAY || programs.some((program) => program.programType !== "new")) throw new Error("Two fresh, substantive articles from distinct approved top journals are required for the next weekday release.");
   const schedule = await saveStationDraftToDb({ scheduleDate: targetDate, timezone: "America/New_York", cycleStartMinutes: 7 * 60 + 15, programs });
   if (!schedule) throw new Error("Supabase is not configured.");
-  const releaseMinutes = [7 * 60 + 15, 17 * 60 + 10];
   // Reservation never changes segment status. Only these originals are rendered;
   // every unselected card remains approved in its journal queue.
   const scheduledOriginals = schedule.programs.filter((program) => program.programType === "new" && program.position < STATION_NEW_PROGRAMS_PER_WEEKDAY);

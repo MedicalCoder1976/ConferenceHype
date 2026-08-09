@@ -1269,6 +1269,8 @@ assert.match(prepareWeekdayStationSource, /journalsAlreadyReservedThisWeek/);
 assert.match(prepareWeekdayStationSource, /cardsAlreadyReservedThisWeek/);
 assert.match(prepareWeekdayStationSource, /weeklyDiversityOrder/);
 assert.match(prepareWeekdayStationSource, /schedule\.scheduleDate < targetDate/);
+assert.match(prepareWeekdayStationSource, /reusedExistingReservation: true/);
+assert.match(prepareWeekdayStationSource, /program\.status !== "verified" \|\| !program\.youtubeVideoId/);
 assert.match(youtubeUploaderSource, /privacyStatus: publishAt \? "private" : "public"/);
 assert.match(youtubeUploaderSource, /publishAt\?: string/);
 const twoDailyReleaseMigration = readFileSync(path.join(process.cwd(), "supabase", "migrations", "20260808190000_two_daily_journal_releases.sql"), "utf8");
