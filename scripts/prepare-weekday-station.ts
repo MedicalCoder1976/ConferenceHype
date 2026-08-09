@@ -31,13 +31,17 @@ async function main() {
   const decks = buildJournalCardDecks(deckSegments, journals);
   let programs: ReturnType<typeof buildStationDraft> = [];
   const requiredCards = minimumSubstantiveCards("journal30", "station-program");
-  for (const journal of orderedCadenceJournals(targetDate, journals)) {
-    const eligibleDeck = eligibleNextDayDeck(decks[journal.id], targetDate);
-    if (eligibleDeck.cards.length < requiredCards) continue;
-    const candidate = buildStationDraft({ scheduleDate: targetDate, journals: [journal], journalCardDecks: { [journal.id]: eligibleDeck }, programCount: 1 })[0];
-    if (!candidate) continue;
-    const position = programs.length;
-    programs.push({ ...candidate, position, startsAtOffsetMinutes: position * 30 });
+  for (const maxArticleAgeDays of [14, 21]) {
+    for (const journal of orderedCadenceJournals(targetDate, journals)) {
+      if (programs.some((program) => program.journalId === journal.id)) continue;
+      const eligibleDeck = eligibleNextDayDeck(decks[journal.id], targetDate, maxArticleAgeDays);
+      if (eligibleDeck.cards.length < requiredCards) continue;
+      const candidate = buildStationDraft({ scheduleDate: targetDate, journals: [journal], journalCardDecks: { [journal.id]: eligibleDeck }, programCount: 1 })[0];
+      if (!candidate) continue;
+      const position = programs.length;
+      programs.push({ ...candidate, position, startsAtOffsetMinutes: position * 30 });
+      if (programs.length === STATION_NEW_PROGRAMS_PER_WEEKDAY) break;
+    }
     if (programs.length === STATION_NEW_PROGRAMS_PER_WEEKDAY) break;
   }
   if (programs.length !== STATION_NEW_PROGRAMS_PER_WEEKDAY || programs.some((program) => program.programType !== "new")) throw new Error("Two fresh, substantive articles from distinct approved top journals are required for the next weekday release.");

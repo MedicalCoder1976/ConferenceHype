@@ -49,9 +49,9 @@ function articleDate(card: EntityCardDeck["cards"][number]) {
   return published ?? normalizeJournalPublicationDate(card.segment.createdAt) ?? "";
 }
 
-export function eligibleNextDayDeck(deck: EntityCardDeck | undefined, targetDate: string): EntityCardDeck {
+export function eligibleNextDayDeck(deck: EntityCardDeck | undefined, targetDate: string, maxArticleAgeDays = MAX_ARTICLE_AGE_DAYS): EntityCardDeck {
   const cutoff = new Date(`${targetDate}T12:00:00Z`);
-  cutoff.setUTCDate(cutoff.getUTCDate() - MAX_ARTICLE_AGE_DAYS);
+  cutoff.setUTCDate(cutoff.getUTCDate() - maxArticleAgeDays);
   const oldest = cutoff.toISOString().slice(0, 10);
   const cards = (deck?.cards ?? []).filter((card) => {
     const date = articleDate(card);
