@@ -1259,6 +1259,11 @@ assert.match(weekdayActivationWorkflow, /10#\$HOUR.*-lt 7/);
 assert.doesNotMatch(weekdayActivationWorkflow, /HOUR.*!=.*06/);
 assert.match(weekdayReleaseWorkflow, /youtube_publish_at: \$\{\{ matrix\.program\.youtube_publish_at \}\}/);
 assert.match(stationProgramWorkflow, /youtube_publish_at:[\s\S]*default: ""/);
+assert.equal(
+  [...stationProgramWorkflow.matchAll(/^      youtube_publish_at:/gm)].length,
+  2,
+  "Both workflow_call and workflow_dispatch must accept youtube_publish_at"
+);
 assert.match(youtubeUploaderSource, /privacyStatus: publishAt \? "private" : "public"/);
 assert.match(youtubeUploaderSource, /publishAt\?: string/);
 const twoDailyReleaseMigration = readFileSync(path.join(process.cwd(), "supabase", "migrations", "20260808190000_two_daily_journal_releases.sql"), "utf8");

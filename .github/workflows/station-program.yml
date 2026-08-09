@@ -52,6 +52,10 @@ on:
       stream_start_time:
         required: true
         description: "Scheduled program start"
+      youtube_publish_at:
+        required: false
+        default: ""
+        description: "YouTube scheduled publication time (ISO 8601); blank publishes immediately"
 
 jobs:
   render:
