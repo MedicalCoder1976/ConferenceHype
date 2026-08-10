@@ -144,6 +144,14 @@ Oncology at 7:15 AM and Annals of Surgery at 5:10 PM, with 12 cards in each
 program. The fallback implementation was verified with `npm run typecheck`,
 `npm run test:guards`, and `git diff --check`, and landed in commit `1d137bf`.
 
+Every journal-video title begins with the journal name, followed by a specific
+clinical topic and a readable specialty research hook. Viewer-facing metadata
+must never use `Multiple Cancers`, and registry-only identifiers such as NCT,
+ISRCTN, or ACTRN numbers are excluded from titles, descriptions, hashtags, and
+tags. Descriptions begin with explicit `Journal:` and `Relevant specialties:`
+lines. Source-verified named studies may appear in the description, but they do
+not displace the journal from the title.
+
 ## Public Site
 
 - Status-aware YouTube player with direct YouTube, audio, and HLS fallbacks
@@ -768,6 +776,23 @@ This feature is additive and fail-closed:
   its verified 15-minute window. A failed render leaves the current player
   untouched.
 
+### Twitter / X Stream tab
+
+The admin top navigation includes a dedicated **Twitter Stream** tab. It builds
+a zero-cost replay plan from prior station programs that already have verified
+YouTube video IDs. The operator selects one specialty, a start time, and a
+one-to-six-hour duration. The planner schedules two journal broadcasts per
+hour—one at `:00` and one at `:30`—and cycles only through previous broadcasts
+from that same specialty. It does not render new media or call an AI service.
+
+The tab copies an operator-readable run plan with the journal, title, and replay
+URL for every half-hour boundary. Actual X delivery remains fail-closed: do not
+label the stream live until X Media Studio Producer ingest access and a
+persistent local encoder have passed a private test. An app-only bearer token
+is not sufficient for posting or creating a live broadcast, and a Vercel
+request or temporary GitHub runner must not be treated as the persistent
+encoder.
+
 If the OAuth consent screen is returned to Testing status, Google can expire a
 YouTube-scope refresh token after seven days. Keep the app In production.
 The following tools provide renewal detection and recovery without exposing
@@ -819,7 +844,8 @@ built automatically from that hour's actual, final rendered cards
 search/recommendations for physicians, NPs, and PAs following specific
 journals or specialties, instead of a generic always-identical title.
 
-- **Title**: dominant journal + specialty + date when one journal clearly
+- **Title**: journal name first, followed by a specific clinical topic and a
+  readable specialty research hook when one journal clearly
   leads the hour (≥2 cards); falls back to a specialty-only "Roundup" framing
   for a genuinely mixed hour; falls back to today's original generic
   conference-based title when zero cards have resolvable journal data — a
@@ -836,9 +862,9 @@ journals or specialties, instead of a generic always-identical title.
   correct; only the title/intro summarization is wrong. Fix direction:
   require `dominant` to represent a real proportion of resolved cards (e.g.
   ≥40%), falling through to the existing `roundup` tier otherwise.
-- **Study-name search optimization (effective July 24, 2026)**: study and trial names are extracted only when explicitly present in approved card text, citation labels, or the linked PubMed abstract. Recognizable names (for example `ILUSTRO study`, `PREDICT study`, or `RESOLUTION Trial`) outrank registry identifiers such as `NCT...`. The primary name begins the title; every detected name appears in the description's first line and in the leading tags. Generic phrases such as `this study`, `controlled trial`, or `ISRCTN registration` are rejected, and the system never invents a study name. The weekday station wheel refreshes metadata on the six canonical videos in place, without uploading duplicates.
-- **Description invariant**: when one or more explicit study names are detected, the first description line is `Studies covered: ...` and must contain every detected name retained in metadata. The broadcast's journal and source publication month/year remain immediately below it.
-- **Station search-metadata gate**: every newly rendered weekday journal program must pass one validation package before it can be marked verified. An explicit study/trial name begins the title, appears in the first description line, leads the tags, and appears on the curiosity thumbnail. When no explicit name is source-verified, the approved `What Did This Research Find?` fallback is used. Journal name, specific specialty, and publication month/year are mandatory; generic metadata fallback and thumbnail-upload warnings are not accepted for station programs.
+- **Study-name search optimization (effective July 24, 2026)**: named studies and trials are extracted only when explicitly present in approved card text, citation labels, or the linked PubMed abstract. Registry-only identifiers such as `NCT...`, `ISRCTN...`, and `ACTRN...` are not viewer-facing search terms. Named studies may appear in the description and leading tags, but the journal remains first in the title. Generic phrases such as `this study` or `controlled trial` are rejected, and the system never invents a study name. Metadata refresh updates canonical videos in place without uploading duplicates.
+- **Description invariant**: every journal video begins its description with `Journal: ...` and `Relevant specialties: ...`. When named studies are detected, a `Named studies covered: ...` line follows. Journal and source publication month/year remain explicit.
+- **Station search-metadata gate**: every newly rendered weekday journal program must pass one validation package before it can be marked verified. The journal begins the title; journal and specific specialty begin the description; `Multiple Cancers`, `Others`, and registry-only identifiers are rejected from viewer-facing search metadata. Journal name, specific specialty, and publication month/year are mandatory; generic fallback and thumbnail-upload warnings are not accepted for station programs.
 - **Description**: explicitly names every journal and its source publication month/year near the top, followed by one YouTube-chapter-formatted line per content card
   (`M:SS Journal - Specialty - Mon YYYY`), which YouTube auto-converts into
   clickable chapters, plus an intro sentence and a closing hashtag line.

@@ -1,13 +1,14 @@
 "use client";
 
-import { BookOpen, BookOpenCheck, BookOpenText, CalendarDays, FileText, Library, Mic2, Radio, ScrollText, Sparkles } from "lucide-react";
+import { BookOpen, BookOpenCheck, BookOpenText, CalendarDays, FileText, Library, Mic2, Radio, RadioTower, ScrollText, Sparkles } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
-type TabId = "broadcast" | "pending-review" | "journal-watch" | "meeting-watch" | "breaking-paper" | "create-story" | "writeouts" | "memory" | "voices" | "history";
+type TabId = "broadcast" | "pending-review" | "twitter-stream" | "journal-watch" | "meeting-watch" | "breaking-paper" | "create-story" | "writeouts" | "memory" | "voices" | "history";
 
 const tabs: Array<{ id: TabId; label: string; icon: typeof Radio }> = [
   { id: "broadcast", label: "Broadcast", icon: Radio },
   { id: "pending-review", label: "Pending Review", icon: BookOpenCheck },
+  { id: "twitter-stream", label: "Twitter Stream", icon: RadioTower },
   { id: "journal-watch", label: "Journal Watch", icon: BookOpen },
   { id: "meeting-watch", label: "Meeting Watch", icon: CalendarDays },
   { id: "breaking-paper", label: "Breaking Paper", icon: BookOpenText },
@@ -22,6 +23,7 @@ export function AdminTabs({
   initialActive,
   broadcast,
   pendingReview,
+  twitterStream,
   journalWatch,
   meetingWatch,
   breakingPaper,
@@ -34,6 +36,7 @@ export function AdminTabs({
   initialActive?: string;
   broadcast: ReactNode;
   pendingReview: ReactNode;
+  twitterStream: ReactNode;
   journalWatch: ReactNode;
   meetingWatch: ReactNode;
   breakingPaper: ReactNode;
@@ -76,6 +79,8 @@ export function AdminTabs({
         return broadcast;
       case "pending-review":
         return pendingReview;
+      case "twitter-stream":
+        return twitterStream;
       case "journal-watch":
         return journalWatch;
       case "meeting-watch":

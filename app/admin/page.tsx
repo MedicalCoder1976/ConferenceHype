@@ -28,6 +28,7 @@ import { StationSchedulePanel } from "@/components/StationSchedulePanel";
 import { StoryDesk } from "@/components/StoryDesk";
 import { SpecialtyVoiceDirectory } from "@/components/SpecialtyVoiceDirectory";
 import { XVoiceCallouts } from "@/components/XVoiceCallouts";
+import { TwitterStreamDesk } from "@/components/TwitterStreamDesk";
 import {
   buildConferenceCardDecks,
   buildJournalCardDecks,
@@ -378,6 +379,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           </div>
         }
         pendingReview={<ReviewQueue segments={journalReviewSegments} />}
+        twitterStream={<TwitterStreamDesk schedules={stationSchedules ?? []} today={planningDayKey(new Date())} />}
         journalWatch={
           <div className="grid gap-6">
             <JournalWatchDesk

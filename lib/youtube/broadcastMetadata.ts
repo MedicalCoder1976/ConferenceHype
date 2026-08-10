@@ -267,8 +267,15 @@ function buildDescription({
 
   const hashtags = tags.slice(0, 6).map((tag) => `#${tag.replace(/\s+/g, "")}`).join(" ");
 
-  const studyLine = optimized && studyNames.length ? `Studies covered: ${studyNames.join("; ")}.` : "";
-  return [studyLine, intro, journalEditionLine, "", ...chapterLines, "", hashtags].filter((line, index, lines) => line || (index > 0 && lines[index - 1])).join("\n");
+  const journalLine = dominantJournal?.journal.name
+    ? `Journal: ${dominantJournal.journal.name}.`
+    : journalEditions.size > 0
+      ? `Journals: ${[...journalEditions.keys()].join("; ")}.`
+      : "";
+  const specialties = [...new Set(cards.map(({ journal }) => journal ? specificSpecialty(journal) : "").filter(Boolean))];
+  const specialtyLine = specialties.length ? `Relevant specialties: ${specialties.join("; ")}.` : "";
+  const studyLine = optimized && studyNames.length ? `Named studies covered: ${studyNames.join("; ")}.` : "";
+  return [journalLine, specialtyLine, studyLine, intro, journalEditionLine, "", ...chapterLines, "", hashtags].filter((line, index, lines) => line || (index > 0 && lines[index - 1])).join("\n");
 }
 
 function buildTags(cards: ResolvedCard[], studyNames: string[] = []) {
@@ -297,14 +304,21 @@ export function assertSearchOptimizedBroadcastMetadata(
 ) {
   if (!metadata.thumbnailHeadline) throw new Error("A search-optimized thumbnail headline is required.");
   if (!metadata.clinicalTopic) throw new Error("A disease or specific clinical topic is required.");
-  if (!metadata.title.startsWith(metadata.clinicalTopic + ":")) throw new Error("The disease or clinical topic must begin the title.");
+  if (metadata.journalName ? !metadata.title.startsWith(metadata.journalName + ":") : !metadata.title.startsWith(metadata.clinicalTopic + ":")) {
+    throw new Error("Journal programs must begin with the journal; other programs must begin with the clinical topic.");
+  }
+  if (/\bMultiple Cancers\b/i.test(`${metadata.title}\n${metadata.description}\n${metadata.tags.join(" ")}`)) {
+    throw new Error("Metadata must never use the generic Multiple Cancers label.");
+  }
+  if (/\b(?:NCT|ISRCTN|ACTRN)\s*[-:]?\s*\d{6,}\b/i.test(`${metadata.title}\n${metadata.description}\n${metadata.tags.join(" ")}`)) {
+    throw new Error("Registry identifiers must not be used as viewer-facing search metadata.");
+  }
   if (/\bOthers\b/.test(`${metadata.title}\n${metadata.description}\n${metadata.tags.join(" ")}`)) {
     throw new Error("Search metadata must use a specific specialty, never Others.");
   }
   if (metadata.studyNames.length > 0) {
-    const studiesLine = `Studies covered: ${metadata.studyNames.join("; ")}.`;
-    if (!metadata.title.includes(metadata.studyNames[0])) throw new Error("The primary explicit study name must appear in the disease-first title.");
-    if (metadata.description.split("\n")[0] !== studiesLine) throw new Error("Every explicit study name must appear in the description's first line.");
+    const studiesLine = `Named studies covered: ${metadata.studyNames.join("; ")}.`;
+    if (!metadata.description.includes(studiesLine)) throw new Error("Every named study must appear in the description.");
     metadata.studyNames.forEach((name, index) => {
       if (metadata.tags[index] !== truncate(name, MAX_TAG_LENGTH)) throw new Error("Explicit study names must lead the YouTube tags.");
     });
@@ -320,7 +334,9 @@ export function assertSearchOptimizedBroadcastMetadata(
     if (metadata.tier !== "dominant" || !metadata.journalName) throw new Error("A station journal program must resolve one dominant journal.");
     if (!metadata.specialty || metadata.specialty === "Medical Journal") throw new Error("A station journal program must resolve a specific specialty.");
     if (!metadata.description.includes(metadata.journalName)) throw new Error("The description must name the journal.");
-    if (!metadata.title.includes(metadata.journalName)) throw new Error("The title must name the journal.");
+    if (!metadata.title.startsWith(`${metadata.journalName}:`)) throw new Error("The journal must begin the title.");
+    const specialtyLine = metadata.description.split("\n").find((line) => line.startsWith("Relevant specialties:"));
+    if (!specialtyLine?.includes(metadata.specialty)) throw new Error("The description must identify the relevant specialty.");
     if (metadata.thumbnailJournalNames?.[0] !== metadata.journalName) throw new Error("The thumbnail must identify the journal.");
     if (!metadata.description.includes("Journals and publication dates covered:") || metadata.description.includes("publication date unavailable")) {
       throw new Error("The description must include the journal's source publication month and year.");
@@ -351,7 +367,7 @@ export function buildBroadcastMetadata(input: BroadcastMetadataInput): Broadcast
   const studyNames = optimized
     ? [...new Set(discoveredStudyNames)].sort((left, right) =>
         Number(/^(?:NCT|ISRCTN|ACTRN)/i.test(left)) - Number(/^(?:NCT|ISRCTN|ACTRN)/i.test(right))
-      ).slice(0, 5)
+      ).filter((name) => !/^(?:NCT|ISRCTN|ACTRN)/i.test(name)).slice(0, 5)
     : [];
   const thumbnailJournalNames = [...cards.reduce((counts, card) => {
     if (card.journal) counts.set(card.journal.name, (counts.get(card.journal.name) ?? 0) + 1);
@@ -369,8 +385,13 @@ export function buildBroadcastMetadata(input: BroadcastMetadataInput): Broadcast
     studyNames,
     multiTopic: new Set(cards.map((card) => card.journal ? specificSpecialty(card.journal) : "").filter(Boolean)).size > 1
   });
-  const journalSuffix = resolved.journalName ? ` | ${resolved.journalName}` : "";
-  const title = `${truncate(packaging.youtubeTitle, TITLE_MAX_LENGTH - journalSuffix.length)}${journalSuffix}`;
+  const journalPrefix = resolved.journalName ? `${resolved.journalName}: ` : "";
+  const readableTopic = packaging.clinicalTopic === resolved.specialty ? `${resolved.specialty} Update` : packaging.clinicalTopic;
+  const namedStudyPrefix = packaging.primaryEntity ? `${packaging.primaryEntity}: ` : "";
+  const titleBody = resolved.journalName
+    ? `${readableTopic} - New ${resolved.specialty} Research`
+    : `${readableTopic} - ${namedStudyPrefix}${packaging.outcomeHook}`;
+  const title = `${journalPrefix}${truncate(titleBody, TITLE_MAX_LENGTH - journalPrefix.length)}`;
   const tags = buildTags(cards, studyNames);
   const description = buildDescription({
     cards,

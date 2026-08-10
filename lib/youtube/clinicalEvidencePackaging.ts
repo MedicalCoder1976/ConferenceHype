@@ -98,7 +98,7 @@ function fallbackTopic(input: ClinicalEvidencePackagingInput) {
   const explicit = clean(input.explicitTopic ?? "");
   if (explicit && !/^(?:story|medicine|medical research|clinical medicine)$/i.test(explicit)) return truncateAtWord(explicit, 48);
   const specialty = clean(input.specialty ?? "");
-  if (/oncology|hematology|cancer/i.test(specialty)) return input.multiTopic ? "Multiple Cancers" : "Cancer";
+  if (/oncology|hematology|cancer/i.test(specialty)) return truncateAtWord(`${specialty || "Cancer"} Research`, 48);
   if (specialty && !/^(?:story|medicine|medical journal|multispecialty)$/i.test(specialty)) return truncateAtWord(specialty + " Research", 48);
   const candidate = clean(input.title ?? "").split(/[|]/)[0]?.trim();
   return truncateAtWord(candidate || "Clinical Research", 48);
@@ -113,8 +113,7 @@ export function extractClinicalTopic(value: string, fallback = "Clinical Researc
   const unique = [...new Set(matches)];
   if (unique.length === 1) return unique[0];
   if (unique.length > 1) {
-    const allCancer = unique.every((label) => /Cancer|Leukemia|Lymphoma|Myeloma|Myelodysplastic|Myelofibrosis|Melanoma|Sarcoma/i.test(label));
-    return allCancer ? "Multiple Cancers" : unique[0];
+    return unique[0];
   }
   return fallback;
 }
@@ -124,6 +123,7 @@ function resolveOutcomeHook(input: ClinicalEvidencePackagingInput, entity: strin
     .map((value) => clean(value ?? ""))
     .filter(Boolean);
   for (let candidate of candidates) {
+    candidate = candidate.replace(/\b(?:NCT|ISRCTN|ACTRN)\s*[-:]?\s*\d{6,}\b\s*[:|-]?\s*/gi, "").trim();
     if (entity) candidate = candidate.replace(new RegExp("^" + escapeRegExp(entity) + "\\s*[:|-]\\s*", "i"), "");
     candidate = candidate.replace(new RegExp("^" + escapeRegExp(topic) + "\\s*[:|-]\\s*", "i"), "");
     candidate = candidate.replace(/^(?:Background|Methods|Results|Discussion|Conclusion)\s*:\s*/i, "");
@@ -137,7 +137,7 @@ function resolveOutcomeHook(input: ClinicalEvidencePackagingInput, entity: strin
 export function buildClinicalEvidencePackaging(input: ClinicalEvidencePackagingInput): ClinicalEvidencePackaging {
   const combined = clean([input.explicitTopic, input.title, input.sourceText].filter(Boolean).join(" "));
   const clinicalTopic = extractClinicalTopic(combined, fallbackTopic(input));
-  const primaryEntity = input.studyNames?.map(clean).find(Boolean);
+  const primaryEntity = input.studyNames?.map(clean).find((name) => Boolean(name) && !/^(?:NCT|ISRCTN|ACTRN)/i.test(name));
   const hook = resolveOutcomeHook(input, primaryEntity, clinicalTopic);
   const entityPrefix = primaryEntity && !hook.toLowerCase().includes(primaryEntity.toLowerCase())
     ? primaryEntity + " - "
@@ -153,4 +153,3 @@ export function buildClinicalEvidencePackaging(input: ClinicalEvidencePackagingI
     thumbnailEntity: primaryEntity ? truncateAtWord(primaryEntity, 34) : undefined
   };
 }
-

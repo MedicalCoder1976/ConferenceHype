@@ -415,8 +415,7 @@ const metadataWithOverrideOmittedAgain = buildBroadcastMetadata({
   journalsById: journalShowJournalsById
 });
 assert.deepEqual(metadataWithoutOverride, metadataWithOverrideOmittedAgain);
-assert.match(metadataWithoutOverride.title, /^Internal Medicine:/);
-assert.match(metadataWithoutOverride.title, /\| Test Journal$/);
+assert.match(metadataWithoutOverride.title, /^Test Journal: Internal Medicine Update - New Internal Medicine Research/);
 const metadataWithOverride = buildBroadcastMetadata({
   hourStart: metadataHourStart,
   slots: journalShowSlots,
@@ -434,7 +433,7 @@ const legacyNeurologyMetadata = buildBroadcastMetadata({
   slots: journalShowSlots,
   journalsById: new Map([[journalShowJournalId, { ...journalShowTestJournal, name: "Neurology", specialty: "Others" }]])
 });
-assert.match(legacyNeurologyMetadata.title, /^Neurology:/);
+assert.match(legacyNeurologyMetadata.title, /^Neurology: Neurology Update - New Neurology Research/);
 assert.doesNotMatch(`${legacyNeurologyMetadata.title} ${legacyNeurologyMetadata.description} ${legacyNeurologyMetadata.tags.join(" ")}`, /\bOthers\b/);
 
 assert.equal(extractExplicitStudyName("V-NE Ulcer Study 6: randomized findings"), "V-NE Ulcer Study 6");
@@ -484,8 +483,8 @@ const optimizedStudyMetadata = buildBroadcastMetadata({
   journalsById: journalShowJournalsById,
   titleDateOverride: "2026-07-01"
 });
-assert.match(optimizedStudyMetadata.title, /^Internal Medicine: V-NE Ulcer Study 6/);
-assert.match(optimizedStudyMetadata.description, /^Studies covered: V-NE Ulcer Study 6\./);
+assert.match(optimizedStudyMetadata.title, /^Test Journal: Internal Medicine Update - New Internal Medicine Research/);
+assert.match(optimizedStudyMetadata.description, /^Journal: Test Journal\.\nRelevant specialties: Internal Medicine\.\nNamed studies covered: V-NE Ulcer Study 6\./);
 assert.equal(optimizedStudyMetadata.tags[0], "V-NE Ulcer Study 6");
 assert.equal(optimizedStudyMetadata.thumbnailHeadline, "randomized findings");
 assert.equal(optimizedStudyMetadata.thumbnailEntity, "V-NE Ulcer Study 6");
@@ -495,7 +494,7 @@ assert.doesNotThrow(() => assertSearchOptimizedBroadcastMetadata(optimizedStudyM
 assert.throws(() => assertSearchOptimizedBroadcastMetadata(optimizedStudyMetadata, { requireJournalContext: true }), /publication month and year/);
 assert.throws(
   () => assertSearchOptimizedBroadcastMetadata({ ...optimizedStudyMetadata, description: "Missing study line" }),
-  /description's first line/
+  /Every named study/
 );
 assert.throws(
   () => assertSearchOptimizedBroadcastMetadata({ ...optimizedStudyMetadata, thumbnailHeadline: undefined }),
@@ -519,9 +518,8 @@ assert.throws(
   () => assertSearchOptimizedBroadcastMetadata({ ...longStudyMetadata, thumbnailEntity: "Different trial" }),
   /thumbnail must identify/
 );
-const optimizedDescriptionOpening = optimizedStudyMetadata.description.split("\n")[0];
 for (const studyName of optimizedStudyMetadata.studyNames) {
-  assert.ok(optimizedDescriptionOpening.includes(studyName), `${studyName} must appear in the description opening line.`);
+  assert.ok(optimizedStudyMetadata.description.includes(studyName), `${studyName} must appear in the description.`);
 }
 const firstStudySegmentId = studyNamedSlots[firstStudySlotIndex].segment!.id;
 const abstractNamedMetadata = buildBroadcastMetadata({
@@ -531,9 +529,19 @@ const abstractNamedMetadata = buildBroadcastMetadata({
   titleDateOverride: "2026-07-01",
   studySourceTextBySegmentId: new Map([[firstStudySegmentId, "Methods from the PREDICT study were prespecified."]])
 });
-assert.match(abstractNamedMetadata.title, /^Internal Medicine: PREDICT study/);
+assert.match(abstractNamedMetadata.title, /^Test Journal: Internal Medicine Update - New Internal Medicine Research/);
 assert.equal(abstractNamedMetadata.tags[0], "PREDICT study");
-assert.match(abstractNamedMetadata.description.split("\n")[0], /PREDICT study/);
+assert.match(abstractNamedMetadata.description, /Named studies covered: PREDICT study/);
+const registryOnlyMetadata = buildBroadcastMetadata({
+  hourStart: new Date("2026-07-24T13:00:00Z"),
+  slots: journalShowSlots.map((slot, index) => index === firstStudySlotIndex && slot.segment
+    ? { ...slot, segment: { ...slot.segment, title: "NCT01234567: randomized findings" } }
+    : slot),
+  journalsById: journalShowJournalsById,
+  titleDateOverride: "2026-07-01"
+});
+assert.deepEqual(registryOnlyMetadata.studyNames, []);
+assert.doesNotMatch(`${registryOnlyMetadata.title}\n${registryOnlyMetadata.description}\n${registryOnlyMetadata.tags.join(" ")}`, /NCT01234567|Multiple Cancers/i);
 assert.equal(metadataWithoutOverride.thumbnailHeadline, "Journal show topic 0");
 assert.equal(metadataWithoutOverride.clinicalTopic, "Internal Medicine");
 assert.deepEqual(metadataWithoutOverride.studyNames, []);
@@ -1233,7 +1241,22 @@ assert.doesNotMatch(thumbnailRouteSource, />\?<\/div>/);
 const stationMetadataSource = readFileSync(path.join(process.cwd(), "scripts", "refresh-station-video-metadata.ts"), "utf8");
 assert.match(stationMetadataSource, /updateYoutubeVideoMetadata/);
 assert.match(stationMetadataSource, /uploadYoutubeThumbnail/);
+assert.match(stationMetadataSource, /STATION_METADATA_ALL_RELEASED/);
+assert.match(stationMetadataSource, /STATION_METADATA_DRY_RUN/);
+assert.match(stationMetadataSource, /refreshedVideoIds/);
+assert.match(stationMetadataSource, /assertSearchOptimizedBroadcastMetadata/);
 assert.doesNotMatch(stationMetadataSource, /uploadVideoToYoutube/);
+
+const adminTabsSource = readFileSync(path.join(process.cwd(), "components", "AdminTabs.tsx"), "utf8");
+const twitterStreamDeskSource = readFileSync(path.join(process.cwd(), "components", "TwitterStreamDesk.tsx"), "utf8");
+assert.match(adminTabsSource, /twitter-stream/);
+assert.match(adminTabsSource, /Twitter Stream/);
+assert.match(twitterStreamDeskSource, /program\.status === "verified"/);
+assert.match(twitterStreamDeskSource, /schedule\.scheduleDate < today/);
+assert.match(twitterStreamDeskSource, /hours \* 2/);
+assert.match(twitterStreamDeskSource, /index \* 30/);
+assert.match(twitterStreamDeskSource, /without new rendering or AI cost/);
+assert.match(twitterStreamDeskSource, /private test/);
 
 const weekdayReleaseSource = readFileSync(path.join(process.cwd(), "scripts", "prepare-weekday-station.ts"), "utf8");
 const weekdayReleaseWorkflow = readFileSync(path.join(process.cwd(), ".github", "workflows", "weekday-station-wheel.yml"), "utf8");
