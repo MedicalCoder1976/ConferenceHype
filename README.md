@@ -157,7 +157,11 @@ specific specialists first—for example Gastroenterologists, Oncologists,
 Hematologists, Cardiologists, or Psychiatrists—then adds the general discovery
 terms `Physicians` and `Advanced Practice Providers (APPs)`. These audiences
 also appear in YouTube tags, while titles remain focused on the journal and
-clinical topic rather than being crowded with generic keywords.
+clinical topic rather than being crowded with generic keywords. Audience
+resolution uses both the journal's catalog specialty and the clinical topic:
+for example, a JAMA lung-cancer broadcast targets both Internists and
+Oncologists, and a Blood leukemia broadcast targets both Hematologists and
+Oncologists.
 
 ## Public Site
 

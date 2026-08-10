@@ -172,6 +172,17 @@ function specialistAudience(specialty: string) {
   return exact[specialty] ?? [`${specialty} Specialists`];
 }
 
+function topicSpecialties(clinicalTopic: string | undefined) {
+  const topic = clinicalTopic ?? "";
+  const specialties: string[] = [];
+  if (/cancer|leukemia|lymphoma|myeloma|myelodysplastic|myelofibrosis|melanoma|sarcoma/i.test(topic)) specialties.push("Oncology");
+  if (/leukemia|lymphoma|myeloma|myelodysplastic|myelofibrosis/i.test(topic)) specialties.push("Hematology");
+  if (/heart|coronary|atrial fibrillation|cardiovascular/i.test(topic)) specialties.push("Cardiology");
+  if (/bowel|Crohn|colitis|liver|hepat/i.test(topic)) specialties.push("Gastroenterology");
+  if (/depression|schizophrenia|psychiatr/i.test(topic)) specialties.push("Psychiatry");
+  return specialties;
+}
+
 function resolveContentCards(
   slots: BroadcastSlot[],
   journalsById: Map<string, OncologyJournal>
@@ -241,7 +252,8 @@ function buildDescription({
   anyJournalResolved,
   tags,
   studyNames,
-  optimized
+  optimized,
+  additionalSpecialties = []
 }: {
   cards: ResolvedCard[];
   hourStart: Date;
@@ -251,6 +263,7 @@ function buildDescription({
   tags: string[];
   studyNames: string[];
   optimized: boolean;
+  additionalSpecialties?: string[];
 }) {
   let intro: string;
   const journalEditions = new Map<string, Set<string>>();
@@ -294,7 +307,10 @@ function buildDescription({
     : journalEditions.size > 0
       ? `Journals: ${[...journalEditions.keys()].join("; ")}.`
       : "";
-  const specialties = [...new Set(cards.map(({ journal }) => journal ? specificSpecialty(journal) : "").filter(Boolean))];
+  const specialties = [...new Set([
+    ...cards.map(({ journal }) => journal ? specificSpecialty(journal) : "").filter(Boolean),
+    ...additionalSpecialties
+  ])];
   const specialtyLine = specialties.length ? `Relevant specialties: ${specialties.join("; ")}.` : "";
   const specialistLabels = [...new Set(specialties.flatMap(specialistAudience))];
   const audienceLine = specialistLabels.length
@@ -304,12 +320,16 @@ function buildDescription({
   return [journalLine, specialtyLine, audienceLine, studyLine, intro, journalEditionLine, "", ...chapterLines, "", hashtags].filter((line, index, lines) => line || (index > 0 && lines[index - 1])).join("\n");
 }
 
-function buildTags(cards: ResolvedCard[], studyNames: string[] = []) {
+function buildTags(cards: ResolvedCard[], studyNames: string[] = [], additionalSpecialties: string[] = []) {
   const names = new Set<string>();
   for (const card of cards) {
     if (!card.journal) continue;
     names.add(card.journal.name);
     const specialty = specificSpecialty(card.journal);
+    names.add(specialty);
+    specialistAudience(specialty).forEach((audience) => names.add(audience));
+  }
+  for (const specialty of additionalSpecialties) {
     names.add(specialty);
     specialistAudience(specialty).forEach((audience) => names.add(audience));
   }
@@ -424,7 +444,8 @@ export function buildBroadcastMetadata(input: BroadcastMetadataInput): Broadcast
     ? `${readableTopic} - New ${resolved.specialty} Research`
     : `${readableTopic} - ${namedStudyPrefix}${packaging.outcomeHook}`;
   const title = `${journalPrefix}${truncate(titleBody, TITLE_MAX_LENGTH - journalPrefix.length)}`;
-  const tags = buildTags(cards, studyNames);
+  const additionalSpecialties = topicSpecialties(packaging.clinicalTopic).filter((specialty) => specialty !== resolved.specialty);
+  const tags = buildTags(cards, studyNames, additionalSpecialties);
   const description = buildDescription({
     cards,
     hourStart: input.hourStart,
@@ -433,7 +454,8 @@ export function buildBroadcastMetadata(input: BroadcastMetadataInput): Broadcast
     anyJournalResolved,
     tags,
     studyNames,
-    optimized
+    optimized,
+    additionalSpecialties
   });
 
   return {

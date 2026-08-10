@@ -457,6 +457,18 @@ assert.equal(oncologyPackaging.clinicalTopic, "Lung Cancer");
 assert.match(oncologyPackaging.youtubeTitle, /^Lung Cancer: FLAURA2 trial/);
 assert.equal(oncologyPackaging.thumbnailEntity, "FLAURA2 trial");
 assert.doesNotMatch(oncologyPackaging.youtubeTitle, /^ConferenceHype|Physician Education/);
+const lungCancerJournalMetadata = buildBroadcastMetadata({
+  hourStart: new Date("2026-07-24T13:00:00Z"),
+  slots: journalShowSlots.map((slot) => slot.segment && !slot.segment.riskFlags.includes("journal_show_outro")
+    ? { ...slot, segment: { ...slot.segment, title: "Lung cancer treatment evidence" } }
+    : slot),
+  journalsById: journalShowJournalsById,
+  titleDateOverride: "2026-07-01"
+});
+assert.match(lungCancerJournalMetadata.description, /Relevant specialties: Internal Medicine; Oncology\./);
+assert.match(lungCancerJournalMetadata.description, /Audience: Internists; Oncologists; Physicians; Advanced Practice Providers \(APPs\)\./);
+assert.ok(lungCancerJournalMetadata.tags.includes("Oncology"));
+assert.ok(lungCancerJournalMetadata.tags.includes("Oncologists"));
 const cardiologyPackaging = buildClinicalEvidencePackaging({
   title: "Novo Nordisk heart medicine fails trial: ZEUS cut inflammation, not heart attacks",
   specialty: "Cardiology",
