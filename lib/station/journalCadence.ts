@@ -64,5 +64,10 @@ export function orderedCadenceJournals(targetDate: string, journals: OncologyJou
   const primary = TOP_JOURNAL_RELEASE_CADENCE[weekdayReleaseIndex(targetDate)];
   const names = [primary, ...TOP_JOURNAL_FALLBACK_ORDER.filter((name) => name !== primary)];
   const byName = new Map(journals.map((journal) => [journal.name.toLowerCase(), journal]));
-  return names.map((name) => byName.get(name.toLowerCase())).filter((journal): journal is OncologyJournal => Boolean(journal?.enabled));
+  const preferred = names.map((name) => byName.get(name.toLowerCase())).filter((journal): journal is OncologyJournal => Boolean(journal?.enabled));
+  const preferredIds = new Set(preferred.map((journal) => journal.id));
+  const sidelined = journals
+    .filter((journal) => journal.enabled && !preferredIds.has(journal.id))
+    .sort((left, right) => left.name.localeCompare(right.name));
+  return [...preferred, ...sidelined];
 }

@@ -79,7 +79,7 @@ async function main() {
     ...cadenceJournals.filter((journal) => !journalsAlreadyReservedThisWeek.has(journal.id)),
     ...cadenceJournals.filter((journal) => journalsAlreadyReservedThisWeek.has(journal.id))
   ];
-  for (const maxArticleAgeDays of [14, 21]) {
+  for (const maxArticleAgeDays of [14, 21, 28, 35]) {
     for (const journal of weeklyDiversityOrder) {
       if (programs.some((program) => program.journalId === journal.id)) continue;
       const eligibleDeck = eligibleNextDayDeck(decks[journal.id], targetDate, maxArticleAgeDays);
@@ -94,7 +94,7 @@ async function main() {
     }
     if (programs.length === STATION_NEW_PROGRAMS_PER_WEEKDAY) break;
   }
-  if (programs.length !== STATION_NEW_PROGRAMS_PER_WEEKDAY || programs.some((program) => program.programType !== "new")) throw new Error("Two fresh, substantive articles from distinct approved top journals are required for the next weekday release.");
+  if (programs.length !== STATION_NEW_PROGRAMS_PER_WEEKDAY || programs.some((program) => program.programType !== "new")) throw new Error("Two substantive, source-backed journal programs with twelve unused cards each are required for the next weekday release.");
   const schedule = await saveStationDraftToDb({ scheduleDate: targetDate, timezone: "America/New_York", cycleStartMinutes: 7 * 60 + 15, programs });
   if (!schedule) throw new Error("Supabase is not configured.");
   // Reservation never changes segment status. Only these originals are rendered;

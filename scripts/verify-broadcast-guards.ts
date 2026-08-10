@@ -1251,7 +1251,7 @@ assert.match(weekdayReleaseSource, /eligibleNextDayDeck/);
 assert.match(weekdayReleaseSource, /minimumSubstantiveCards\("journal30", "station-program"\)/);
 assert.match(weekdayReleaseSource, /eligibleDeck\.cards\.length < requiredCards/);
 assert.match(weekdayReleaseSource, /orderedCadenceJournals/);
-assert.match(weekdayReleaseSource, /\[14, 21\]/);
+assert.match(weekdayReleaseSource, /\[14, 21, 28, 35\]/);
 assert.match(weekdayReleaseSource, /program\.journalId === journal\.id/);
 assert.match(weekdayReleaseWorkflow, /max-parallel: 1/);
 assert.match(weekdayReleaseWorkflow, /TARGET=\$\(date -u \+%F\)/);
