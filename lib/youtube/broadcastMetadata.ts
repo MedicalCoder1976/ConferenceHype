@@ -49,6 +49,9 @@ const MAX_TAG_LENGTH = 30;
 const OPTIMIZATION_START_DATE = "2026-07-24";
 
 const GENERIC_TAGS = [
+  "Physicians",
+  "Advanced Practice Providers",
+  "APPs",
   "Medical Education",
   "CME",
   "Continuing Medical Education",
@@ -148,6 +151,25 @@ function specificSpecialty(journal: OncologyJournal) {
   if (/(thorax|pulmon|respir)/.test(name)) return "Pulmonology";
   if (/endocrin/.test(name)) return "Endocrinology";
   return "Medical Journal";
+}
+
+function specialistAudience(specialty: string) {
+  const exact: Record<string, string[]> = {
+    Gastroenterology: ["Gastroenterologists"],
+    Oncology: ["Oncologists"],
+    Hematology: ["Hematologists"],
+    Cardiology: ["Cardiologists"],
+    Psychiatry: ["Psychiatrists"],
+    Neurology: ["Neurologists"],
+    Nephrology: ["Nephrologists"],
+    Pulmonology: ["Pulmonologists"],
+    Surgery: ["Surgeons"],
+    Ophthalmology: ["Ophthalmologists"],
+    "Internal Medicine": ["Internists"],
+    "Radiology / Radiation Oncology": ["Radiologists", "Radiation Oncologists"],
+    "Pediatric Oncology / Pediatrics": ["Pediatricians", "Pediatric Oncologists"]
+  };
+  return exact[specialty] ?? [`${specialty} Specialists`];
 }
 
 function resolveContentCards(
@@ -274,8 +296,12 @@ function buildDescription({
       : "";
   const specialties = [...new Set(cards.map(({ journal }) => journal ? specificSpecialty(journal) : "").filter(Boolean))];
   const specialtyLine = specialties.length ? `Relevant specialties: ${specialties.join("; ")}.` : "";
+  const specialistLabels = [...new Set(specialties.flatMap(specialistAudience))];
+  const audienceLine = specialistLabels.length
+    ? `Audience: ${specialistLabels.join("; ")}; Physicians; Advanced Practice Providers (APPs).`
+    : "Audience: Physicians; Advanced Practice Providers (APPs).";
   const studyLine = optimized && studyNames.length ? `Named studies covered: ${studyNames.join("; ")}.` : "";
-  return [journalLine, specialtyLine, studyLine, intro, journalEditionLine, "", ...chapterLines, "", hashtags].filter((line, index, lines) => line || (index > 0 && lines[index - 1])).join("\n");
+  return [journalLine, specialtyLine, audienceLine, studyLine, intro, journalEditionLine, "", ...chapterLines, "", hashtags].filter((line, index, lines) => line || (index > 0 && lines[index - 1])).join("\n");
 }
 
 function buildTags(cards: ResolvedCard[], studyNames: string[] = []) {
@@ -283,7 +309,9 @@ function buildTags(cards: ResolvedCard[], studyNames: string[] = []) {
   for (const card of cards) {
     if (!card.journal) continue;
     names.add(card.journal.name);
-    names.add(specificSpecialty(card.journal));
+    const specialty = specificSpecialty(card.journal);
+    names.add(specialty);
+    specialistAudience(specialty).forEach((audience) => names.add(audience));
   }
   const candidates = [...studyNames, ...names, ...GENERIC_TAGS];
   const tags: string[] = [];
@@ -337,6 +365,10 @@ export function assertSearchOptimizedBroadcastMetadata(
     if (!metadata.title.startsWith(`${metadata.journalName}:`)) throw new Error("The journal must begin the title.");
     const specialtyLine = metadata.description.split("\n").find((line) => line.startsWith("Relevant specialties:"));
     if (!specialtyLine?.includes(metadata.specialty)) throw new Error("The description must identify the relevant specialty.");
+    const audienceLine = metadata.description.split("\n").find((line) => line.startsWith("Audience:"));
+    if (!audienceLine?.includes("Physicians") || !audienceLine.includes("Advanced Practice Providers (APPs)")) {
+      throw new Error("The description must identify physicians and APPs as general audiences.");
+    }
     if (metadata.thumbnailJournalNames?.[0] !== metadata.journalName) throw new Error("The thumbnail must identify the journal.");
     if (!metadata.description.includes("Journals and publication dates covered:") || metadata.description.includes("publication date unavailable")) {
       throw new Error("The description must include the journal's source publication month and year.");

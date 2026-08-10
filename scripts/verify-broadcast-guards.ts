@@ -484,7 +484,10 @@ const optimizedStudyMetadata = buildBroadcastMetadata({
   titleDateOverride: "2026-07-01"
 });
 assert.match(optimizedStudyMetadata.title, /^Test Journal: Internal Medicine Update - New Internal Medicine Research/);
-assert.match(optimizedStudyMetadata.description, /^Journal: Test Journal\.\nRelevant specialties: Internal Medicine\.\nNamed studies covered: V-NE Ulcer Study 6\./);
+assert.match(optimizedStudyMetadata.description, /^Journal: Test Journal\.\nRelevant specialties: Internal Medicine\.\nAudience: Internists; Physicians; Advanced Practice Providers \(APPs\)\.\nNamed studies covered: V-NE Ulcer Study 6\./);
+assert.ok(optimizedStudyMetadata.tags.includes("Physicians"));
+assert.ok(optimizedStudyMetadata.tags.includes("Advanced Practice Providers"));
+assert.ok(optimizedStudyMetadata.tags.includes("APPs"));
 assert.equal(optimizedStudyMetadata.tags[0], "V-NE Ulcer Study 6");
 assert.equal(optimizedStudyMetadata.thumbnailHeadline, "randomized findings");
 assert.equal(optimizedStudyMetadata.thumbnailEntity, "V-NE Ulcer Study 6");

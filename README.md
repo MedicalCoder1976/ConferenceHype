@@ -152,6 +152,13 @@ tags. Descriptions begin with explicit `Journal:` and `Relevant specialties:`
 lines. Source-verified named studies may appear in the description, but they do
 not displace the journal from the title.
 
+Every journal description also includes an `Audience:` line. It names the
+specific specialists first—for example Gastroenterologists, Oncologists,
+Hematologists, Cardiologists, or Psychiatrists—then adds the general discovery
+terms `Physicians` and `Advanced Practice Providers (APPs)`. These audiences
+also appear in YouTube tags, while titles remain focused on the journal and
+clinical topic rather than being crowded with generic keywords.
+
 ## Public Site
 
 - Status-aware YouTube player with direct YouTube, audio, and HLS fallbacks
@@ -863,7 +870,7 @@ journals or specialties, instead of a generic always-identical title.
   require `dominant` to represent a real proportion of resolved cards (e.g.
   ≥40%), falling through to the existing `roundup` tier otherwise.
 - **Study-name search optimization (effective July 24, 2026)**: named studies and trials are extracted only when explicitly present in approved card text, citation labels, or the linked PubMed abstract. Registry-only identifiers such as `NCT...`, `ISRCTN...`, and `ACTRN...` are not viewer-facing search terms. Named studies may appear in the description and leading tags, but the journal remains first in the title. Generic phrases such as `this study` or `controlled trial` are rejected, and the system never invents a study name. Metadata refresh updates canonical videos in place without uploading duplicates.
-- **Description invariant**: every journal video begins its description with `Journal: ...` and `Relevant specialties: ...`. When named studies are detected, a `Named studies covered: ...` line follows. Journal and source publication month/year remain explicit.
+- **Description invariant**: every journal video begins its description with `Journal: ...`, `Relevant specialties: ...`, and an `Audience: ...` line naming the specific specialists plus Physicians and Advanced Practice Providers (APPs). When named studies are detected, a `Named studies covered: ...` line follows. Journal and source publication month/year remain explicit.
 - **Station search-metadata gate**: every newly rendered weekday journal program must pass one validation package before it can be marked verified. The journal begins the title; journal and specific specialty begin the description; `Multiple Cancers`, `Others`, and registry-only identifiers are rejected from viewer-facing search metadata. Journal name, specific specialty, and publication month/year are mandatory; generic fallback and thumbnail-upload warnings are not accepted for station programs.
 - **Description**: explicitly names every journal and its source publication month/year near the top, followed by one YouTube-chapter-formatted line per content card
   (`M:SS Journal - Specialty - Mon YYYY`), which YouTube auto-converts into
