@@ -124,6 +124,26 @@ GitHub `main` is the source of truth for final code. Any completed fix must be
 committed and pushed to GitHub before it is treated as final, runnable, or ready
 for production scheduling. Local-only workspace changes are not final code.
 
+### Weekday journal station scheduling
+
+The production weekday station releases exactly two new journal videos each
+Monday through Friday, at 7:15 AM and 5:10 PM America/New_York. Each program
+must contain at least 12 substantive, source-backed cards, and cards already
+reserved earlier in the same week cannot be reused.
+
+Journal selection remains quality-first. The scheduler tries the preferred
+journal cadence and fallback list before other enabled journals. If those pools
+cannot supply two complete, distinct programs, it may use an enabled journal
+that was previously sidelined from the preferred cadence. Disabled journals
+remain excluded. Publication freshness expands only as needed, in this order:
+14, 21, 28, then 35 days. The 12-card floor is never lowered to fill a slot.
+
+For the week of August 10, 2026, the station reserved 10 programs containing
+120 unique cards with zero reuse. Friday, August 14 uses Advances in Radiation
+Oncology at 7:15 AM and Annals of Surgery at 5:10 PM, with 12 cards in each
+program. The fallback implementation was verified with `npm run typecheck`,
+`npm run test:guards`, and `git diff --check`, and landed in commit `1d137bf`.
+
 ## Public Site
 
 - Status-aware YouTube player with direct YouTube, audio, and HLS fallbacks
