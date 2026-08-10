@@ -48,7 +48,8 @@ export function buildMeetingWatchMetadata({
   title,
   meetingLabel,
   specialty,
-  sourceUrl
+  sourceUrl,
+  descriptionOpening
 }: {
   hourStart: Date;
   slots: BroadcastSlot[];
@@ -56,6 +57,7 @@ export function buildMeetingWatchMetadata({
   meetingLabel: string;
   specialty?: string;
   sourceUrl: string;
+  descriptionOpening?: string;
 }): BroadcastMetadata {
   const seenPreparedCards = new Set<string>();
   const cards = slots.filter((slot) => {
@@ -113,9 +115,14 @@ export function buildMeetingWatchMetadata({
   const storyResult = isPreparedStory ? title.match(/^(.+?)\s+From\s+/i)?.[1]?.trim() : undefined;
   const storyOrigin = isPreparedStory ? title.match(/\bFrom\s+(.+?)\?\s+The Story/i)?.[1]?.trim() : undefined;
   const storyEntity = isPreparedStory ? title.match(/The Story of\s+(.+)$/i)?.[1]?.trim() : undefined;
+  const preparedThumbnail = isPreparedStory
+    ? resolved.flatMap(({ segment }) => segment.riskFlags)
+        .find((flag) => flag.startsWith("prepared_thumbnail:"))
+        ?.slice("prepared_thumbnail:".length).trim()
+    : undefined;
   const description = [
     studyNames.length ? `Studies covered: ${featured}.` : "",
-    `This ConferenceHype Meeting Watch broadcast recaps real ${meetingLabel} findings${specialty ? ` in ${specialty}` : ""}, built for physicians, NPs, and PAs who don't have time to read every abstract themselves.`,
+    isPreparedStory && descriptionOpening ? descriptionOpening : `This ConferenceHype Meeting Watch broadcast recaps real ${meetingLabel} findings${specialty ? ` in ${specialty}` : ""}, built for physicians, NPs, and PAs who don't have time to read every abstract themselves.`,
     `Full source: ${sourceUrl}`,
     "",
     ...chapters,
@@ -145,8 +152,8 @@ export function buildMeetingWatchMetadata({
     dateLabel,
     studyNames,
     clinicalTopic: storyResult ?? packaging.clinicalTopic,
-    thumbnailHeadline: storyOrigin ? "From " + storyOrigin + "?" : packaging.thumbnailHook,
-    thumbnailHook: storyOrigin ? "From " + storyOrigin + "?" : packaging.thumbnailHook,
+    thumbnailHeadline: preparedThumbnail ?? (storyOrigin ? "From " + storyOrigin + "?" : packaging.thumbnailHook),
+    thumbnailHook: preparedThumbnail ?? (storyOrigin ? "From " + storyOrigin + "?" : packaging.thumbnailHook),
     thumbnailEntity: storyEntity ?? packaging.thumbnailEntity,
     thumbnailJournalNames: undefined,
     thumbnailJournalCount: undefined

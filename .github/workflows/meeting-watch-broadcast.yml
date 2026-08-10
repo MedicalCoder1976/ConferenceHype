@@ -160,6 +160,7 @@ jobs:
           HOUR_BROADCAST_START: ${{ steps.resolve.outputs.starts_at }}
           BROADCAST_TITLE: ${{ steps.resolve.outputs.title }}
           BROADCAST_DESCRIPTION: ${{ steps.resolve.outputs.description }}
+          YOUTUBE_PUBLISH_AT: ${{ steps.resolve.outputs.starts_at }}
           PUBLIC_SITE_URL: https://conferencehype.com
           YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
           YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}

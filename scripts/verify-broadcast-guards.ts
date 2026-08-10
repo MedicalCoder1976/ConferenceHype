@@ -1062,6 +1062,7 @@ assert.match(meetingWatchWorkflowSource, /actions\/cache@v4/);
 assert.match(meetingWatchWorkflowSource, /Render heartbeat expired before YouTube upload completed/);
 assert.match(meetingWatchWorkflowSource, /needs\.broadcast\.result != 'success'/);
 assert.match(meetingWatchWorkflowSource, /cancelled or timed-out Meeting Watch delivery/i);
+assert.match(meetingWatchWorkflowSource, /YOUTUBE_PUBLISH_AT: \$\{\{ steps\.resolve\.outputs\.starts_at \}\}/);
 const renderHourSource = readFileSync(
   path.join(process.cwd(), "scripts", "render-hour-broadcast.ts"),
   "utf8"
@@ -1081,7 +1082,10 @@ assert.match(renderHourSource, /applySpokenPronunciations\(card\.script, pronunc
 assert.match(renderHourSource, /const STORY_NARRATION_SPEED = 1\.05/);
 assert.match(renderHourSource, /card\.riskFlags\?\.includes\("prepared_story"\) \? STORY_NARRATION_SPEED : 1\.15/);
 assert.match(renderHourSource, /\$\{persona\.voiceEnvKey\}\|\$\{speed\}\|\$\{processedScript\}/);
-assert.match(readFileSync(path.resolve("lib/story/preparedStory.ts"), "utf8"), /STORY_WORDS_PER_SECOND_AT_MEASURED_PACE = 1\.95/);
+const preparedStorySource = readFileSync(path.resolve("lib/story/preparedStory.ts"), "utf8");
+assert.match(preparedStorySource, /STORY_WORDS_PER_SECOND_AT_MEASURED_PACE = 1\.95/);
+assert.match(preparedStorySource, /prepared_thumbnail:\$\{story\.input\.thumbnailHeadline\}/);
+assert.match(renderHourSource, /\(process\.env\.STATION_PROGRAM_ID \|\| isMeetingWatchMode\) \? process\.env\.YOUTUBE_PUBLISH_AT/);
 assert.match(renderHourSource, /Removed \$\{removedContentCards\} trailing content card/);
 assert.match(renderHourSource, /while \(remainingSeconds > 0\)/);
 assert.match(renderHourSource, /Math\.min\(OPERATOR_MUSIC_SECONDS, remainingSeconds\)/);

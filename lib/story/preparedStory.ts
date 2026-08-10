@@ -7,6 +7,13 @@ export const storyInputSchema = z.object({
   title: z.string().trim().min(8).max(100),
   topic: z.string().trim().min(3).max(160),
   sourceUrl: z.string().url(),
+  sourceName: z.string().trim().max(120).optional().default(""),
+  articleTitle: z.string().trim().max(300).optional().default(""),
+  authors: z.string().trim().max(500).optional().default(""),
+  specialty: z.string().trim().max(80).optional().default("Story"),
+  descriptionOpening: z.string().trim().min(40).max(500),
+  thumbnailHeadline: z.string().trim().min(8).max(58),
+  startsAt: z.string().datetime().optional(),
   narrative: z.string().trim().min(1_200).max(120_000)
 });
 
@@ -80,7 +87,7 @@ export function parsePreparedStory(input: StoryInput) {
   const spokenWords = cards.reduce((sum, card) => sum + words(card).length, 0);
   const transitionSeconds = Math.floor((cards.length - 1) / 3) * STORY_TRANSITION_SECONDS;
   const durationSeconds = Math.max(300, Math.ceil((spokenWords / STORY_WORDS_PER_SECOND_AT_MEASURED_PACE + transitionSeconds + 45) / 15) * 15);
-  const sourceHash = createHash("sha256").update(JSON.stringify({ ...parsed, narrative: cleanNarrative(parsed.narrative) })).digest("hex");
+  const sourceHash = createHash("sha256").update(JSON.stringify({ ...parsed, startsAt: undefined, narrative: cleanNarrative(parsed.narrative) })).digest("hex");
   return {
     input: parsed,
     cards: cards.map((script, index) => ({ position: index + 1, title: cardTitle(script, index), script })),
@@ -106,7 +113,7 @@ export function preparedStorySegments(story: ReturnType<typeof parsePreparedStor
       hypeLevel: "restrained",
       language: "English",
       status: "approved",
-      citations: [{ label: `${story.input.topic}: source for Claude-prepared story`, url: story.input.sourceUrl, sourceType: "media" }],
+      citations: [{ label: [story.input.sourceName, story.input.articleTitle].filter(Boolean).join(": ") || `${story.input.topic}: primary source`, url: story.input.sourceUrl, sourceType: "media" }],
       socialBuzzItems: [],
       riskFlags: ["meeting_watch", "prepared_narrative", "prepared_story", `prepared_sequence:${String(sequence).padStart(4, "0")}`, ...flags],
       confidenceScore: 90,
@@ -122,7 +129,7 @@ export function preparedStorySegments(story: ReturnType<typeof parsePreparedStor
       : [];
     result.push(makeSegment(card.title, card.script, [
       `prepared_card:${card.position}`,
-      ...(card.position === 1 ? ["prepared_opening"] : []),
+      ...(card.position === 1 ? ["prepared_opening", `prepared_thumbnail:${story.input.thumbnailHeadline}`] : []),
       ...transition
     ]));
     if (card.position === 6) {

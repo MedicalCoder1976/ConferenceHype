@@ -1430,7 +1430,8 @@ async function uploadRenderedBroadcast(
             title: process.env.BROADCAST_TITLE || broadcast.title,
             meetingLabel: broadcast.meetingLabel,
             specialty: broadcast.specialty,
-            sourceUrl: broadcast.sourceUrl
+            sourceUrl: broadcast.sourceUrl,
+            descriptionOpening: broadcast.description.split("\n")[0]
           });
         }
         if (isWeekendMode) {
@@ -1529,7 +1530,7 @@ async function uploadRenderedBroadcast(
   await assertMediaGenerated(outputPath);
 
   const accessToken = await getYoutubeAccessToken();
-  const requestedPublishAt = process.env.STATION_PROGRAM_ID ? process.env.YOUTUBE_PUBLISH_AT : undefined;
+  const requestedPublishAt = (process.env.STATION_PROGRAM_ID || isMeetingWatchMode) ? process.env.YOUTUBE_PUBLISH_AT : undefined;
   const youtubePublishAt = requestedPublishAt && new Date(requestedPublishAt).getTime() > Date.now() + 60_000
     ? requestedPublishAt
     : undefined;
