@@ -84,6 +84,46 @@ function truncateAtWord(value: string, maxLength: number) {
   return sliced.slice(0, boundary >= Math.floor(maxLength * 0.6) ? boundary : sliced.length).trimEnd() + "...";
 }
 
+const SPECIALIST_TITLE_LABELS: Record<string, string> = {
+  Cardiology: "Cardiologists",
+  Gastroenterology: "Gastroenterologists",
+  Oncology: "Oncologists",
+  Hematology: "Hematologists",
+  Neurology: "Neurologists",
+  Psychiatry: "Psychiatrists",
+  Nephrology: "Nephrologists",
+  Pulmonology: "Pulmonologists",
+  Endocrinology: "Endocrinologists",
+  Rheumatology: "Rheumatologists",
+  Dermatology: "Dermatologists",
+  Ophthalmology: "Ophthalmologists",
+  Urology: "Urologists",
+  Radiology: "Radiologists",
+  "Radiology / Radiation Oncology": "Radiologists and Radiation Oncologists",
+  Surgery: "Surgeons",
+  Pediatrics: "Pediatricians",
+  "Pediatric Oncology / Pediatrics": "Pediatric Oncologists and Pediatricians",
+  "Obstetrics and Gynecology": "Obstetricians and Gynecologists",
+  ObGyn: "Obstetricians and Gynecologists",
+  "Internal Medicine": "Internists",
+  "Family Medicine": "Family Physicians",
+  "Emergency Medicine": "Emergency Physicians",
+  Anesthesiology: "Anesthesiologists",
+  Orthopedics: "Orthopedic Surgeons",
+  Multispecialty: "Medical Specialists"
+};
+
+export function addSpecialistAudienceToTitle(title: string, specialty?: string, maxLength = 100) {
+  const normalizedSpecialty = clean(specialty ?? "");
+  if (!normalizedSpecialty || /^(?:story|medicine|medical journal|clinical research)$/i.test(normalizedSpecialty)) {
+    return truncateAtWord(title, maxLength);
+  }
+  const audience = SPECIALIST_TITLE_LABELS[normalizedSpecialty] ?? `${normalizedSpecialty} Specialists`;
+  const suffix = ` | For ${audience}`;
+  if (title.toLowerCase().includes(audience.toLowerCase())) return truncateAtWord(title, maxLength);
+  return `${truncateAtWord(title, Math.max(24, maxLength - suffix.length))}${suffix}`;
+}
+
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^$()|[\]\\]/g, "\\$&");
 }

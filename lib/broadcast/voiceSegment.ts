@@ -134,6 +134,19 @@ function compactFourSectionNarrative(value: string, maxWords: number) {
     .join(" ");
 }
 
+function resultsFirstStructuredNarrative(value: string) {
+  if (!hasFourSectionNarrative(value)) return value;
+  return [
+    ["Results", sectionText(value, "Results")],
+    ["Discussion", sectionText(value, "Discussion")],
+    ["Background", sectionText(value, "Background")],
+    ["Methods", sectionText(value, "Methods")]
+  ]
+    .filter(([, text]) => Boolean(text))
+    .map(([label, text]) => `${label}: ${text}`)
+    .join(" ");
+}
+
 function broadcastHour(at: Date) {
   const hour = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/New_York",
@@ -212,7 +225,12 @@ export function formatVoiceSegment({
   publishedAt?: string;
 }) {
   const greeting = broadcastHour(at) < 12 ? "Good morning" : "Good evening";
-  const cleanNarrative = stripExistingVoiceFrame(narrative);
+  const unframedNarrative = stripExistingVoiceFrame(narrative);
+  // The first structured evidence card leads with the source-approved result
+  // and interpretation. Later cards retain their authored section order.
+  const cleanNarrative = includeIntro
+    ? resultsFirstStructuredNarrative(unframedNarrative)
+    : unframedNarrative;
   const journalReview = /^From the (?:current|[A-Za-z]+ \d{4}) edition of\b/i.test(cleanNarrative);
   const structuredReview = hasFourSectionNarrative(cleanNarrative);
   const includeClose = typeof cardIndex === "number" && (cardIndex + 1) % 4 === 0;

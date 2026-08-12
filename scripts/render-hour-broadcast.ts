@@ -1470,10 +1470,12 @@ async function uploadRenderedBroadcast(
     year: "numeric",
     timeZone: "America/New_York"
   }).format(hourStart);
-  const title =
+  const baseTitle =
     actualMetadata?.title ||
     process.env.BROADCAST_TITLE ||
     "Clinical Research: New Evidence Brief";
+  const { addSpecialistAudienceToTitle } = await import("@/lib/youtube/clinicalEvidencePackaging");
+  const title = addSpecialistAudienceToTitle(baseTitle, actualMetadata?.specialty);
   const description =
     // actualMetadata is always freshly built from the real rendered cards
     // for Meeting Watch (real timestamped chapters, real study names) --
