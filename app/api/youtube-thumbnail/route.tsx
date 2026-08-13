@@ -90,8 +90,7 @@ export async function GET(request: NextRequest) {
         <div style={{ width: "100%", height: "100%", display: "flex", position: "relative", flexDirection: "column", backgroundColor: COLORS.ink, color: COLORS.paper, fontFamily: "sans-serif", padding: "66px 76px 58px" }}>
           <div style={{ display: "flex", position: "absolute", top: 0, left: 0, width: "100%", height: 18, backgroundColor: COLORS.broadcast }} />
           <div style={{ display: "flex", alignItems: "center" }}>
-            <div style={{ display: "flex", backgroundColor: COLORS.broadcast, borderRadius: 8, padding: "9px 17px", fontSize: 25, fontWeight: 900, letterSpacing: 1.5 }}>CONFERENCEHYPE</div>
-            <div style={{ display: "flex", marginLeft: 18, color: COLORS.cyan, fontSize: 31, fontWeight: 950, letterSpacing: 0.8 }}>{specialty} JOURNAL CLUB</div>
+            <div style={{ display: "flex", color: COLORS.cyan, fontSize: 36, fontWeight: 950, letterSpacing: 0.8 }}>{specialty} JOURNAL CLUB</div>
           </div>
           <div style={{ display: "flex", marginTop: 58, alignItems: "baseline", width: "100%" }}>
             <div style={{ display: "flex", color: COLORS.paper, fontSize: journal.length > 48 ? 35 : 42, fontWeight: 950, lineHeight: 1.05, maxWidth: 900 }}>{journal}</div>

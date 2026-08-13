@@ -979,7 +979,7 @@ title/description/tags/category are all unaffected either way.
 Beginning with commit `860090c`, every 30-minute single-journal broadcast uses
 the dedicated Journal Club thumbnail hierarchy:
 
-1. `CONFERENCEHYPE` followed by `[Specialty] JOURNAL CLUB`.
+1. `[Specialty] JOURNAL CLUB`, with no `CONFERENCEHYPE` wordmark on this layout.
 2. The full plain-text journal name and the source issue month/year.
 3. The complete primary article title in smaller adaptive type.
 
