@@ -976,19 +976,25 @@ title/description/tags/category are all unaffected either way.
 
 ### Journal-recognition and CTR thumbnail rule
 
-The thumbnail right panel uses publication recognition instead of a large generic
-question mark. Single-journal broadcasts show the full journal name. Mixed
-programs show no more than the two journals with the most covered cards and an
-accurate `+ N JOURNALS` count for the remainder. Weekend roundups use the same
-two-name/count rule across their selected cards. Manual breaking-news videos
-show `BREAKING MEDICAL RESEARCH` instead of journal names. When no journal can
-be source-resolved, the safe fallback is `MEDICAL RESEARCH`. Journal names are
-plain text; the system does not copy publisher logos or imply journal endorsement.
+Beginning with commit `860090c`, every 30-minute single-journal broadcast uses
+the dedicated Journal Club thumbnail hierarchy:
 
-The smaller question-mark badge remains as a curiosity cue. The left side keeps
-the short source-verified study/result question, specialty, date, and consistent
-ConferenceHype colors. The main headline and journal panel must remain readable
-at mobile size and accurately represent the cards that actually rendered.
+1. `CONFERENCEHYPE` followed by `[Specialty] JOURNAL CLUB`.
+2. The full plain-text journal name and the source issue month/year.
+3. The complete primary article title in smaller adaptive type.
+
+The article title is passed separately from the short curiosity headline and
+must wrap to fit without truncation or an ellipsis. The journal name and issue
+date come from the same source-resolved metadata as the YouTube title and
+description. Do not use publisher logos or imply journal endorsement.
+
+This dedicated layout applies only to single-journal (`journal30`) broadcasts.
+Mixed programs show no more than the two journals with the most covered cards
+and an accurate `+ N JOURNALS` count for the remainder. Weekend roundups retain
+that two-name/count rule. Manual breaking-news videos retain `BREAKING MEDICAL
+RESEARCH`, and Create a Story / `prepared_story` retains ConferenceHype plus
+story-specific branding. When no journal can be source-resolved, the safe
+fallback is `MEDICAL RESEARCH`.
 
 CTR is not optimized by misleading copy. When YouTube Studio Test & Compare is
 used, compare no more than three truthful variants: journal recognition,
