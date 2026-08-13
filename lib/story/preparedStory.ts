@@ -37,6 +37,18 @@ function words(value: string) {
   return value.split(/\s+/).filter(Boolean);
 }
 
+// Decimal points (e.g. "0.783", "85.7%") read as sentence-ending periods to the
+// naive [.!?] splitter below, corrupting card boundaries and title extraction --
+// worst case, splicing the auto-inserted disclaimer mid-number in the narration.
+// Mask digit.digit periods before splitting, restore them after.
+const DECIMAL_MASK = "";
+function maskDecimalPoints(value: string) {
+  return value.replace(/(\d)\.(\d)/g, `$1${DECIMAL_MASK}$2`);
+}
+function unmaskDecimalPoints(value: string) {
+  return value.split(DECIMAL_MASK).join(".");
+}
+
 function splitEvenly(value: string, count: number) {
   const tokens = words(value);
   return Array.from({ length: count }, (_, index) => {
@@ -52,7 +64,7 @@ function storyCards(value: string) {
   if (tokenCount < 420) {
     throw new Error("The story needs at least 420 spoken words so the broadcast has 12 substantive narrative cards.");
   }
-  const sentences = cleaned.match(/[^.!?]+[.!?]+(?:[\"'”’]+)?|[^.!?]+$/g)?.map((sentence) => sentence.trim()).filter(Boolean) ?? [];
+  const sentences = maskDecimalPoints(cleaned).match(/[^.!?]+[.!?]+(?:[\"'”’]+)?|[^.!?]+$/g)?.map((sentence) => unmaskDecimalPoints(sentence.trim())).filter(Boolean) ?? [];
   if (sentences.length < STORY_CARD_COUNT) return splitEvenly(cleaned, STORY_CARD_COUNT);
   const targetWords = tokenCount / STORY_CARD_COUNT;
   const cards: string[] = [];
@@ -75,7 +87,8 @@ function storyCards(value: string) {
 }
 
 function cardTitle(text: string, index: number) {
-  const firstSentence = text.match(/^.*?[.!?](?:\s|$)/)?.[0]?.trim() ?? text;
+  const firstSentenceMasked = maskDecimalPoints(text).match(/^.*?[.!?](?:\s|$)/)?.[0]?.trim() ?? maskDecimalPoints(text);
+  const firstSentence = unmaskDecimalPoints(firstSentenceMasked);
   const title = firstSentence.replace(/[.!?]+$/, "").trim();
   if (!title) return `Story chapter ${index + 1}`;
   return title.length <= 72 ? title : `${title.slice(0, 71).trimEnd()}…`;

@@ -124,6 +124,9 @@ export async function uploadVideoToYoutube({
   if (publishAt && (uploaded.status?.privacyStatus !== "private" || !uploaded.status.publishAt || new Date(uploaded.status.publishAt).getTime() !== new Date(publishAt).getTime())) {
     throw new Error(`YouTube did not confirm scheduled publication for ${publishAt}.`);
   }
+  if (!publishAt && uploaded.status?.privacyStatus !== "public") {
+    throw new Error(`YouTube did not confirm public visibility for uploaded video ${uploaded.id}.`);
+  }
   return uploaded;
 }
 

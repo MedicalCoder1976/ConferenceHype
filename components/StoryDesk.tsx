@@ -1,15 +1,15 @@
 "use client";
 
-import Image from "next/image";
-import { BookOpenCheck, CalendarClock, CheckCircle2, ImageIcon, Sparkles, Youtube } from "lucide-react";
-import { useMemo, useState, useTransition } from "react";
+import { CheckCircle2, ChevronDown, LoaderCircle, Sparkles, Youtube } from "lucide-react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 
-type StoryPreview = {
+type DeliveryStatus = {
+  status: string;
   title: string;
-  topic: string;
-  spokenWords: number;
-  durationMinutes: number;
-  cards: Array<{ position: number; title: string; script: string }>;
+  youtubeVideoId?: string;
+  youtubeUrl?: string;
+  publicReachable: boolean;
+  failureReason?: string;
 };
 
 function concise(value: string, max: number) {
@@ -20,91 +20,99 @@ function concise(value: string, max: number) {
   return `${prefix.slice(0, boundary > max * 0.65 ? boundary : undefined).trim()}…`;
 }
 
-function unique(values: string[]) {
-  return [...new Set(values.map((value) => concise(value, 100)).filter((value) => value.length >= 8))];
+function inferTopic(narrative: string) {
+  if (/\bASPC\s+2026\b/i.test(narrative)) return "ASPC 2026 Preventive Cardiology Congress";
+  const firstSentence = narrative.match(/^.*?[.!?](?:\s|$)/)?.[0] ?? narrative;
+  return concise(firstSentence.replace(/[.!?]+$/, ""), 160);
+}
+
+function inferTitle(narrative: string, topic: string) {
+  if (/\bPREVENT\b/i.test(narrative) && /psoriatic/i.test(narrative)) {
+    return "ASPC 2026: PREVENT Risk Scores and Hidden Coronary Calcium";
+  }
+  return concise(topic || narrative, 100);
+}
+
+function inferThumbnail(narrative: string, topic: string) {
+  if (/\bPREVENT\b/i.test(narrative)) return "Who Do Our Heart Risk Tools Miss?";
+  return concise(`What Changed at ${topic}?`, 58);
 }
 
 export function StoryDesk() {
-  const [topic, setTopic] = useState("");
-  const [sourceUrl, setSourceUrl] = useState("");
-  const [sourceName, setSourceName] = useState("");
-  const [articleTitle, setArticleTitle] = useState("");
-  const [authors, setAuthors] = useState("");
-  const [specialty, setSpecialty] = useState("");
   const [narrative, setNarrative] = useState("");
-  const [title, setTitle] = useState("");
-  const [descriptionOpening, setDescriptionOpening] = useState("");
-  const [thumbnailHeadline, setThumbnailHeadline] = useState("");
-  const [releaseMode, setReleaseMode] = useState<"now" | "schedule">("now");
-  const [startsAt, setStartsAt] = useState("");
-  const [preview, setPreview] = useState<StoryPreview | null>(null);
-  const [approvedPackaging, setApprovedPackaging] = useState(false);
-  const [approvedCards, setApprovedCards] = useState(false);
-  const [approvedSource, setApprovedSource] = useState(false);
+  const [sourceUrl, setSourceUrl] = useState("");
+  const [titleOverride, setTitleOverride] = useState("");
+  const [topicOverride, setTopicOverride] = useState("");
+  const [specialty, setSpecialty] = useState("");
+  const [sourceName, setSourceName] = useState("");
+  const [authors, setAuthors] = useState("");
   const [message, setMessage] = useState("");
+  const [broadcastId, setBroadcastId] = useState("");
+  const [delivery, setDelivery] = useState<DeliveryStatus | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const invalidate = () => {
-    setPreview(null);
-    setApprovedPackaging(false);
-    setApprovedCards(false);
-    setApprovedSource(false);
-  };
+  useEffect(() => {
+    const savedBroadcastId = window.localStorage.getItem("conferencehype:last-story-broadcast-id");
+    if (savedBroadcastId) setBroadcastId(savedBroadcastId);
+  }, []);
 
-  const titleOptions = useMemo(() => unique([
-    articleTitle ? `${topic}: What ${concise(articleTitle, 58)} Reveals` : "",
-    topic ? `${topic}: The Evidence and the Story Behind It` : "",
-    topic ? `How ${topic} Changed — and What Comes Next` : ""
-  ]), [articleTitle, topic]);
-
-  const thumbnailOptions = useMemo(() => unique([
-    topic ? `What Changed in ${topic}?` : "",
-    topic ? `${topic}: What the Evidence Shows` : "",
-    topic ? `The Story Behind ${topic}` : ""
-  ]).map((value) => concise(value, 58)), [topic]);
-
-  const resolvedDescription = descriptionOpening.trim() || (topic
-    ? `The evidence, people, and turning points behind ${topic}, explained in a source-attributed ConferenceHype narrative.`
-    : "");
-  const resolvedTitle = title.trim() || titleOptions[0] || "";
-  const resolvedThumbnail = thumbnailHeadline.trim() || thumbnailOptions[0] || "";
-  const scheduleIso = releaseMode === "schedule" && startsAt ? new Date(startsAt).toISOString() : undefined;
-  const payload = {
-    title: resolvedTitle,
+  const wordCount = narrative.trim() ? narrative.trim().split(/\s+/).length : 0;
+  const topic = topicOverride.trim() || inferTopic(narrative);
+  const title = titleOverride.trim() || inferTitle(narrative, topic);
+  const thumbnailHeadline = inferThumbnail(narrative, topic);
+  const descriptionOpening = topic
+    ? `The findings, limitations, and clinical implications from ${topic}, explained in a source-attributed ConferenceHype meeting review.`
+    : "";
+  const payload = useMemo(() => ({
+    title,
     topic,
     sourceUrl,
     sourceName,
-    articleTitle,
+    articleTitle: title,
     authors,
-    specialty: specialty || "Story",
-    descriptionOpening: resolvedDescription,
-    thumbnailHeadline: resolvedThumbnail,
-    startsAt: scheduleIso,
+    specialty: specialty || "Preventive Cardiology",
+    descriptionOpening,
+    thumbnailHeadline,
     narrative
-  };
+  }), [authors, descriptionOpening, narrative, sourceName, sourceUrl, specialty, thumbnailHeadline, title, topic]);
 
-  const previewStory = () => startTransition(async () => {
-    setMessage("");
-    setPreview(null);
-    try {
-      const response = await fetch("/api/admin/story/preview", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      const body = await response.json();
-      if (!response.ok || !body.ok) throw new Error(body.error ?? "Could not preview the story.");
-      setTitle(resolvedTitle);
-      setThumbnailHeadline(resolvedThumbnail);
-      setDescriptionOpening(resolvedDescription);
-      setPreview(body);
-      setMessage("Validated. Select the final packaging, then review all 12 story chapters before approving the broadcast.");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not preview the story.");
-    }
-  });
+  useEffect(() => {
+    if (!broadcastId) return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const check = async () => {
+      try {
+        const response = await fetch(`/api/admin/story/status?broadcastId=${encodeURIComponent(broadcastId)}`, { cache: "no-store" });
+        const body = await response.json();
+        if (!response.ok || !body.ok) throw new Error(body.error ?? "Could not verify delivery.");
+        if (stopped) return;
+        setDelivery(body.delivery);
+        if (body.delivery.status === "failed") {
+          setMessage(`Video delivery failed: ${body.delivery.failureReason ?? "Open the render workflow for details."}`);
+          return;
+        }
+        if (body.delivery.status === "verified" && body.delivery.publicReachable) {
+          setMessage("Verified: the exact saved video ID is publicly reachable on YouTube.");
+          return;
+        }
+        setMessage(body.delivery.status === "verified"
+          ? "Upload finished. Waiting for YouTube to expose the public watch page…"
+          : "Developing the video now. This page will verify YouTube automatically when rendering finishes.");
+        timer = setTimeout(check, 10_000);
+      } catch (error) {
+        if (stopped) return;
+        setMessage(error instanceof Error ? error.message : "Could not verify delivery.");
+        timer = setTimeout(check, 15_000);
+      }
+    };
+    void check();
+    return () => { stopped = true; if (timer) clearTimeout(timer); };
+  }, [broadcastId]);
 
-  const publishStory = () => startTransition(async () => {
+  const develop = () => startTransition(async () => {
+    setMessage("Validating Claude's narrative and preparing the YouTube video…");
+    setDelivery(null);
+    setBroadcastId("");
     try {
       const response = await fetch("/api/admin/story/publish", {
         method: "POST",
@@ -112,106 +120,63 @@ export function StoryDesk() {
         body: JSON.stringify(payload)
       });
       const body = await response.json();
-      if (!response.ok || !body.ok) throw new Error(body.error ?? "Could not publish the story.");
+      if (!response.ok || !body.ok) throw new Error(body.error ?? "Could not develop the video.");
+      const id = body.broadcastId ?? body.broadcast?.id;
+      if (!id) throw new Error("The video was accepted but no delivery ID was returned.");
+      window.localStorage.setItem("conferencehype:last-story-broadcast-id", id);
+      setBroadcastId(id);
       setMessage(body.alreadyExists
-        ? "This exact story already exists; no duplicate was dispatched."
-        : releaseMode === "schedule"
-          ? `Story render started. YouTube publication is scheduled for ${new Date(scheduleIso!).toLocaleString()}.`
-          : `Story render started: ${body.cardCount} narrative cards, about ${Math.round(body.durationSeconds / 60)} minutes.`);
-      if (!body.alreadyExists) {
-        setTopic(""); setSourceUrl(""); setSourceName(""); setArticleTitle(""); setAuthors(""); setSpecialty("");
-        setNarrative(""); setTitle(""); setDescriptionOpening(""); setThumbnailHeadline(""); setStartsAt(""); setPreview(null);
-      }
+        ? "This narrative already exists. Verifying its saved YouTube delivery now…"
+        : "Video development started. Rendering, upload, and public YouTube verification will continue automatically.");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not publish the story.");
+      setMessage(error instanceof Error ? error.message : "Could not develop the video.");
     }
   });
 
-  const canPreview = Boolean(topic && sourceUrl && resolvedTitle && resolvedThumbnail && resolvedDescription.length >= 40 && narrative.length >= 1200 && (releaseMode === "now" || startsAt));
-  const canPublish = Boolean(preview && approvedPackaging && approvedCards && approvedSource);
+  const canDevelop = Boolean(sourceUrl && wordCount >= 420 && narrative.length >= 1_200 && title.length >= 8 && topic.length >= 3);
+  const working = pending || Boolean(broadcastId && !(delivery?.status === "failed" || (delivery?.status === "verified" && delivery.publicReachable)));
 
   return (
     <section className="grid gap-5">
       <div className="border-2 border-broadcast/30 bg-white p-5 shadow-panel">
-        <div className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-broadcast" /><h2 className="text-2xl font-black">Create a Story Video Package</h2></div>
+        <div className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-broadcast" /><h2 className="text-2xl font-black">Create a Story</h2></div>
         <p className="mt-2 max-w-4xl text-sm font-semibold leading-6 text-ink/65">
-          Paste Claude&apos;s finished evidence narrative. ConferenceHype turns it into 12 narrated chapters, a searchable YouTube package, a story-specific thumbnail, and a scheduled or immediate video upload. No additional AI call is made here.
+          Paste Claude&apos;s completed meeting review and its primary source. One click validates the narrative, creates 12 substantive chapters, develops the title and thumbnail, renders the video, uploads it publicly, and verifies the exact YouTube video ID.
         </p>
 
-        <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px]">
-          <div className="grid gap-4">
-            <div>
-              <div className="text-xs font-black uppercase tracking-wide text-broadcast">1 · Story and source</div>
-              <div className="mt-2 grid gap-3 md:grid-cols-2">
-                <label className="grid gap-1 text-xs font-black uppercase text-ink/55">Story topic<input value={topic} onChange={(event) => { setTopic(event.target.value); invalidate(); }} placeholder="How GLP-1 medicines changed obesity care" className="min-h-11 border border-ink/20 px-3 text-sm font-semibold normal-case text-ink" /></label>
-                <label className="grid gap-1 text-xs font-black uppercase text-ink/55">Specialty<input value={specialty} onChange={(event) => { setSpecialty(event.target.value); invalidate(); }} placeholder="Endocrinology" className="min-h-11 border border-ink/20 px-3 text-sm font-semibold normal-case text-ink" /></label>
-                <label className="grid gap-1 text-xs font-black uppercase text-ink/55">Publication or source<input value={sourceName} onChange={(event) => { setSourceName(event.target.value); invalidate(); }} placeholder="Journal, institution, or report" className="min-h-11 border border-ink/20 px-3 text-sm font-semibold normal-case text-ink" /></label>
-                <label className="grid gap-1 text-xs font-black uppercase text-ink/55">Authors, optional<input value={authors} onChange={(event) => { setAuthors(event.target.value); invalidate(); }} placeholder="Names exactly as published" className="min-h-11 border border-ink/20 px-3 text-sm font-semibold normal-case text-ink" /></label>
-              </div>
-              <label className="mt-3 grid gap-1 text-xs font-black uppercase text-ink/55">Article or report title<input value={articleTitle} onChange={(event) => { setArticleTitle(event.target.value); invalidate(); }} placeholder="Exact source title" className="min-h-11 border border-ink/20 px-3 text-sm font-semibold normal-case text-ink" /></label>
-              <label className="mt-3 grid gap-1 text-xs font-black uppercase text-ink/55">Primary source URL<input value={sourceUrl} onChange={(event) => { setSourceUrl(event.target.value); invalidate(); }} placeholder="https://..." className="min-h-11 border border-ink/20 px-3 text-sm font-semibold normal-case text-ink" /></label>
-            </div>
+        <label className="mt-5 grid gap-1 text-xs font-black uppercase text-ink/55">
+          Primary source URL
+          <input value={sourceUrl} onChange={(event) => setSourceUrl(event.target.value)} placeholder="https://…" className="min-h-12 border border-ink/20 px-3 text-sm font-semibold normal-case text-ink" />
+        </label>
+        <label className="mt-4 grid gap-1 text-xs font-black uppercase text-ink/55">
+          Claude narrative
+          <textarea value={narrative} onChange={(event) => setNarrative(event.target.value)} rows={22} placeholder="Paste Claude's complete, source-supported meeting review here…" className="w-full border border-ink/20 px-3 py-3 text-sm font-semibold normal-case leading-6 text-ink" />
+          <span className={wordCount >= 420 ? "font-semibold normal-case text-emerald-700" : "font-semibold normal-case text-ink/45"}>{wordCount} words · minimum 420</span>
+        </label>
 
-            <div>
-              <div className="text-xs font-black uppercase tracking-wide text-broadcast">2 · Claude narrative</div>
-              <label className="mt-2 grid gap-1 text-xs font-black uppercase text-ink/55">Finished narrative<textarea value={narrative} onChange={(event) => { setNarrative(event.target.value); invalidate(); }} rows={18} placeholder="Paste at least 420 spoken words of finished, source-supported narrative prose..." className="w-full border border-ink/20 px-3 py-3 text-sm font-semibold normal-case leading-6 text-ink" /></label>
-              <div className="mt-1 text-xs font-semibold text-ink/45">{narrative.trim() ? narrative.trim().split(/\s+/).length : 0} words · minimum 420 spoken words and 12 substantive chapters</div>
-            </div>
-
-            <div>
-              <div className="text-xs font-black uppercase tracking-wide text-broadcast">3 · Title and discovery</div>
-              <div className="mt-2 grid gap-2">
-                {titleOptions.map((option, index) => <label key={option} className="flex cursor-pointer gap-3 border border-ink/10 p-3"><input type="radio" name="story-title" checked={resolvedTitle === option} onChange={() => { setTitle(option); invalidate(); }} /><span><b className="block text-xs uppercase text-broadcast">{index === 0 ? "Search-led" : index === 1 ? "Evidence-led" : "Story-led"}</b><span className="text-sm font-bold">{option}</span></span></label>)}
-                <label className="grid gap-1 text-xs font-black uppercase text-ink/55">Custom YouTube title<input value={title} maxLength={100} onChange={(event) => { setTitle(event.target.value); invalidate(); }} placeholder={titleOptions[0] || "Lead with the topic viewers will search"} className="min-h-11 border border-ink/20 px-3 text-sm font-semibold normal-case text-ink" /><span className="text-right font-semibold normal-case">{resolvedTitle.length}/100</span></label>
-                <label className="grid gap-1 text-xs font-black uppercase text-ink/55">Description opening<textarea value={descriptionOpening} maxLength={500} onChange={(event) => { setDescriptionOpening(event.target.value); invalidate(); }} rows={3} placeholder={resolvedDescription} className="border border-ink/20 px-3 py-2 text-sm font-semibold normal-case text-ink" /><span className="font-semibold normal-case text-ink/45">The first lines viewers see before “Show more.” Chapters are added from real render timing.</span></label>
-              </div>
-            </div>
-
-            <div>
-              <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-broadcast"><ImageIcon className="h-4 w-4" />4 · Thumbnail</div>
-              <div className="mt-2 grid gap-3 md:grid-cols-3">
-                {thumbnailOptions.map((option) => {
-                  const query = new URLSearchParams({ tier: "roundup", specialty: specialty || "STORY", headline: option, topicLabel: concise(topic, 48), panelLabel: "CONFERENCEHYPE STORY", seriesLabel: "THE STORY BEHIND THE EVIDENCE", promiseLabel: "WHY THIS STORY MATTERS" });
-                  return <label key={option} className={`cursor-pointer border-2 p-2 ${resolvedThumbnail === option ? "border-broadcast" : "border-ink/10"}`}><input className="sr-only" type="radio" name="story-thumbnail" checked={resolvedThumbnail === option} onChange={() => { setThumbnailHeadline(option); invalidate(); }} /><Image unoptimized src={`/api/youtube-thumbnail?${query}`} width={1280} height={720} alt={`Thumbnail option: ${option}`} className="h-auto w-full" /><span className="mt-2 block text-xs font-black">{option}</span></label>;
-                })}
-              </div>
-              <label className="mt-3 grid gap-1 text-xs font-black uppercase text-ink/55">Custom thumbnail headline<input value={thumbnailHeadline} maxLength={58} onChange={(event) => { setThumbnailHeadline(event.target.value); invalidate(); }} placeholder={thumbnailOptions[0] || "Short, truthful, mobile-readable hook"} className="min-h-11 border border-ink/20 px-3 text-sm font-semibold normal-case text-ink" /></label>
-            </div>
-
-            <div>
-              <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-broadcast"><CalendarClock className="h-4 w-4" />5 · Release</div>
-              <div className="mt-2 flex flex-wrap gap-3">
-                <label className="flex min-h-11 items-center gap-2 border border-ink/20 px-3 text-sm font-bold"><input type="radio" checked={releaseMode === "now"} onChange={() => { setReleaseMode("now"); invalidate(); }} />Publish after render</label>
-                <label className="flex min-h-11 items-center gap-2 border border-ink/20 px-3 text-sm font-bold"><input type="radio" checked={releaseMode === "schedule"} onChange={() => { setReleaseMode("schedule"); invalidate(); }} />Schedule on YouTube</label>
-              </div>
-              {releaseMode === "schedule" ? <label className="mt-3 grid gap-1 text-xs font-black uppercase text-ink/55">Publication date and time<input type="datetime-local" value={startsAt} onChange={(event) => { setStartsAt(event.target.value); invalidate(); }} className="min-h-11 border border-ink/20 px-3 text-sm font-semibold normal-case text-ink" /></label> : null}
-            </div>
-
-            <button disabled={pending || !canPreview} onClick={previewStory} className="inline-flex min-h-12 items-center justify-center gap-2 bg-ink px-5 text-xs font-black uppercase text-white disabled:opacity-50"><BookOpenCheck className="h-4 w-4" />{pending ? "Checking..." : "Validate and build video preview"}</button>
-            {message ? <div className="border border-cyanline/30 bg-cyanline/10 p-3 text-sm font-bold">{message}</div> : null}
+        <details className="mt-4 border border-ink/10 bg-paper p-3">
+          <summary className="flex cursor-pointer list-none items-center gap-2 text-xs font-black uppercase text-ink/60"><ChevronDown className="h-4 w-4" />Optional title and source overrides</summary>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            <label className="grid gap-1 text-xs font-black uppercase text-ink/55">YouTube title<input value={titleOverride} maxLength={100} onChange={(event) => setTitleOverride(event.target.value)} placeholder={title || "Developed automatically"} className="min-h-11 border border-ink/20 px-3 text-sm font-semibold normal-case text-ink" /></label>
+            <label className="grid gap-1 text-xs font-black uppercase text-ink/55">Topic<input value={topicOverride} maxLength={160} onChange={(event) => setTopicOverride(event.target.value)} placeholder={topic || "Developed automatically"} className="min-h-11 border border-ink/20 px-3 text-sm font-semibold normal-case text-ink" /></label>
+            <label className="grid gap-1 text-xs font-black uppercase text-ink/55">Specialty<input value={specialty} onChange={(event) => setSpecialty(event.target.value)} placeholder="Preventive Cardiology" className="min-h-11 border border-ink/20 px-3 text-sm font-semibold normal-case text-ink" /></label>
+            <label className="grid gap-1 text-xs font-black uppercase text-ink/55">Publication or organization<input value={sourceName} onChange={(event) => setSourceName(event.target.value)} placeholder="American Society for Preventive Cardiology" className="min-h-11 border border-ink/20 px-3 text-sm font-semibold normal-case text-ink" /></label>
+            <label className="grid gap-1 text-xs font-black uppercase text-ink/55 md:col-span-2">Authors, optional<input value={authors} onChange={(event) => setAuthors(event.target.value)} placeholder="Names exactly as published" className="min-h-11 border border-ink/20 px-3 text-sm font-semibold normal-case text-ink" /></label>
           </div>
+        </details>
 
-          <aside className="h-fit border border-ink/10 bg-paper p-4 lg:sticky lg:top-4">
-            <div className="text-xs font-black uppercase text-broadcast">Video readiness</div>
-            <div className="mt-3 grid gap-2 text-sm font-bold">
-              {[['Source', Boolean(sourceUrl)], ['Narrative', narrative.length >= 1200], ['Title', Boolean(resolvedTitle)], ['Thumbnail', Boolean(resolvedThumbnail)], ['Description', resolvedDescription.length >= 40], ['12 chapters', Boolean(preview?.cards.length === 12)], ['Release', releaseMode === 'now' || Boolean(startsAt)]].map(([label, ready]) => <div key={String(label)} className="flex items-center justify-between"><span>{label}</span><span className={ready ? "text-emerald-700" : "text-ink/35"}>{ready ? "Ready" : "Needed"}</span></div>)}
-            </div>
-            <div className="mt-4 border-t border-ink/10 pt-4 text-xs font-semibold leading-5 text-ink/55">Story narration uses Kokoro at 1.05x. Viewer-facing output uses ConferenceHype and the story topic; “Physician Education” is prohibited.</div>
-          </aside>
-        </div>
+        <button disabled={!canDevelop || working} onClick={develop} className="mt-5 inline-flex min-h-13 w-full items-center justify-center gap-2 bg-broadcast px-5 py-4 text-sm font-black uppercase text-white disabled:opacity-50">
+          {working ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Youtube className="h-5 w-5" />}
+          {working ? "Developing and verifying YouTube video…" : "Develop and publish YouTube video"}
+        </button>
+
+        {message ? <div className="mt-4 border border-cyanline/30 bg-cyanline/10 p-3 text-sm font-bold">{message}</div> : null}
+        {delivery?.status === "verified" && delivery.publicReachable && delivery.youtubeUrl ? (
+          <a href={delivery.youtubeUrl} target="_blank" rel="noreferrer" className="mt-3 flex min-h-12 items-center justify-center gap-2 bg-ink px-4 text-sm font-black uppercase text-white">
+            <CheckCircle2 className="h-5 w-5 text-emerald-400" />Verified public on YouTube · Watch video
+          </a>
+        ) : null}
       </div>
-
-      {preview ? <div className="border border-ink/10 bg-white p-5 shadow-panel">
-        <div className="flex flex-wrap items-start justify-between gap-3"><div><div className="text-xs font-black uppercase text-broadcast">Validated video package</div><h3 className="mt-1 text-xl font-black">{preview.title}</h3></div><div className="text-sm font-semibold text-ink/60">{preview.spokenWords} words · {preview.durationMinutes} minutes · {preview.cards.length} chapters</div></div>
-        <div className="mt-4 grid gap-3 md:grid-cols-2">{preview.cards.map((card) => <article key={card.position} className="border border-ink/10 p-3"><div className="text-xs font-black uppercase text-broadcast">Chapter {card.position}</div><div className="mt-1 font-black">{card.title}</div><p className="mt-2 text-sm font-semibold leading-6 text-ink/70">{card.script}</p></article>)}</div>
-        <div className="mt-5 grid gap-2 border-t border-ink/10 pt-5 text-sm font-bold">
-          <label className="flex gap-2"><input type="checkbox" checked={approvedSource} onChange={(event) => setApprovedSource(event.target.checked)} />I verified the narrative and visible claims against the primary source.</label>
-          <label className="flex gap-2"><input type="checkbox" checked={approvedPackaging} onChange={(event) => setApprovedPackaging(event.target.checked)} />The selected title and thumbnail accurately represent the video.</label>
-          <label className="flex gap-2"><input type="checkbox" checked={approvedCards} onChange={(event) => setApprovedCards(event.target.checked)} />I reviewed all 12 substantive chapters and the closing.</label>
-        </div>
-        <button disabled={pending || !canPublish} onClick={publishStory} className="mt-4 inline-flex min-h-12 items-center gap-2 bg-broadcast px-5 text-xs font-black uppercase text-white disabled:opacity-50"><Youtube className="h-4 w-4" />{pending ? "Starting render..." : releaseMode === "schedule" ? "Approve, render and schedule" : "Approve, render and upload"}</button>
-        {canPublish ? <div className="mt-2 flex items-center gap-2 text-xs font-bold text-emerald-700"><CheckCircle2 className="h-4 w-4" />All release checks are complete.</div> : null}
-      </div> : null}
     </section>
   );
 }
