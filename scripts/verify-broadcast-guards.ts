@@ -1103,6 +1103,12 @@ assert.match(renderHourSource, /addSpecialistAudienceToTitle\(baseTitle, actualM
 const voiceSegmentSource = readFileSync(path.resolve("lib/broadcast/voiceSegment.ts"), "utf8");
 assert.match(voiceSegmentSource, /resultsFirstStructuredNarrative/);
 assert.match(voiceSegmentSource, /\["Results", sectionText\(value, "Results"\)\]/);
+const youtubeThumbnailSource = readFileSync(path.resolve("app/api/youtube-thumbnail/route.tsx"), "utf8");
+assert.match(youtubeThumbnailSource, /\{specialty\} JOURNAL CLUB/);
+assert.match(youtubeThumbnailSource, /isJournalClub && journal && specialty && articleTitle/);
+assert.doesNotMatch(youtubeThumbnailSource.match(/if \(isJournalClub[\s\S]*?return new ImageResponse[\s\S]*?\n  \}/)?.[0] ?? "", /truncate\(articleTitle/);
+assert.match(renderHourSource, /journalClub: isJournalMode/);
+assert.match(renderHourSource, /articleTitle: isJournalMode \? actualMetadata\?\.thumbnailArticleTitle/);
 assert.match(renderHourSource, /\(process\.env\.STATION_PROGRAM_ID \|\| isMeetingWatchMode\) \? process\.env\.YOUTUBE_PUBLISH_AT/);
 assert.match(renderHourSource, /Removed \$\{removedContentCards\} trailing content card/);
 assert.match(renderHourSource, /while \(remainingSeconds > 0\)/);

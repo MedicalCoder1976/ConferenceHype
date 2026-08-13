@@ -53,6 +53,8 @@ export async function GET(request: NextRequest) {
   const detailLabel = params.get("detailLabel") ? truncate(params.get("detailLabel")!, 96) : undefined;
   const promiseLabel = viewerLabel(params.get("promiseLabel")) ? truncate(viewerLabel(params.get("promiseLabel"))!, 48) : undefined;
   const isPersistentFrame = params.get("variant") === "persistent-frame";
+  const isJournalClub = params.get("journalClub") === "1";
+  const articleTitle = viewerLabel(params.get("articleTitle"));
   const headline = suppliedHeadline
     ? truncate(suppliedHeadline, 58)
     : tier === "dominant" && journal
@@ -75,6 +77,29 @@ export async function GET(request: NextRequest) {
             <div style={{ display: "flex", color: COLORS.mint, fontSize: 19, fontWeight: 850, letterSpacing: 0.9 }}>{promiseLabel ?? "MEDICAL EVIDENCE, CLEARLY EXPLAINED"}</div>
             <div style={{ display: "flex", marginLeft: "auto", color: "#aeb8ca", fontSize: 17, fontWeight: 700 }}>conferencehype.com</div>
           </div>
+        </div>
+      ),
+      { width: WIDTH, height: HEIGHT }
+    );
+  }
+
+  if (isJournalClub && journal && specialty && articleTitle) {
+    const articleFontSize = articleTitle.length > 170 ? 37 : articleTitle.length > 120 ? 43 : articleTitle.length > 78 ? 50 : 58;
+    return new ImageResponse(
+      (
+        <div style={{ width: "100%", height: "100%", display: "flex", position: "relative", flexDirection: "column", backgroundColor: COLORS.ink, color: COLORS.paper, fontFamily: "sans-serif", padding: "66px 76px 58px" }}>
+          <div style={{ display: "flex", position: "absolute", top: 0, left: 0, width: "100%", height: 18, backgroundColor: COLORS.broadcast }} />
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <div style={{ display: "flex", backgroundColor: COLORS.broadcast, borderRadius: 8, padding: "9px 17px", fontSize: 25, fontWeight: 900, letterSpacing: 1.5 }}>CONFERENCEHYPE</div>
+            <div style={{ display: "flex", marginLeft: 18, color: COLORS.cyan, fontSize: 31, fontWeight: 950, letterSpacing: 0.8 }}>{specialty} JOURNAL CLUB</div>
+          </div>
+          <div style={{ display: "flex", marginTop: 58, alignItems: "baseline", width: "100%" }}>
+            <div style={{ display: "flex", color: COLORS.paper, fontSize: journal.length > 48 ? 35 : 42, fontWeight: 950, lineHeight: 1.05, maxWidth: 900 }}>{journal}</div>
+            <div style={{ display: "flex", marginLeft: 20, color: COLORS.gold, fontSize: 27, fontWeight: 850, whiteSpace: "nowrap" }}>{date}</div>
+          </div>
+          <div style={{ display: "flex", marginTop: 31, width: "100%", height: 3, backgroundColor: COLORS.broadcast }} />
+          <div style={{ display: "flex", marginTop: 30, color: COLORS.gold, fontSize: articleFontSize, fontWeight: 900, lineHeight: 1.08, width: "100%", overflowWrap: "anywhere" }}>{articleTitle}</div>
+          <div style={{ display: "flex", position: "absolute", bottom: 0, left: 0, width: "100%", height: 18, backgroundColor: COLORS.mint }} />
         </div>
       ),
       { width: WIDTH, height: HEIGHT }

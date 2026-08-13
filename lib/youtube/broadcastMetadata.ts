@@ -41,6 +41,7 @@ export type BroadcastMetadata = {
   clinicalTopic?: string;
   thumbnailHook?: string;
   thumbnailEntity?: string;
+  thumbnailArticleTitle?: string;
 };
 
 const TITLE_MAX_LENGTH = 100;
@@ -475,6 +476,7 @@ export function buildBroadcastMetadata(input: BroadcastMetadataInput): Broadcast
     thumbnailHeadline: packaging.thumbnailHook,
     thumbnailHook: packaging.thumbnailHook,
     thumbnailEntity: packaging.thumbnailEntity,
+    thumbnailArticleTitle: primarySegment?.title?.trim(),
     thumbnailJournalNames: thumbnailJournalNames.slice(0, 2),
     thumbnailJournalCount: thumbnailJournalNames.length
   };

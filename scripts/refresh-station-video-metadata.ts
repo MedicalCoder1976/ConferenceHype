@@ -82,6 +82,8 @@ async function main() {
       entityLabel: metadata.thumbnailEntity,
       journalNames: metadata.thumbnailJournalNames,
       journalCount: metadata.thumbnailJournalCount,
+      journalClub: program.programType === "new" && Boolean(metadata.journalName),
+      articleTitle: metadata.thumbnailArticleTitle,
       siteUrl: process.env.PUBLIC_SITE_URL
     });
     const { error } = dryRun ? { error: null } : await supabase.from("station_programs").update({

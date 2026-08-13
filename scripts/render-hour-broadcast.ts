@@ -1514,6 +1514,8 @@ async function uploadRenderedBroadcast(
           : isBreakingMode
             ? "WHAT THE PAPER FOUND"
             : "THE FINDING THAT MATTERS",
+    journalClub: isJournalMode,
+    articleTitle: isJournalMode ? actualMetadata?.thumbnailArticleTitle : undefined,
     siteUrl: process.env.PUBLIC_SITE_URL
   };
   const { downloadYoutubeThumbnail, getYoutubeAccessToken, uploadVideoToYoutube, uploadYoutubeThumbnail } = await import(
