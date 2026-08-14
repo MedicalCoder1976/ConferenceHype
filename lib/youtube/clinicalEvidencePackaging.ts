@@ -99,7 +99,7 @@ const SPECIALIST_TITLE_LABELS: Record<string, string> = {
   Ophthalmology: "Ophthalmologists",
   Urology: "Urologists",
   Radiology: "Radiologists",
-  "Radiology / Radiation Oncology": "Radiologists and Radiation Oncologists",
+  "Radiology / Radiation Oncology": "Radiation Oncologists and Radiologists",
   Surgery: "Surgeons",
   Pediatrics: "Pediatricians",
   "Pediatric Oncology / Pediatrics": "Pediatric Oncologists and Pediatricians",
@@ -122,6 +122,17 @@ export function addSpecialistAudienceToTitle(title: string, specialty?: string, 
   const suffix = ` | For ${audience}`;
   if (title.toLowerCase().includes(audience.toLowerCase())) return truncateAtWord(title, maxLength);
   return `${truncateAtWord(title, Math.max(24, maxLength - suffix.length))}${suffix}`;
+}
+
+export function buildJournalClubYoutubeTitle(title: string, specialty?: string, maxLength = 100) {
+  const normalizedSpecialty = clean(specialty ?? "");
+  const audience = SPECIALIST_TITLE_LABELS[normalizedSpecialty] ?? (
+    normalizedSpecialty && !/^(?:medicine|medical journal|clinical research)$/i.test(normalizedSpecialty)
+      ? `${normalizedSpecialty} Specialists`
+      : "Physicians and APPs"
+  );
+  const prefix = `JOURNAL CLUB | ${audience} | `;
+  return `${prefix}${truncateAtWord(title, Math.max(24, maxLength - prefix.length))}`;
 }
 
 function escapeRegExp(value: string) {

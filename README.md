@@ -980,9 +980,16 @@ title/description/tags/category are all unaffected either way.
 Beginning with commit `860090c`, every 30-minute single-journal broadcast uses
 the dedicated Journal Club thumbnail hierarchy:
 
-1. `[Specialty] JOURNAL CLUB`, with no `CONFERENCEHYPE` wordmark on this layout.
+1. A large, high-contrast gold-on-red `JOURNAL CLUB` badge, paired with the
+   source-resolved specialty and no `CONFERENCEHYPE` wordmark on this layout.
 2. The full plain-text journal name and the source issue month/year.
 3. The complete primary article title in smaller adaptive type.
+
+The corresponding YouTube title begins `JOURNAL CLUB | <target audience> |`
+before the journal name. The audience is resolved from the journal specialty;
+for example, Radiology / Radiation Oncology becomes `Radiation Oncologists and
+Radiologists`. This ordering is exclusive to single-journal (`journal30`)
+videos and is enforced for new uploads and in-place metadata refreshes.
 
 The article title is passed separately from the short curiosity headline and
 must wrap to fit without truncation or an ellipsis. The journal name and issue

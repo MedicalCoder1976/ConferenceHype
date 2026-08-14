@@ -1474,8 +1474,10 @@ async function uploadRenderedBroadcast(
     actualMetadata?.title ||
     process.env.BROADCAST_TITLE ||
     "Clinical Research: New Evidence Brief";
-  const { addSpecialistAudienceToTitle } = await import("@/lib/youtube/clinicalEvidencePackaging");
-  const title = addSpecialistAudienceToTitle(baseTitle, actualMetadata?.specialty);
+  const { addSpecialistAudienceToTitle, buildJournalClubYoutubeTitle } = await import("@/lib/youtube/clinicalEvidencePackaging");
+  const title = isJournalMode
+    ? buildJournalClubYoutubeTitle(baseTitle, actualMetadata?.specialty)
+    : addSpecialistAudienceToTitle(baseTitle, actualMetadata?.specialty);
   const description =
     // actualMetadata is always freshly built from the real rendered cards
     // for Meeting Watch (real timestamped chapters, real study names) --

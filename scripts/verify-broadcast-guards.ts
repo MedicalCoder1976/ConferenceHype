@@ -6,7 +6,7 @@ import { formatVoiceSegment, SEGMENT_CLOSE } from "@/lib/broadcast/voiceSegment"
 import { buildBroadcastSlots, buildJournalShowSlots } from "@/lib/rundown/slots";
 import { assertSearchOptimizedBroadcastMetadata, buildBroadcastMetadata, extractExplicitStudyName, extractExplicitStudyNames } from "@/lib/youtube/broadcastMetadata";
 import { applySpokenPronunciations, extractSpokenAbbreviationDefinitions } from "@/lib/media/tts";
-import { buildClinicalEvidencePackaging, extractClinicalTopic } from "@/lib/youtube/clinicalEvidencePackaging";
+import { buildClinicalEvidencePackaging, buildJournalClubYoutubeTitle, extractClinicalTopic } from "@/lib/youtube/clinicalEvidencePackaging";
 import { buildMeetingWatchSlots, groupMeetingWatchSegmentsByTrial } from "@/lib/rundown/meetingWatchSlots";
 import { parsePreparedNarrative, preparedNarrativeSegments } from "@/lib/meetingWatch/preparedNarrative";
 import { getUnsafeGeneratedSourceErrors } from "@/lib/generation/sourceSafety";
@@ -1096,15 +1096,23 @@ assert.match(storyStatusSource, /youtube\.com\/oembed/);
 assert.match(storyStatusSource, /data\.status === "verified"/);
 assert.match(readFileSync(path.resolve("lib/youtube/uploadBroadcastVideo.ts"), "utf8"), /YouTube did not confirm public visibility/);
 const clinicalPackagingSource = readFileSync(path.resolve("lib/youtube/clinicalEvidencePackaging.ts"), "utf8");
+assert.equal(
+  buildJournalClubYoutubeTitle("Advances in Radiation Oncology: Cervical Cancer - New Research", "Radiology / Radiation Oncology"),
+  "JOURNAL CLUB | Radiation Oncologists and Radiologists | Advances in Radiation Oncology: Cervical..."
+);
 assert.match(clinicalPackagingSource, /addSpecialistAudienceToTitle/);
+assert.match(clinicalPackagingSource, /buildJournalClubYoutubeTitle/);
+assert.match(clinicalPackagingSource, /JOURNAL CLUB \| \$\{audience\} \|/);
+assert.match(clinicalPackagingSource, /"Radiology \/ Radiation Oncology": "Radiation Oncologists and Radiologists"/);
 assert.match(clinicalPackagingSource, /Cardiology: "Cardiologists"/);
 assert.match(clinicalPackagingSource, /Gastroenterology: "Gastroenterologists"/);
-assert.match(renderHourSource, /addSpecialistAudienceToTitle\(baseTitle, actualMetadata\?\.specialty\)/);
+assert.match(renderHourSource, /isJournalMode[\s\S]*buildJournalClubYoutubeTitle\(baseTitle, actualMetadata\?\.specialty\)/);
 const voiceSegmentSource = readFileSync(path.resolve("lib/broadcast/voiceSegment.ts"), "utf8");
 assert.match(voiceSegmentSource, /resultsFirstStructuredNarrative/);
 assert.match(voiceSegmentSource, /\["Results", sectionText\(value, "Results"\)\]/);
 const youtubeThumbnailSource = readFileSync(path.resolve("app/api/youtube-thumbnail/route.tsx"), "utf8");
-assert.match(youtubeThumbnailSource, /\{specialty\} JOURNAL CLUB/);
+assert.match(youtubeThumbnailSource, />JOURNAL CLUB</);
+assert.match(youtubeThumbnailSource, /fontSize: 52/);
 assert.match(youtubeThumbnailSource, /isJournalClub && journal && specialty && articleTitle/);
 assert.doesNotMatch(youtubeThumbnailSource.match(/if \(isJournalClub[\s\S]*?return new ImageResponse[\s\S]*?\n  \}/)?.[0] ?? "", /truncate\(articleTitle/);
 assert.doesNotMatch(youtubeThumbnailSource.match(/if \(isJournalClub[\s\S]*?return new ImageResponse[\s\S]*?\n  \}/)?.[0] ?? "", />CONFERENCEHYPE</);

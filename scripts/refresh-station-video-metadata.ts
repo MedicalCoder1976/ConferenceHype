@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getOncologyJournalsFromDb, getSegmentsByIdsFromDb } from "@/lib/db";
 import { getActiveStationScheduleFromDb, getStationSchedulesFromDb } from "@/lib/station/db";
 import { assertSearchOptimizedBroadcastMetadata, buildBroadcastMetadata } from "@/lib/youtube/broadcastMetadata";
+import { buildJournalClubYoutubeTitle } from "@/lib/youtube/clinicalEvidencePackaging";
 import { getYoutubeAccessToken, updateYoutubeVideoMetadata, uploadYoutubeThumbnail } from "@/lib/youtube/uploadBroadcastVideo";
 
 loadEnvConfig(process.cwd());
@@ -62,10 +63,16 @@ async function main() {
       buildBroadcastMetadata({ hourStart, slots, journalsById, titleDateOverride: published[0], studySourceTextBySegmentId }),
       { requireJournalContext: true }
     );
+    const isJournalClub = selectedSchedule.programs.some((candidate) =>
+      candidate.youtubeVideoId === program.youtubeVideoId && candidate.programType === "new"
+    );
+    const resolvedTitle = titleOverride || (isJournalClub
+      ? buildJournalClubYoutubeTitle(metadata.title, metadata.specialty)
+      : metadata.title);
     if (!dryRun) await updateYoutubeVideoMetadata({
       videoId: program.youtubeVideoId,
       accessToken,
-      title: titleOverride || metadata.title,
+      title: resolvedTitle,
       description: metadata.description,
       tags: metadata.tags,
       categoryId: metadata.categoryId
@@ -82,18 +89,18 @@ async function main() {
       entityLabel: metadata.thumbnailEntity,
       journalNames: metadata.thumbnailJournalNames,
       journalCount: metadata.thumbnailJournalCount,
-      journalClub: program.programType === "new" && Boolean(metadata.journalName),
+      journalClub: isJournalClub && Boolean(metadata.journalName),
       articleTitle: metadata.thumbnailArticleTitle,
       siteUrl: process.env.PUBLIC_SITE_URL
     });
     const { error } = dryRun ? { error: null } : await supabase.from("station_programs").update({
-      title: titleOverride || metadata.title,
+      title: resolvedTitle,
       description: metadata.description,
       tags: metadata.tags,
       updated_at: new Date().toISOString()
     }).eq("id", program.id);
     if (error) throw error;
-      results.push({ scheduleDate: selectedSchedule.scheduleDate, position: program.position, videoId: program.youtubeVideoId, title: titleOverride || metadata.title, studyNames: metadata.studyNames });
+      results.push({ scheduleDate: selectedSchedule.scheduleDate, position: program.position, videoId: program.youtubeVideoId, title: resolvedTitle, studyNames: metadata.studyNames });
     }
   }
   if (!results.length) throw new Error(`No refreshable verified journal videos were found through ${targetDate}.`);
