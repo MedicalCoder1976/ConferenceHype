@@ -990,6 +990,9 @@ before the journal name. The audience is resolved from the journal specialty;
 for example, Radiology / Radiation Oncology becomes `Radiation Oncologists and
 Radiologists`. This ordering is exclusive to single-journal (`journal30`)
 videos and is enforced for new uploads and in-place metadata refreshes.
+Set `STATION_METADATA_JOURNAL_CLUB_ONLY=1` with the all-released metadata
+refresh to update only canonical single-journal videos while leaving weekend
+and mixed-program metadata untouched.
 
 The article title is passed separately from the short curiosity headline and
 must wrap to fit without truncation or an ellipsis. The journal name and issue

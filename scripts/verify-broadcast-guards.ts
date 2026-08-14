@@ -1291,11 +1291,16 @@ assert.match(thumbnailRouteSource, /color: COLORS\.gold/);
 assert.match(thumbnailRouteSource, /NEW EVIDENCE/);
 assert.doesNotMatch(thumbnailRouteSource, />\?<\/div>/);
 const stationMetadataSource = readFileSync(path.join(process.cwd(), "scripts", "refresh-station-video-metadata.ts"), "utf8");
+const stationMetadataWorkflowSource = readFileSync(path.join(process.cwd(), ".github", "workflows", "refresh-station-video-metadata.yml"), "utf8");
 assert.match(stationMetadataSource, /updateYoutubeVideoMetadata/);
 assert.match(stationMetadataSource, /uploadYoutubeThumbnail/);
 assert.match(stationMetadataSource, /STATION_METADATA_ALL_RELEASED/);
 assert.match(stationMetadataSource, /STATION_METADATA_DRY_RUN/);
 assert.match(stationMetadataSource, /refreshedVideoIds/);
+assert.match(stationMetadataSource, /STATION_METADATA_JOURNAL_CLUB_ONLY/);
+assert.match(stationMetadataSource, /journalClubVideoIds/);
+assert.match(stationMetadataWorkflowSource, /journal_club_only:/);
+assert.match(stationMetadataWorkflowSource, /STATION_METADATA_JOURNAL_CLUB_ONLY/);
 assert.match(stationMetadataSource, /assertSearchOptimizedBroadcastMetadata/);
 assert.doesNotMatch(stationMetadataSource, /uploadVideoToYoutube/);
 

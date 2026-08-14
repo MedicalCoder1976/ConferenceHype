@@ -15,6 +15,16 @@ on:
         description: Optional exact thumbnail headline override
         required: false
         type: string
+      all_released:
+        description: Refresh all released station videos through the selected date
+        required: false
+        default: false
+        type: boolean
+      journal_club_only:
+        description: Limit the refresh to canonical single-journal Journal Club videos
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -36,6 +46,8 @@ jobs:
           STATION_METADATA_DATE: ${{ inputs.schedule_date }}
           STATION_TITLE_OVERRIDE: ${{ inputs.title }}
           STATION_THUMBNAIL_HEADLINE_OVERRIDE: ${{ inputs.thumbnail_headline }}
+          STATION_METADATA_ALL_RELEASED: ${{ inputs.all_released && '1' || '0' }}
+          STATION_METADATA_JOURNAL_CLUB_ONLY: ${{ inputs.journal_club_only && '1' || '0' }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

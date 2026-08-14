@@ -15,6 +15,7 @@ function easternDate() {
 async function main() {
   const targetDate = process.env.STATION_METADATA_DATE || easternDate();
   const refreshAllReleased = process.env.STATION_METADATA_ALL_RELEASED === "1";
+  const journalClubOnly = process.env.STATION_METADATA_JOURNAL_CLUB_ONLY === "1";
   const dryRun = process.env.STATION_METADATA_DRY_RUN === "1";
   const titleOverride = process.env.STATION_TITLE_OVERRIDE?.trim();
   const thumbnailHeadlineOverride = process.env.STATION_THUMBNAIL_HEADLINE_OVERRIDE?.trim();
@@ -35,10 +36,15 @@ async function main() {
   const supabase = createAdminClient();
   const results: Array<{ scheduleDate: string; position: number; videoId: string; title: string; studyNames: string[] }> = [];
   const refreshedVideoIds = new Set<string>();
+  const journalClubVideoIds = new Set(schedules.flatMap((candidate) =>
+    candidate.programs.filter((program) => program.programType === "new" && program.youtubeVideoId).map((program) => program.youtubeVideoId!)
+  ));
 
   for (const selectedSchedule of schedules) {
     for (const program of selectedSchedule.programs) {
       if (program.status !== "verified" || !program.youtubeVideoId || !program.cardIds.length || refreshedVideoIds.has(program.youtubeVideoId)) continue;
+      const isJournalClub = journalClubVideoIds.has(program.youtubeVideoId);
+      if (journalClubOnly && !isJournalClub) continue;
       refreshedVideoIds.add(program.youtubeVideoId);
     const segments = await getSegmentsByIdsFromDb(program.cardIds);
     const { data: articleRows, error: articleError } = await supabase
@@ -59,13 +65,17 @@ async function main() {
       label: segment.title
     }));
     const published = ordered.map((segment) => segment.citations?.[0]?.publishedAt).filter((value): value is string => Boolean(value));
-    const metadata = assertSearchOptimizedBroadcastMetadata(
-      buildBroadcastMetadata({ hourStart, slots, journalsById, titleDateOverride: published[0], studySourceTextBySegmentId }),
-      { requireJournalContext: true }
-    );
-    const isJournalClub = selectedSchedule.programs.some((candidate) =>
-      candidate.youtubeVideoId === program.youtubeVideoId && candidate.programType === "new"
-    );
+    let metadata;
+    try {
+      metadata = assertSearchOptimizedBroadcastMetadata(
+        buildBroadcastMetadata({ hourStart, slots, journalsById, titleDateOverride: published[0], studySourceTextBySegmentId }),
+        { requireJournalContext: true }
+      );
+    } catch (error) {
+      throw new Error(
+        `Station metadata validation failed for ${selectedSchedule.scheduleDate} position ${program.position} video ${program.youtubeVideoId}: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
     const resolvedTitle = titleOverride || (isJournalClub
       ? buildJournalClubYoutubeTitle(metadata.title, metadata.specialty)
       : metadata.title);
