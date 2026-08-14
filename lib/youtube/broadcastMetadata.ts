@@ -312,13 +312,17 @@ function buildDescription({
     ...cards.map(({ journal }) => journal ? specificSpecialty(journal) : "").filter(Boolean),
     ...additionalSpecialties
   ])];
+  const journalClubSpecialty = dominantJournal && dominantJournal.count >= 2
+    ? specificSpecialty(dominantJournal.journal)
+    : dominantSpecialty;
+  const journalClubLine = journalClubSpecialty ? `${journalClubSpecialty} Journal Club` : "";
   const specialtyLine = specialties.length ? `Relevant specialties: ${specialties.join("; ")}.` : "";
   const specialistLabels = [...new Set(specialties.flatMap(specialistAudience))];
   const audienceLine = specialistLabels.length
     ? `Audience: ${specialistLabels.join("; ")}; Physicians; Advanced Practice Providers (APPs).`
     : "Audience: Physicians; Advanced Practice Providers (APPs).";
   const studyLine = optimized && studyNames.length ? `Named studies covered: ${studyNames.join("; ")}.` : "";
-  return [journalLine, specialtyLine, audienceLine, studyLine, intro, journalEditionLine, "", ...chapterLines, "", hashtags].filter((line, index, lines) => line || (index > 0 && lines[index - 1])).join("\n");
+  return [journalClubLine, journalLine, specialtyLine, audienceLine, studyLine, intro, journalEditionLine, "", ...chapterLines, "", hashtags].filter((line, index, lines) => line || (index > 0 && lines[index - 1])).join("\n");
 }
 
 function buildTags(cards: ResolvedCard[], studyNames: string[] = [], additionalSpecialties: string[] = []) {
@@ -383,6 +387,9 @@ export function assertSearchOptimizedBroadcastMetadata(
     if (metadata.tier !== "dominant" || !metadata.journalName) throw new Error("A station journal program must resolve one dominant journal.");
     if (!metadata.specialty || metadata.specialty === "Medical Journal") throw new Error("A station journal program must resolve a specific specialty.");
     if (!metadata.description.includes(metadata.journalName)) throw new Error("The description must name the journal.");
+    if (!metadata.description.startsWith(`${metadata.specialty} Journal Club\nJournal: ${metadata.journalName}.`)) {
+      throw new Error("The description must begin with the specialty Journal Club label before the journal name.");
+    }
     if (!metadata.title.startsWith(`${metadata.journalName}:`)) throw new Error("The journal must begin the title.");
     const specialtyLine = metadata.description.split("\n").find((line) => line.startsWith("Relevant specialties:"));
     if (!specialtyLine?.includes(metadata.specialty)) throw new Error("The description must identify the relevant specialty.");

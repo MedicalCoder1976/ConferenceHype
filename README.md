@@ -148,8 +148,9 @@ Every journal-video title begins with the journal name, followed by a specific
 clinical topic and a readable specialty research hook. Viewer-facing metadata
 must never use `Multiple Cancers`, and registry-only identifiers such as NCT,
 ISRCTN, or ACTRN numbers are excluded from titles, descriptions, hashtags, and
-tags. Descriptions begin with explicit `Journal:` and `Relevant specialties:`
-lines. Source-verified named studies may appear in the description, but they do
+tags. Descriptions begin with `<Specialty> Journal Club`, followed by explicit
+`Journal:` and `Relevant specialties:` lines. Source-verified named studies may
+appear in the description, but they do
 not displace the journal from the title.
 
 Every journal description also includes an `Audience:` line. It names the
@@ -874,8 +875,8 @@ journals or specialties, instead of a generic always-identical title.
   require `dominant` to represent a real proportion of resolved cards (e.g.
   ≥40%), falling through to the existing `roundup` tier otherwise.
 - **Study-name search optimization (effective July 24, 2026)**: named studies and trials are extracted only when explicitly present in approved card text, citation labels, or the linked PubMed abstract. Registry-only identifiers such as `NCT...`, `ISRCTN...`, and `ACTRN...` are not viewer-facing search terms. Named studies may appear in the description and leading tags, but the journal remains first in the title. Generic phrases such as `this study` or `controlled trial` are rejected, and the system never invents a study name. Metadata refresh updates canonical videos in place without uploading duplicates.
-- **Description invariant**: every journal video begins its description with `Journal: ...`, `Relevant specialties: ...`, and an `Audience: ...` line naming the specific specialists plus Physicians and Advanced Practice Providers (APPs). When named studies are detected, a `Named studies covered: ...` line follows. Journal and source publication month/year remain explicit.
-- **Station search-metadata gate**: every newly rendered weekday journal program must pass one validation package before it can be marked verified. The journal begins the title; journal and specific specialty begin the description; `Multiple Cancers`, `Others`, and registry-only identifiers are rejected from viewer-facing search metadata. Journal name, specific specialty, and publication month/year are mandatory; generic fallback and thumbnail-upload warnings are not accepted for station programs.
+- **Description invariant**: every journal video begins its description with `<Specialty> Journal Club`, then `Journal: ...`, `Relevant specialties: ...`, and an `Audience: ...` line naming the specific specialists plus Physicians and Advanced Practice Providers (APPs). For example, an oncology program begins `Oncology Journal Club` before `Journal: Cancer Discovery.` When named studies are detected, a `Named studies covered: ...` line follows. Journal and source publication month/year remain explicit.
+- **Station search-metadata gate**: every newly rendered weekday journal program must pass one validation package before it can be marked verified. The journal begins the title; the description begins with the specific specialty plus `Journal Club`, followed by the journal name; `Multiple Cancers`, `Others`, and registry-only identifiers are rejected from viewer-facing search metadata. Journal name, specific specialty, and publication month/year are mandatory; generic fallback and thumbnail-upload warnings are not accepted for station programs.
 - **Description**: explicitly names every journal and its source publication month/year near the top, followed by one YouTube-chapter-formatted line per content card
   (`M:SS Journal - Specialty - Mon YYYY`), which YouTube auto-converts into
   clickable chapters, plus an intro sentence and a closing hashtag line.
