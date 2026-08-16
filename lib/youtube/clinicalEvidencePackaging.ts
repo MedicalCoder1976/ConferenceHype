@@ -135,6 +135,17 @@ export function buildJournalClubYoutubeTitle(title: string, specialty?: string, 
   return `${prefix}${truncateAtWord(title, Math.max(24, maxLength - prefix.length))}`;
 }
 
+export function buildMultiJournalClubYoutubeTitle(title: string, specialties: string[], maxLength = 100) {
+  const specialtyLabel = [...new Set(specialties.map(clean).filter(Boolean))].join(" / ") || "Multispecialty";
+  const prefix = `JOURNAL CLUB | ${specialtyLabel} | `;
+  return `${prefix}${truncateAtWord(title, Math.max(24, maxLength - prefix.length))}`;
+}
+
+export function buildRegionalJournalClubYoutubeTitle(title: string, seriesLabel: string, maxLength = 100) {
+  const prefix = `JOURNAL CLUB | ${clean(seriesLabel).toUpperCase()} | `;
+  return `${prefix}${truncateAtWord(title, Math.max(24, maxLength - prefix.length))}`;
+}
+
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^$()|[\]\\]/g, "\\$&");
 }

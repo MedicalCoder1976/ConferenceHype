@@ -1054,6 +1054,35 @@ and provide the affected YouTube video ID.
 
 ## 30-Minute Single-Journal Broadcasts
 
+### Regional Journal Club series
+
+ConferenceHype has two additive regional series: `JOURNAL CLUB - INDIA JOURNAL
+ARTICLES` and `JOURNAL CLUB - UNITED KINGDOM JOURNAL ARTICLES`. They reuse the
+current Journal Club badge, typography, colors, evidence dashboard, narration,
+source attribution, thumbnail/opening-frame byte stream, and 30-minute frame.
+They do not modify or activate the weekday station or weekend wheel.
+
+The India catalog contains 20 curated journals and is scheduled for Tuesday
+and Friday at 7:30 PM `Asia/Kolkata`. The United Kingdom catalog contains 22
+curated journals and is scheduled for Wednesday and Sunday at 6:30 PM
+`Europe/London`. Each program requires 12 unique, substantive PubMed-grounded
+cards, excludes cards already reserved by the station or either regional
+series, and searches 14, 21, 28, then 35 days without lowering the card floor.
+
+Regional journal membership is explicit in `journal_series_memberships`;
+country identity is never inferred from author affiliation or article subject.
+New region-only journal rows carry `regional_only=true`, and both weekday
+selection paths explicitly reject those rows. Existing UK journals may remain
+eligible for their established weekday cadence while also being explicit UK
+series members.
+
+`.github/workflows/regional-journal-club.yml` defaults to shadow planning. A
+render/upload occurs only when the matching `journal_series.enabled` row is
+true **and** `REGIONAL_JOURNAL_CLUB_PUBLISH_ENABLED` (or the manual `publish`
+input) is true. The workflow never calls either station activation function and
+never writes `stream_state`; successful regional uploads remain independent
+YouTube series videos.
+
 ### Weekend roundup wheel
 
 Saturday and Sunday use a separate, additive station-planning lane. At 8:00 AM
@@ -1075,11 +1104,22 @@ failed render cannot activate a partial weekend schedule, so the previously
 verified public player remains available. Monday's normal weekday activation
 supersedes the weekend wheel.
 
-YouTube metadata uses the title `Weekend Roundup of Top Medical Journal Articles
-of the Week`, plus part number and date. The description and tags list explicit
-trial/study names found in approved PubMed-grounded content, specialties,
-journals, article chapters, and source context; names are omitted rather than
-invented. Each program ends with one roundup conclusion and uses full-length
+Every upcoming weekend program is packaged as a multi-journal Journal Club.
+Its YouTube title begins `JOURNAL CLUB | <resolved specialties> |`, followed by
+the source-grounded clinical topic and article hook. Its description begins
+with `JOURNAL CLUB`, then `Relevant specialties: ...`, before the roundup part,
+study, journal, chapter, and source details. The opening thumbnail, persistent
+top frame, and in-video evidence-dashboard header use the same
+`JOURNAL CLUB | <resolved specialties>` label. Specialties are derived only
+from the journals attached to the selected approved cards; they are never
+invented, and the weekend metadata gate fails closed when none can be resolved.
+This is prospective for all Saturday and Sunday `weekend30` renders. It does
+not apply the dedicated single-journal thumbnail layout: weekend artwork still
+shows at most two actual journal names plus an accurate `+ N JOURNALS` count.
+
+The description and tags also list explicit trial/study names found in approved
+PubMed-grounded content, journals, article chapters, and source context; names
+are omitted rather than invented. Each program ends with one roundup conclusion and uses full-length
 Funk/Latin music blocks for any unused portion of the 30-minute frame. Weekend
 planning budgets 55 seconds per article card, based on measured production
 narration, so 24 articles fit without the pre-render planner discarding them;

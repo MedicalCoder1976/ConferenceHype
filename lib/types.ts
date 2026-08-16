@@ -268,6 +268,7 @@ export type OncologyJournal = {
   // unrecognized or missing value never breaks reads; the UI's
   // groupJournalsBySpecialty() falls back to "Others".
   specialty?: string;
+  regionalOnly?: boolean;
 };
 
 export type EditorialPackageCard = {

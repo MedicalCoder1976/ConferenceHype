@@ -106,6 +106,31 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  if (seriesLabel?.startsWith("JOURNAL CLUB |")) {
+    const seriesParts = seriesLabel.split("|").map((part) => part.trim()).filter(Boolean);
+    const regionalSeries = seriesParts[1] ?? "REGIONAL JOURNAL ARTICLES";
+    const specialtyLine = seriesParts.slice(2).join(" • ");
+    return new ImageResponse(
+      (
+        <div style={{ width: "100%", height: "100%", display: "flex", position: "relative", flexDirection: "column", backgroundColor: COLORS.ink, color: COLORS.paper, fontFamily: "sans-serif", padding: "62px 72px 54px" }}>
+          <div style={{ display: "flex", position: "absolute", top: 0, left: 0, width: "100%", height: 18, backgroundColor: COLORS.broadcast }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 22 }}>
+            <div style={{ display: "flex", backgroundColor: COLORS.broadcast, color: COLORS.gold, borderRadius: 10, padding: "13px 22px 11px", fontSize: 48, fontWeight: 950, lineHeight: 0.95, letterSpacing: 2 }}>JOURNAL CLUB</div>
+            <div style={{ display: "flex", color: COLORS.cyan, fontSize: regionalSeries.length > 28 ? 27 : 32, fontWeight: 900, lineHeight: 1.02 }}>{regionalSeries}</div>
+          </div>
+          {specialtyLine ? <div style={{ display: "flex", marginTop: 25, color: COLORS.paper, fontSize: 25, fontWeight: 850, lineHeight: 1.08 }}>{specialtyLine}</div> : null}
+          <div style={{ display: "flex", marginTop: 34, color: COLORS.gold, fontSize: headline.length > 42 ? 52 : 62, fontWeight: 950, lineHeight: 1.02, maxWidth: 900 }}>{headline}</div>
+          <div style={{ display: "flex", marginTop: 34, gap: 22, alignItems: "center" }}>
+            {journalNames.map((name) => <div key={name} style={{ display: "flex", color: COLORS.paper, backgroundColor: COLORS.panel, borderRadius: 8, padding: "14px 18px", fontSize: name.length > 32 ? 21 : 25, fontWeight: 850 }}>{name}</div>)}
+            {remainingJournalCount > 0 ? <div style={{ display: "flex", color: COLORS.cyan, fontSize: 22, fontWeight: 850 }}>+ {remainingJournalCount} JOURNALS</div> : null}
+          </div>
+          <div style={{ display: "flex", position: "absolute", bottom: 0, left: 0, width: "100%", height: 18, backgroundColor: COLORS.mint }} />
+        </div>
+      ),
+      { width: WIDTH, height: HEIGHT }
+    );
+  }
+
   return new ImageResponse(
     (
       <div style={{ width: "100%", height: "100%", display: "flex", backgroundColor: COLORS.ink, color: COLORS.paper, fontFamily: "sans-serif" }}>

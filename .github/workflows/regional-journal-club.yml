@@ -1,0 +1,124 @@
+name: Regional Journal Club
+
+on:
+  workflow_dispatch:
+    inputs:
+      series_code:
+        description: "india or united_kingdom"
+        required: true
+        type: choice
+        options: [india, united_kingdom]
+      release_date:
+        description: "Viewer-local release date (YYYY-MM-DD); blank means today in the series timezone"
+        required: false
+        default: ""
+      publish:
+        description: "Permit render/upload only when the database series is also enabled"
+        required: false
+        type: boolean
+        default: false
+  schedule:
+    # Preparation occurs several hours before the viewer-local release.
+    - cron: "0 9 * * 2,5"
+    - cron: "0 14 * * 0,3"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: regional-journal-club-${{ inputs.series_code || github.event.schedule }}
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.resolve.outputs.code }}
+      date: ${{ steps.resolve.outputs.date }}
+      publish: ${{ steps.resolve.outputs.publish }}
+    steps:
+      - id: resolve
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            CODE="${{ inputs.series_code }}"
+            ZONE=$([ "$CODE" = "india" ] && echo "Asia/Kolkata" || echo "Europe/London")
+            DATE="${{ inputs.release_date }}"
+            [ -n "$DATE" ] || DATE=$(TZ=$ZONE date +%F)
+            PUBLISH="${{ inputs.publish }}"
+          else
+            DOW=$(date -u +%u)
+            if [ "$DOW" = "2" ] || [ "$DOW" = "5" ]; then CODE=india; ZONE=Asia/Kolkata; else CODE=united_kingdom; ZONE=Europe/London; fi
+            DATE=$(TZ=$ZONE date +%F)
+            PUBLISH="${{ vars.REGIONAL_JOURNAL_CLUB_PUBLISH_ENABLED == 'true' }}"
+          fi
+          echo "code=$CODE" >> "$GITHUB_OUTPUT"
+          echo "date=$DATE" >> "$GITHUB_OUTPUT"
+          echo "publish=$PUBLISH" >> "$GITHUB_OUTPUT"
+
+  prepare:
+    needs: resolve
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.prepare.outputs.matrix }}
+      should_publish: ${{ steps.prepare.outputs.should_publish }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - id: prepare
+        run: npx tsx scripts/prepare-regional-journal-club.ts
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          REGIONAL_SERIES_CODE: ${{ needs.resolve.outputs.code }}
+          REGIONAL_RELEASE_DATE: ${{ needs.resolve.outputs.date }}
+          REGIONAL_SERIES_PUBLISH_ENABLED: ${{ needs.resolve.outputs.publish }}
+
+  render:
+    needs: [resolve, prepare]
+    if: needs.prepare.outputs.should_publish == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        program: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: pip install kokoro numpy soundfile
+      - name: Render and upload isolated regional Journal Club
+        run: npx tsx scripts/render-hour-broadcast.ts
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          HOUR_BROADCAST_MODE: regional30
+          REGIONAL_PROGRAM_ID: ${{ matrix.program.regional_program_id }}
+          REGIONAL_SERIES_CODE: ${{ matrix.program.series_code }}
+          HOUR_BROADCAST_SECONDS: "1800"
+          HOUR_BROADCAST_START: ${{ matrix.program.stream_start_time }}
+          YOUTUBE_PUBLISH_AT: ${{ matrix.program.stream_start_time }}
+          PUBLIC_SITE_URL: https://conferencehype.com
+          FFMPEG_PATH: /usr/bin/ffmpeg
+          HOUR_BROADCAST_OUTPUT: public/rendered/conferencehype-regional-journal-club.mp4
+          KOKORO_PYTHON_CMD: python3
+          YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
+          YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
+          YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
+      - name: Record isolated regional failure
+        if: failure()
+        run: npx tsx scripts/update-regional-journal-failure.ts
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          REGIONAL_PROGRAM_ID: ${{ matrix.program.regional_program_id }}
+          REGIONAL_FAILURE_REASON: Regional Journal Club rendering or upload failed; existing station broadcasts were not changed.

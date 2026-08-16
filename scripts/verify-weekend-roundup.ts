@@ -49,15 +49,16 @@ assert.ok(
   "The planned 24-card rundown must fit before measured render-time reconciliation."
 );
 const metadata = assertWeekendRoundupMetadata(buildWeekendRoundupMetadata({ hourStart: baseTime, slots, journalsById, part: 1 }));
-assert.match(metadata.title, /^Neurology:/);
+assert.match(metadata.title, /^JOURNAL CLUB \| Neurology \/ Internal Medicine \| Neurology:/);
 assert.equal(metadata.clinicalTopic, "Neurology");
 assert.ok(metadata.thumbnailHeadline);
 assert.match(metadata.description, /Featured trials and studies:/);
-assert.match(metadata.description, /Specialties: Neurology/);
+assert.match(metadata.description, /^JOURNAL CLUB\nRelevant specialties: Neurology; Internal Medicine\./);
 assert.match(metadata.description, /Journals: Neurology/);
 assert.ok(metadata.studyNames.some((name) => /RESOLUTION Trial/i.test(name)));
 assert.deepEqual(metadata.thumbnailJournalNames, ["Neurology", "Nature Medicine"]);
 assert.equal(metadata.thumbnailJournalCount, 2);
+assert.deepEqual(metadata.relevantSpecialties, ["Neurology", "Internal Medicine"]);
 
 const renderSource = readFileSync(path.join(process.cwd(), "scripts", "render-hour-broadcast.ts"), "utf8");
 assert.match(renderSource, /Measured broadcast frame reconciled/);

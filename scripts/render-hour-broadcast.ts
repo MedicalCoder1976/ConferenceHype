@@ -35,6 +35,9 @@ const musicPath =
   process.env.HOUR_BROADCAST_MUSIC ??
   "public/music/conferencehype-gap-music-6min-v6.mp3";
 const voicePath = process.env.HOUR_BROADCAST_VOICE;
+let weekendSpecialtiesForRender: string[] = [];
+let regionalSeriesForRender = "";
+let regionalSpecialtiesForRender: string[] = [];
 
 loadEnvConfig(process.cwd());
 
@@ -886,12 +889,13 @@ async function buildJournalCards(): Promise<{ cards: Card[]; unusedApproved: Seg
   return { cards, unusedApproved };
 }
 async function buildWeekendRoundupCards(): Promise<{ cards: Card[]; unusedApproved: Segment[] }> {
-  const [{ filterBroadcastReadySegments }, { getSegmentsByIdsFromDb }, { getStationProgramFromDb }, { buildWeekendRoundupSlots }] =
+  const [{ filterBroadcastReadySegments }, { getSegmentsByIdsFromDb, getOncologyJournalsFromDb }, { getStationProgramFromDb }, { buildWeekendRoundupSlots }, { specificWeekendSpecialty }] =
     await Promise.all([
       import("@/lib/data"),
       import("@/lib/db"),
       import("@/lib/station/db"),
-      import("@/lib/rundown/weekendRoundupSlots")
+      import("@/lib/rundown/weekendRoundupSlots"),
+      import("@/lib/station/weekendRoundup")
     ]);
   const stationProgramId = process.env.STATION_PROGRAM_ID;
   if (!stationProgramId) throw new Error("STATION_PROGRAM_ID is required when HOUR_BROADCAST_MODE=weekend30");
@@ -901,7 +905,16 @@ async function buildWeekendRoundupCards(): Promise<{ cards: Card[]; unusedApprov
   }
   const part = Number(process.env.WEEKEND_ROUNDUP_PART ?? stationProgram.position + 1);
   if (!Number.isInteger(part) || part < 1 || part > 2) throw new Error("WEEKEND_ROUNDUP_PART must be 1 or 2.");
-  const selected = await getSegmentsByIdsFromDb(stationProgram.cardIds);
+  const [selected, journals] = await Promise.all([
+    getSegmentsByIdsFromDb(stationProgram.cardIds),
+    getOncologyJournalsFromDb()
+  ]);
+  const journalsById = new Map((journals ?? []).map((journal) => [journal.id, journal]));
+  weekendSpecialtiesForRender = [...new Set((selected ?? []).map((segment) => {
+    const journalId = segment.citations.find((citation) => citation.journalId)?.journalId;
+    const journal = journalId ? journalsById.get(journalId) : undefined;
+    return journal ? specificWeekendSpecialty(journal) : "";
+  }).filter(Boolean))];
   const retryEligible = (selected ?? []).map((segment) => ({
     ...segment,
     status: "approved" as const,
@@ -912,6 +925,23 @@ async function buildWeekendRoundupCards(): Promise<{ cards: Card[]; unusedApprov
   const slots = buildWeekendRoundupSlots({ segments: renderSegments, baseTime, part }).filter(
     (slot) => slot.at < new Date(baseTime.getTime() + durationSeconds * 1000)
   );
+  return { cards: slotsToCards(slots), unusedApproved: [] };
+}
+async function buildRegionalJournalCards(): Promise<{ cards: Card[]; unusedApproved: Segment[] }> {
+  const [{ filterBroadcastReadySegments }, { getSegmentsByIdsFromDb }, { getRegionalProgram, getRegionalSeries }, { buildRegionalJournalSlots }] = await Promise.all([
+    import("@/lib/data"), import("@/lib/db"), import("@/lib/regionalJournalClub/db"), import("@/lib/rundown/regionalJournalSlots")
+  ]);
+  const programId = process.env.REGIONAL_PROGRAM_ID;
+  const seriesCode = process.env.REGIONAL_SERIES_CODE as "india" | "united_kingdom";
+  if (!programId || !seriesCode) throw new Error("REGIONAL_PROGRAM_ID and REGIONAL_SERIES_CODE are required for regional30.");
+  const [program, series] = await Promise.all([getRegionalProgram(programId), getRegionalSeries(seriesCode)]);
+  if (!program || !series || program.seriesId !== series.id) throw new Error("Regional Journal Club program or series was not found.");
+  const selected = await getSegmentsByIdsFromDb(program.cardIds);
+  const renderSegments = filterBroadcastReadySegments((selected ?? []).map((segment) => ({ ...segment, status: "approved" as const, approvedAt: segment.approvedAt ?? program.createdAt })));
+  regionalSeriesForRender = series.displayName;
+  regionalSpecialtiesForRender = program.specialties;
+  const baseTime = process.env.HOUR_BROADCAST_START ? new Date(process.env.HOUR_BROADCAST_START) : new Date();
+  const slots = buildRegionalJournalSlots({ segments: renderSegments, baseTime, seriesDisplayName: series.displayName }).filter((slot) => slot.at < new Date(baseTime.getTime() + durationSeconds * 1000));
   return { cards: slotsToCards(slots), unusedApproved: [] };
 }
 // Standalone 30-minute Meeting Watch broadcast, built from an explicit,
@@ -1337,10 +1367,11 @@ async function saveBroadcastWriteout(
 async function uploadRenderedBroadcast(
   cards: Card[],
   usedSegmentIds: string[],
-  mode: "presentation" | "journal30" | "weekend30" | "breaking15" | "meeting_watch30"
+  mode: "presentation" | "journal30" | "weekend30" | "regional30" | "breaking15" | "meeting_watch30"
 ) {
   const isJournalMode = mode === "journal30";
   const isWeekendMode = mode === "weekend30";
+  const isRegionalMode = mode === "regional30";
   const isBreakingMode = mode === "breaking15";
   const isMeetingWatchMode = mode === "meeting_watch30";
   const hourStart = process.env.HOUR_BROADCAST_START
@@ -1446,6 +1477,17 @@ async function uploadRenderedBroadcast(
             studySourceTextBySegmentId
           }));
         }
+        if (isRegionalMode) {
+          const programId = process.env.REGIONAL_PROGRAM_ID;
+          const seriesCode = process.env.REGIONAL_SERIES_CODE as "india" | "united_kingdom";
+          if (!programId || !seriesCode) throw new Error("Regional Journal Club identifiers are missing.");
+          const [{ getRegionalProgram, getRegionalSeries }, { buildRegionalJournalMetadata, assertRegionalJournalMetadata }] = await Promise.all([
+            import("@/lib/regionalJournalClub/db"), import("@/lib/youtube/regionalJournalMetadata")
+          ]);
+          const [program, series] = await Promise.all([getRegionalProgram(programId), getRegionalSeries(seriesCode)]);
+          if (!program || !series) throw new Error("Regional Journal Club metadata source was not found.");
+          return assertRegionalJournalMetadata(buildRegionalJournalMetadata({ hourStart, slots, journalsById, seriesDisplayName: series.displayName, specialties: program.specialties, studySourceTextBySegmentId }));
+        }
         const metadata = buildBroadcastMetadata({
           hourStart,
           conferenceName: activeConference?.acronym ?? activeConference?.name,
@@ -1457,7 +1499,7 @@ async function uploadRenderedBroadcast(
         return assertSearchOptimizedBroadcastMetadata(metadata, { requireJournalContext: isJournalMode });
       });
     } catch (error) {
-      if (isJournalMode || isMeetingWatchMode || process.env.STATION_PROGRAM_ID) throw error;
+      if (isJournalMode || isRegionalMode || isMeetingWatchMode || process.env.STATION_PROGRAM_ID) throw error;
       console.log(
         `::warning::Could not build YouTube metadata from actual rendered cards, falling back to generic: ${describeError(error)}`
       );
@@ -1475,7 +1517,9 @@ async function uploadRenderedBroadcast(
     process.env.BROADCAST_TITLE ||
     "Clinical Research: New Evidence Brief";
   const { addSpecialistAudienceToTitle, buildJournalClubYoutubeTitle } = await import("@/lib/youtube/clinicalEvidencePackaging");
-  const title = isJournalMode
+  const title = isRegionalMode
+    ? baseTitle
+    : isJournalMode
     ? buildJournalClubYoutubeTitle(baseTitle, actualMetadata?.specialty)
     : addSpecialistAudienceToTitle(baseTitle, actualMetadata?.specialty);
   const description =
@@ -1500,7 +1544,11 @@ async function uploadRenderedBroadcast(
       ? process.env.BREAKING_DISEASE_TYPE ?? actualMetadata?.clinicalTopic
       : actualMetadata?.clinicalTopic,
     entityLabel: actualMetadata?.thumbnailEntity,
-    seriesLabel: "CLINICAL EVIDENCE BRIEF",
+    seriesLabel: isRegionalMode
+      ? ["JOURNAL CLUB", actualMetadata?.journalClubSeriesLabel, ...(actualMetadata?.relevantSpecialties ?? [])].filter(Boolean).join(" | ")
+      : isWeekendMode
+      ? ["JOURNAL CLUB", ...(actualMetadata?.relevantSpecialties ?? [])].join(" | ")
+      : "CLINICAL EVIDENCE BRIEF",
     journalNames: isBreakingMode ? [] : actualMetadata?.thumbnailJournalNames,
     journalCount: isBreakingMode ? 0 : actualMetadata?.thumbnailJournalCount,
     panelLabel: isBreakingMode
@@ -1509,7 +1557,7 @@ async function uploadRenderedBroadcast(
         ? `${(actualMetadata?.specialty ?? "MEETING").toUpperCase()} HIGHLIGHTS`
         : undefined,
     detailLabel: undefined,
-    promiseLabel: isJournalMode || isWeekendMode
+    promiseLabel: isJournalMode || isWeekendMode || isRegionalMode
       ? "KEY RESULTS IN MINUTES"
       : isMeetingWatchMode
           ? "THE STORY BEHIND THE RESULT"
@@ -1536,7 +1584,7 @@ async function uploadRenderedBroadcast(
   await assertMediaGenerated(outputPath);
 
   const accessToken = await getYoutubeAccessToken();
-  const requestedPublishAt = (process.env.STATION_PROGRAM_ID || isMeetingWatchMode) ? process.env.YOUTUBE_PUBLISH_AT : undefined;
+  const requestedPublishAt = (process.env.STATION_PROGRAM_ID || process.env.REGIONAL_PROGRAM_ID || isMeetingWatchMode) ? process.env.YOUTUBE_PUBLISH_AT : undefined;
   const youtubePublishAt = requestedPublishAt && new Date(requestedPublishAt).getTime() > Date.now() + 60_000
     ? requestedPublishAt
     : undefined;
@@ -1573,7 +1621,7 @@ async function uploadRenderedBroadcast(
       thumbnailBytes: openingThumbnailBytes
     });
   } catch (error) {
-    if (process.env.STATION_PROGRAM_ID) throw error;
+    if (process.env.STATION_PROGRAM_ID || process.env.REGIONAL_PROGRAM_ID) throw error;
     console.log(
       `::warning::Could not set the custom YouTube thumbnail (channel may not be phone-verified yet): ${describeError(error)}`
     );
@@ -1593,7 +1641,7 @@ async function uploadRenderedBroadcast(
     console.log(`::warning::Could not post the announcement tweet to X: ${describeError(error)}`);
   }
 
-  if (!process.env.STATION_PROGRAM_ID && !isJournalMode && !isBreakingMode && !isMeetingWatchMode) {
+  if (!process.env.STATION_PROGRAM_ID && !process.env.REGIONAL_PROGRAM_ID && !isJournalMode && !isBreakingMode && !isMeetingWatchMode) {
     await withRetry(() => saveBroadcastWriteout(cards, youtubeVideoId, youtubeUrl, title));
   }
 
@@ -1610,6 +1658,11 @@ async function uploadRenderedBroadcast(
   }
 
   const { updateConferenceCoverageDeliveryInDb, updateJournalBroadcastDeliveryInDb } = await import("@/lib/db");
+  if (process.env.REGIONAL_PROGRAM_ID) {
+    const { updateRegionalProgramDelivery } = await import("@/lib/regionalJournalClub/db");
+    await withRetry(() => updateRegionalProgramDelivery(process.env.REGIONAL_PROGRAM_ID!, { status: "verified", youtubeVideoId, youtubeUrl, title, description, tags, cardIds: usedSegmentIds, writeoutCards: buildWriteoutCards(cards, hourStart), failureReason: null }));
+    return;
+  }
   if (process.env.STATION_PROGRAM_ID) {
     const { updateStationProgramDeliveryInDb } = await import("@/lib/station/delivery");
     await withRetry(() =>
@@ -1682,11 +1735,12 @@ async function main() {
   const useBlockMode = process.env.HOUR_BROADCAST_MODE === "blocks";
   const isJournalMode = process.env.HOUR_BROADCAST_MODE === "journal30";
   const isWeekendMode = process.env.HOUR_BROADCAST_MODE === "weekend30";
+  const isRegionalMode = process.env.HOUR_BROADCAST_MODE === "regional30";
   const isMeetingWatchMode = process.env.HOUR_BROADCAST_MODE === "meeting_watch30";
   const { applySpokenPronunciations, extractSpokenAbbreviationDefinitions } = await import("@/lib/media/tts");
   const { getPersona } = await import("@/lib/generation/personas");
   const isBreakingMode = process.env.HOUR_BROADCAST_MODE === "breaking15";
-  const broadcastMode = isBreakingMode ? "breaking15" : isWeekendMode ? "weekend30" : isJournalMode ? "journal30" : isMeetingWatchMode ? "meeting_watch30" : "presentation";
+  const broadcastMode = isBreakingMode ? "breaking15" : isRegionalMode ? "regional30" : isWeekendMode ? "weekend30" : isJournalMode ? "journal30" : isMeetingWatchMode ? "meeting_watch30" : "presentation";
   const { cards: rawCards, unusedApproved } = useBlockMode
     ? { cards: await buildBlockCards(), unusedApproved: [] as Segment[] }
     : isBreakingMode
@@ -1695,6 +1749,8 @@ async function main() {
       ? await buildJournalCards()
       : isWeekendMode
       ? await buildWeekendRoundupCards()
+      : isRegionalMode
+      ? await buildRegionalJournalCards()
       : isMeetingWatchMode
       ? await buildMeetingWatchCards()
       : await buildCards();
@@ -1706,7 +1762,7 @@ async function main() {
       expandContentDurations(
         replaceEmptyContentCardsWithMusic(
           replaceMissingIntakeCardsWithMusic(
-            applyPresentationPolicy(rawCards, isJournalMode || isWeekendMode || isBreakingMode || isMeetingWatchMode ? Infinity : DISCLAIMER_INTERVAL_SECONDS)
+            applyPresentationPolicy(rawCards, isJournalMode || isWeekendMode || isRegionalMode || isBreakingMode || isMeetingWatchMode ? Infinity : DISCLAIMER_INTERVAL_SECONDS)
           )
         )
       ),
@@ -1714,9 +1770,9 @@ async function main() {
       applySpokenPronunciations,
       getPersona
     ),
-    isBreakingMode ? 15 * 60 : isMeetingWatchMode ? durationSeconds : isJournalMode || isWeekendMode ? JOURNAL_SHOW_SECONDS : 3600,
-    isJournalMode || isWeekendMode || isMeetingWatchMode,
-    isJournalMode || isWeekendMode || isMeetingWatchMode,
+    isBreakingMode ? 15 * 60 : isMeetingWatchMode ? durationSeconds : isJournalMode || isWeekendMode || isRegionalMode ? JOURNAL_SHOW_SECONDS : 3600,
+    isJournalMode || isWeekendMode || isRegionalMode || isMeetingWatchMode,
+    isJournalMode || isWeekendMode || isRegionalMode || isMeetingWatchMode,
     shouldPadToFrame
   );
 
@@ -2006,7 +2062,7 @@ async function main() {
   // Real Kokoro durations replace estimates after the first frame pass. Reconcile
   // the music tail again so journal/weekend programs still end at exactly 1800s
   // with the final spoken outro at the true end, never a silent video tail.
-  if (isJournalMode || isWeekendMode || isMeetingWatchMode) {
+  if (isJournalMode || isWeekendMode || isRegionalMode || isMeetingWatchMode) {
     const targetFrameSeconds = isMeetingWatchMode ? durationSeconds : JOURNAL_SHOW_SECONDS;
     let delta = targetFrameSeconds - totalCardSeconds(cards);
     const preparedClosingIndex = cards.findIndex((card) => card.riskFlags?.includes("prepared_closing"));
@@ -2072,10 +2128,16 @@ async function main() {
       index,
       total: cards.length,
       isOpening: cards[index].riskFlags?.includes("prepared_opening"),
-      seriesHeadline: isBreakingMode ? "Clinical Evidence Brief: Breaking Paper" : "Clinical Evidence Brief",
+      seriesHeadline: isBreakingMode
+        ? "Clinical Evidence Brief: Breaking Paper"
+        : isRegionalMode
+          ? ["JOURNAL CLUB", regionalSeriesForRender, ...regionalSpecialtiesForRender].join(" | ")
+        : isWeekendMode
+          ? ["JOURNAL CLUB", ...weekendSpecialtiesForRender].join(" | ")
+          : "Clinical Evidence Brief",
       featureLabel: isBreakingMode
         ? [process.env.BREAKING_DISEASE_TYPE, cards[index].title].filter(Boolean).join(" | ")
-        : isJournalMode || isWeekendMode
+        : isJournalMode || isWeekendMode || isRegionalMode
           ? cards[index].sourceLabel ?? cards[index].title
           : undefined
     });

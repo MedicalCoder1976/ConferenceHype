@@ -110,7 +110,7 @@ export function buildStationDraft({
   const excludedJournals = new Set(excludedJournalIds);
   const excludedCards = new Set(excludedCardIds);
   const candidates = journals
-    .filter((journal) => journal.enabled && journal.specialty && !excludedJournals.has(journal.id))
+    .filter((journal) => journal.enabled && !journal.regionalOnly && journal.specialty && !excludedJournals.has(journal.id))
     .map((journal) => ({
       journal,
       specialty: specificJournalSpecialty(journal),

@@ -5,6 +5,7 @@ import { sourceRegistry, sourceToXVoice, type XVoice } from "@/lib/sources/regis
 import { conferenceSeeds } from "@/lib/catalog/conferenceSeeds";
 import { specialtyVoiceSeeds } from "@/lib/catalog/specialtyVoiceSeeds";
 import { oncologyJournalSeeds } from "@/lib/catalog/oncologyJournalSeeds";
+import { regionalJournalSeeds } from "@/lib/regionalJournalClub/catalog";
 import { normalizeLegacySegment } from "@/lib/segments/normalizeLegacy";
 import type {
   AnalyticsSnapshot,
@@ -191,6 +192,7 @@ type OncologyJournalRow = {
   enabled: boolean;
   last_issue_key?: string | null;
   specialty?: string | null;
+  regional_only?: boolean;
 };
 
 type PlatformSmokeRunRow = {
@@ -396,7 +398,8 @@ function toOncologyJournal(row: OncologyJournalRow): OncologyJournal {
     officialUrl: row.official_url,
     enabled: row.enabled,
     lastIssueKey: row.last_issue_key ?? undefined,
-    specialty: row.specialty ?? undefined
+    specialty: row.specialty ?? undefined,
+    regionalOnly: row.regional_only ?? false
   };
 }
 
@@ -2095,6 +2098,49 @@ export async function upsertAdminCatalogSeedsToDb() {
   if (journalResult.error) {
     throw journalResult.error;
   }
+}
+
+export async function upsertRegionalJournalCatalogToDb() {
+  if (!hasSupabase()) return null;
+  const supabase = createAdminClient();
+  const existingCoreUrls = new Set(oncologyJournalSeeds.map((journal) => journal.rssUrl));
+  const { data: existingRows, error: existingRowsError } = await supabase
+    .from("oncology_journals")
+    .select("rss_url");
+  if (existingRowsError) throw existingRowsError;
+  const existingUrls = new Set((existingRows ?? []).map((row) => row.rss_url));
+  const missingJournals = regionalJournalSeeds.filter((journal) => !existingUrls.has(journal.rssUrl));
+  const { error: journalError } = missingJournals.length
+    ? await supabase.from("oncology_journals").insert(
+      missingJournals.map((journal) => ({
+      name: journal.name,
+      abbreviation: journal.abbreviation,
+      rss_url: journal.rssUrl,
+      official_url: journal.officialUrl,
+      enabled: true,
+      specialty: journal.specialty ?? null,
+      regional_only: !existingCoreUrls.has(journal.rssUrl)
+      }))
+    )
+    : { error: null };
+  if (journalError) throw journalError;
+  const [{ data: seriesRows, error: seriesError }, { data: journalRows, error: seededJournalError }] = await Promise.all([
+    supabase.from("journal_series").select("id,code"),
+    supabase.from("oncology_journals").select("id,rss_url")
+  ]);
+  if (seriesError) throw seriesError;
+  if (seededJournalError) throw seededJournalError;
+  const seriesIdByCode = new Map((seriesRows ?? []).map((row) => [row.code, row.id]));
+  const journalIdByRss = new Map((journalRows ?? []).map((row) => [row.rss_url, row.id]));
+  const memberships = regionalJournalSeeds.flatMap((journal) => {
+    const seriesId = seriesIdByCode.get(journal.series);
+    const journalId = journalIdByRss.get(journal.rssUrl);
+    return seriesId && journalId ? [{ series_id: seriesId, journal_id: journalId, priority: journal.priority, enabled: true }] : [];
+  });
+  const { error: membershipError } = await supabase
+    .from("journal_series_memberships")
+    .upsert(memberships, { onConflict: "series_id,journal_id" });
+  if (membershipError) throw membershipError;
 }
 
 export async function addXFollowSourceToDb({

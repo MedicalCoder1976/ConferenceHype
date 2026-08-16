@@ -1,6 +1,6 @@
 import { extractExplicitStudyNames } from "@/lib/youtube/broadcastMetadata";
 import { specificWeekendSpecialty } from "@/lib/station/weekendRoundup";
-import { buildClinicalEvidencePackaging } from "@/lib/youtube/clinicalEvidencePackaging";
+import { buildClinicalEvidencePackaging, buildMultiJournalClubYoutubeTitle } from "@/lib/youtube/clinicalEvidencePackaging";
 import type { BroadcastSlot } from "@/lib/rundown/slots";
 import type { BroadcastMetadata } from "@/lib/youtube/broadcastMetadata";
 import type { OncologyJournal } from "@/lib/types";
@@ -74,7 +74,7 @@ export function buildWeekendRoundupMetadata({
     studyNames,
     multiTopic: specialties.length > 1
   });
-  const title = packaging.youtubeTitle;
+  const title = buildMultiJournalClubYoutubeTitle(packaging.youtubeTitle, specialties);
   const featured = studyNames.length ? studyNames.join("; ") : "Article titles and PubMed citations are listed in the chapters below";
   const chapters = resolved.map(({ slot, segment, journal, specialty }) => {
     const elapsed = (slot.at.getTime() - hourStart.getTime()) / 1000;
@@ -92,9 +92,10 @@ export function buildWeekendRoundupMetadata({
     "ConferenceHype"
   ]);
   const description = [
+    "JOURNAL CLUB",
+    `Relevant specialties: ${specialties.join("; ")}.`,
     `${TITLE} — Part ${part}`,
     `Featured trials and studies: ${featured}.`,
-    `Specialties: ${specialties.join("; ")}.`,
     `Journals: ${journals.join("; ")}.`,
     "ConferenceHype selected these evidence-rich cards from journal articles actually covered during the Monday-Friday broadcast week.",
     "",
@@ -116,13 +117,21 @@ export function buildWeekendRoundupMetadata({
     thumbnailHook: packaging.thumbnailHook,
     thumbnailEntity: packaging.thumbnailEntity,
     thumbnailJournalNames: journals.slice(0, 2),
-    thumbnailJournalCount: journals.length
+    thumbnailJournalCount: journals.length,
+    relevantSpecialties: specialties
   };
 }
 
 export function assertWeekendRoundupMetadata(metadata: BroadcastMetadata) {
-  if (!metadata.clinicalTopic || !metadata.title.startsWith(metadata.clinicalTopic + ":")) throw new Error("Weekend roundup title must begin with its disease or clinical topic.");
-  for (const label of ["Featured trials and studies:", "Specialties:", "Journals:"]) {
+  if (!metadata.title.startsWith("JOURNAL CLUB | ")) throw new Error("Weekend roundup title must begin with JOURNAL CLUB and its specialties.");
+  if (!metadata.relevantSpecialties?.length) throw new Error("Weekend roundup must resolve at least one relevant specialty.");
+  for (const specialty of metadata.relevantSpecialties) {
+    if (!metadata.title.includes(specialty)) throw new Error(`Weekend roundup title is missing specialty ${specialty}.`);
+    if (!metadata.description.includes(`Relevant specialties: ${metadata.relevantSpecialties.join("; ")}.`)) {
+      throw new Error("Weekend roundup description must list every resolved specialty.");
+    }
+  }
+  for (const label of ["JOURNAL CLUB", "Featured trials and studies:", "Relevant specialties:", "Journals:"]) {
     if (!metadata.description.includes(label)) throw new Error(`Weekend metadata is missing ${label}`);
   }
   if (!metadata.tags.includes("Weekend Medical Roundup")) throw new Error("Weekend roundup SEO tag is missing.");
