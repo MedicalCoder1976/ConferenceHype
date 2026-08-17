@@ -2153,7 +2153,7 @@ async function main() {
   await writeFile(concatPath, concatLines.join("\n"), "utf8");
 
   type VoiceEntry = { path: string; startMs: number; durationMs: number };
-  type GapEntry = { path: string; startMs: number };
+  type GapEntry = { path: string; startMs: number; durationMs: number };
   type BedEntry = { startMs: number; durationMs: number };
   const voiceEntries: VoiceEntry[] = [];
   const gapEntries: GapEntry[] = [];    // gap-clip stingers, one per music card
@@ -2177,7 +2177,7 @@ async function main() {
       if (card.gapClipPath) {
         const resolvedGap = path.resolve(card.gapClipPath);
         if (existsSync(resolvedGap)) {
-          gapEntries.push({ path: resolvedGap, startMs: offsetMs });
+          gapEntries.push({ path: resolvedGap, startMs: offsetMs, durationMs: card.duration * 1000 });
         }
       }
     }
@@ -2217,7 +2217,10 @@ async function main() {
     // Kokoro per-card voices + gap-clip stingers, all delayed to their slot start,
     // mixed over a music bed confined to each music-kind card's own window.
     const voiceInputArgs = voiceEntries.flatMap((e) => ["-i", e.path]);
-    const gapInputArgs = gapEntries.flatMap((e) => ["-i", e.path]);
+    // Loop each speech-free gap clip for the full transition window. This is
+    // a renderer-wide backstop: if any format schedules a gap longer than
+    // the source clip, audible music continues instead of ending in silence.
+    const gapInputArgs = gapEntries.flatMap((e) => ["-stream_loop", "-1", "-i", e.path]);
     const filterParts: string[] = [];
     // Rule 9: the bed must only sound during an actual gap slot, never under
     // voice. It previously looped continuously for the whole hour and got
@@ -2255,8 +2258,9 @@ async function main() {
     const gapOffset = voiceEntries.length + 2;
     // Gap clips at 0.70 â€” prominent, above the bed but below the speaker voice
     gapEntries.forEach((e, i) => {
+      const durationSeconds = Math.max(0.1, e.durationMs / 1000);
       filterParts.push(
-        `[${gapOffset + i}:a]volume=0.70,adelay=${e.startMs}|${e.startMs}[g${i}]`
+        `[${gapOffset + i}:a]volume=0.70,atrim=0:${durationSeconds.toFixed(3)},asetpts=PTS-STARTPTS,adelay=${e.startMs}|${e.startMs}[g${i}]`
       );
     });
     const allStreams = [

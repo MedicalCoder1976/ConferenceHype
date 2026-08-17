@@ -26,7 +26,10 @@
 // logic needed here.
 export const JOURNAL_SHOW_SECONDS = 1800;
 export const JOURNAL_CONTENT_SECONDS = 75;
-export const JOURNAL_MUSIC_SECONDS = 45;
+// Keep article/topic handoffs concise. Gap clips are produced as 20-second
+// transitions; a 45-second slot left a low-audibility tail after the clip's
+// musical arc ended, which listeners perceived as dead silence.
+export const JOURNAL_MUSIC_SECONDS = 20;
 export const JOURNAL_DISCLAIMER_SECONDS = 30;
 export const JOURNAL_CARDS_PER_GROUP = 4;
 export const JOURNAL_GROUPS_PER_SHOW = 6;

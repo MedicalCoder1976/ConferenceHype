@@ -96,7 +96,7 @@ function expandDefinedAbbreviations(script: string, definitions: ReadonlyMap<str
 // 2026-07-06 for "METHODS". Must run before the colon-to-comma rule below,
 // since these labels are always followed by a colon in the source text.
 const STRUCTURED_ABSTRACT_LABELS =
-  /\b(BACKGROUND|OBJECTIVES?|PURPOSE|IMPORTANCE|INTRODUCTION|METHODS?|DESIGN|SETTING|PARTICIPANTS|INTERVENTIONS?|RESULTS|FINDINGS|DISCUSSION|CONCLUSIONS?|LIMITATIONS|MEASURES|OUTCOMES?|PATIENTS|REGISTRATION)\b/g;
+  /\b(BACKGROUND|AIMS?|OBJECTIVES?|PURPOSE|IMPORTANCE|INTRODUCTION|METHODS?|DESIGN|SETTING|PARTICIPANTS|INTERVENTIONS?|RESULTS|FINDINGS|DISCUSSION|CONCLUSIONS?|LIMITATIONS|MEASURES|OUTCOMES?|PATIENTS|REGISTRATION)\b/g;
 
 // Three/four-letter month abbreviations as they appear in PubMed dates and
 // citations (e.g. "Jun 2026", "Sept. 12"). Kokoro's G2P reads unrecognized
@@ -126,6 +126,12 @@ function expandMonthAbbreviations(text: string): string {
 export function applySpokenPronunciations(script: string, sourceContext: string | ReadonlyMap<string, string> = script) {
   const definitions = typeof sourceContext === "string" ? extractSpokenAbbreviationDefinitions(sourceContext) : sourceContext;
   return expandMonthAbbreviations(expandRomanNumerals(expandDefinedAbbreviations(script, definitions)))
+    // PubMed sometimes exposes a combined "BACKGROUND AND AIMS:" label.
+    // Older cards wrapped that raw label inside the normalized Background
+    // section, producing "Background: Background and aims:" on air. Keep
+    // one viewer-facing section cue and let Kokoro read AIMS as the word.
+    .replace(/\bBackground\s*:\s*(?:Background\s+and\s+Aims?|Aims?)\s*:\s*/gi, "Background: ")
+    .replace(/\b(Background|Methods?|Results?|Discussion|Conclusions?)\s*:\s*\1\s*:\s*/gi, "$1: ")
     .replace(STRUCTURED_ABSTRACT_LABELS, (word) => word.charAt(0) + word.slice(1).toLowerCase())
     // Rule 1: strip URLs — TTS would read out raw links character-by-character
     .replace(/https?:\/\/[^\s)\]}>]+/g, "")

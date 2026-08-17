@@ -73,7 +73,7 @@ function matchSection(text: string, labels: string[]) {
       // is always colon-terminated -- making the colon mandatory here only
       // rules out false positives, it can't miss a genuine section.
       new RegExp(
-        `\\b${label}\\b\\s*:\\s+([\\s\\S]{20,}?)(?=\\b(?:Background|Purpose|Objectives?|Importance|Materials? and Methods|Methods|Design|Results|Findings|Discussion|Conclusions?)\\b\\s*:|$)`,
+        `\\b${label}\\b\\s*:\\s+([\\s\\S]{20,}?)(?=\\b(?:Background(?: and Aims?)?|Purpose|Objectives?|Importance|Materials? and Methods|Methods|Design|Results|Findings|Discussion|Conclusions?)\\b\\s*:|$)`,
         "i"
       )
     )?.[1];
@@ -106,7 +106,7 @@ export function buildRequiredSectionSummary({
   const sourceText = clean(text);
   const topic = titleWithoutBatch(title);
   const background =
-    matchSection(sourceText, ["Background", "Purpose", "Objective", "Objectives", "Importance"]) ||
+    matchSection(sourceText, ["Background and Aims?", "Background", "Purpose", "Objective", "Objectives", "Importance"]) ||
     sentenceAt(sourceText, 0) ||
     `The available ${sourceName} record identifies ${topic} as the article topic.`;
   const methods =
