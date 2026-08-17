@@ -12,6 +12,17 @@ type DeliveryStatus = {
   failureReason?: string;
 };
 
+function notifyVideoDeveloped(delivery: DeliveryStatus) {
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  const notification = new Notification("ConferenceHype video developed", {
+    body: `${delivery.title} is verified public on YouTube. The Story form is ready for the next video.`
+  });
+  notification.onclick = () => {
+    window.focus();
+    if (delivery.youtubeUrl) window.open(delivery.youtubeUrl, "_blank", "noopener,noreferrer");
+  };
+}
+
 function concise(value: string, max: number) {
   const normalized = value.replace(/\s+/g, " ").trim();
   if (normalized.length <= max) return normalized;
@@ -92,7 +103,17 @@ export function StoryDesk() {
           return;
         }
         if (body.delivery.status === "verified" && body.delivery.publicReachable) {
-          setMessage("Verified: the exact saved video ID is publicly reachable on YouTube.");
+          window.localStorage.removeItem("conferencehype:last-story-broadcast-id");
+          setNarrative("");
+          setSourceUrl("");
+          setTitleOverride("");
+          setTopicOverride("");
+          setSpecialty("");
+          setSourceName("");
+          setAuthors("");
+          setBroadcastId("");
+          setMessage("Video developed and verified public on YouTube. The form is ready for the next video.");
+          notifyVideoDeveloped(body.delivery);
           return;
         }
         setMessage(body.delivery.status === "verified"
@@ -110,6 +131,9 @@ export function StoryDesk() {
   }, [broadcastId]);
 
   const develop = () => startTransition(async () => {
+    if ("Notification" in window && Notification.permission === "default") {
+      void Notification.requestPermission();
+    }
     setMessage("Validating Claude's narrative and preparing the YouTube video…");
     setDelivery(null);
     setBroadcastId("");
@@ -170,7 +194,7 @@ export function StoryDesk() {
           {working ? "Developing and verifying YouTube video…" : "Develop and publish YouTube video"}
         </button>
 
-        {message ? <div className="mt-4 border border-cyanline/30 bg-cyanline/10 p-3 text-sm font-bold">{message}</div> : null}
+        {message ? <div role="status" aria-live="polite" className={`mt-4 border p-3 text-sm font-bold ${delivery?.status === "verified" && delivery.publicReachable ? "border-emerald-600/30 bg-emerald-50 text-emerald-950" : "border-cyanline/30 bg-cyanline/10"}`}>{message}</div> : null}
         {delivery?.status === "verified" && delivery.publicReachable && delivery.youtubeUrl ? (
           <a href={delivery.youtubeUrl} target="_blank" rel="noreferrer" className="mt-3 flex min-h-12 items-center justify-center gap-2 bg-ink px-4 text-sm font-black uppercase text-white">
             <CheckCircle2 className="h-5 w-5 text-emerald-400" />Verified public on YouTube · Watch video
