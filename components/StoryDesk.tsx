@@ -44,11 +44,6 @@ function inferTitle(narrative: string, topic: string) {
   return concise(topic || narrative, 100);
 }
 
-function inferThumbnail(narrative: string, topic: string) {
-  if (/\bPREVENT\b/i.test(narrative)) return "Who Do Our Heart Risk Tools Miss?";
-  return concise(`What Changed at ${topic}?`, 58);
-}
-
 export function StoryDesk() {
   const [narrative, setNarrative] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
@@ -70,7 +65,7 @@ export function StoryDesk() {
   const wordCount = narrative.trim() ? narrative.trim().split(/\s+/).length : 0;
   const topic = topicOverride.trim() || inferTopic(narrative);
   const title = titleOverride.trim() || inferTitle(narrative, topic);
-  const thumbnailHeadline = inferThumbnail(narrative, topic);
+  const thumbnailHeadline = concise(title, 58);
   const descriptionOpening = topic
     ? `The findings, limitations, and clinical implications from ${topic}, explained in a source-attributed ConferenceHype meeting review.`
     : "";
