@@ -2101,7 +2101,9 @@ export async function upsertAdminCatalogSeedsToDb() {
 }
 
 export async function upsertRegionalJournalCatalogToDb() {
-  if (!hasSupabase()) return null;
+  // Regional preparation runs with the service-role key and intentionally does
+  // not require the public anon key. Let createAdminClient fail explicitly if
+  // either admin credential is missing instead of silently skipping the seed.
   const supabase = createAdminClient();
   const existingCoreUrls = new Set(oncologyJournalSeeds.map((journal) => journal.rssUrl));
   const { data: existingRows, error: existingRowsError } = await supabase

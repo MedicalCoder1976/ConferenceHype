@@ -73,6 +73,7 @@ jobs:
         run: npx tsx scripts/prepare-regional-journal-club.ts
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           REGIONAL_SERIES_CODE: ${{ needs.resolve.outputs.code }}
           REGIONAL_RELEASE_DATE: ${{ needs.resolve.outputs.date }}

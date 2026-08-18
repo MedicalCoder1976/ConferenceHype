@@ -38,7 +38,10 @@ const schedule = readFileSync(path.join(process.cwd(), "lib", "station", "schedu
 assert.match(cadence, /!journal\.regionalOnly/);
 assert.match(schedule, /!journal\.regionalOnly/);
 const workflow = readFileSync(path.join(process.cwd(), ".github", "workflows", "regional-journal-club.yml"), "utf8");
+const dbSource = readFileSync(path.join(process.cwd(), "lib", "db.ts"), "utf8");
 assert.match(workflow, /default: false/);
 assert.match(workflow, /REGIONAL_JOURNAL_CLUB_PUBLISH_ENABLED/);
 assert.doesNotMatch(workflow, /activate_station_schedule|activate_weekend_station_schedule|stream_state/);
+assert.match(workflow, /NEXT_PUBLIC_SUPABASE_ANON_KEY: \$\{\{ secrets\.NEXT_PUBLIC_SUPABASE_ANON_KEY \}\}/);
+assert.doesNotMatch(dbSource.match(/export async function upsertRegionalJournalCatalogToDb\(\)[\s\S]*?\n}\n/)?.[0] ?? "", /hasSupabase\(\)/);
 console.log("Regional Journal Club verification passed.");
