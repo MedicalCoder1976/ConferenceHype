@@ -36,8 +36,8 @@ assert.ok(ranked[0].studyNames.length > 0, "Explicitly named trials should rank 
 const programs = splitWeekendPrograms(ranked);
 assert.equal(WEEKEND_CARDS_PER_PROGRAM, 24);
 assert.equal(WEEKEND_CONTENT_SECONDS, 55);
-assert.deepEqual(programs.map((program) => program.length), [24, 24]);
-assert.equal(new Set(programs.flat().map((item) => item.segment.id)).size, 48);
+assert.deepEqual(programs.map((program) => program.length), [24]);
+assert.equal(new Set(programs.flat().map((item) => item.segment.id)).size, 24);
 
 const baseTime = new Date("2026-07-25T13:00:00Z");
 const slots = buildWeekendRoundupSlots({ segments: programs[0].map((item) => ({ ...item.segment, status: "approved" as const })), baseTime, part: 1 });
@@ -73,9 +73,9 @@ assert.match(workflow, /activate_weekend_station_schedule/);
 const weekdayWorkflow = readFileSync(path.join(process.cwd(), ".github", "workflows", "weekday-station-wheel.yml"), "utf8");
 assert.match(weekdayWorkflow, /cron: "30 3 \* \* 1-5"/);
 assert.doesNotMatch(weekdayWorkflow, /weekend30/);
-const migration = readFileSync(path.join(process.cwd(), "supabase", "migrations", "20260725120000_weekend_roundup_station.sql"), "utf8");
+const migration = readFileSync(path.join(process.cwd(), "supabase", "migrations", "20260817120000_one_daily_journal_club.sql"), "utf8");
 assert.match(migration, /extract\(isodow from candidate\.schedule_date\) not in \(6, 7\)/);
-assert.match(migration, /distinct_videos <> 2/);
-assert.match(migration, /generate_series\(2, 5\)/);
+assert.match(migration, /distinct_videos <> 1/);
+assert.match(migration, /generate_series\(1, 5\)/);
 assert.match(migration, /weekday_programming_mutated', false/);
 console.log("Weekend roundup verification passed.");

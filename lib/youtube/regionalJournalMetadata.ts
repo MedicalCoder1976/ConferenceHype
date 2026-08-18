@@ -13,7 +13,7 @@ export function buildRegionalJournalMetadata({ hourStart, slots, journalsById, s
   const description = [
     `JOURNAL CLUB - ${seriesDisplayName}`,
     `Relevant specialties: ${specialties.join("; ")}.`,
-    `Audience: ${specialties.join("; ")}; Physicians; Advanced Practice Providers (APPs).`,
+    `Audience: Physicians; Medical Students; ${specialties.join("; ")}; Advanced Practice Providers (APPs).`,
     ...(detailStart >= 0 ? lines.slice(detailStart) : lines)
   ].join("\n");
   return {

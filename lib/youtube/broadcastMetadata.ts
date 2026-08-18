@@ -321,8 +321,8 @@ function buildDescription({
   const specialtyLine = specialties.length ? `Relevant specialties: ${specialties.join("; ")}.` : "";
   const specialistLabels = [...new Set(specialties.flatMap(specialistAudience))];
   const audienceLine = specialistLabels.length
-    ? `Audience: ${specialistLabels.join("; ")}; Physicians; Advanced Practice Providers (APPs).`
-    : "Audience: Physicians; Advanced Practice Providers (APPs).";
+    ? `Audience: Physicians; Medical Students; ${specialistLabels.join("; ")}; Advanced Practice Providers (APPs).`
+    : "Audience: Physicians; Medical Students; Advanced Practice Providers (APPs).";
   const studyLine = optimized && studyNames.length ? `Named studies covered: ${studyNames.join("; ")}.` : "";
   return [journalClubLine, journalLine, specialtyLine, audienceLine, studyLine, intro, journalEditionLine, "", ...chapterLines, "", hashtags].filter((line, index, lines) => line || (index > 0 && lines[index - 1])).join("\n");
 }

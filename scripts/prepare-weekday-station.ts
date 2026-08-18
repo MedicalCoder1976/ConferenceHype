@@ -35,7 +35,7 @@ async function main() {
   ]);
   const weekStart = mondayOf(targetDate);
   const existingSchedules = (await getStationSchedulesFromDb(30)) ?? [];
-  const releaseMinutes = [7 * 60 + 15, 17 * 60 + 10];
+  const releaseMinutes = [7 * 60 + 15];
   const existingTargetSchedule = existingSchedules.find((schedule) => schedule.scheduleDate === targetDate);
   const existingOriginals = existingTargetSchedule?.programs
     .filter((program) => program.programType === "new" && program.position < STATION_NEW_PROGRAMS_PER_WEEKDAY)
@@ -94,13 +94,13 @@ async function main() {
     }
     if (programs.length === STATION_NEW_PROGRAMS_PER_WEEKDAY) break;
   }
-  if (programs.length !== STATION_NEW_PROGRAMS_PER_WEEKDAY || programs.some((program) => program.programType !== "new")) throw new Error("Two substantive, source-backed journal programs with twelve unused cards each are required for the next weekday release.");
+  if (programs.length !== STATION_NEW_PROGRAMS_PER_WEEKDAY || programs.some((program) => program.programType !== "new")) throw new Error("One substantive, source-backed journal program with twelve unused cards is required for the next weekday release.");
   const schedule = await saveStationDraftToDb({ scheduleDate: targetDate, timezone: "America/New_York", cycleStartMinutes: 7 * 60 + 15, programs });
   if (!schedule) throw new Error("Supabase is not configured.");
   // Reservation never changes segment status. Only these originals are rendered;
   // every unselected card remains approved in its journal queue.
   const scheduledOriginals = schedule.programs.filter((program) => program.programType === "new" && program.position < STATION_NEW_PROGRAMS_PER_WEEKDAY);
-  if (scheduledOriginals.length !== STATION_NEW_PROGRAMS_PER_WEEKDAY) throw new Error("Saved schedule did not contain exactly two weekday originals.");
+  if (scheduledOriginals.length !== STATION_NEW_PROGRAMS_PER_WEEKDAY) throw new Error("Saved schedule did not contain exactly one weekday original.");
   const matrix = scheduledOriginals.map((program) => {
     const publishAt = easternLocalToUtc(targetDate, releaseMinutes[program.position]);
     return { station_program_id: program.id, journal_id: program.journalId, stream_start_time: publishAt, youtube_publish_at: publishAt };

@@ -466,7 +466,8 @@ const lungCancerJournalMetadata = buildBroadcastMetadata({
   titleDateOverride: "2026-07-01"
 });
 assert.match(lungCancerJournalMetadata.description, /Relevant specialties: Internal Medicine; Oncology\./);
-assert.match(lungCancerJournalMetadata.description, /Audience: Internists; Oncologists; Physicians; Advanced Practice Providers \(APPs\)\./);
+assert.match(lungCancerJournalMetadata.description, /Audience: Physicians; Medical Students; Internists; Oncologists; Advanced Practice Providers \(APPs\)\./);
+assert.doesNotMatch(`${lungCancerJournalMetadata.title}\n${lungCancerJournalMetadata.description}`, /Medical Specialists/i);
 assert.ok(lungCancerJournalMetadata.tags.includes("Oncology"));
 assert.ok(lungCancerJournalMetadata.tags.includes("Oncologists"));
 const cardiologyPackaging = buildClinicalEvidencePackaging({
@@ -496,7 +497,7 @@ const optimizedStudyMetadata = buildBroadcastMetadata({
   titleDateOverride: "2026-07-01"
 });
 assert.match(optimizedStudyMetadata.title, /^Test Journal: Internal Medicine Update - New Internal Medicine Research/);
-assert.match(optimizedStudyMetadata.description, /^Internal Medicine Journal Club\nJournal: Test Journal\.\nRelevant specialties: Internal Medicine\.\nAudience: Internists; Physicians; Advanced Practice Providers \(APPs\)\.\nNamed studies covered: V-NE Ulcer Study 6\./);
+assert.match(optimizedStudyMetadata.description, /^Internal Medicine Journal Club\nJournal: Test Journal\.\nRelevant specialties: Internal Medicine\.\nAudience: Physicians; Medical Students; Internists; Advanced Practice Providers \(APPs\)\.\nNamed studies covered: V-NE Ulcer Study 6\./);
 assert.ok(optimizedStudyMetadata.tags.includes("Physicians"));
 assert.ok(optimizedStudyMetadata.tags.includes("Advanced Practice Providers"));
 assert.ok(optimizedStudyMetadata.tags.includes("APPs"));
@@ -1327,7 +1328,7 @@ assert.doesNotMatch(meetingWatchMetadataSource, /no fabricated claims/i);
 assert.match(youtubeUploaderSource, /no fabricated claims/);
 assert.match(weekdayReleaseSource, /STATION_NEW_PROGRAMS_PER_WEEKDAY/);
 assert.match(weekdayReleaseSource, /7 \* 60 \+ 15/);
-assert.match(weekdayReleaseSource, /17 \* 60 \+ 10/);
+assert.doesNotMatch(weekdayReleaseSource, /17 \* 60 \+ 10/);
 assert.match(weekdayReleaseSource, /eligibleNextDayDeck/);
 assert.match(weekdayReleaseSource, /minimumSubstantiveCards\("journal30", "station-program"\)/);
 assert.match(weekdayReleaseSource, /eligibleDeck\.cards\.length < requiredCards/);
@@ -1357,9 +1358,9 @@ assert.match(journalCardV2Workflow, /cron: "0 1 \* \* 1-5"/);
 assert.match(journalCardV2Workflow, /github\.event_name == 'schedule'[\s\S]*JOURNAL_CARD_V2_MAX_CARDS/);
 assert.match(youtubeUploaderSource, /privacyStatus: publishAt \? "private" : "public"/);
 assert.match(youtubeUploaderSource, /publishAt\?: string/);
-const twoDailyReleaseMigration = readFileSync(path.join(process.cwd(), "supabase", "migrations", "20260808190000_two_daily_journal_releases.sql"), "utf8");
-assert.match(twoDailyReleaseMigration, /new_youtube_videos', 2[\s\S]*unused_cards_preserved', true/);
-assert.match(twoDailyReleaseMigration, /exactly two new journal releases per day/);
+const oneDailyReleaseMigration = readFileSync(path.join(process.cwd(), "supabase", "migrations", "20260817120000_one_daily_journal_club.sql"), "utf8");
+assert.match(oneDailyReleaseMigration, /new_youtube_videos', 1[\s\S]*unused_cards_preserved', true/);
+assert.match(oneDailyReleaseMigration, /exactly one new journal release per day/);
 const journalCadenceSource = readFileSync(path.join(process.cwd(), "lib", "station", "journalCadence.ts"), "utf8");
 assert.match(journalCadenceSource, /TOP_JOURNAL_RELEASE_CADENCE/);
 assert.match(journalCadenceSource, /TOP_JOURNAL_FALLBACK_ORDER/);

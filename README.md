@@ -126,14 +126,14 @@ for production scheduling. Local-only workspace changes are not final code.
 
 ### Weekday journal station scheduling
 
-The production weekday station releases exactly two new journal videos each
-Monday through Friday, at 7:15 AM and 5:10 PM America/New_York. Each program
+The production weekday station releases exactly one new journal video each
+Monday through Friday, at 7:15 AM America/New_York. Each program
 must contain at least 12 substantive, source-backed cards, and cards already
 reserved earlier in the same week cannot be reused.
 
 Journal selection remains quality-first. The scheduler tries the preferred
 journal cadence and fallback list before other enabled journals. If those pools
-cannot supply two complete, distinct programs, it may use an enabled journal
+cannot supply one complete program, it may use an enabled journal
 that was previously sidelined from the preferred cadence. Disabled journals
 remain excluded. Publication freshness expands only as needed, in this order:
 14, 21, 28, then 35 days. The 12-card floor is never lowered to fill a slot.
@@ -204,6 +204,10 @@ embedder.
 words "Physician Education." This rule applies to opening artwork, thumbnails,
 all subsequent slides, transition panels, narration, and closing copy. Story
 programs use ConferenceHype branding and the story-specific topic instead.
+
+For the Story opening/title-card format that previously displayed `CLINICAL
+EVIDENCE BRIEF` above the story topic, display `BREAKING` instead. Do not use
+`CLINICAL EVIDENCE BRIEF` in that position for this format.
 
 ### Persistent evidence dashboard
 
@@ -745,17 +749,18 @@ Each new program reserves at most twelve quality-passed cards. This bounds the
 approval transaction and render input while leaving excess cards in their
 journal deck for a later program.
 
-The regular Monday-Friday journal wheel releases exactly two distinct new
-journal videos per day at **7:15 AM and 5:10 PM America/New_York**. The
-`weekday-station-wheel.yml` prepares both programs in advance, uploads them
-privately, and asks YouTube to publish each at its assigned time. Each YouTube
+The regular Monday-Friday journal wheel releases exactly one new
+journal video per day at **7:15 AM America/New_York**. The
+`weekday-station-wheel.yml` prepares the program in advance, uploads it
+privately, and asks YouTube to publish it at its assigned time. Each YouTube
 title includes the journal title. Assigned articles must predate the broadcast
 date and normally be no more than fourteen days old; a bounded twenty-one-day
-fallback is allowed only when two complete twelve-card decks cannot be assembled
+fallback is allowed only when one complete twelve-card deck cannot be assembled
 from the fourteen-day window. Selection stays within the approved flagship list
 and never lowers the twelve substantive, source-backed card floor. Activation
-fails closed until two distinct verified YouTube IDs exist. Unused cards remain
-available, and the separate weekend roundup is unchanged.
+fails closed until one verified YouTube ID exists. Unused cards remain
+available, and the separately scheduled weekend roundup also releases one new
+Journal Club per day.
 
 Morning-journal recovery is deliberately fail-closed. GitHub Actions runner
 delays must not silently turn a scheduled run into a successful no-op:
@@ -877,7 +882,7 @@ journals or specialties, instead of a generic always-identical title.
   require `dominant` to represent a real proportion of resolved cards (e.g.
   ≥40%), falling through to the existing `roundup` tier otherwise.
 - **Study-name search optimization (effective July 24, 2026)**: named studies and trials are extracted only when explicitly present in approved card text, citation labels, or the linked PubMed abstract. Registry-only identifiers such as `NCT...`, `ISRCTN...`, and `ACTRN...` are not viewer-facing search terms. Named studies may appear in the description and leading tags, but the journal remains first in the title. Generic phrases such as `this study` or `controlled trial` are rejected, and the system never invents a study name. Metadata refresh updates canonical videos in place without uploading duplicates.
-- **Description invariant**: every journal video begins its description with `<Specialty> Journal Club`, then `Journal: ...`, `Relevant specialties: ...`, and an `Audience: ...` line naming the specific specialists plus Physicians and Advanced Practice Providers (APPs). For example, an oncology program begins `Oncology Journal Club` before `Journal: Cancer Discovery.` When named studies are detected, a `Named studies covered: ...` line follows. Journal and source publication month/year remain explicit.
+- **Description invariant**: every journal video begins its description with `<Specialty> Journal Club`, then `Journal: ...`, `Relevant specialties: ...`, and an `Audience: ...` line beginning with Physicians and Medical Students, followed by the specific resolved specialties and Advanced Practice Providers (APPs). The generic phrase `Medical Specialists` is prohibited. For example, an oncology program begins `Oncology Journal Club` before `Journal: Cancer Discovery.` When named studies are detected, a `Named studies covered: ...` line follows. Journal and source publication month/year remain explicit.
 - **Station search-metadata gate**: every newly rendered weekday journal program must pass one validation package before it can be marked verified. The journal begins the title; the description begins with the specific specialty plus `Journal Club`, followed by the journal name; `Multiple Cancers`, `Others`, and registry-only identifiers are rejected from viewer-facing search metadata. Journal name, specific specialty, and publication month/year are mandatory; generic fallback and thumbnail-upload warnings are not accepted for station programs.
 - **Description**: explicitly names every journal and its source publication month/year near the top, followed by one YouTube-chapter-formatted line per content card
   (`M:SS Journal - Specialty - Mon YYYY`), which YouTube auto-converts into
@@ -1093,14 +1098,14 @@ passed card IDs stored on verified Monday-Friday station programs. Ranking is
 deterministic and cost-free: explicit trial or study names, registry IDs,
 randomized or phase-trial language, clinically meaningful outcomes, structured
 article quality, and numerical results receive additional weight. No LLM is
-called. Saturday receives the top 48 cards split into two balanced 24-card,
-30-minute programs. Sunday uses 48 cards not selected Saturday when available;
+called. Saturday receives the top 24 cards in one 30-minute program. Sunday
+uses 24 cards not selected Saturday when available;
 if weekly inventory is lower, it keeps every unused card first and fills only
 the remaining positions with the next-best cards already used Saturday.
 
-The two programs begin at 9:00 and 9:30 AM Eastern. After both distinct YouTube
-uploads verify, an isolated weekend-only database function repeats those two
-canonical videos across the six-position station wheel for that day. It never
+The program begins at 9:00 AM Eastern. After its YouTube upload verifies, an
+isolated weekend-only database function repeats that canonical video across
+the six-position station wheel for that day. It never
 changes weekday selection, weekday card status, or the weekday workflow. A
 failed render cannot activate a partial weekend schedule, so the previously
 verified public player remains available. Monday's normal weekday activation

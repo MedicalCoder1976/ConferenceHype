@@ -1,7 +1,7 @@
 import { extractExplicitStudyNames } from "@/lib/youtube/broadcastMetadata";
 import type { OncologyJournal, Segment } from "@/lib/types";
 
-export const WEEKEND_PROGRAMS_PER_DAY = 2;
+export const WEEKEND_PROGRAMS_PER_DAY = 1;
 export const WEEKEND_CARDS_PER_PROGRAM = 24;
 export const WEEKEND_CYCLE_START_MINUTES = 9 * 60;
 
@@ -87,7 +87,7 @@ export function splitWeekendPrograms(
   cardsPerProgram = WEEKEND_CARDS_PER_PROGRAM
 ) {
   const selected = ranked.slice(0, cardsPerProgram * WEEKEND_PROGRAMS_PER_DAY);
-  const programs: WeekendCandidate[][] = [[], []];
+  const programs: WeekendCandidate[][] = Array.from({ length: WEEKEND_PROGRAMS_PER_DAY }, () => []);
   selected.forEach((candidate, index) => programs[index % WEEKEND_PROGRAMS_PER_DAY].push(candidate));
   return programs;
 }

@@ -49,8 +49,8 @@ async function main() {
     .in("station_daily_schedules.status", ["active", "superseded", "verified"]);
   if (sourceError) throw sourceError;
   const broadcastCardIds = [...new Set((sourcePrograms ?? []).flatMap((program) => program.card_ids ?? []))];
-  if (broadcastCardIds.length < WEEKEND_CARDS_PER_PROGRAM * 2) {
-    throw new Error(`Only ${broadcastCardIds.length} actually-broadcast weekday cards were found; ${WEEKEND_CARDS_PER_PROGRAM * 2} are required for two weekend programs.`);
+  if (broadcastCardIds.length < WEEKEND_CARDS_PER_PROGRAM) {
+    throw new Error(`Only ${broadcastCardIds.length} actually-broadcast weekday cards were found; ${WEEKEND_CARDS_PER_PROGRAM} are required for one weekend program.`);
   }
   const [{ getSegmentsByIdsFromDb, getOncologyJournalsFromDb }] = await Promise.all([import("@/lib/db")]);
   const [segments, journals] = await Promise.all([
@@ -76,7 +76,7 @@ async function main() {
     for (const id of (saturdayPrograms ?? []).flatMap((program) => program.card_ids ?? [])) excludedSegmentIds.add(id);
   }
   const journalsById = new Map((journals ?? []).map((journal) => [journal.id, journal]));
-  const requiredCards = WEEKEND_CARDS_PER_PROGRAM * 2;
+  const requiredCards = WEEKEND_CARDS_PER_PROGRAM;
   let ranked = rankWeekendCandidates({ segments, journalsById, sourceTextBySegmentId, excludedSegmentIds });
   if (ranked.length < requiredCards && excludedSegmentIds.size > 0) {
     const selectedIds = new Set(ranked.map((candidate) => candidate.segment.id));

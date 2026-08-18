@@ -110,7 +110,7 @@ const SPECIALIST_TITLE_LABELS: Record<string, string> = {
   "Emergency Medicine": "Emergency Physicians",
   Anesthesiology: "Anesthesiologists",
   Orthopedics: "Orthopedic Surgeons",
-  Multispecialty: "Medical Specialists"
+  Multispecialty: "Physicians and Medical Students"
 };
 
 export function addSpecialistAudienceToTitle(title: string, specialty?: string, maxLength = 100) {
