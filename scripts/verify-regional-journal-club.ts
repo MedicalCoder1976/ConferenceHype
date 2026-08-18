@@ -43,5 +43,10 @@ assert.match(workflow, /default: false/);
 assert.match(workflow, /REGIONAL_JOURNAL_CLUB_PUBLISH_ENABLED/);
 assert.doesNotMatch(workflow, /activate_station_schedule|activate_weekend_station_schedule|stream_state/);
 assert.match(workflow, /NEXT_PUBLIC_SUPABASE_ANON_KEY: \$\{\{ secrets\.NEXT_PUBLIC_SUPABASE_ANON_KEY \}\}/);
+assert.equal(
+  [...workflow.matchAll(/NEXT_PUBLIC_SUPABASE_ANON_KEY: \$\{\{ secrets\.NEXT_PUBLIC_SUPABASE_ANON_KEY \}\}/g)].length,
+  2,
+  "Both regional preparation and rendering must receive the existing anon key"
+);
 assert.doesNotMatch(dbSource.match(/export async function upsertRegionalJournalCatalogToDb\(\)[\s\S]*?\n}\n/)?.[0] ?? "", /hasSupabase\(\)/);
 console.log("Regional Journal Club verification passed.");

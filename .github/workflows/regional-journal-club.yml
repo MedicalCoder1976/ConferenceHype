@@ -101,6 +101,7 @@ jobs:
         run: npx tsx scripts/render-hour-broadcast.ts
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           HOUR_BROADCAST_MODE: regional30
           REGIONAL_PROGRAM_ID: ${{ matrix.program.regional_program_id }}
