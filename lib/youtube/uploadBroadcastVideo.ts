@@ -2,6 +2,29 @@ import { createReadStream, statSync } from "node:fs";
 import { Readable } from "node:stream";
 
 const YOUTUBE_TITLE_MAX_LENGTH = 100;
+const YOUTUBE_TAGS_MAX_LENGTH = 500;
+
+function youtubeTagListLength(tags: string[]) {
+  return tags.reduce(
+    (total, tag, index) => total + Array.from(tag).length + (/\s/.test(tag) ? 2 : 0) + (index ? 1 : 0),
+    0
+  );
+}
+
+export function normalizeYoutubeTags(tags: string[]) {
+  const normalized: string[] = [];
+  const seen = new Set<string>();
+  for (const rawTag of tags) {
+    const tag = rawTag.trim().replace(/\s+/g, " ");
+    const key = tag.toLocaleLowerCase("en-US");
+    if (!tag || seen.has(key)) continue;
+    const candidate = [...normalized, tag];
+    if (youtubeTagListLength(candidate) > YOUTUBE_TAGS_MAX_LENGTH) continue;
+    normalized.push(tag);
+    seen.add(key);
+  }
+  return normalized;
+}
 
 export function removeViewerGroundingLabels(value: string) {
   return value
@@ -82,7 +105,7 @@ export async function uploadVideoToYoutube({
         "X-Upload-Content-Type": "video/mp4"
       },
       body: JSON.stringify({
-        snippet: { title: youtubeTitle, description: removeViewerGroundingLabels(description), tags, categoryId },
+        snippet: { title: youtubeTitle, description: removeViewerGroundingLabels(description), tags: normalizeYoutubeTags(tags), categoryId },
         status: {
           // Scheduled publishing is opt-in. All manual/admin uploads omit
           // publishAt and retain their existing immediate-public behavior.
@@ -161,7 +184,7 @@ export async function updateYoutubeVideoMetadata({
     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       id: videoId,
-      snippet: { ...snippet, title: youtubeTitle, description: removeViewerGroundingLabels(description), tags, categoryId }
+      snippet: { ...snippet, title: youtubeTitle, description: removeViewerGroundingLabels(description), tags: normalizeYoutubeTags(tags), categoryId }
     })
   });
   if (!updateResponse.ok) {

@@ -47,6 +47,22 @@ assert.match(gapClipGeneratorSource, /Music handoffs are intentionally music-onl
 import { dedupeAgainstFreshSegments } from "@/lib/weeklySourceCardGeneration";
 import type { IngestedItem, Segment } from "@/lib/types";
 import { normalizeJournalPublicationDate } from "@/lib/station/journalCadence";
+import { normalizeYoutubeTags } from "@/lib/youtube/uploadBroadcastVideo";
+
+const normalizedYoutubeTags = normalizeYoutubeTags([
+  "ConferenceHype",
+  " Journal Club ",
+  "conferencehype",
+  "",
+  ...Array.from({ length: 40 }, (_, index) => `Regional evidence specialty topic ${index + 1}`)
+]);
+const normalizedYoutubeTagLength = normalizedYoutubeTags.reduce(
+  (total, tag, index) => total + Array.from(tag).length + (/\s/.test(tag) ? 2 : 0) + (index ? 1 : 0),
+  0
+);
+assert.deepEqual(normalizedYoutubeTags.slice(0, 2), ["ConferenceHype", "Journal Club"]);
+assert.equal(normalizedYoutubeTags.filter((tag) => tag.toLowerCase() === "conferencehype").length, 1);
+assert.ok(normalizedYoutubeTagLength <= 500, "YouTube keyword payload must remain within its 500-character limit");
 
 assert.equal(
   extractClinicalTopic("This all comes with real political weight attached.", "Big Pharma Merger Talks"),
