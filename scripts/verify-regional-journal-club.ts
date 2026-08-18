@@ -39,6 +39,7 @@ assert.match(cadence, /!journal\.regionalOnly/);
 assert.match(schedule, /!journal\.regionalOnly/);
 const workflow = readFileSync(path.join(process.cwd(), ".github", "workflows", "regional-journal-club.yml"), "utf8");
 const dbSource = readFileSync(path.join(process.cwd(), "lib", "db.ts"), "utf8");
+const regionalDbSource = readFileSync(path.join(process.cwd(), "lib", "regionalJournalClub", "db.ts"), "utf8");
 assert.match(workflow, /default: false/);
 assert.match(workflow, /REGIONAL_JOURNAL_CLUB_PUBLISH_ENABLED/);
 assert.doesNotMatch(workflow, /activate_station_schedule|activate_weekend_station_schedule|stream_state/);
@@ -49,4 +50,5 @@ assert.equal(
   "Both regional preparation and rendering must receive the existing anon key"
 );
 assert.doesNotMatch(dbSource.match(/export async function upsertRegionalJournalCatalogToDb\(\)[\s\S]*?\n}\n/)?.[0] ?? "", /hasSupabase\(\)/);
+assert.match(regionalDbSource, /patch\.cardIds\?\.filter\(\(cardId\) => UUID_PATTERN\.test\(cardId\)\)/);
 console.log("Regional Journal Club verification passed.");

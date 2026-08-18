@@ -2,6 +2,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { BroadcastWriteoutCard, OncologyJournal } from "@/lib/types";
 import type { RegionalSeriesCode } from "@/lib/regionalJournalClub/catalog";
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export type RegionalJournalSeries = {
   id: string;
   code: RegionalSeriesCode;
@@ -70,6 +72,7 @@ export async function getRegionalProgram(id: string): Promise<RegionalJournalPro
 }
 
 export async function updateRegionalProgramDelivery(id: string, patch: { status: "rendering" | "verified" | "failed"; youtubeVideoId?: string; youtubeUrl?: string; title?: string; description?: string; tags?: string[]; cardIds?: string[]; writeoutCards?: BroadcastWriteoutCard[]; failureReason?: string | null }) {
-  const { error } = await createAdminClient().from("regional_journal_programs").update({ status: patch.status, youtube_video_id: patch.youtubeVideoId, youtube_url: patch.youtubeUrl, title: patch.title, description: patch.description, tags: patch.tags, card_ids: patch.cardIds, writeout_cards: patch.writeoutCards, failure_reason: patch.failureReason, workflow_run_id: process.env.GITHUB_RUN_ID, workflow_url: process.env.GITHUB_SERVER_URL && process.env.GITHUB_REPOSITORY && process.env.GITHUB_RUN_ID ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}` : null, updated_at: new Date().toISOString() }).eq("id", id);
+  const persistedCardIds = patch.cardIds?.filter((cardId) => UUID_PATTERN.test(cardId));
+  const { error } = await createAdminClient().from("regional_journal_programs").update({ status: patch.status, youtube_video_id: patch.youtubeVideoId, youtube_url: patch.youtubeUrl, title: patch.title, description: patch.description, tags: patch.tags, card_ids: persistedCardIds, writeout_cards: patch.writeoutCards, failure_reason: patch.failureReason, workflow_run_id: process.env.GITHUB_RUN_ID, workflow_url: process.env.GITHUB_SERVER_URL && process.env.GITHUB_REPOSITORY && process.env.GITHUB_RUN_ID ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}` : null, updated_at: new Date().toISOString() }).eq("id", id);
   if (error) throw error;
 }
