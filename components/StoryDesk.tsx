@@ -31,6 +31,26 @@ function concise(value: string, max: number) {
   return `${prefix.slice(0, boundary > max * 0.65 ? boundary : undefined).trim()}…`;
 }
 
+function completeHeadline(value: string, max: number) {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (normalized.length <= max) return normalized.replace(/\.{3,}$|…$/g, "").trim();
+  const firstCompleteSentence = normalized
+    .match(/[^.!?]+[.!?]+/g)
+    ?.map((sentence) => sentence.trim())
+    .find((sentence) => sentence.length >= 16 && sentence.length <= max);
+  if (firstCompleteSentence) return firstCompleteSentence.replace(/[.!?]+$/, "").trim();
+  const prefix = normalized.slice(0, max + 1);
+  const strongBoundary = Math.max(prefix.lastIndexOf(":"), prefix.lastIndexOf(";"), prefix.lastIndexOf(" — "), prefix.lastIndexOf(" - "));
+  const bounded = strongBoundary >= Math.floor(max * 0.6)
+    ? prefix.slice(0, strongBoundary)
+    : prefix.slice(0, prefix.lastIndexOf(" "));
+  return bounded
+    .replace(/\b(?:just\s+)?(?:crushed|changed|shocked|stunned|destroyed|blew away)$/i, "")
+    .replace(/\b(?:and|or|but|for|with|from|to|the|a|an)$/i, "")
+    .replace(/[,:;\-–—\s]+$/, "")
+    .trim();
+}
+
 function inferTopic(narrative: string) {
   if (/\bASPC\s+2026\b/i.test(narrative)) return "ASPC 2026 Preventive Cardiology Congress";
   const firstSentence = narrative.match(/^.*?[.!?](?:\s|$)/)?.[0] ?? narrative;
@@ -41,7 +61,7 @@ function inferTitle(narrative: string, topic: string) {
   if (/\bPREVENT\b/i.test(narrative) && /psoriatic/i.test(narrative)) {
     return "ASPC 2026: PREVENT Risk Scores and Hidden Coronary Calcium";
   }
-  return concise(topic || narrative, 100);
+  return completeHeadline(topic || narrative, 100);
 }
 
 export function StoryDesk() {
@@ -64,8 +84,8 @@ export function StoryDesk() {
 
   const wordCount = narrative.trim() ? narrative.trim().split(/\s+/).length : 0;
   const topic = topicOverride.trim() || inferTopic(narrative);
-  const title = titleOverride.trim() || inferTitle(narrative, topic);
-  const thumbnailHeadline = concise(title, 58);
+  const title = completeHeadline(titleOverride.trim() || inferTitle(narrative, topic), 100);
+  const thumbnailHeadline = completeHeadline(title, 58);
   const descriptionOpening = topic
     ? `The findings, limitations, and clinical implications from ${topic}, explained in a source-attributed ConferenceHype meeting review.`
     : "";
@@ -76,7 +96,7 @@ export function StoryDesk() {
     sourceName,
     articleTitle: title,
     authors,
-    specialty: specialty || "Preventive Cardiology",
+    specialty: specialty || "Story",
     descriptionOpening,
     thumbnailHeadline,
     narrative
@@ -178,7 +198,7 @@ export function StoryDesk() {
           <div className="mt-3 grid gap-3 md:grid-cols-2">
             <label className="grid gap-1 text-xs font-black uppercase text-ink/55">YouTube title<input value={titleOverride} maxLength={100} onChange={(event) => setTitleOverride(event.target.value)} placeholder={title || "Developed automatically"} className="min-h-11 border border-ink/20 px-3 text-sm font-semibold normal-case text-ink" /></label>
             <label className="grid gap-1 text-xs font-black uppercase text-ink/55">Topic<input value={topicOverride} maxLength={160} onChange={(event) => setTopicOverride(event.target.value)} placeholder={topic || "Developed automatically"} className="min-h-11 border border-ink/20 px-3 text-sm font-semibold normal-case text-ink" /></label>
-            <label className="grid gap-1 text-xs font-black uppercase text-ink/55">Specialty<input value={specialty} onChange={(event) => setSpecialty(event.target.value)} placeholder="Preventive Cardiology" className="min-h-11 border border-ink/20 px-3 text-sm font-semibold normal-case text-ink" /></label>
+            <label className="grid gap-1 text-xs font-black uppercase text-ink/55">Specialty, optional<input value={specialty} onChange={(event) => setSpecialty(event.target.value)} placeholder="Leave blank for news Stories" className="min-h-11 border border-ink/20 px-3 text-sm font-semibold normal-case text-ink" /></label>
             <label className="grid gap-1 text-xs font-black uppercase text-ink/55">Publication or organization<input value={sourceName} onChange={(event) => setSourceName(event.target.value)} placeholder="American Society for Preventive Cardiology" className="min-h-11 border border-ink/20 px-3 text-sm font-semibold normal-case text-ink" /></label>
             <label className="grid gap-1 text-xs font-black uppercase text-ink/55 md:col-span-2">Authors, optional<input value={authors} onChange={(event) => setAuthors(event.target.value)} placeholder="Names exactly as published" className="min-h-11 border border-ink/20 px-3 text-sm font-semibold normal-case text-ink" /></label>
           </div>

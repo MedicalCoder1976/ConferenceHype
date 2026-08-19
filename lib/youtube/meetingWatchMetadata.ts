@@ -106,7 +106,7 @@ export function buildMeetingWatchMetadata({
   const isPreparedStory = resolved.some(({ segment }) => segment.riskFlags.includes("prepared_story"));
   const packaging = buildClinicalEvidencePackaging({
     title: isPreparedStory ? title : resolved[0]?.segment.title ?? title,
-    specialty,
+    specialty: isPreparedStory ? undefined : specialty,
     explicitTopic: meetingLabel.replace(/^Create a Story:\s*/i, ""),
     sourceText: resolved.map(({ segment }) => [segment.title, segment.summary, segment.script].filter(Boolean).join("\n")).join("\n"),
     studyNames,
@@ -148,7 +148,7 @@ export function buildMeetingWatchMetadata({
     tags,
     categoryId: "27",
     tier: "roundup",
-    specialty,
+    specialty: isPreparedStory ? undefined : specialty,
     dateLabel,
     studyNames,
     clinicalTopic: storyResult ?? packaging.clinicalTopic,

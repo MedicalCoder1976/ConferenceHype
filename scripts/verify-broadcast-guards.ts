@@ -6,7 +6,7 @@ import { formatVoiceSegment, SEGMENT_CLOSE } from "@/lib/broadcast/voiceSegment"
 import { buildBroadcastSlots, buildJournalShowSlots } from "@/lib/rundown/slots";
 import { assertSearchOptimizedBroadcastMetadata, buildBroadcastMetadata, extractExplicitStudyName, extractExplicitStudyNames } from "@/lib/youtube/broadcastMetadata";
 import { applySpokenPronunciations, extractSpokenAbbreviationDefinitions } from "@/lib/media/tts";
-import { buildClinicalEvidencePackaging, buildJournalClubYoutubeTitle, extractClinicalTopic } from "@/lib/youtube/clinicalEvidencePackaging";
+import { addSpecialistAudienceToTitle, buildClinicalEvidencePackaging, buildJournalClubYoutubeTitle, extractClinicalTopic } from "@/lib/youtube/clinicalEvidencePackaging";
 import { buildMeetingWatchSlots, groupMeetingWatchSegmentsByTrial } from "@/lib/rundown/meetingWatchSlots";
 import { parsePreparedNarrative, preparedNarrativeSegments } from "@/lib/meetingWatch/preparedNarrative";
 import { getUnsafeGeneratedSourceErrors } from "@/lib/generation/sourceSafety";
@@ -502,6 +502,7 @@ const storyPackaging = buildClinicalEvidencePackaging({
 });
 assert.equal(storyPackaging.clinicalTopic, "Obesity");
 assert.match(storyPackaging.youtubeTitle, /^Obesity:/);
+assert.equal(addSpecialistAudienceToTitle("A complete news headline", "Story"), "A complete news headline");
 const firstStudySlotIndex = journalShowSlots.findIndex((slot) => slot.segment && !slot.segment.riskFlags.includes("journal_show_outro"));
 const studyNamedSlots = journalShowSlots.map((slot, index) => index === firstStudySlotIndex && slot.segment
   ? { ...slot, segment: { ...slot.segment, title: "V-NE Ulcer Study 6: randomized findings" } }
@@ -1124,6 +1125,10 @@ assert.match(clinicalPackagingSource, /"Radiology \/ Radiation Oncology": "Radia
 assert.match(clinicalPackagingSource, /Cardiology: "Cardiologists"/);
 assert.match(clinicalPackagingSource, /Gastroenterology: "Gastroenterologists"/);
 assert.match(renderHourSource, /isJournalMode[\s\S]*buildJournalClubYoutubeTitle\(baseTitle, actualMetadata\?\.specialty\)/);
+assert.match(renderHourSource, /isMeetingWatchMode\s*\? baseTitle/);
+assert.match(storyDeskSource, /specialty: specialty \|\| "Story"/);
+assert.doesNotMatch(storyDeskSource, /specialty: specialty \|\| "Preventive Cardiology"/);
+assert.match(storyDeskSource, /const title = completeHeadline\(titleOverride\.trim\(\) \|\| inferTitle\(narrative, topic\), 100\)/);
 const voiceSegmentSource = readFileSync(path.resolve("lib/broadcast/voiceSegment.ts"), "utf8");
 assert.match(voiceSegmentSource, /resultsFirstStructuredNarrative/);
 assert.match(voiceSegmentSource, /\["Results", sectionText\(value, "Results"\)\]/);
@@ -1341,6 +1346,7 @@ const journalCardV2Workflow = readFileSync(path.join(process.cwd(), ".github", "
 const youtubeUploaderSource = readFileSync(path.join(process.cwd(), "lib", "youtube", "uploadBroadcastVideo.ts"), "utf8");
 const meetingWatchMetadataSource = readFileSync(path.join(process.cwd(), "lib", "youtube", "meetingWatchMetadata.ts"), "utf8");
 assert.doesNotMatch(meetingWatchMetadataSource, /no fabricated claims/i);
+assert.match(meetingWatchMetadataSource, /specialty: isPreparedStory \? undefined : specialty/);
 assert.match(youtubeUploaderSource, /no fabricated claims/);
 assert.match(weekdayReleaseSource, /STATION_NEW_PROGRAMS_PER_WEEKDAY/);
 assert.match(weekdayReleaseSource, /7 \* 60 \+ 15/);

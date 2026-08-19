@@ -1519,6 +1519,8 @@ async function uploadRenderedBroadcast(
   const { addSpecialistAudienceToTitle, buildJournalClubYoutubeTitle } = await import("@/lib/youtube/clinicalEvidencePackaging");
   const title = isRegionalMode
     ? baseTitle
+    : isMeetingWatchMode
+    ? baseTitle
     : isJournalMode
     ? buildJournalClubYoutubeTitle(baseTitle, actualMetadata?.specialty)
     : addSpecialistAudienceToTitle(baseTitle, actualMetadata?.specialty);
