@@ -2203,6 +2203,9 @@ async function main() {
 
   // Sort voice entries by start time so adelay values are ordered
   voiceEntries.sort((a, b) => a.startMs - b.startMs);
+  if (isRegionalMode && voiceEntries.length === 0) {
+    throw new Error("Regional Journal Club narration is missing; refusing to render or upload a music-only broadcast.");
+  }
   for (let index = 1; index < voiceEntries.length; index += 1) {
     const previous = voiceEntries[index - 1];
     const current = voiceEntries[index];
