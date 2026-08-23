@@ -12,6 +12,19 @@ type DeliveryStatus = {
   failureReason?: string;
 };
 
+function responseError(body: unknown, fallback: string) {
+  if (!body || typeof body !== "object") return fallback;
+  const value = (body as { error?: unknown }).error;
+  if (typeof value === "string" && value.trim()) return value;
+  if (value && typeof value === "object") {
+    const detail = value as Record<string, unknown>;
+    for (const candidate of [detail.message, detail.details, detail.hint]) {
+      if (typeof candidate === "string" && candidate.trim()) return candidate;
+    }
+  }
+  return fallback;
+}
+
 function notifyVideoDeveloped(delivery: DeliveryStatus) {
   if (!("Notification" in window) || Notification.permission !== "granted") return;
   const notification = new Notification("ConferenceHype video developed", {
@@ -110,7 +123,7 @@ export function StoryDesk() {
       try {
         const response = await fetch(`/api/admin/story/status?broadcastId=${encodeURIComponent(broadcastId)}`, { cache: "no-store" });
         const body = await response.json();
-        if (!response.ok || !body.ok) throw new Error(body.error ?? "Could not verify delivery.");
+        if (!response.ok || !body.ok) throw new Error(responseError(body, "Could not verify delivery."));
         if (stopped) return;
         setDelivery(body.delivery);
         if (body.delivery.status === "failed") {
@@ -159,7 +172,7 @@ export function StoryDesk() {
         body: JSON.stringify(payload)
       });
       const body = await response.json();
-      if (!response.ok || !body.ok) throw new Error(body.error ?? "Could not develop the video.");
+      if (!response.ok || !body.ok) throw new Error(responseError(body, "The video did not start. Please review the Story details and try again."));
       const id = body.broadcastId ?? body.broadcast?.id;
       if (!id) throw new Error("The video was accepted but no delivery ID was returned.");
       window.localStorage.setItem("conferencehype:last-story-broadcast-id", id);
@@ -168,7 +181,7 @@ export function StoryDesk() {
         ? "This narrative already exists. Verifying its saved YouTube delivery now…"
         : "Video development started. Rendering, upload, and public YouTube verification will continue automatically.");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not develop the video.");
+      setMessage(`Video generation did not start: ${error instanceof Error ? error.message : "Could not create the Story broadcast."}`);
     }
   });
 

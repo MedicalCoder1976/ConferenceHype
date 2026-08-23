@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { assertAdminRequest } from "@/lib/auth";
+import { errorMessage } from "@/lib/errors";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const querySchema = z.string().uuid();
@@ -39,6 +40,9 @@ export async function GET(request: NextRequest) {
       }
     });
   } catch (error) {
-    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : String(error) }, { status: 422 });
+    return NextResponse.json(
+      { ok: false, error: errorMessage(error, "Could not verify Story delivery."), stage: "verify_delivery" },
+      { status: 422 }
+    );
   }
 }
