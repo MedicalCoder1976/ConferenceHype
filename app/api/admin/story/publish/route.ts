@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { assertAdminRequest } from "@/lib/auth";
 import { env } from "@/lib/env";
+import { errorMessage } from "@/lib/errors";
 import { parsePreparedStory, preparedStorySegments, storyInputSchema } from "@/lib/story/preparedStory";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -37,7 +38,9 @@ export async function POST(request: NextRequest) {
         }))
       }
     });
-    if (error) throw error;
+    if (error) {
+      throw new Error(errorMessage(error, "Supabase could not create the Story broadcast."));
+    }
     const broadcast = Array.isArray(data) ? data[0] : data;
     if (!broadcast?.id) throw new Error("Story broadcast creation returned no id.");
     if (broadcast.status !== "planned") return NextResponse.json({ ok: true, alreadyExists: true, broadcast });
@@ -54,6 +57,9 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json({ ok: true, broadcastId: broadcast.id, durationSeconds: story.durationSeconds, cardCount: story.cards.length, segmentCount: segments.length });
   } catch (error) {
-    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : String(error) }, { status: 400 });
+    return NextResponse.json(
+      { ok: false, error: errorMessage(error, "Could not create and dispatch the Story video."), stage: "create_broadcast" },
+      { status: 400 }
+    );
   }
 }
