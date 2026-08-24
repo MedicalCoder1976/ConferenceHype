@@ -53,6 +53,7 @@ export async function GET(request: NextRequest) {
   const detailLabel = params.get("detailLabel") ? truncate(params.get("detailLabel")!, 96) : undefined;
   const promiseLabel = viewerLabel(params.get("promiseLabel")) ? truncate(viewerLabel(params.get("promiseLabel"))!, 48) : undefined;
   const isPersistentFrame = params.get("variant") === "persistent-frame";
+  const isCleanStoryLayout = params.get("storyLayout") === "clean";
   const isJournalClub = params.get("journalClub") === "1";
   const articleTitle = viewerLabel(params.get("articleTitle"));
   const headline = suppliedHeadline
@@ -135,19 +136,19 @@ export async function GET(request: NextRequest) {
     (
       <div style={{ width: "100%", height: "100%", display: "flex", backgroundColor: COLORS.ink, color: COLORS.paper, fontFamily: "sans-serif" }}>
         <div style={{ display: "flex", position: "absolute", top: 0, left: 0, width: "100%", height: 18, backgroundColor: COLORS.broadcast }} />
-        <div style={{ display: "flex", flexDirection: "column", width: "72%", padding: "64px 42px 58px 76px", justifyContent: "center" }}>
+        <div style={{ display: "flex", flexDirection: "column", width: isCleanStoryLayout ? "100%" : "72%", padding: isCleanStoryLayout ? "64px 76px 58px" : "64px 42px 58px 76px", justifyContent: "center" }}>
           <div style={{ display: "flex", alignItems: "center", marginBottom: seriesLabel ? 14 : 25 }}>
             <div style={{ display: "flex", backgroundColor: COLORS.broadcast, borderRadius: 8, padding: "9px 17px", fontSize: 25, fontWeight: 800, letterSpacing: 1.5 }}>CONFERENCEHYPE</div>
             {specialty ? <div style={{ display: "flex", marginLeft: 15, color: COLORS.cyan, fontSize: 26, fontWeight: 700 }}>{specialty}</div> : null}
           </div>
           {seriesLabel ? <div style={{ display: "flex", marginBottom: 12, color: COLORS.paper, fontSize: 27, fontWeight: 900, lineHeight: 1.05, letterSpacing: 1.1, maxWidth: 820 }}>{seriesLabel}</div> : null}
           {topicLabel ? <div style={{ display: "flex", marginBottom: 15, color: COLORS.cyan, fontSize: 44, fontWeight: 950, lineHeight: 1.02, maxWidth: 820 }}>{topicLabel.toUpperCase()}</div> : null}
-          <div style={{ display: "flex", color: COLORS.gold, fontSize: headline.length > 42 ? 64 : 78, fontWeight: 950, lineHeight: 0.98, maxWidth: 840 }}>{headline}</div>
+          <div style={{ display: "flex", color: COLORS.gold, fontSize: headline.length > 42 ? 64 : 78, fontWeight: 950, lineHeight: 0.98, maxWidth: isCleanStoryLayout ? 1120 : 840 }}>{headline}</div>
           {entityLabel ? <div style={{ display: "flex", marginTop: 20, color: COLORS.mint, fontSize: 36, fontWeight: 900, lineHeight: 1.05, maxWidth: 820 }}>{entityLabel}</div> : null}
           {!topicLabel && detailLabel ? <div style={{ display: "flex", marginTop: 22, color: COLORS.cyan, fontSize: 40, fontWeight: 900, lineHeight: 1.08, maxWidth: 820 }}>{detailLabel}</div> : !topicLabel && context ? <div style={{ display: "flex", marginTop: 18, color: COLORS.cyan, fontSize: 30, fontWeight: 750 }}>{context}</div> : null}
           {date ? <div style={{ display: "flex", marginTop: 18, color: "#aeb8ca", fontSize: 24, fontWeight: 500 }}>{date}</div> : null}
         </div>
-        <div style={{ display: "flex", width: "28%", backgroundColor: COLORS.panel, padding: "52px 34px 48px", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
+        {!isCleanStoryLayout ? <div style={{ display: "flex", width: "28%", backgroundColor: COLORS.panel, padding: "52px 34px 48px", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
           <div style={{ display: "flex", borderRadius: 8, backgroundColor: COLORS.broadcast, color: COLORS.paper, padding: "12px 18px", alignItems: "center", justifyContent: "center", fontSize: 23, fontWeight: 950, letterSpacing: 1.2 }}>NEW EVIDENCE</div>
           {promiseLabel ? <div style={{ display: "flex", marginTop: 18, color: COLORS.paper, fontSize: 22, fontWeight: 900, lineHeight: 1.08 }}>{promiseLabel}</div> : null}
           <div style={{ display: "flex", marginTop: promiseLabel ? 18 : 28, color: COLORS.gold, fontSize: 18, fontWeight: 800, letterSpacing: 1.6 }}>{panelEyebrow ?? panelLabel}</div>
@@ -162,7 +163,7 @@ export async function GET(request: NextRequest) {
             <div style={{ display: "flex", marginTop: 24, color: COLORS.paper, fontSize: suppliedPanelLabel ? 30 : 25, fontWeight: 850, lineHeight: 1.1 }}>{panelLabel}</div>
           )}
           <div style={{ display: "flex", marginTop: 28, color: COLORS.mint, fontSize: 17, fontWeight: 750, letterSpacing: 1.3 }}>WHY THIS RESULT MATTERS</div>
-        </div>
+        </div> : null}
         <div style={{ display: "flex", position: "absolute", bottom: 0, left: 0, width: "100%", height: 18, backgroundColor: COLORS.mint }} />
       </div>
     ),
