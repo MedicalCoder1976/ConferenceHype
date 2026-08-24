@@ -1535,6 +1535,7 @@ async function uploadRenderedBroadcast(
     "ConferenceHype medical-conference programming.";
   const tags = actualMetadata?.tags ?? [];
   const categoryId = actualMetadata?.categoryId ?? "27";
+  const isPreparedStoryMode = cards.some((card) => card.riskFlags?.includes("prepared_story"));
 
   const thumbnailSpec = {
     tier: actualMetadata?.tier ?? "generic",
@@ -1568,6 +1569,7 @@ async function uploadRenderedBroadcast(
             : "THE FINDING THAT MATTERS",
     journalClub: isJournalMode,
     articleTitle: isJournalMode ? actualMetadata?.thumbnailArticleTitle : undefined,
+    cleanStoryLayout: isPreparedStoryMode,
     siteUrl: process.env.PUBLIC_SITE_URL
   };
   const { downloadYoutubeThumbnail, getYoutubeAccessToken, uploadVideoToYoutube, uploadYoutubeThumbnail } = await import(
