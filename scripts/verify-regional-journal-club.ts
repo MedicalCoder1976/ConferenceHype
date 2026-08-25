@@ -61,6 +61,8 @@ for (const voiceKey of [
 ]) {
   assert.match(workflow, new RegExp(`${voiceKey}: \\$\\{\\{ secrets\\.${voiceKey} \\}\\}`));
 }
-assert.match(rendererSource, /isRegionalMode && voiceEntries\.length === 0/);
-assert.match(rendererSource, /refusing to render or upload a music-only broadcast/);
+assert.match(rendererSource, /if \(!voicePath && voiceEntries\.length === 0\)/);
+assert.match(rendererSource, /refusing to render or upload a music-only video/);
+assert.match(rendererSource, /voiceEntries\.length !== plannedVoiceEntries/);
+assert.match(rendererSource, /Narration configuration is missing/);
 console.log("Regional Journal Club verification passed.");

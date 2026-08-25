@@ -1927,10 +1927,6 @@ async function main() {
       continue;
     }
     const persona = getPersona(card.personaId);
-    const voiceName = process.env[persona.voiceEnvKey];
-    if (!voiceName) {
-      continue;
-    }
     const processedScript = applySpokenPronunciations(card.script, pronunciationDefinitions.get(narrationGroupKey(card, index)) ?? new Map());
     // replaceEmptyContentCardsWithMusic already screened out cards whose RAW
     // script is empty, but applySpokenPronunciations (stripping URLs,
@@ -1947,6 +1943,12 @@ async function main() {
         `Skipping voice synthesis for a card whose script became empty after pronunciation cleanup (persona ${persona.voiceEnvKey}).`
       );
       continue;
+    }
+    const voiceName = process.env[persona.voiceEnvKey];
+    if (!voiceName) {
+      throw new Error(
+        `Narration configuration is missing ${persona.voiceEnvKey}; refusing to render or upload a video with missing speech.`
+      );
     }
     const speed = card.riskFlags?.includes("prepared_story") ? STORY_NARRATION_SPEED : 1.15;
     const cacheKey = createHash("sha256")
@@ -2205,8 +2207,14 @@ async function main() {
 
   // Sort voice entries by start time so adelay values are ordered
   voiceEntries.sort((a, b) => a.startMs - b.startMs);
-  if (isRegionalMode && voiceEntries.length === 0) {
-    throw new Error("Regional Journal Club narration is missing; refusing to render or upload a music-only broadcast.");
+  const plannedVoiceEntries = cardCacheKeys.filter(Boolean).length;
+  if (!voicePath && voiceEntries.length === 0) {
+    throw new Error("Broadcast narration is missing; refusing to render or upload a music-only video.");
+  }
+  if (voiceEntries.length !== plannedVoiceEntries) {
+    throw new Error(
+      `Broadcast narration is incomplete: ${voiceEntries.length} of ${plannedVoiceEntries} planned voice clips are available; refusing to render or upload.`
+    );
   }
   for (let index = 1; index < voiceEntries.length; index += 1) {
     const previous = voiceEntries[index - 1];
