@@ -84,7 +84,8 @@ export async function uploadVideoToYoutube({
   description,
   tags,
   categoryId,
-  publishAt
+  publishAt,
+  privacyStatus
 }: {
   filePath: string;
   accessToken: string;
@@ -93,6 +94,7 @@ export async function uploadVideoToYoutube({
   tags: string[];
   categoryId: string;
   publishAt?: string;
+  privacyStatus?: "private" | "public";
 }): Promise<{ id: string; status?: { privacyStatus?: string; publishAt?: string } }> {
   const youtubeTitle = normalizeYoutubeTitle(title);
   const initResponse = await fetch(
@@ -109,7 +111,7 @@ export async function uploadVideoToYoutube({
         status: {
           // Scheduled publishing is opt-in. All manual/admin uploads omit
           // publishAt and retain their existing immediate-public behavior.
-          privacyStatus: publishAt ? "private" : "public",
+          privacyStatus: publishAt ? "private" : privacyStatus ?? "public",
           ...(publishAt ? { publishAt } : {}),
           selfDeclaredMadeForKids: false,
           embeddable: true
@@ -147,8 +149,9 @@ export async function uploadVideoToYoutube({
   if (publishAt && (uploaded.status?.privacyStatus !== "private" || !uploaded.status.publishAt || new Date(uploaded.status.publishAt).getTime() !== new Date(publishAt).getTime())) {
     throw new Error(`YouTube did not confirm scheduled publication for ${publishAt}.`);
   }
-  if (!publishAt && uploaded.status?.privacyStatus !== "public") {
-    throw new Error(`YouTube did not confirm public visibility for uploaded video ${uploaded.id}.`);
+  const expectedPrivacyStatus = publishAt ? "private" : privacyStatus ?? "public";
+  if (!publishAt && uploaded.status?.privacyStatus !== expectedPrivacyStatus) {
+    throw new Error(`YouTube did not confirm ${expectedPrivacyStatus} visibility for uploaded video ${uploaded.id}.`);
   }
   return uploaded;
 }

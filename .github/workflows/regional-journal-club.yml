@@ -17,6 +17,11 @@ on:
         required: false
         type: boolean
         default: false
+      private_upload:
+        description: "Upload the narrated replacement as Private without scheduling publication"
+        required: false
+        type: boolean
+        default: false
   schedule:
     # Preparation occurs several hours before the viewer-local release.
     - cron: "0 9 * * 2,5"
@@ -109,6 +114,7 @@ jobs:
           HOUR_BROADCAST_SECONDS: "1800"
           HOUR_BROADCAST_START: ${{ matrix.program.stream_start_time }}
           YOUTUBE_PUBLISH_AT: ${{ matrix.program.stream_start_time }}
+          YOUTUBE_PRIVACY_STATUS: ${{ inputs.private_upload == true && 'private' || '' }}
           PUBLIC_SITE_URL: https://conferencehype.com
           FFMPEG_PATH: /usr/bin/ffmpeg
           HOUR_BROADCAST_OUTPUT: public/rendered/conferencehype-regional-journal-club.mp4

@@ -1112,7 +1112,7 @@ assert.doesNotMatch(storyDeskSource, /approvedPackaging|approvedCards|approvedSo
 const storyStatusSource = readFileSync(path.resolve("app/api/admin/story/status/route.ts"), "utf8");
 assert.match(storyStatusSource, /youtube\.com\/oembed/);
 assert.match(storyStatusSource, /data\.status === "verified"/);
-assert.match(readFileSync(path.resolve("lib/youtube/uploadBroadcastVideo.ts"), "utf8"), /YouTube did not confirm public visibility/);
+assert.match(readFileSync(path.resolve("lib/youtube/uploadBroadcastVideo.ts"), "utf8"), /YouTube did not confirm \$\{expectedPrivacyStatus\} visibility/);
 const clinicalPackagingSource = readFileSync(path.resolve("lib/youtube/clinicalEvidencePackaging.ts"), "utf8");
 assert.equal(
   buildJournalClubYoutubeTitle("Advances in Radiation Oncology: Cervical Cancer - New Research", "Radiology / Radiation Oncology"),
@@ -1378,7 +1378,7 @@ assert.match(prepareWeekdayStationSource, /reusedExistingReservation: true/);
 assert.match(prepareWeekdayStationSource, /program\.status !== "verified" \|\| !program\.youtubeVideoId/);
 assert.match(journalCardV2Workflow, /cron: "0 1 \* \* 1-5"/);
 assert.match(journalCardV2Workflow, /github\.event_name == 'schedule'[\s\S]*JOURNAL_CARD_V2_MAX_CARDS/);
-assert.match(youtubeUploaderSource, /privacyStatus: publishAt \? "private" : "public"/);
+assert.match(youtubeUploaderSource, /privacyStatus: publishAt \? "private" : privacyStatus \?\? "public"/);
 assert.match(youtubeUploaderSource, /publishAt\?: string/);
 const oneDailyReleaseMigration = readFileSync(path.join(process.cwd(), "supabase", "migrations", "20260817120000_one_daily_journal_club.sql"), "utf8");
 assert.match(oneDailyReleaseMigration, /new_youtube_videos', 1[\s\S]*unused_cards_preserved', true/);
@@ -1401,7 +1401,7 @@ assert.match(uploadBroadcastVideoSource, /params\.set\("journalCount"/);
 assert.match(uploadBroadcastVideoSource, /uploadType=resumable&part=snippet,status/);
 // Scheduled publication is explicit and opt-in for the automatic weekday
 // wheel. Manual/admin callers omit publishAt and remain public immediately.
-assert.match(uploadBroadcastVideoSource, /privacyStatus: publishAt \? "private" : "public"/);
+assert.match(uploadBroadcastVideoSource, /privacyStatus: publishAt \? "private" : privacyStatus \?\? "public"/);
 assert.match(uploadBroadcastVideoSource, /publishAt\?: string/);
 const streamWorkflowSource = readFileSync(
   path.join(process.cwd(), ".github", "workflows", "youtube-stream.yml"),

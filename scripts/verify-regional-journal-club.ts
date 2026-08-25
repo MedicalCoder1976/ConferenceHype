@@ -43,6 +43,8 @@ const regionalDbSource = readFileSync(path.join(process.cwd(), "lib", "regionalJ
 const rendererSource = readFileSync(path.join(process.cwd(), "scripts", "render-hour-broadcast.ts"), "utf8");
 assert.match(workflow, /default: false/);
 assert.match(workflow, /REGIONAL_JOURNAL_CLUB_PUBLISH_ENABLED/);
+assert.match(workflow, /private_upload:/);
+assert.match(workflow, /YOUTUBE_PRIVACY_STATUS: \$\{\{ inputs\.private_upload == true && 'private' \|\| '' \}\}/);
 assert.doesNotMatch(workflow, /activate_station_schedule|activate_weekend_station_schedule|stream_state/);
 assert.match(workflow, /NEXT_PUBLIC_SUPABASE_ANON_KEY: \$\{\{ secrets\.NEXT_PUBLIC_SUPABASE_ANON_KEY \}\}/);
 assert.equal(
@@ -65,4 +67,5 @@ assert.match(rendererSource, /if \(!voicePath && voiceEntries\.length === 0\)/);
 assert.match(rendererSource, /refusing to render or upload a music-only video/);
 assert.match(rendererSource, /voiceEntries\.length !== plannedVoiceEntries/);
 assert.match(rendererSource, /Narration configuration is missing/);
+assert.match(rendererSource, /Uploaded \$\{youtubeUrl\} as Private for later release/);
 console.log("Regional Journal Club verification passed.");

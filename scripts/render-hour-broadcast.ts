@@ -1588,7 +1588,8 @@ async function uploadRenderedBroadcast(
   await assertMediaGenerated(outputPath);
 
   const accessToken = await getYoutubeAccessToken();
-  const requestedPublishAt = (process.env.STATION_PROGRAM_ID || process.env.REGIONAL_PROGRAM_ID || isMeetingWatchMode) ? process.env.YOUTUBE_PUBLISH_AT : undefined;
+  const requestedPrivacyStatus = process.env.YOUTUBE_PRIVACY_STATUS === "private" ? "private" : undefined;
+  const requestedPublishAt = !requestedPrivacyStatus && (process.env.STATION_PROGRAM_ID || process.env.REGIONAL_PROGRAM_ID || isMeetingWatchMode) ? process.env.YOUTUBE_PUBLISH_AT : undefined;
   const youtubePublishAt = requestedPublishAt && new Date(requestedPublishAt).getTime() > Date.now() + 60_000
     ? requestedPublishAt
     : undefined;
@@ -1600,12 +1601,15 @@ async function uploadRenderedBroadcast(
       description,
       tags,
       categoryId,
-      publishAt: youtubePublishAt
+      publishAt: youtubePublishAt,
+      privacyStatus: requestedPrivacyStatus
     })
   );
   const youtubeVideoId = uploaded.id;
   const youtubeUrl = `https://www.youtube.com/watch?v=${youtubeVideoId}`;
-  console.log(youtubePublishAt
+  console.log(requestedPrivacyStatus === "private"
+    ? `Uploaded ${youtubeUrl} as Private for later release.`
+    : youtubePublishAt
     ? `Uploaded ${youtubeUrl}, scheduled for ${youtubePublishAt}.`
     : `Uploaded ${youtubeUrl}, public immediately.`);
 
