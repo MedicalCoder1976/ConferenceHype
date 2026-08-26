@@ -49,8 +49,9 @@ export async function GET(request: NextRequest) {
   const suppliedHeadline = viewerLabel(params.get("headline"));
   const seriesLabel = params.get("seriesLabel") ? truncate(params.get("seriesLabel")!, 72) : undefined;
   const journalSeriesName = params.get("journalSeriesName") ? truncate(params.get("journalSeriesName")!, 48) : undefined;
+  const isFiveThings = params.get("fiveThings") === "1";
   const topicLabel = params.get("topicLabel") ? truncate(params.get("topicLabel")!, 48) : undefined;
-  const entityLabel = params.get("entityLabel") ? truncate(params.get("entityLabel")!, 34) : undefined;
+  const entityLabel = params.get("entityLabel") ? truncate(params.get("entityLabel")!, isFiveThings ? 110 : 34) : undefined;
   const detailLabel = params.get("detailLabel") ? truncate(params.get("detailLabel")!, 96) : undefined;
   const promiseLabel = viewerLabel(params.get("promiseLabel")) ? truncate(viewerLabel(params.get("promiseLabel"))!, 48) : undefined;
   const isPersistentFrame = params.get("variant") === "persistent-frame";
@@ -68,7 +69,9 @@ export async function GET(request: NextRequest) {
   const journalSeriesParts = seriesLabel?.startsWith("JOURNAL CLUB |")
     ? seriesLabel.split("|").map((part) => part.trim()).filter(Boolean)
     : [];
-  const persistentJournalSpecialty = isJournalClub
+  const persistentSpecialty = isFiveThings
+    ? specialty?.toUpperCase()
+    : isJournalClub
     ? specialty?.toUpperCase()
     : journalSeriesParts.slice(journalSeriesName ? 2 : 1).join(" • ").toUpperCase() || undefined;
 
@@ -77,14 +80,33 @@ export async function GET(request: NextRequest) {
       (
         <div style={{ width: "100%", height: "100%", display: "flex", position: "relative", color: COLORS.paper, fontFamily: "sans-serif" }}>
           <div style={{ display: "flex", position: "absolute", top: 0, left: 0, width: "100%", height: 82, backgroundColor: "rgba(16,20,31,0.94)", borderTop: `9px solid ${COLORS.broadcast}`, alignItems: "center", padding: "9px 34px 0" }}>
-            <div style={{ display: "flex", backgroundColor: COLORS.broadcast, borderRadius: 6, padding: "7px 12px", fontSize: persistentJournalSpecialty ? 23 : 20, fontWeight: 950, letterSpacing: 1 }}>{persistentJournalSpecialty ?? "CONFERENCEHYPE"}</div>
-            <div style={{ display: "flex", marginLeft: 20, fontSize: 23, fontWeight: 850, letterSpacing: 0.4 }}>{persistentJournalSpecialty ? "JOURNAL CLUB" : seriesLabel ?? panelLabel}</div>
+            <div style={{ display: "flex", backgroundColor: COLORS.broadcast, borderRadius: 6, padding: "7px 12px", fontSize: persistentSpecialty ? 23 : 20, fontWeight: 950, letterSpacing: 1 }}>{persistentSpecialty ?? "CONFERENCEHYPE"}</div>
+            <div style={{ display: "flex", marginLeft: 20, fontSize: 23, fontWeight: 850, letterSpacing: 0.4 }}>{isFiveThings ? "5 THINGS TO KNOW" : persistentSpecialty ? "JOURNAL CLUB" : seriesLabel ?? panelLabel}</div>
             <div style={{ display: "flex", marginLeft: "auto", color: COLORS.gold, fontSize: 20, fontWeight: 800 }}>{date}</div>
           </div>
           <div style={{ display: "flex", position: "absolute", bottom: 0, left: 0, width: "100%", height: 72, backgroundColor: "rgba(16,20,31,0.94)", borderBottom: `9px solid ${COLORS.mint}`, alignItems: "center", padding: "0 34px 9px" }}>
             <div style={{ display: "flex", color: COLORS.mint, fontSize: 19, fontWeight: 850, letterSpacing: 0.9 }}>{promiseLabel ?? "MEDICAL EVIDENCE, CLEARLY EXPLAINED"}</div>
             <div style={{ display: "flex", marginLeft: "auto", color: "#aeb8ca", fontSize: 17, fontWeight: 700 }}>conferencehype.com</div>
           </div>
+        </div>
+      ),
+      { width: WIDTH, height: HEIGHT }
+    );
+  }
+
+  if (isFiveThings && specialty) {
+    return new ImageResponse(
+      (
+        <div style={{ width: "100%", height: "100%", display: "flex", position: "relative", flexDirection: "column", backgroundColor: COLORS.ink, color: COLORS.paper, fontFamily: "sans-serif", padding: "64px 76px 58px" }}>
+          <div style={{ display: "flex", position: "absolute", top: 0, left: 0, width: "100%", height: 18, backgroundColor: COLORS.broadcast }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 22 }}>
+            <div style={{ display: "flex", backgroundColor: COLORS.broadcast, color: COLORS.paper, borderRadius: 10, padding: "13px 22px 11px", fontSize: specialty.length > 28 ? 38 : 48, fontWeight: 950, lineHeight: 0.95, letterSpacing: 2 }}>{specialty.toUpperCase()}</div>
+          </div>
+          <div style={{ display: "flex", marginTop: 40, color: COLORS.gold, fontSize: 78, fontWeight: 950, lineHeight: 0.95 }}>5 THINGS TO KNOW</div>
+          {entityLabel ? <div style={{ display: "flex", marginTop: 34, color: COLORS.paper, fontSize: entityLabel.length > 30 ? 35 : 42, fontWeight: 850, lineHeight: 1.1, maxWidth: 1060 }}>{entityLabel}</div> : null}
+          <div style={{ display: "flex", marginTop: "auto", color: COLORS.cyan, fontSize: 25, fontWeight: 850 }}>DAILY SPECIALTY BRIEFING</div>
+          {date ? <div style={{ display: "flex", position: "absolute", right: 76, bottom: 58, color: "#aeb8ca", fontSize: 23, fontWeight: 700 }}>{date}</div> : null}
+          <div style={{ display: "flex", position: "absolute", bottom: 0, left: 0, width: "100%", height: 18, backgroundColor: COLORS.mint }} />
         </div>
       ),
       { width: WIDTH, height: HEIGHT }

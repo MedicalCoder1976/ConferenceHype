@@ -209,6 +209,28 @@ For the Story opening/title-card format that previously displayed `CLINICAL
 EVIDENCE BRIEF` above the story topic, display `BREAKING` instead. Do not use
 `CLINICAL EVIDENCE BRIEF` in that position for this format.
 
+### 5 Things to Know editorial rule
+
+`5 Things to Know` is a separate manual editorial lane for completed Claude or
+Grok write-ups. An operator selects one configured specialty and supplies
+exactly five numbered items in order, each with its own distinct primary-source
+URL. The server rejects missing, duplicated, undersized, or unsourced items
+before dispatching any render.
+
+Packaging is search-focused only. The YouTube title begins
+`<Specialty>: 5 Things to Know Today` and may append the first searchable item
+topics while remaining inside YouTube's 100-character limit. There are no
+curiosity-title alternatives and no thumbnail experiments. One fixed thumbnail
+and its matching burned-in opening frame show the specialty in uppercase in the
+orange box, then `5 THINGS TO KNOW`, then up to three supplied item topics.
+
+The format reuses the prepared Meeting Watch persistence, narration, rendering,
+upload, and public-oEmbed verification pathway, but every segment is isolated by
+the `prepared_five_things` flag. It must not inherit `prepared_story` or
+`journal30` visual and metadata rules. Viewer descriptions begin with the
+specialty, list five timestamped chapters, and include all five primary-source
+URLs plus the specialty-specific audience line.
+
 ### Persistent evidence dashboard
 
 Every newly rendered broadcast uses the shared evidence-dashboard slide

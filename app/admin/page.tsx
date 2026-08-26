@@ -26,6 +26,7 @@ import { SourceManager } from "@/components/SourceManager";
 import { StartStreamButton } from "@/components/StartStreamButton";
 import { StationSchedulePanel } from "@/components/StationSchedulePanel";
 import { StoryDesk } from "@/components/StoryDesk";
+import { FiveThingsDesk } from "@/components/FiveThingsDesk";
 import { SpecialtyVoiceDirectory } from "@/components/SpecialtyVoiceDirectory";
 import { XVoiceCallouts } from "@/components/XVoiceCallouts";
 import { TwitterStreamDesk } from "@/components/TwitterStreamDesk";
@@ -402,6 +403,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         }
         breakingPaper={<BreakingPaperDesk />}
         createStory={<StoryDesk />}
+        fiveThings={<FiveThingsDesk />}
         writeouts={<BroadcastWriteoutArchive writeouts={snapshot.broadcastWriteouts} />}
         memory={<EditorialMemory initialPackages={snapshot.editorialPackages} />}
         history={<AiredHistory segments={snapshot.airedSegments} />}

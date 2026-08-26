@@ -11,6 +11,7 @@ type EvidenceDashboardInput = {
   isOpening?: boolean;
   seriesHeadline?: string;
   specialtyLabel?: string;
+  programLabel?: string;
   featureLabel?: string;
 };
 
@@ -126,6 +127,7 @@ export function buildEvidenceDashboardSvg(input: EvidenceDashboardInput) {
   const progress = Math.max(0, Math.min(1, input.total > 0 ? (input.index + 1) / input.total : 0));
   const seriesHeadline = clean(input.seriesHeadline);
   const specialtyLabel = clean(input.specialtyLabel).toUpperCase();
+  const programLabel = clean(input.programLabel) || "JOURNAL CLUB";
   const featureLabel = clean(input.featureLabel) || source || title;
 
   if (input.isMusic) {
@@ -166,7 +168,7 @@ export function buildEvidenceDashboardSvg(input: EvidenceDashboardInput) {
     <text x="118" y="${specialtyLabel ? 198 : 184}" class="${specialtyLabel ? "specialty" : "eyebrow"}">${specialtyLabel || (seriesHeadline ? "CONFERENCEHYPE" : input.isOpening ? "ARTICLE REVIEW" : "EVIDENCE")}</text>
     ${seriesHeadline
       ? specialtyLabel
-        ? `${textBlock(["JOURNAL CLUB"], 118, 270, 48, "series")}
+        ? `${textBlock([programLabel], 118, 270, 48, "series")}
            ${textBlock(wrap(featureLabel, 63, 2), 118, 328, 34, "feature")}
            ${textBlock(wrap(focus, 72, 3), 118, 422, 36, "finding")}`
         : `${textBlock(wrap(seriesHeadline, 49, 2), 118, 242, 48, "series")}

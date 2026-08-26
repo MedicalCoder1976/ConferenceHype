@@ -156,7 +156,7 @@ function specificSpecialty(journal: OncologyJournal) {
   return "Medical Journal";
 }
 
-function specialistAudience(specialty: string) {
+export function specialistAudience(specialty: string) {
   const exact: Record<string, string[]> = {
     Gastroenterology: ["Gastroenterologists"],
     Oncology: ["Oncologists"],

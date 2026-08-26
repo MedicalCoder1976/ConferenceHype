@@ -1,9 +1,9 @@
 "use client";
 
-import { BookOpen, BookOpenCheck, BookOpenText, CalendarDays, FileText, Library, Mic2, Radio, RadioTower, ScrollText, Sparkles } from "lucide-react";
+import { BookOpen, BookOpenCheck, BookOpenText, CalendarDays, FileText, Library, ListChecks, Mic2, Radio, RadioTower, ScrollText, Sparkles } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
-type TabId = "broadcast" | "pending-review" | "twitter-stream" | "journal-watch" | "meeting-watch" | "breaking-paper" | "create-story" | "writeouts" | "memory" | "voices" | "history";
+type TabId = "broadcast" | "pending-review" | "twitter-stream" | "journal-watch" | "meeting-watch" | "breaking-paper" | "create-story" | "five-things" | "writeouts" | "memory" | "voices" | "history";
 
 const tabs: Array<{ id: TabId; label: string; icon: typeof Radio }> = [
   { id: "broadcast", label: "Broadcast", icon: Radio },
@@ -13,6 +13,7 @@ const tabs: Array<{ id: TabId; label: string; icon: typeof Radio }> = [
   { id: "meeting-watch", label: "Meeting Watch", icon: CalendarDays },
   { id: "breaking-paper", label: "Breaking Paper", icon: BookOpenText },
   { id: "create-story", label: "Create a Story", icon: Sparkles },
+  { id: "five-things", label: "5 Things to Know", icon: ListChecks },
   { id: "writeouts", label: "Writeouts", icon: FileText },
   { id: "memory", label: "Memory", icon: Library },
   { id: "voices", label: "Specialty X Voices", icon: Mic2 },
@@ -28,6 +29,7 @@ export function AdminTabs({
   meetingWatch,
   breakingPaper,
   createStory,
+  fiveThings,
   writeouts,
   memory,
   history,
@@ -41,6 +43,7 @@ export function AdminTabs({
   meetingWatch: ReactNode;
   breakingPaper: ReactNode;
   createStory: ReactNode;
+  fiveThings: ReactNode;
   writeouts: ReactNode;
   memory: ReactNode;
   history: ReactNode;
@@ -89,6 +92,8 @@ export function AdminTabs({
         return breakingPaper;
       case "create-story":
         return createStory;
+      case "five-things":
+        return fiveThings;
       case "writeouts":
         return writeouts;
       case "memory":
