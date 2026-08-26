@@ -1112,7 +1112,7 @@ assert.doesNotMatch(storyDeskSource, /approvedPackaging|approvedCards|approvedSo
 const storyStatusSource = readFileSync(path.resolve("app/api/admin/story/status/route.ts"), "utf8");
 assert.match(storyStatusSource, /youtube\.com\/oembed/);
 assert.match(storyStatusSource, /data\.status === "verified"/);
-assert.match(readFileSync(path.resolve("lib/youtube/uploadBroadcastVideo.ts"), "utf8"), /YouTube did not confirm public visibility/);
+assert.match(readFileSync(path.resolve("lib/youtube/uploadBroadcastVideo.ts"), "utf8"), /YouTube did not confirm \$\{expectedPrivacyStatus\} visibility/);
 const clinicalPackagingSource = readFileSync(path.resolve("lib/youtube/clinicalEvidencePackaging.ts"), "utf8");
 assert.equal(
   buildJournalClubYoutubeTitle("Advances in Radiation Oncology: Cervical Cancer - New Research", "Radiology / Radiation Oncology"),
@@ -1134,7 +1134,8 @@ assert.match(voiceSegmentSource, /resultsFirstStructuredNarrative/);
 assert.match(voiceSegmentSource, /\["Results", sectionText\(value, "Results"\)\]/);
 const youtubeThumbnailSource = readFileSync(path.resolve("app/api/youtube-thumbnail/route.tsx"), "utf8");
 assert.match(youtubeThumbnailSource, />JOURNAL CLUB</);
-assert.match(youtubeThumbnailSource, /fontSize: 52/);
+assert.match(youtubeThumbnailSource, /fontSize: specialty\.length > 28 \? 38 : 48/);
+assert.match(youtubeThumbnailSource, /\{specialty\.toUpperCase\(\)\}[\s\S]*>JOURNAL CLUB/);
 assert.match(youtubeThumbnailSource, /isJournalClub && journal && specialty && articleTitle/);
 assert.doesNotMatch(youtubeThumbnailSource.match(/if \(isJournalClub[\s\S]*?return new ImageResponse[\s\S]*?\n  \}/)?.[0] ?? "", /truncate\(articleTitle/);
 assert.doesNotMatch(youtubeThumbnailSource.match(/if \(isJournalClub[\s\S]*?return new ImageResponse[\s\S]*?\n  \}/)?.[0] ?? "", />CONFERENCEHYPE</);
@@ -1215,10 +1216,13 @@ const journalEducationSvg = buildEvidenceDashboardSvg({
   index: 2,
   total: 12,
   seriesHeadline: "Clinical Evidence Brief",
+  specialtyLabel: "Cardiology",
   featureLabel: "EMERALD-3 randomized trial"
 });
-assert.match(journalEducationSvg, /Clinical Evidence Brief/);
-assert.match(journalEducationSvg, /CONFERENCEHYPE/);
+assert.match(journalEducationSvg, /CARDIOLOGY/);
+assert.match(journalEducationSvg, /JOURNAL CLUB/);
+assert.ok(journalEducationSvg.indexOf("CARDIOLOGY") < journalEducationSvg.indexOf("JOURNAL CLUB"));
+assert.ok(journalEducationSvg.indexOf("JOURNAL CLUB") < journalEducationSvg.indexOf("EMERALD-3 randomized trial"));
 assert.doesNotMatch(journalEducationSvg, new RegExp(["PHYSICIAN", "EDUCATION"].join("\s+"), "i"));
 assert.match(journalEducationSvg, /EMERALD-3 randomized trial/);
 const evidenceOpeningSvg = buildEvidenceDashboardSvg({
@@ -1378,7 +1382,7 @@ assert.match(prepareWeekdayStationSource, /reusedExistingReservation: true/);
 assert.match(prepareWeekdayStationSource, /program\.status !== "verified" \|\| !program\.youtubeVideoId/);
 assert.match(journalCardV2Workflow, /cron: "0 1 \* \* 1-5"/);
 assert.match(journalCardV2Workflow, /github\.event_name == 'schedule'[\s\S]*JOURNAL_CARD_V2_MAX_CARDS/);
-assert.match(youtubeUploaderSource, /privacyStatus: publishAt \? "private" : "public"/);
+assert.match(youtubeUploaderSource, /privacyStatus: publishAt \? "private" : privacyStatus \?\? "public"/);
 assert.match(youtubeUploaderSource, /publishAt\?: string/);
 const oneDailyReleaseMigration = readFileSync(path.join(process.cwd(), "supabase", "migrations", "20260817120000_one_daily_journal_club.sql"), "utf8");
 assert.match(oneDailyReleaseMigration, /new_youtube_videos', 1[\s\S]*unused_cards_preserved', true/);
@@ -1401,7 +1405,7 @@ assert.match(uploadBroadcastVideoSource, /params\.set\("journalCount"/);
 assert.match(uploadBroadcastVideoSource, /uploadType=resumable&part=snippet,status/);
 // Scheduled publication is explicit and opt-in for the automatic weekday
 // wheel. Manual/admin callers omit publishAt and remain public immediately.
-assert.match(uploadBroadcastVideoSource, /privacyStatus: publishAt \? "private" : "public"/);
+assert.match(uploadBroadcastVideoSource, /privacyStatus: publishAt \? "private" : privacyStatus \?\? "public"/);
 assert.match(uploadBroadcastVideoSource, /publishAt\?: string/);
 const streamWorkflowSource = readFileSync(
   path.join(process.cwd(), ".github", "workflows", "youtube-stream.yml"),
@@ -1758,6 +1762,12 @@ assert.equal(
 );
 assert.deepEqual(parseVolumeDetect("mean_volume: -21.4 dB\nmax_volume: -3.0 dB"), { meanVolumeDb: -21.4, maxVolumeDb: -3 });
 assert.equal(parseVolumeDetect("mean_volume: -inf dB\nmax_volume: -inf dB").maxVolumeDb, Number.NEGATIVE_INFINITY);
+assert.match(renderHourSource, /Broadcast narration is missing; refusing to render or upload a music-only video/);
+assert.match(renderHourSource, /Broadcast narration is incomplete: \$\{voiceEntries\.length\} of \$\{plannedVoiceEntries\}/);
+assert.match(renderHourSource, /await assertMusicWindowsAudible\(\{ ffmpeg: finalFfmpeg, mediaPath: outputPath, cards \}\)/);
+assert.match(renderHourSource, /await assertMediaGenerated\(outputPath\)/);
+const youtubeDeliveryVerifierSource = readFileSync(path.resolve("lib/media/youtubeDeliveryVerifier.ts"), "utf8");
+assert.match(youtubeDeliveryVerifierSource, /Rendered media \$\{mediaPath\} has no audio stream/);
 
 {
   const makeTrial = (id: string, title: string, trial: string): Segment => ({
