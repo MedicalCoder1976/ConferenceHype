@@ -36,6 +36,7 @@ const musicPath =
   "public/music/conferencehype-gap-music-6min-v6.mp3";
 const voicePath = process.env.HOUR_BROADCAST_VOICE;
 let weekendSpecialtiesForRender: string[] = [];
+let journalSpecialtyForRender = "";
 let regionalSeriesForRender = "";
 let regionalSpecialtiesForRender: string[] = [];
 
@@ -823,12 +824,13 @@ async function buildCards(): Promise<{ cards: Card[]; unusedApproved: Segment[] 
 // (what to do if a journal doesn't have enough fresh content) is explicitly
 // out of scope for this first cut.
 async function buildJournalCards(): Promise<{ cards: Card[]; unusedApproved: Segment[] }> {
-  const [{ filterBroadcastReadySegments }, { getNextBroadcastSegmentsFromDb, getSegmentsByIdsFromDb }, { buildJournalShowSlots }, { getStationProgramFromDb }] =
+  const [{ filterBroadcastReadySegments }, { getNextBroadcastSegmentsFromDb, getSegmentsByIdsFromDb, getOncologyJournalsFromDb }, { buildJournalShowSlots }, { getStationProgramFromDb }, { specificWeekendSpecialty }] =
     await Promise.all([
       import("@/lib/data"),
       import("@/lib/db"),
       import("@/lib/rundown/slots"),
-      import("@/lib/station/db")
+      import("@/lib/station/db"),
+      import("@/lib/station/weekendRoundup")
     ]);
   const baseTime = process.env.HOUR_BROADCAST_START
     ? new Date(process.env.HOUR_BROADCAST_START)
@@ -841,6 +843,12 @@ async function buildJournalCards(): Promise<{ cards: Card[]; unusedApproved: Seg
   const stationProgram = stationProgramId
     ? await getStationProgramFromDb(stationProgramId)
     : undefined;
+  const journals = stationProgram ? undefined : await getOncologyJournalsFromDb();
+  const selectedJournal = journals?.find((journal) => journal.id === journalId);
+  journalSpecialtyForRender = stationProgram?.specialty ?? (selectedJournal ? specificWeekendSpecialty(selectedJournal) : "");
+  if (!journalSpecialtyForRender) {
+    throw new Error("Journal Club specialty could not be resolved; refusing to render a slide without its specialty-first label.");
+  }
   const approved = stationProgram
     ? await getSegmentsByIdsFromDb(stationProgram.cardIds)
     : await getNextBroadcastSegmentsFromDb(200);
@@ -1552,6 +1560,7 @@ async function uploadRenderedBroadcast(
       : isWeekendMode
       ? ["JOURNAL CLUB", ...(actualMetadata?.relevantSpecialties ?? [])].join(" | ")
       : "CLINICAL EVIDENCE BRIEF",
+    journalSeriesName: isRegionalMode ? actualMetadata?.journalClubSeriesLabel : undefined,
     journalNames: isBreakingMode ? [] : actualMetadata?.thumbnailJournalNames,
     journalCount: isBreakingMode ? 0 : actualMetadata?.thumbnailJournalCount,
     panelLabel: isBreakingMode
@@ -2145,6 +2154,13 @@ async function main() {
         : isWeekendMode
           ? ["JOURNAL CLUB", ...weekendSpecialtiesForRender].join(" | ")
           : "Clinical Evidence Brief",
+      specialtyLabel: isJournalMode
+        ? journalSpecialtyForRender
+        : isRegionalMode
+          ? regionalSpecialtiesForRender.join(" • ")
+          : isWeekendMode
+            ? weekendSpecialtiesForRender.join(" • ")
+            : undefined,
       featureLabel: isBreakingMode
         ? [process.env.BREAKING_DISEASE_TYPE, cards[index].title].filter(Boolean).join(" | ")
         : isJournalMode || isWeekendMode || isRegionalMode

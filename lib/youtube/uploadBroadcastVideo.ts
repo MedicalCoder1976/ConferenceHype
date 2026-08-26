@@ -206,6 +206,7 @@ export type YoutubeThumbnailSpec = {
   journalCount?: number;
   panelLabel?: string;
   seriesLabel?: string;
+  journalSeriesName?: string;
   detailLabel?: string;
   promiseLabel?: string;
   journalClub?: boolean;
@@ -227,6 +228,7 @@ export async function downloadYoutubeThumbnail({
   journalCount,
   panelLabel,
   seriesLabel,
+  journalSeriesName,
   detailLabel,
   promiseLabel,
   journalClub,
@@ -246,6 +248,7 @@ export async function downloadYoutubeThumbnail({
   if (entityLabel) params.set("entityLabel", entityLabel);
   if (panelLabel) params.set("panelLabel", panelLabel);
   if (seriesLabel) params.set("seriesLabel", seriesLabel);
+  if (journalSeriesName) params.set("journalSeriesName", journalSeriesName);
   if (detailLabel) params.set("detailLabel", detailLabel);
   if (promiseLabel) params.set("promiseLabel", promiseLabel);
   if (journalClub) params.set("journalClub", "1");

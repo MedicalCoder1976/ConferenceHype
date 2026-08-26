@@ -1134,7 +1134,8 @@ assert.match(voiceSegmentSource, /resultsFirstStructuredNarrative/);
 assert.match(voiceSegmentSource, /\["Results", sectionText\(value, "Results"\)\]/);
 const youtubeThumbnailSource = readFileSync(path.resolve("app/api/youtube-thumbnail/route.tsx"), "utf8");
 assert.match(youtubeThumbnailSource, />JOURNAL CLUB</);
-assert.match(youtubeThumbnailSource, /fontSize: 52/);
+assert.match(youtubeThumbnailSource, /fontSize: specialty\.length > 28 \? 38 : 48/);
+assert.match(youtubeThumbnailSource, /\{specialty\.toUpperCase\(\)\}[\s\S]*>JOURNAL CLUB</);
 assert.match(youtubeThumbnailSource, /isJournalClub && journal && specialty && articleTitle/);
 assert.doesNotMatch(youtubeThumbnailSource.match(/if \(isJournalClub[\s\S]*?return new ImageResponse[\s\S]*?\n  \}/)?.[0] ?? "", /truncate\(articleTitle/);
 assert.doesNotMatch(youtubeThumbnailSource.match(/if \(isJournalClub[\s\S]*?return new ImageResponse[\s\S]*?\n  \}/)?.[0] ?? "", />CONFERENCEHYPE</);
@@ -1215,10 +1216,13 @@ const journalEducationSvg = buildEvidenceDashboardSvg({
   index: 2,
   total: 12,
   seriesHeadline: "Clinical Evidence Brief",
+  specialtyLabel: "Cardiology",
   featureLabel: "EMERALD-3 randomized trial"
 });
-assert.match(journalEducationSvg, /Clinical Evidence Brief/);
-assert.match(journalEducationSvg, /CONFERENCEHYPE/);
+assert.match(journalEducationSvg, /CARDIOLOGY/);
+assert.match(journalEducationSvg, /JOURNAL CLUB/);
+assert.ok(journalEducationSvg.indexOf("CARDIOLOGY") < journalEducationSvg.indexOf("JOURNAL CLUB"));
+assert.ok(journalEducationSvg.indexOf("JOURNAL CLUB") < journalEducationSvg.indexOf("EMERALD-3 randomized trial"));
 assert.doesNotMatch(journalEducationSvg, new RegExp(["PHYSICIAN", "EDUCATION"].join("\s+"), "i"));
 assert.match(journalEducationSvg, /EMERALD-3 randomized trial/);
 const evidenceOpeningSvg = buildEvidenceDashboardSvg({
