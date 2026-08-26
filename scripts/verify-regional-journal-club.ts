@@ -40,8 +40,11 @@ assert.match(schedule, /!journal\.regionalOnly/);
 const workflow = readFileSync(path.join(process.cwd(), ".github", "workflows", "regional-journal-club.yml"), "utf8");
 const dbSource = readFileSync(path.join(process.cwd(), "lib", "db.ts"), "utf8");
 const regionalDbSource = readFileSync(path.join(process.cwd(), "lib", "regionalJournalClub", "db.ts"), "utf8");
+const rendererSource = readFileSync(path.join(process.cwd(), "scripts", "render-hour-broadcast.ts"), "utf8");
 assert.match(workflow, /default: false/);
 assert.match(workflow, /REGIONAL_JOURNAL_CLUB_PUBLISH_ENABLED/);
+assert.match(workflow, /private_upload:/);
+assert.match(workflow, /YOUTUBE_PRIVACY_STATUS: \$\{\{ inputs\.private_upload == true && 'private' \|\| '' \}\}/);
 assert.doesNotMatch(workflow, /activate_station_schedule|activate_weekend_station_schedule|stream_state/);
 assert.match(workflow, /NEXT_PUBLIC_SUPABASE_ANON_KEY: \$\{\{ secrets\.NEXT_PUBLIC_SUPABASE_ANON_KEY \}\}/);
 assert.equal(
@@ -51,4 +54,18 @@ assert.equal(
 );
 assert.doesNotMatch(dbSource.match(/export async function upsertRegionalJournalCatalogToDb\(\)[\s\S]*?\n}\n/)?.[0] ?? "", /hasSupabase\(\)/);
 assert.match(regionalDbSource, /patch\.cardIds\?\.filter\(\(cardId\) => UUID_PATTERN\.test\(cardId\)\)/);
+for (const voiceKey of [
+  "VOICE_AETHER_VALE", "VOICE_AMARA_SOL", "VOICE_BENJI_CROSS", "VOICE_DIEGO_VALE",
+  "VOICE_ECHO_SAGE", "VOICE_ELENA_PARK", "VOICE_GRANT_IVEY", "VOICE_KAI_LENNOX",
+  "VOICE_LUNA_VALE", "VOICE_MILES_CARTER", "VOICE_NOVA_QUINN", "VOICE_ORION_REED",
+  "VOICE_RILEY_KNOX", "VOICE_SAGE_HARLAN", "VOICE_SOFIA_REYES", "VOICE_TALIA_STONE",
+  "VOICE_VESPER_QUILL"
+]) {
+  assert.match(workflow, new RegExp(`${voiceKey}: \\$\\{\\{ secrets\\.${voiceKey} \\}\\}`));
+}
+assert.match(rendererSource, /if \(!voicePath && voiceEntries\.length === 0\)/);
+assert.match(rendererSource, /refusing to render or upload a music-only video/);
+assert.match(rendererSource, /voiceEntries\.length !== plannedVoiceEntries/);
+assert.match(rendererSource, /Narration configuration is missing/);
+assert.match(rendererSource, /Uploaded \$\{youtubeUrl\} as Private for later release/);
 console.log("Regional Journal Club verification passed.");
