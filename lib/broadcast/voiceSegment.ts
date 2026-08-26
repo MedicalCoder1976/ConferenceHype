@@ -150,7 +150,10 @@ function resultsFirstStructuredNarrative(value: string) {
 function normalizeStructuredSectionLabels(value: string) {
   // Spoken-copy cleanup intentionally turns most colons into commas for a
   // natural TTS pause. Restore only exact structured-abstract headers before
-  // parsing them so the first Journal Club card retains all four sections.
+  // parsing them. Otherwise the first Journal Club card is recognized as a
+  // four-section narrative by hasFourSectionNarrative(), but sectionText()
+  // cannot find any colon-delimited bodies and results-first ordering reduces
+  // the entire paper to an empty string.
   return value.replace(/\b(Background|Methods|Results|Discussion)\s*,/gi, "$1:");
 }
 

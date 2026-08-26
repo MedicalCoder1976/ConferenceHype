@@ -1148,7 +1148,7 @@ assert.match(voiceSegmentSource, /\["Results", sectionText\(value, "Results"\)\]
 const youtubeThumbnailSource = readFileSync(path.resolve("app/api/youtube-thumbnail/route.tsx"), "utf8");
 assert.match(youtubeThumbnailSource, />JOURNAL CLUB</);
 assert.match(youtubeThumbnailSource, /fontSize: specialty\.length > 28 \? 38 : 48/);
-assert.match(youtubeThumbnailSource, /\{specialty\.toUpperCase\(\)\}[\s\S]*>JOURNAL CLUB/);
+assert.match(youtubeThumbnailSource, /\{specialty\.toUpperCase\(\)\}[\s\S]*>JOURNAL CLUB</);
 assert.match(youtubeThumbnailSource, /isJournalClub && journal && specialty && articleTitle/);
 assert.doesNotMatch(youtubeThumbnailSource.match(/if \(isJournalClub[\s\S]*?return new ImageResponse[\s\S]*?\n  \}/)?.[0] ?? "", /truncate\(articleTitle/);
 assert.doesNotMatch(youtubeThumbnailSource.match(/if \(isJournalClub[\s\S]*?return new ImageResponse[\s\S]*?\n  \}/)?.[0] ?? "", />CONFERENCEHYPE</);
