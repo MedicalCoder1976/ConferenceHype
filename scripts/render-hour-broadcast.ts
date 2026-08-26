@@ -36,8 +36,10 @@ const musicPath =
   "public/music/conferencehype-gap-music-6min-v6.mp3";
 const voicePath = process.env.HOUR_BROADCAST_VOICE;
 let weekendSpecialtiesForRender: string[] = [];
+let journalSpecialtyForRender = "";
 let regionalSeriesForRender = "";
 let regionalSpecialtiesForRender: string[] = [];
+let meetingWatchSpecialtyForRender = "";
 
 loadEnvConfig(process.cwd());
 
@@ -823,12 +825,13 @@ async function buildCards(): Promise<{ cards: Card[]; unusedApproved: Segment[] 
 // (what to do if a journal doesn't have enough fresh content) is explicitly
 // out of scope for this first cut.
 async function buildJournalCards(): Promise<{ cards: Card[]; unusedApproved: Segment[] }> {
-  const [{ filterBroadcastReadySegments }, { getNextBroadcastSegmentsFromDb, getSegmentsByIdsFromDb }, { buildJournalShowSlots }, { getStationProgramFromDb }] =
+  const [{ filterBroadcastReadySegments }, { getNextBroadcastSegmentsFromDb, getSegmentsByIdsFromDb, getOncologyJournalsFromDb }, { buildJournalShowSlots }, { getStationProgramFromDb }, { specificWeekendSpecialty }] =
     await Promise.all([
       import("@/lib/data"),
       import("@/lib/db"),
       import("@/lib/rundown/slots"),
-      import("@/lib/station/db")
+      import("@/lib/station/db"),
+      import("@/lib/station/weekendRoundup")
     ]);
   const baseTime = process.env.HOUR_BROADCAST_START
     ? new Date(process.env.HOUR_BROADCAST_START)
@@ -841,6 +844,12 @@ async function buildJournalCards(): Promise<{ cards: Card[]; unusedApproved: Seg
   const stationProgram = stationProgramId
     ? await getStationProgramFromDb(stationProgramId)
     : undefined;
+  const journals = stationProgram ? undefined : await getOncologyJournalsFromDb();
+  const selectedJournal = journals?.find((journal) => journal.id === journalId);
+  journalSpecialtyForRender = stationProgram?.specialty ?? (selectedJournal ? specificWeekendSpecialty(selectedJournal) : "");
+  if (!journalSpecialtyForRender) {
+    throw new Error("Journal Club specialty could not be resolved; refusing to render a slide without its specialty-first label.");
+  }
   const approved = stationProgram
     ? await getSegmentsByIdsFromDb(stationProgram.cardIds)
     : await getNextBroadcastSegmentsFromDb(200);
@@ -962,6 +971,7 @@ async function buildMeetingWatchCards(): Promise<{ cards: Card[]; unusedApproved
   }
   const broadcast = await getMeetingWatchBroadcastFromDb(broadcastId);
   if (!broadcast) throw new Error("Meeting Watch broadcast not found.");
+  meetingWatchSpecialtyForRender = broadcast.specialty ?? "";
   const selected = await getSegmentsByIdsFromDb(broadcast.cardIds);
   const retryEligible = (selected ?? []).map((segment) => ({
     ...segment,
@@ -1536,6 +1546,7 @@ async function uploadRenderedBroadcast(
   const tags = actualMetadata?.tags ?? [];
   const categoryId = actualMetadata?.categoryId ?? "27";
   const isPreparedStoryMode = cards.some((card) => card.riskFlags?.includes("prepared_story"));
+  const isPreparedFiveThingsMode = cards.some((card) => card.riskFlags?.includes("prepared_five_things"));
 
   const thumbnailSpec = {
     tier: actualMetadata?.tier ?? "generic",
@@ -1552,6 +1563,7 @@ async function uploadRenderedBroadcast(
       : isWeekendMode
       ? ["JOURNAL CLUB", ...(actualMetadata?.relevantSpecialties ?? [])].join(" | ")
       : "CLINICAL EVIDENCE BRIEF",
+    journalSeriesName: isRegionalMode ? actualMetadata?.journalClubSeriesLabel : undefined,
     journalNames: isBreakingMode ? [] : actualMetadata?.thumbnailJournalNames,
     journalCount: isBreakingMode ? 0 : actualMetadata?.thumbnailJournalCount,
     panelLabel: isBreakingMode
@@ -1570,6 +1582,7 @@ async function uploadRenderedBroadcast(
     journalClub: isJournalMode,
     articleTitle: isJournalMode ? actualMetadata?.thumbnailArticleTitle : undefined,
     cleanStoryLayout: isPreparedStoryMode,
+    fiveThings: isPreparedFiveThingsMode,
     siteUrl: process.env.PUBLIC_SITE_URL
   };
   const { downloadYoutubeThumbnail, getYoutubeAccessToken, uploadVideoToYoutube, uploadYoutubeThumbnail } = await import(
@@ -1588,7 +1601,8 @@ async function uploadRenderedBroadcast(
   await assertMediaGenerated(outputPath);
 
   const accessToken = await getYoutubeAccessToken();
-  const requestedPublishAt = (process.env.STATION_PROGRAM_ID || process.env.REGIONAL_PROGRAM_ID || isMeetingWatchMode) ? process.env.YOUTUBE_PUBLISH_AT : undefined;
+  const requestedPrivacyStatus = process.env.YOUTUBE_PRIVACY_STATUS === "private" ? "private" : undefined;
+  const requestedPublishAt = !requestedPrivacyStatus && (process.env.STATION_PROGRAM_ID || process.env.REGIONAL_PROGRAM_ID || isMeetingWatchMode) ? process.env.YOUTUBE_PUBLISH_AT : undefined;
   const youtubePublishAt = requestedPublishAt && new Date(requestedPublishAt).getTime() > Date.now() + 60_000
     ? requestedPublishAt
     : undefined;
@@ -1600,12 +1614,15 @@ async function uploadRenderedBroadcast(
       description,
       tags,
       categoryId,
-      publishAt: youtubePublishAt
+      publishAt: youtubePublishAt,
+      privacyStatus: requestedPrivacyStatus
     })
   );
   const youtubeVideoId = uploaded.id;
   const youtubeUrl = `https://www.youtube.com/watch?v=${youtubeVideoId}`;
-  console.log(youtubePublishAt
+  console.log(requestedPrivacyStatus === "private"
+    ? `Uploaded ${youtubeUrl} as Private for later release.`
+    : youtubePublishAt
     ? `Uploaded ${youtubeUrl}, scheduled for ${youtubePublishAt}.`
     : `Uploaded ${youtubeUrl}, public immediately.`);
 
@@ -1873,7 +1890,9 @@ async function main() {
 
   const { assertMinimumSubstantiveCards } = await import("@/lib/media/broadcastQuality");
   assertMinimumSubstantiveCards({
-    cards, mode: broadcastMode, stationProgramId: process.env.STATION_PROGRAM_ID
+    cards,
+    mode: cards.some((card) => card.riskFlags?.includes("prepared_five_things")) ? "fiveThings15" : broadcastMode,
+    stationProgramId: process.env.STATION_PROGRAM_ID
   });
 
   // Every real, DB-backed segment used in this hour's card list -- marked
@@ -1927,10 +1946,6 @@ async function main() {
       continue;
     }
     const persona = getPersona(card.personaId);
-    const voiceName = process.env[persona.voiceEnvKey];
-    if (!voiceName) {
-      continue;
-    }
     const processedScript = applySpokenPronunciations(card.script, pronunciationDefinitions.get(narrationGroupKey(card, index)) ?? new Map());
     // replaceEmptyContentCardsWithMusic already screened out cards whose RAW
     // script is empty, but applySpokenPronunciations (stripping URLs,
@@ -1947,6 +1962,12 @@ async function main() {
         `Skipping voice synthesis for a card whose script became empty after pronunciation cleanup (persona ${persona.voiceEnvKey}).`
       );
       continue;
+    }
+    const voiceName = process.env[persona.voiceEnvKey];
+    if (!voiceName) {
+      throw new Error(
+        `Narration configuration is missing ${persona.voiceEnvKey}; refusing to render or upload a video with missing speech.`
+      );
     }
     const speed = card.riskFlags?.includes("prepared_story") ? STORY_NARRATION_SPEED : 1.15;
     const cacheKey = createHash("sha256")
@@ -2114,6 +2135,7 @@ async function main() {
     if (invalidFrame) throw new Error(`Measured broadcast frame reconciled to ${reconciled}s instead of ${targetFrameSeconds}s.`);
   }
   const narrationDelay = reserveOpeningNarrationDelay(cards, cardCacheKeys);
+  const isPreparedFiveThingsRender = cards.some((card) => card.riskFlags?.includes("prepared_five_things"));
   const concatLines: string[] = [];
 
   for (let index = 0; index < cards.length; index += 1) {
@@ -2138,10 +2160,22 @@ async function main() {
           ? ["JOURNAL CLUB", regionalSeriesForRender, ...regionalSpecialtiesForRender].join(" | ")
         : isWeekendMode
           ? ["JOURNAL CLUB", ...weekendSpecialtiesForRender].join(" | ")
-          : "Clinical Evidence Brief",
+          : isPreparedFiveThingsRender
+            ? "5 THINGS TO KNOW"
+            : "Clinical Evidence Brief",
+      specialtyLabel: isJournalMode
+        ? journalSpecialtyForRender
+        : isRegionalMode
+          ? regionalSpecialtiesForRender.join(" • ")
+          : isWeekendMode
+            ? weekendSpecialtiesForRender.join(" • ")
+            : isPreparedFiveThingsRender
+              ? meetingWatchSpecialtyForRender
+              : undefined,
+      programLabel: isPreparedFiveThingsRender ? "5 THINGS TO KNOW" : undefined,
       featureLabel: isBreakingMode
         ? [process.env.BREAKING_DISEASE_TYPE, cards[index].title].filter(Boolean).join(" | ")
-        : isJournalMode || isWeekendMode || isRegionalMode
+        : isJournalMode || isWeekendMode || isRegionalMode || isPreparedFiveThingsRender
           ? cards[index].sourceLabel ?? cards[index].title
           : undefined
     });
@@ -2205,6 +2239,15 @@ async function main() {
 
   // Sort voice entries by start time so adelay values are ordered
   voiceEntries.sort((a, b) => a.startMs - b.startMs);
+  const plannedVoiceEntries = cardCacheKeys.filter(Boolean).length;
+  if (!voicePath && voiceEntries.length === 0) {
+    throw new Error("Broadcast narration is missing; refusing to render or upload a music-only video.");
+  }
+  if (voiceEntries.length !== plannedVoiceEntries) {
+    throw new Error(
+      `Broadcast narration is incomplete: ${voiceEntries.length} of ${plannedVoiceEntries} planned voice clips are available; refusing to render or upload.`
+    );
+  }
   for (let index = 1; index < voiceEntries.length; index += 1) {
     const previous = voiceEntries[index - 1];
     const current = voiceEntries[index];

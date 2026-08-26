@@ -1,4 +1,4 @@
-import { extractExplicitStudyNames } from "@/lib/youtube/broadcastMetadata";
+import { extractExplicitStudyNames, specialistAudience } from "@/lib/youtube/broadcastMetadata";
 import type { BroadcastSlot } from "@/lib/rundown/slots";
 import { buildClinicalEvidencePackaging } from "@/lib/youtube/clinicalEvidencePackaging";
 import type { BroadcastMetadata } from "@/lib/youtube/broadcastMetadata";
@@ -104,6 +104,12 @@ export function buildMeetingWatchMetadata({
     "ConferenceHype"
   ]);
   const isPreparedStory = resolved.some(({ segment }) => segment.riskFlags.includes("prepared_story"));
+  const isPreparedFiveThings = resolved.some(({ segment }) => segment.riskFlags.includes("prepared_five_things"));
+  const fiveThingItems = isPreparedFiveThings
+    ? resolved.filter(({ segment }) => segment.riskFlags.some((flag) => flag.startsWith("five_things_item:")))
+    : [];
+  const fiveThingSources = unique(fiveThingItems.flatMap(({ segment }) => segment.citations.map((citation) => citation.url)));
+  const fiveThingTopics = fiveThingItems.map(({ segment }) => segment.title);
   const packaging = buildClinicalEvidencePackaging({
     title: isPreparedStory ? title : resolved[0]?.segment.title ?? title,
     specialty: isPreparedStory ? undefined : specialty,
@@ -120,7 +126,7 @@ export function buildMeetingWatchMetadata({
         .find((flag) => flag.startsWith("prepared_thumbnail:"))
         ?.slice("prepared_thumbnail:".length).trim()
     : undefined;
-  const description = [
+  const standardDescription = [
     studyNames.length ? `Studies covered: ${featured}.` : "",
     isPreparedStory && descriptionOpening ? descriptionOpening : `This ConferenceHype Meeting Watch broadcast recaps real ${meetingLabel} findings${specialty ? ` in ${specialty}` : ""}, built for physicians, NPs, and PAs who don't have time to read every abstract themselves.`,
     `Full source: ${sourceUrl}`,
@@ -142,8 +148,24 @@ export function buildMeetingWatchMetadata({
   ]
     .filter((line, index, lines) => line || (index > 0 && lines[index - 1]))
     .join("\n");
+  const fiveThingsDescription = [
+    `${specialty}: 5 Things to Know Today.`,
+    `Topics covered: ${fiveThingTopics.join("; ")}.`,
+    `Relevant specialty: ${specialty}.`,
+    `Audience: Physicians; Medical Students; ${specialistAudience(specialty ?? "Medical").join("; ")}; Advanced Practice Providers (APPs).`,
+    "",
+    ...chapters,
+    "",
+    "Primary sources:",
+    ...fiveThingItems.map(({ segment }, index) => `${index + 1}. ${segment.title}: ${segment.citations[0]?.url ?? fiveThingSources[index] ?? sourceUrl}`),
+    "",
+    "Subscribe for the next source-attributed specialty briefing from ConferenceHype.",
+    "",
+    ...[specialty ?? "Medicine", "5ThingsToKnow", "ConferenceHype"].map((value) => `#${value.replace(/[^a-zA-Z0-9]/g, "")}`)
+  ].join("\n");
+  const description = isPreparedFiveThings ? fiveThingsDescription : standardDescription;
   return {
-    title: isPreparedStory ? truncate(title, 100) : packaging.youtubeTitle,
+    title: isPreparedStory || isPreparedFiveThings ? truncate(title, 100) : packaging.youtubeTitle,
     description,
     tags,
     categoryId: "27",
@@ -151,10 +173,10 @@ export function buildMeetingWatchMetadata({
     specialty: isPreparedStory ? undefined : specialty,
     dateLabel,
     studyNames,
-    clinicalTopic: storyResult ?? packaging.clinicalTopic,
-    thumbnailHeadline: preparedThumbnail ?? (storyOrigin ? "From " + storyOrigin + "?" : packaging.thumbnailHook),
-    thumbnailHook: preparedThumbnail ?? (storyOrigin ? "From " + storyOrigin + "?" : packaging.thumbnailHook),
-    thumbnailEntity: storyEntity ?? packaging.thumbnailEntity,
+    clinicalTopic: isPreparedFiveThings ? specialty : storyResult ?? packaging.clinicalTopic,
+    thumbnailHeadline: isPreparedFiveThings ? "5 THINGS TO KNOW" : preparedThumbnail ?? (storyOrigin ? "From " + storyOrigin + "?" : packaging.thumbnailHook),
+    thumbnailHook: isPreparedFiveThings ? "5 THINGS TO KNOW" : preparedThumbnail ?? (storyOrigin ? "From " + storyOrigin + "?" : packaging.thumbnailHook),
+    thumbnailEntity: isPreparedFiveThings ? fiveThingTopics.slice(0, 3).join(" • ") : storyEntity ?? packaging.thumbnailEntity,
     thumbnailJournalNames: undefined,
     thumbnailJournalCount: undefined
   };

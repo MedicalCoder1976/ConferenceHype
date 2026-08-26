@@ -10,6 +10,8 @@ type EvidenceDashboardInput = {
   total: number;
   isOpening?: boolean;
   seriesHeadline?: string;
+  specialtyLabel?: string;
+  programLabel?: string;
   featureLabel?: string;
 };
 
@@ -124,6 +126,8 @@ export function buildEvidenceDashboardSvg(input: EvidenceDashboardInput) {
   const focus = results || discussion || methods || firstSentences(body, 2) || "Continue listening for the evidence and clinical context.";
   const progress = Math.max(0, Math.min(1, input.total > 0 ? (input.index + 1) / input.total : 0));
   const seriesHeadline = clean(input.seriesHeadline);
+  const specialtyLabel = clean(input.specialtyLabel).toUpperCase();
+  const programLabel = clean(input.programLabel) || "JOURNAL CLUB";
   const featureLabel = clean(input.featureLabel) || source || title;
 
   if (input.isMusic) {
@@ -152,6 +156,7 @@ export function buildEvidenceDashboardSvg(input: EvidenceDashboardInput) {
       .eyebrow{font:800 17px Arial,sans-serif;letter-spacing:1.8px;fill:${COLORS.gold}}
       .title{font:900 38px Arial,sans-serif;fill:${COLORS.paper}}
       .series{font:900 42px Arial,sans-serif;fill:${COLORS.paper}}
+      .specialty{font:950 ${specialtyLabel.length > 42 ? 25 : specialtyLabel.length > 26 ? 30 : 36}px Arial,sans-serif;letter-spacing:1.4px;fill:${COLORS.paper}}
       .feature{font:850 27px Arial,sans-serif;fill:${COLORS.gold}}
       .finding{font:650 28px Arial,sans-serif;fill:${COLORS.paper}}
       .source{font:600 17px Arial,sans-serif;fill:${COLORS.muted}}
@@ -159,11 +164,16 @@ export function buildEvidenceDashboardSvg(input: EvidenceDashboardInput) {
     <rect width="1280" height="720" fill="${COLORS.ink}"/>
     <rect x="74" y="130" width="1132" height="420" rx="24" fill="${COLORS.panel}" stroke="${COLORS.cyan}" stroke-opacity=".25" stroke-width="2"/>
     <rect x="74" y="130" width="9" height="420" rx="4.5" fill="${COLORS.broadcast}"/>
-    <text x="118" y="184" class="eyebrow">${seriesHeadline ? "CONFERENCEHYPE" : input.isOpening ? "ARTICLE REVIEW" : "EVIDENCE"}</text>
+    ${specialtyLabel ? `<rect x="108" y="157" width="${Math.min(1030, Math.max(300, specialtyLabel.length * 27 + 72))}" height="58" rx="10" fill="${COLORS.broadcast}"/>` : ""}
+    <text x="118" y="${specialtyLabel ? 198 : 184}" class="${specialtyLabel ? "specialty" : "eyebrow"}">${specialtyLabel || (seriesHeadline ? "CONFERENCEHYPE" : input.isOpening ? "ARTICLE REVIEW" : "EVIDENCE")}</text>
     ${seriesHeadline
-      ? `${textBlock(wrap(seriesHeadline, 49, 2), 118, 242, 48, "series")}
-         ${textBlock(wrap(featureLabel, 63, 2), 118, 350, 34, "feature")}
-         ${textBlock(wrap(focus, 72, 3), 118, 442, 36, "finding")}`
+      ? specialtyLabel
+        ? `${textBlock([programLabel], 118, 270, 48, "series")}
+           ${textBlock(wrap(featureLabel, 63, 2), 118, 328, 34, "feature")}
+           ${textBlock(wrap(focus, 72, 3), 118, 422, 36, "finding")}`
+        : `${textBlock(wrap(seriesHeadline, 49, 2), 118, 242, 48, "series")}
+           ${textBlock(wrap(featureLabel, 63, 2), 118, 350, 34, "feature")}
+           ${textBlock(wrap(focus, 72, 3), 118, 442, 36, "finding")}`
       : `${repeatedTitle ? "" : textBlock(wrap(title, 50, 2), 118, 242, 46, "title")}
          ${textBlock(wrap(focus, 68, 4), 118, repeatedTitle ? 292 : 365, 40, "finding")}`}
     ${input.isOpening && source ? `<text x="118" y="518" class="source">${escapeXml(truncate(source, 112))}</text>` : ""}
