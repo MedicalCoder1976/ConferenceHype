@@ -109,6 +109,19 @@ assert.match(
   /^Good (morning|evening), wherever you are\. This is Echo Sage from ConferenceHype\./
 );
 assert.ok(!framed.endsWith(SEGMENT_CLOSE));
+const firstJournalCardWithSpokenSectionPauses = formatVoiceSegment({
+  voiceName: "Kai Lennox",
+  topic: "Eltrombopag plus cyclosporine A for moderate aplastic anemia",
+  narrative:
+    "From the 2026 Aug 18 edition of Blood. Background, Standard care was cyclosporine based. Methods, EMAA randomized patients to eltrombopag or placebo. Results, Response was 71.4 percent versus 42.5 percent. Discussion, The combination improved response at week 24.",
+  at: new Date("2026-08-20T11:15:00Z"),
+  includeIntro: true
+});
+assert.match(firstJournalCardWithSpokenSectionPauses, /Our segment will focus on Eltrombopag/);
+assert.match(firstJournalCardWithSpokenSectionPauses, /Results: Response was 71\.4 percent versus 42\.5 percent\./);
+assert.match(firstJournalCardWithSpokenSectionPauses, /Discussion: The combination improved response at week 24\./);
+assert.match(firstJournalCardWithSpokenSectionPauses, /Background: Standard care was cyclosporine based\./);
+assert.match(firstJournalCardWithSpokenSectionPauses, /Methods: EMAA randomized patients to eltrombopag or placebo\./);
 const fourthFramed = formatVoiceSegment({
   voiceName: "Echo Sage",
   topic: "journal review",

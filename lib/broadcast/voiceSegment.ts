@@ -147,6 +147,13 @@ function resultsFirstStructuredNarrative(value: string) {
     .join(" ");
 }
 
+function normalizeStructuredSectionLabels(value: string) {
+  // Spoken-copy cleanup intentionally turns most colons into commas for a
+  // natural TTS pause. Restore only exact structured-abstract headers before
+  // parsing them so the first Journal Club card retains all four sections.
+  return value.replace(/\b(Background|Methods|Results|Discussion)\s*,/gi, "$1:");
+}
+
 function broadcastHour(at: Date) {
   const hour = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/New_York",
@@ -225,7 +232,9 @@ export function formatVoiceSegment({
   publishedAt?: string;
 }) {
   const greeting = broadcastHour(at) < 12 ? "Good morning" : "Good evening";
-  const unframedNarrative = stripExistingVoiceFrame(narrative);
+  const unframedNarrative = normalizeStructuredSectionLabels(
+    stripExistingVoiceFrame(narrative)
+  );
   // The first structured evidence card leads with the source-approved result
   // and interpretation. Later cards retain their authored section order.
   const cleanNarrative = includeIntro

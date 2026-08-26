@@ -17,6 +17,11 @@ on:
         required: false
         type: boolean
         default: false
+      private_upload:
+        description: "Upload the narrated replacement as Private without scheduling publication"
+        required: false
+        type: boolean
+        default: false
   schedule:
     # Preparation occurs several hours before the viewer-local release.
     - cron: "0 9 * * 2,5"
@@ -109,10 +114,28 @@ jobs:
           HOUR_BROADCAST_SECONDS: "1800"
           HOUR_BROADCAST_START: ${{ matrix.program.stream_start_time }}
           YOUTUBE_PUBLISH_AT: ${{ matrix.program.stream_start_time }}
+          YOUTUBE_PRIVACY_STATUS: ${{ inputs.private_upload == true && 'private' || '' }}
           PUBLIC_SITE_URL: https://conferencehype.com
           FFMPEG_PATH: /usr/bin/ffmpeg
           HOUR_BROADCAST_OUTPUT: public/rendered/conferencehype-regional-journal-club.mp4
           KOKORO_PYTHON_CMD: python3
+          VOICE_AETHER_VALE: ${{ secrets.VOICE_AETHER_VALE }}
+          VOICE_AMARA_SOL: ${{ secrets.VOICE_AMARA_SOL }}
+          VOICE_BENJI_CROSS: ${{ secrets.VOICE_BENJI_CROSS }}
+          VOICE_DIEGO_VALE: ${{ secrets.VOICE_DIEGO_VALE }}
+          VOICE_ECHO_SAGE: ${{ secrets.VOICE_ECHO_SAGE }}
+          VOICE_ELENA_PARK: ${{ secrets.VOICE_ELENA_PARK }}
+          VOICE_GRANT_IVEY: ${{ secrets.VOICE_GRANT_IVEY }}
+          VOICE_KAI_LENNOX: ${{ secrets.VOICE_KAI_LENNOX }}
+          VOICE_LUNA_VALE: ${{ secrets.VOICE_LUNA_VALE }}
+          VOICE_MILES_CARTER: ${{ secrets.VOICE_MILES_CARTER }}
+          VOICE_NOVA_QUINN: ${{ secrets.VOICE_NOVA_QUINN }}
+          VOICE_ORION_REED: ${{ secrets.VOICE_ORION_REED }}
+          VOICE_RILEY_KNOX: ${{ secrets.VOICE_RILEY_KNOX }}
+          VOICE_SAGE_HARLAN: ${{ secrets.VOICE_SAGE_HARLAN }}
+          VOICE_SOFIA_REYES: ${{ secrets.VOICE_SOFIA_REYES }}
+          VOICE_TALIA_STONE: ${{ secrets.VOICE_TALIA_STONE }}
+          VOICE_VESPER_QUILL: ${{ secrets.VOICE_VESPER_QUILL }}
           YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
           YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
           YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
