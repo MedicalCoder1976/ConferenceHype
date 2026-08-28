@@ -39,4 +39,8 @@ const thumbnailSource = readFileSync(path.resolve("app/api/youtube-thumbnail/rou
 assert.match(thumbnailSource, /isFiveThings/);
 assert.match(thumbnailSource, />5 THINGS TO KNOW</);
 assert.match(thumbnailSource, /specialty\.toUpperCase\(\)/);
+assert.match(thumbnailSource, /specialty\.length > 28 \? 46 : specialty\.length > 20 \? 56 : 66/);
+assert.match(thumbnailSource, /linear-gradient\(135deg, #ffbd45 0%, #ffe58a 100%\)/);
+assert.match(thumbnailSource, /color: COLORS\.ink/);
+assert.match(thumbnailSource, /0 0 0 6px rgba\(244,72,58,0\.78\)/);
 console.log("5 Things to Know verification passed.");

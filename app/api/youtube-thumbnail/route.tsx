@@ -95,12 +95,13 @@ export async function GET(request: NextRequest) {
   }
 
   if (isFiveThings && specialty) {
+    const specialtyFontSize = specialty.length > 28 ? 46 : specialty.length > 20 ? 56 : 66;
     return new ImageResponse(
       (
         <div style={{ width: "100%", height: "100%", display: "flex", position: "relative", flexDirection: "column", backgroundColor: COLORS.ink, color: COLORS.paper, fontFamily: "sans-serif", padding: "64px 76px 58px" }}>
           <div style={{ display: "flex", position: "absolute", top: 0, left: 0, width: "100%", height: 18, backgroundColor: COLORS.broadcast }} />
           <div style={{ display: "flex", alignItems: "center", gap: 22 }}>
-            <div style={{ display: "flex", backgroundColor: COLORS.broadcast, color: COLORS.paper, borderRadius: 10, padding: "13px 22px 11px", fontSize: specialty.length > 28 ? 38 : 48, fontWeight: 950, lineHeight: 0.95, letterSpacing: 2 }}>{specialty.toUpperCase()}</div>
+            <div style={{ display: "flex", backgroundImage: "linear-gradient(135deg, #ffbd45 0%, #ffe58a 100%)", color: COLORS.ink, border: `4px solid ${COLORS.paper}`, borderRadius: 12, padding: "17px 28px 15px", fontSize: specialtyFontSize, fontWeight: 950, lineHeight: 0.95, letterSpacing: 2.4, boxShadow: "0 0 0 6px rgba(244,72,58,0.78)" }}>{specialty.toUpperCase()}</div>
           </div>
           <div style={{ display: "flex", marginTop: 40, color: COLORS.gold, fontSize: 78, fontWeight: 950, lineHeight: 0.95 }}>5 THINGS TO KNOW</div>
           {entityLabel ? <div style={{ display: "flex", marginTop: 34, color: COLORS.paper, fontSize: entityLabel.length > 30 ? 35 : 42, fontWeight: 850, lineHeight: 1.1, maxWidth: 1060 }}>{entityLabel}</div> : null}
