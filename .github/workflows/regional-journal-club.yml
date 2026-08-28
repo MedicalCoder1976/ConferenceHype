@@ -43,6 +43,8 @@ jobs:
       publish: ${{ steps.resolve.outputs.publish }}
     steps:
       - id: resolve
+        env:
+          JOURNAL_CLUB_RELEASES_PAUSED_UNTIL: ${{ vars.JOURNAL_CLUB_RELEASES_PAUSED_UNTIL }}
         shell: bash
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
@@ -56,6 +58,10 @@ jobs:
             if [ "$DOW" = "2" ] || [ "$DOW" = "5" ]; then CODE=india; ZONE=Asia/Kolkata; else CODE=united_kingdom; ZONE=Europe/London; fi
             DATE=$(TZ=$ZONE date +%F)
             PUBLISH="${{ vars.REGIONAL_JOURNAL_CLUB_PUBLISH_ENABLED == 'true' }}"
+          fi
+          if [ -n "$JOURNAL_CLUB_RELEASES_PAUSED_UNTIL" ] && [ "$DATE" \< "$JOURNAL_CLUB_RELEASES_PAUSED_UNTIL" ] && [ "${{ inputs.private_upload }}" != "true" ]; then
+            echo "Regional Journal Club releases are paused for $DATE; automatic release resumes $JOURNAL_CLUB_RELEASES_PAUSED_UNTIL."
+            PUBLISH=false
           fi
           echo "code=$CODE" >> "$GITHUB_OUTPUT"
           echo "date=$DATE" >> "$GITHUB_OUTPUT"

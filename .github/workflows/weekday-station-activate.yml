@@ -27,6 +27,7 @@ jobs:
           SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           REQUESTED_DATE: ${{ inputs.schedule_date }}
+          JOURNAL_CLUB_RELEASES_PAUSED_UNTIL: ${{ vars.JOURNAL_CLUB_RELEASES_PAUSED_UNTIL }}
         shell: bash
         run: |
           TARGET_DATE="$REQUESTED_DATE"
@@ -37,5 +38,9 @@ jobs:
           fi
           DOW=$(TZ=America/New_York date -d "$TARGET_DATE" +%u)
           if [ "$DOW" -gt 5 ]; then echo "Refusing weekend activation for $TARGET_DATE"; exit 1; fi
+          if [ -n "$JOURNAL_CLUB_RELEASES_PAUSED_UNTIL" ] && [ "$TARGET_DATE" \< "$JOURNAL_CLUB_RELEASES_PAUSED_UNTIL" ]; then
+            echo "Journal Club activation is paused for $TARGET_DATE; automatic release resumes $JOURNAL_CLUB_RELEASES_PAUSED_UNTIL."
+            exit 0
+          fi
           SCHEDULE_ID=$(curl --fail --silent --show-error --get "${SUPABASE_URL}/rest/v1/station_daily_schedules" -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" --data-urlencode "select=id" --data-urlencode "schedule_date=eq.${TARGET_DATE}" | jq -er '.[0].id')
           curl --fail --silent --show-error "${SUPABASE_URL}/rest/v1/rpc/activate_station_schedule" -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" -H "Content-Type: application/json" -d "{\"p_schedule_id\":\"${SCHEDULE_ID}\"}" | jq -e '.status == "active"'

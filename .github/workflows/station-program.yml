@@ -62,15 +62,42 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
+      - name: Enforce temporary Journal Club release pause
+        id: release_gate
+        env:
+          PROGRAM_MODE: ${{ inputs.program_mode }}
+          STREAM_START_TIME: ${{ inputs.stream_start_time }}
+          YOUTUBE_PUBLISH_AT: ${{ inputs.youtube_publish_at }}
+          JOURNAL_CLUB_RELEASES_PAUSED_UNTIL: ${{ vars.JOURNAL_CLUB_RELEASES_PAUSED_UNTIL }}
+        shell: bash
+        run: |
+          if [ "$PROGRAM_MODE" = "weekend30" ] || [ -z "$JOURNAL_CLUB_RELEASES_PAUSED_UNTIL" ]; then
+            echo "allowed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          RELEASE_AT="${YOUTUBE_PUBLISH_AT:-$STREAM_START_TIME}"
+          RELEASE_DATE="${RELEASE_AT:0:10}"
+          if [ -n "$RELEASE_DATE" ] && [ "$RELEASE_DATE" \< "$JOURNAL_CLUB_RELEASES_PAUSED_UNTIL" ]; then
+            echo "Journal Club release is paused for $RELEASE_DATE; automatic release resumes $JOURNAL_CLUB_RELEASES_PAUSED_UNTIL."
+            echo "allowed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "allowed=true" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/checkout@v5
+        if: steps.release_gate.outputs.allowed == 'true'
       - uses: actions/setup-node@v5
+        if: steps.release_gate.outputs.allowed == 'true'
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
-      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      - run: pip install kokoro numpy soundfile
+      - if: steps.release_gate.outputs.allowed == 'true'
+        run: npm ci
+      - if: steps.release_gate.outputs.allowed == 'true'
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - if: steps.release_gate.outputs.allowed == 'true'
+        run: pip install kokoro numpy soundfile
       - name: Render and upload isolated 30-minute journal program
+        if: steps.release_gate.outputs.allowed == 'true'
         run: npx tsx scripts/render-hour-broadcast.ts
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
@@ -112,7 +139,7 @@ jobs:
           VOICE_TALIA_STONE: ${{ secrets.VOICE_TALIA_STONE }}
           VOICE_VESPER_QUILL: ${{ secrets.VOICE_VESPER_QUILL }}
       - name: Record isolated station-program failure
-        if: ${{ failure() }}
+        if: ${{ failure() && steps.release_gate.outputs.allowed == 'true' }}
         run: npx tsx scripts/update-station-failure.ts
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}

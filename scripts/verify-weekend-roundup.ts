@@ -65,6 +65,7 @@ assert.match(renderSource, /Measured broadcast frame reconciled/);
 assert.match(renderSource, /cardCacheKeys\.splice\(insertAt, 0, undefined\)/);
 
 const workflow = readFileSync(path.join(process.cwd(), ".github", "workflows", "weekend-medical-roundup.yml"), "utf8");
+const stationProgramWorkflow = readFileSync(path.join(process.cwd(), ".github", "workflows", "station-program.yml"), "utf8");
 assert.match(workflow, /cron: "0 12 \* \* 0,6"/);
 assert.match(workflow, /cron: "0 13 \* \* 0,6"/);
 assert.match(workflow, /HOUR.*08/);
@@ -73,6 +74,8 @@ assert.match(workflow, /activate_weekend_station_schedule/);
 const weekdayWorkflow = readFileSync(path.join(process.cwd(), ".github", "workflows", "weekday-station-wheel.yml"), "utf8");
 assert.match(weekdayWorkflow, /cron: "30 3 \* \* 1-5"/);
 assert.doesNotMatch(weekdayWorkflow, /weekend30/);
+assert.match(stationProgramWorkflow, /PROGRAM_MODE" = "weekend30"/);
+assert.match(workflow, /program_mode: \$\{\{ matrix\.program\.program_mode \}\}/);
 const migration = readFileSync(path.join(process.cwd(), "supabase", "migrations", "20260817120000_one_daily_journal_club.sql"), "utf8");
 assert.match(migration, /extract\(isodow from candidate\.schedule_date\) not in \(6, 7\)/);
 assert.match(migration, /distinct_videos <> 1/);

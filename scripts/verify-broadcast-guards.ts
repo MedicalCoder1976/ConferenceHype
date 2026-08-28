@@ -1378,9 +1378,18 @@ assert.match(weekdayReleaseWorkflow, /max-parallel: 1/);
 assert.match(weekdayReleaseWorkflow, /TARGET=\$\(date -u \+%F\)/);
 assert.doesNotMatch(weekdayReleaseWorkflow, /HOUR.*!=.*22/);
 const weekdayActivationWorkflow = readFileSync(path.join(process.cwd(), ".github", "workflows", "weekday-station-activate.yml"), "utf8");
+const regionalJournalWorkflow = readFileSync(path.join(process.cwd(), ".github", "workflows", "regional-journal-club.yml"), "utf8");
 assert.match(weekdayActivationWorkflow, /10#\$HOUR.*-lt 7/);
 assert.doesNotMatch(weekdayActivationWorkflow, /HOUR.*!=.*06/);
 assert.match(weekdayReleaseWorkflow, /youtube_publish_at: \$\{\{ matrix\.program\.youtube_publish_at \}\}/);
+assert.match(weekdayReleaseWorkflow, /JOURNAL_CLUB_RELEASES_PAUSED_UNTIL/);
+assert.match(weekdayReleaseWorkflow, /automatic release resumes/);
+assert.match(weekdayActivationWorkflow, /JOURNAL_CLUB_RELEASES_PAUSED_UNTIL/);
+assert.match(regionalJournalWorkflow, /JOURNAL_CLUB_RELEASES_PAUSED_UNTIL/);
+assert.match(regionalJournalWorkflow, /inputs\.private_upload/);
+assert.match(stationProgramWorkflow, /PROGRAM_MODE[\s\S]*inputs\.program_mode/);
+assert.match(stationProgramWorkflow, /PROGRAM_MODE" = "weekend30"/);
+assert.match(stationProgramWorkflow, /release_gate\.outputs\.allowed == 'true'/);
 assert.match(stationProgramWorkflow, /youtube_publish_at:[\s\S]*default: ""/);
 assert.equal(
   [...stationProgramWorkflow.matchAll(/^      youtube_publish_at:/gm)].length,
