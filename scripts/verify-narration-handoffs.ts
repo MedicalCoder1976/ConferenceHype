@@ -11,6 +11,10 @@ assert.doesNotMatch(summary, /Background:\s*(?:BACKGROUND|Background) AND AIMS/i
 const spoken = applySpokenPronunciations("Background: BACKGROUND AND AIMS: LMNA-related cardiomyopathy is progressive.");
 assert.equal(spoken, "Background, LMNA-related cardiomyopathy is progressive.");
 assert.doesNotMatch(spoken, /A-I-M-S|Background,\s*Background/i);
+assert.equal(applySpokenPronunciations("Prior MI or stroke"), "Prior M I or stroke");
+assert.equal(applySpokenPronunciations("Prior MI or stroke", "myocardial infarction (MI)"), "Prior M I or stroke");
+assert.equal(applySpokenPronunciations("myocardial infarction (MI) followed by MI", "myocardial infarction (MI)"), "myocardial infarction followed by M I");
+assert.equal(applySpokenPronunciations("Miami and mi remain unchanged"), "Miami and mi remain unchanged");
 assert.equal(JOURNAL_MUSIC_SECONDS, 20);
 
 console.log("Narration and handoff verification passed.");

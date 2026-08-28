@@ -83,8 +83,14 @@ function expandDefinedAbbreviations(script: string, definitions: ReadonlyMap<str
     const escapedFullForm = escapeRegExp(fullForm);
     output = output
       .replace(new RegExp("\\b" + escapedFullForm + "\\s*\\(\\s*" + escapedAbbreviation + "\\s*\\)", "gi"), fullForm)
-      .replace(new RegExp("\\b" + escapedAbbreviation + "\\s*\\(\\s*" + escapedFullForm + "\\s*\\)", "gi"), fullForm)
-      .replace(new RegExp("\\b" + escapedAbbreviation + "\\b", "g"), fullForm);
+      .replace(new RegExp("\\b" + escapedAbbreviation + "\\s*\\(\\s*" + escapedFullForm + "\\s*\\)", "gi"), fullForm);
+    // A standalone uppercase MI is an initialism in clinical narration and
+    // must be spoken as the letters "M I", not expanded or pronounced "me".
+    // Keep the full phrase at its parenthetical definition above, then leave
+    // later MI tokens for the pronunciation rule below.
+    if (abbreviation !== "MI") {
+      output = output.replace(new RegExp("\\b" + escapedAbbreviation + "\\b", "g"), fullForm);
+    }
   }
   return output;
 }
@@ -163,6 +169,7 @@ export function applySpokenPronunciations(script: string, sourceContext: string 
     // Percent sign → "percent"
     .replace(/(\d)\s*%/g, "$1 percent")
     .replace(/\bASCO\b/g, "Ask-ho")
+    .replace(/\bMI\b/g, "M I")
     // The "ch" in cholangiocarcinoma is pronounced as a hard "k" sound,
     // not as "cho". Removing the silent h gives Kokoro the intended
     // "colangio-carcinoma" pronunciation without changing visible card copy.
