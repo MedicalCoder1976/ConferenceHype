@@ -1,7 +1,7 @@
 export const FIVE_THINGS_SPECIALTIES = [
   "Allergy and Immunology", "Anesthesiology", "Cardiology", "Dermatology", "Emergency Medicine",
   "Endocrinology", "Family Medicine", "Gastroenterology", "Hematology", "Infectious Diseases",
-  "Internal Medicine", "Nephrology", "Neurology", "Obstetrics and Gynecology", "Oncology",
+  "Internal Medicine", "Nephrology", "Neurology", "Obstetrics and Gynecology", "Gynecologic Oncology", "Oncology",
   "Ophthalmology", "Orthopedics", "Pediatrics", "Psychiatry", "Pulmonology", "Radiology",
   "Rheumatology", "Surgery", "Urology"
 ] as const;

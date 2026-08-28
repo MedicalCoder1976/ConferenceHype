@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
-import { broadcastDisclaimer } from "@/lib/generation/disclaimers";
 import { buildFiveThingsSearchTitle, FIVE_THINGS_SPECIALTIES } from "@/lib/story/fiveThingsConfig";
+import { buildFiveThingsDisclaimer } from "@/lib/story/fiveThingsDisclaimer";
 import type { Segment } from "@/lib/types";
 
 export const fiveThingsInputSchema = z.object({
@@ -94,7 +94,9 @@ export function parsePreparedFiveThings(input: FiveThingsInput) {
   const spokenWords = items.reduce((total, item) => total + wordCount(item.script), wordCount(intro) + 55);
   if (spokenWords < 400) throw new Error("The five-item write-up needs at least 400 spoken words after structural labels and URLs are removed.");
   const title = buildFiveThingsSearchTitle(parsed.specialty, items.map((item) => item.title));
-  const durationSeconds = Math.max(360, Math.ceil((spokenWords / WORDS_PER_SECOND + TRANSITION_SECONDS * 4 + 45) / 15) * 15);
+  const disclaimer = buildFiveThingsDisclaimer(parsed.specialty, items.map((item) => item.title));
+  const closingWords = wordCount(disclaimer.text) + 30;
+  const durationSeconds = Math.max(360, Math.ceil(((spokenWords + closingWords) / WORDS_PER_SECOND + TRANSITION_SECONDS * 4 + 15) / 15) * 15);
   const sourceHash = createHash("sha256")
     .update(JSON.stringify({ specialty: parsed.specialty, writeup: parsed.writeup.replace(/\s+/g, " ").trim() }))
     .digest("hex");
@@ -143,14 +145,12 @@ export function preparedFiveThingsSegments(prepared: ReturnType<typeof parsePrep
         ...(item.position < 5 ? [`prepared_transition:${TRANSITION_SECONDS}`] : [])
       ]
     }));
-    if (item.position === 3) {
-      segments.push(makeSegment({ title: "Important ConferenceHype notice", script: broadcastDisclaimer, flags: ["prepared_disclaimer", "prepared_card:3.5"] }));
-    }
   }
+  const disclaimer = buildFiveThingsDisclaimer(prepared.input.specialty, prepared.items.map((item) => item.title));
   segments.push(makeSegment({
-    title: `Five ${prepared.input.specialty} developments in perspective`,
-    script: `Those are the five ${prepared.input.specialty.toLowerCase()} developments to know today. Review every primary source in the description, share this briefing with a colleague, and subscribe for the next specialty-specific ConferenceHype update.`,
-    flags: ["prepared_closing", "prepared_card:6"]
+    title: disclaimer.heading,
+    script: `Those are the five ${prepared.input.specialty.toLowerCase()} developments to know today. Review every primary source in the description and share this briefing with a colleague. ${disclaimer.heading.replace(/:$/, ".")} ${disclaimer.text}`,
+    flags: ["prepared_disclaimer", "prepared_closing", "five_things_tailored_disclaimer", "prepared_card:6"]
   }));
   return segments;
 }

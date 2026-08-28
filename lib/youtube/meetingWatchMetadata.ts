@@ -2,6 +2,7 @@ import { extractExplicitStudyNames, specialistAudience } from "@/lib/youtube/bro
 import type { BroadcastSlot } from "@/lib/rundown/slots";
 import { buildClinicalEvidencePackaging } from "@/lib/youtube/clinicalEvidencePackaging";
 import type { BroadcastMetadata } from "@/lib/youtube/broadcastMetadata";
+import { formatFiveThingsDisclaimer } from "@/lib/story/fiveThingsDisclaimer";
 
 const MAX_TAG_LENGTH = 30;
 const MAX_TAGS_TOTAL_CHARS = 500;
@@ -160,6 +161,8 @@ export function buildMeetingWatchMetadata({
     ...fiveThingItems.map(({ segment }, index) => `${index + 1}. ${segment.title}: ${segment.citations[0]?.url ?? fiveThingSources[index] ?? sourceUrl}`),
     "",
     "Subscribe for the next source-attributed specialty briefing from ConferenceHype.",
+    "",
+    formatFiveThingsDisclaimer(specialty ?? "Medical", fiveThingTopics),
     "",
     ...[specialty ?? "Medicine", "5ThingsToKnow", "ConferenceHype"].map((value) => `#${value.replace(/[^a-zA-Z0-9]/g, "")}`)
   ].join("\n");

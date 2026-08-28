@@ -135,7 +135,8 @@ export function buildMeetingWatchSlots({
       }
     }
     const isPreparedStory = ordered.every((segment) => segment.riskFlags.includes("prepared_story"));
-    if (!isPreparedStory) {
+    const endsWithTailoredDisclaimer = ordered.at(-1)?.riskFlags.includes("five_things_tailored_disclaimer") ?? false;
+    if (!isPreparedStory && !endsWithTailoredDisclaimer) {
       const closingMusicSeconds = 15;
       slots.push({
         at: preparedAt,
