@@ -2,6 +2,7 @@ import { createReadStream, statSync } from "node:fs";
 import { Readable } from "node:stream";
 
 const YOUTUBE_TITLE_MAX_LENGTH = 100;
+const YOUTUBE_DESCRIPTION_MAX_BYTES = 5000;
 const YOUTUBE_TAGS_MAX_LENGTH = 500;
 
 function youtubeTagListLength(tags: string[]) {
@@ -37,13 +38,39 @@ export function removeViewerGroundingLabels(value: string) {
 }
 
 export function normalizeYoutubeTitle(value: string) {
-  const title = removeViewerGroundingLabels(value).replace(/\s+/g, " ");
+  const title = removeViewerGroundingLabels(value)
+    .replace(/\s*<\s*/g, " less than ")
+    .replace(/\s*>\s*/g, " greater than ")
+    .replace(/\s+/g, " ");
   if (Array.from(title).length <= YOUTUBE_TITLE_MAX_LENGTH) return title;
   const available = YOUTUBE_TITLE_MAX_LENGTH - 1;
   const prefix = Array.from(title).slice(0, available).join("");
   const lastSpace = prefix.lastIndexOf(" ");
   const wordSafePrefix = lastSpace >= Math.floor(available * 0.75) ? prefix.slice(0, lastSpace) : prefix;
   return `${wordSafePrefix.trimEnd()}…`;
+}
+
+export function normalizeYoutubeDescription(value: string) {
+  const description = removeViewerGroundingLabels(value)
+    .replace(/[ \t]*<[ \t]*/g, " less than ")
+    .replace(/[ \t]*>[ \t]*/g, " greater than ")
+    .replace(/[ \t]{2,}/g, " ");
+  const encoder = new TextEncoder();
+  if (encoder.encode(description).length <= YOUTUBE_DESCRIPTION_MAX_BYTES) return description;
+
+  const suffix = "…";
+  const availableBytes = YOUTUBE_DESCRIPTION_MAX_BYTES - encoder.encode(suffix).length;
+  let bytes = 0;
+  let prefix = "";
+  for (const character of description) {
+    const characterBytes = encoder.encode(character).length;
+    if (bytes + characterBytes > availableBytes) break;
+    prefix += character;
+    bytes += characterBytes;
+  }
+  const lastWhitespace = Math.max(prefix.lastIndexOf(" "), prefix.lastIndexOf("\n"));
+  if (lastWhitespace >= Math.floor(prefix.length * 0.75)) prefix = prefix.slice(0, lastWhitespace);
+  return `${prefix.trimEnd()}${suffix}`;
 }
 
 // Replaces the old live-broadcast + RTMP pipeline: instead of streaming a
@@ -107,7 +134,7 @@ export async function uploadVideoToYoutube({
         "X-Upload-Content-Type": "video/mp4"
       },
       body: JSON.stringify({
-        snippet: { title: youtubeTitle, description: removeViewerGroundingLabels(description), tags: normalizeYoutubeTags(tags), categoryId },
+        snippet: { title: youtubeTitle, description: normalizeYoutubeDescription(description), tags: normalizeYoutubeTags(tags), categoryId },
         status: {
           // Scheduled publishing is opt-in. All manual/admin uploads omit
           // publishAt and retain their existing immediate-public behavior.
@@ -187,7 +214,7 @@ export async function updateYoutubeVideoMetadata({
     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       id: videoId,
-      snippet: { ...snippet, title: youtubeTitle, description: removeViewerGroundingLabels(description), tags: normalizeYoutubeTags(tags), categoryId }
+      snippet: { ...snippet, title: youtubeTitle, description: normalizeYoutubeDescription(description), tags: normalizeYoutubeTags(tags), categoryId }
     })
   });
   if (!updateResponse.ok) {

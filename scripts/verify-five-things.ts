@@ -6,6 +6,7 @@ import { buildMeetingWatchSlots } from "@/lib/rundown/meetingWatchSlots";
 import { buildFiveThingsSearchTitle } from "@/lib/story/fiveThingsConfig";
 import { parsePreparedFiveThings, preparedFiveThingsSegments } from "@/lib/story/preparedFiveThings";
 import { buildMeetingWatchMetadata } from "@/lib/youtube/meetingWatchMetadata";
+import { normalizeYoutubeDescription, normalizeYoutubeTitle } from "@/lib/youtube/uploadBroadcastVideo";
 
 const paragraph = "A randomized clinical study reports a meaningful result for patient care. The investigators describe the population, intervention, comparator, outcome, safety findings, and follow-up. Clinicians should interpret the effect size alongside eligibility criteria and study limitations before changing practice. The primary source provides the complete methods and results for independent review.";
 const writeup = `INTRO:\nThese developments were selected for practicing cardiologists reviewing today's evidence.\n\n${Array.from({ length: 5 }, (_, index) => `${index + 1}. ${["TAVR outcomes", "LDL lowering", "Heart failure therapy", "Atrial fibrillation", "Hypertension guidance"][index]}\nWhat happened: ${paragraph}\nKey evidence: ${paragraph}\nPrimary source URL: https://example.com/source-${index + 1}`).join("\n\n")}`;
@@ -28,6 +29,10 @@ assert.equal(metadata.thumbnailHeadline, "5 THINGS TO KNOW");
 assert.match(metadata.description, /^Cardiology: 5 Things to Know Today\./);
 assert.match(metadata.description, /Audience: Physicians; Medical Students; Cardiologists; Advanced Practice Providers \(APPs\)\./);
 assert.equal((metadata.description.match(/https:\/\/example\.com\/source-/g) ?? []).length, 5);
+assert.equal(normalizeYoutubeTitle("Beta-blockers after MI with LVEF >40%"), "Beta-blockers after MI with LVEF greater than 40%");
+assert.equal(normalizeYoutubeDescription("LDL-C <55 mg/dL and LVEF >40%"), "LDL-C less than 55 mg/dL and LVEF greater than 40%");
+assert.doesNotMatch(normalizeYoutubeDescription(metadata.description.replace("LVEF", "LVEF >40%")), /[<>]/);
+assert.ok(new TextEncoder().encode(normalizeYoutubeDescription("Evidence 😀 ".repeat(1000))).length <= 5000);
 
 assert.throws(() => parsePreparedFiveThings({ specialty: "Cardiology", writeup: writeup.replace("https://example.com/source-5", "https://example.com/source-4") }), /five distinct primary-source URLs/);
 const thumbnailSource = readFileSync(path.resolve("app/api/youtube-thumbnail/route.tsx"), "utf8");
