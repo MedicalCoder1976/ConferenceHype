@@ -1558,7 +1558,9 @@ async function uploadRenderedBroadcast(
       ? process.env.BREAKING_DISEASE_TYPE ?? actualMetadata?.clinicalTopic
       : actualMetadata?.clinicalTopic,
     entityLabel: actualMetadata?.thumbnailEntity,
-    seriesLabel: isRegionalMode
+    seriesLabel: isPreparedStoryMode
+      ? "BREAKING"
+      : isRegionalMode
       ? ["JOURNAL CLUB", actualMetadata?.journalClubSeriesLabel, ...(actualMetadata?.relevantSpecialties ?? [])].filter(Boolean).join(" | ")
       : isWeekendMode
       ? ["JOURNAL CLUB", ...(actualMetadata?.relevantSpecialties ?? [])].join(" | ")
@@ -2135,6 +2137,7 @@ async function main() {
     if (invalidFrame) throw new Error(`Measured broadcast frame reconciled to ${reconciled}s instead of ${targetFrameSeconds}s.`);
   }
   const narrationDelay = reserveOpeningNarrationDelay(cards, cardCacheKeys);
+  const isPreparedStoryRender = cards.some((card) => card.riskFlags?.includes("prepared_story"));
   const isPreparedFiveThingsRender = cards.some((card) => card.riskFlags?.includes("prepared_five_things"));
   const concatLines: string[] = [];
 
@@ -2154,7 +2157,9 @@ async function main() {
       index,
       total: cards.length,
       isOpening: cards[index].riskFlags?.includes("prepared_opening"),
-      seriesHeadline: isBreakingMode
+      seriesHeadline: isPreparedStoryRender
+        ? "BREAKING"
+        : isBreakingMode
         ? "Clinical Evidence Brief: Breaking Paper"
         : isRegionalMode
           ? ["JOURNAL CLUB", regionalSeriesForRender, ...regionalSpecialtiesForRender].join(" | ")

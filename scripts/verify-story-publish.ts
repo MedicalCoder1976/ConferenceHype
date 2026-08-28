@@ -38,5 +38,7 @@ console.log("Story publish verification passed.");
 const renderSource = readFileSync(path.join(process.cwd(), "scripts", "render-hour-broadcast.ts"), "utf8");
 const thumbnailSource = readFileSync(path.join(process.cwd(), "app", "api", "youtube-thumbnail", "route.tsx"), "utf8");
 assert.match(renderSource, /cleanStoryLayout: isPreparedStoryMode/);
+assert.match(renderSource, /seriesLabel: isPreparedStoryMode\s*\? "BREAKING"/);
+assert.match(renderSource, /seriesHeadline: isPreparedStoryRender\s*\? "BREAKING"/);
 assert.match(thumbnailSource, /isCleanStoryLayout \? "100%" : "72%"/);
 assert.match(thumbnailSource, /!isCleanStoryLayout \? <div/);
