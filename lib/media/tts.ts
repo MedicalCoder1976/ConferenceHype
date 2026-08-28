@@ -172,6 +172,10 @@ export function applySpokenPronunciations(script: string, sourceContext: string 
     .replace(/\bASCO\b/g, "Ask-ho")
     .replace(/\bMI\b/g, "M I")
     .replace(/\bESC\b/g, "E S C")
+    // Company names may arrive in all caps from headlines or source feeds.
+    // Restore normal casing so Kokoro pronounces the name as a word rather
+    // than interpreting it as an initialism.
+    .replace(/\bNOVARTIS\b/gi, "Novartis")
     // The "ch" in cholangiocarcinoma is pronounced as a hard "k" sound,
     // not as "cho". Removing the silent h gives Kokoro the intended
     // "colangio-carcinoma" pronunciation without changing visible card copy.
