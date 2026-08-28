@@ -84,11 +84,12 @@ function expandDefinedAbbreviations(script: string, definitions: ReadonlyMap<str
     output = output
       .replace(new RegExp("\\b" + escapedFullForm + "\\s*\\(\\s*" + escapedAbbreviation + "\\s*\\)", "gi"), fullForm)
       .replace(new RegExp("\\b" + escapedAbbreviation + "\\s*\\(\\s*" + escapedFullForm + "\\s*\\)", "gi"), fullForm);
-    // A standalone uppercase MI is an initialism in clinical narration and
-    // must be spoken as the letters "M I", not expanded or pronounced "me".
+    // Standalone uppercase MI and ESC are fixed clinical initialisms in
+    // narration and must be spoken letter-by-letter, even when the source
+    // supplies a parenthetical definition.
     // Keep the full phrase at its parenthetical definition above, then leave
     // later MI tokens for the pronunciation rule below.
-    if (abbreviation !== "MI") {
+    if (abbreviation !== "MI" && abbreviation !== "ESC") {
       output = output.replace(new RegExp("\\b" + escapedAbbreviation + "\\b", "g"), fullForm);
     }
   }
@@ -170,6 +171,7 @@ export function applySpokenPronunciations(script: string, sourceContext: string 
     .replace(/(\d)\s*%/g, "$1 percent")
     .replace(/\bASCO\b/g, "Ask-ho")
     .replace(/\bMI\b/g, "M I")
+    .replace(/\bESC\b/g, "E S C")
     // The "ch" in cholangiocarcinoma is pronounced as a hard "k" sound,
     // not as "cho". Removing the silent h gives Kokoro the intended
     // "colangio-carcinoma" pronunciation without changing visible card copy.

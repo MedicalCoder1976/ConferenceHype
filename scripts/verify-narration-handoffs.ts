@@ -15,6 +15,10 @@ assert.equal(applySpokenPronunciations("Prior MI or stroke"), "Prior M I or stro
 assert.equal(applySpokenPronunciations("Prior MI or stroke", "myocardial infarction (MI)"), "Prior M I or stroke");
 assert.equal(applySpokenPronunciations("myocardial infarction (MI) followed by MI", "myocardial infarction (MI)"), "myocardial infarction followed by M I");
 assert.equal(applySpokenPronunciations("Miami and mi remain unchanged"), "Miami and mi remain unchanged");
+assert.equal(applySpokenPronunciations("The ESC guideline changed"), "The E S C guideline changed");
+assert.equal(applySpokenPronunciations("The ESC guideline changed", "European Society of Cardiology (ESC)"), "The E S C guideline changed");
+assert.equal(applySpokenPronunciations("European Society of Cardiology (ESC) issued an ESC guideline", "European Society of Cardiology (ESC)"), "European Society of Cardiology issued an E S C guideline");
+assert.equal(applySpokenPronunciations("Escape and esc remain unchanged"), "Escape and esc remain unchanged");
 assert.equal(JOURNAL_MUSIC_SECONDS, 20);
 
 console.log("Narration and handoff verification passed.");
