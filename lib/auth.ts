@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { env } from "@/lib/env";
-import { isOperatorSecretValid } from "@/lib/adminAccess";
+import { isAdminPageSecretValid, isOperatorSecretValid } from "@/lib/adminAccess";
 
 export function assertAdminRequest(request: NextRequest) {
   if (!env.ADMIN_SHARED_SECRET) {
@@ -11,6 +11,20 @@ export function assertAdminRequest(request: NextRequest) {
     request.nextUrl.searchParams.get("secret") ??
     request.cookies.get("conferencehype_admin_secret")?.value;
   if (!isOperatorSecretValid(supplied ?? undefined, env.ADMIN_SHARED_SECRET)) {
+    throw new Error("Unauthorized admin request.");
+  }
+}
+
+export function assertAdminReadRequest(request: NextRequest) {
+  const secrets = {
+    operator: env.ADMIN_SHARED_SECRET,
+    judge: env.JUDGE_ADMIN_SHARED_SECRET
+  };
+  const supplied =
+    request.headers.get("x-admin-secret") ??
+    request.nextUrl.searchParams.get("secret") ??
+    request.cookies.get("conferencehype_admin_secret")?.value;
+  if (!isAdminPageSecretValid(supplied ?? undefined, secrets)) {
     throw new Error("Unauthorized admin request.");
   }
 }

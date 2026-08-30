@@ -31,6 +31,7 @@ type Preview = {
 // below is the older Oncology/Hematology-only editorial-package path, kept
 // as-is since it feeds a different (Journal-Watch-style) package format.
 type PreparedPreview = {
+  ok: true;
   package: {
     content_type: string;
     program: { title: string };
@@ -47,9 +48,34 @@ export function PreparedNarrativeBroadcast() {
   const [preview, setPreview] = useState<PreparedPreview | null>(null);
   const [message, setMessage] = useState("");
   const [pending, startTransition] = useTransition();
+  const requestPreview = async () => {
+    const send = () => fetch("/api/admin/meeting-watch/prepared/preview", {
+      method: "POST",
+      credentials: "same-origin",
+      cache: "no-store",
+      headers: { "Accept": "application/json", "Content-Type": "application/json" },
+      body: JSON.stringify({ raw })
+    });
+    let response: Response;
+    try {
+      response = await send();
+    } catch {
+      await new Promise((resolve) => window.setTimeout(resolve, 400));
+      response = await send();
+    }
+    const responseText = await response.text();
+    let payload: PreparedPreview & { error?: string };
+    try {
+      payload = JSON.parse(responseText) as PreparedPreview & { error?: string };
+    } catch {
+      throw new Error(`Preview service returned HTTP ${response.status}. Reload the admin page and try again.`);
+    }
+    if (!response.ok || !payload.ok) throw new Error(payload.error ?? `Preview failed with HTTP ${response.status}.`);
+    return payload;
+  };
   const validate = () => startTransition(async () => {
     setMessage(""); setPreview(null);
-    try { const response = await fetch("/api/admin/meeting-watch/prepared/preview", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ raw }) }); const payload = await response.json(); if (!response.ok || !payload.ok) throw new Error(payload.error ?? "Could not validate this package."); setPreview(payload); setMessage(payload.trialOrderNormalized ? "Validated. Trial cards were automatically grouped so each trial is discussed once without interruption. Review the corrected sequence below." : payload.preambleRemoved ? "Validated. Introductory text outside the JSON was removed automatically." : "Validated and ready to render."); } catch (error) { setMessage(error instanceof Error ? error.message : "Could not validate this package."); }
+    try { const payload = await requestPreview(); setPreview(payload); setMessage(payload.trialOrderNormalized ? "Validated. Trial cards were automatically grouped so each trial is discussed once without interruption. Review the corrected sequence below." : payload.preambleRemoved ? "Validated. Introductory text outside the JSON was removed automatically." : "Validated and ready to render."); } catch (error) { setMessage(error instanceof TypeError ? "Could not reach the preview service after two attempts. Reload this admin page and try again." : error instanceof Error ? error.message : "Could not validate this package."); }
   });
   const publish = () => startTransition(async () => {
     try { const response = await fetch("/api/admin/meeting-watch/prepared/publish", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ raw }) }); const payload = await response.json(); if (!response.ok || !payload.ok) throw new Error(payload.error ?? "Could not start this broadcast."); setRaw(""); setPreview(null); setMessage(payload.alreadyExists ? "This exact package already exists; no duplicate was dispatched. The form is ready for another narrative." : `Broadcast render started: ${payload.cardCount} cards, ${Math.round(payload.durationSeconds / 60)} estimated minutes, ${payload.speakerTurnCount} speaker turns. The form is ready for another narrative.`); } catch (error) { setMessage(error instanceof Error ? error.message : "Could not start this broadcast."); }
