@@ -46,6 +46,34 @@ const completeCards = segments.map((segment) => ({ duration: 60, isMusic: false,
 assert.deepEqual(assertMeetingWatchFiveNewsComplete(completeCards), { sourcedNewsItems: 5, hasDisclaimer: true, hasClosing: true });
 assert.throws(() => assertMeetingWatchFiveNewsComplete(completeCards.filter((card) => !card.riskFlags.includes("prepared_disclaimer"))), /incomplete story/);
 
+const storyNarration = `${narration} ${narration}`;
+const storyPackage = {
+  ...packageJson,
+  schema_version: "conferencehype_meeting_watch_story_v2",
+  story: {
+    thesis: "The five trials collectively test whether cardiovascular benefit can move earlier while becoming more precisely targeted.",
+    opening_hook: storyNarration,
+    closing_synthesis: storyNarration
+  },
+  news_items: packageJson.news_items.map((item, index) => ({
+    ...item,
+    bridge_from_previous: index === 0 ? "That question begins with the meeting's first major trial." : "The next finding carries that same clinical question into another population.",
+    narration: storyNarration
+  })),
+  closing: undefined
+};
+const parsedStory = parsePreparedNarrative(JSON.stringify(storyPackage));
+assert.equal(parsedStory.package.cards.length, 5);
+assert.equal(parsedStory.package.transitions.length, 0);
+assert.equal(parsedStory.transitionSeconds, 0);
+assert.match(parsedStory.package.opening_hook.speaker_turns[0].text, /^ESC Congress 2026, held August 28-31, 2026\./);
+assert.match(parsedStory.package.opening_hook.speaker_turns[0].text, /five trials collectively test/);
+assert.match(parsedStory.package.cards[1].speaker_turns[0].text, /^The next finding carries/);
+assert.doesNotMatch(parsedStory.package.cards.map((card) => card.speaker_turns[0].text).join(" "), /Number (?:one|two|three|four|five)/i);
+assert.match(parsedStory.package.closing.speaker_turns[0].text, /ESC Congress 2026/);
+assert.throws(() => parsePreparedNarrative(JSON.stringify({ ...storyPackage, story: undefined })), /continuous-story package requires/);
+assert.throws(() => parsePreparedNarrative(JSON.stringify({ ...storyPackage, news_items: storyPackage.news_items.map((item, index) => index === 1 ? { ...item, bridge_from_previous: "Next." } : item) })), /narrative bridge/);
+
 const thumbnailSource = readFileSync(path.resolve("app/api/youtube-thumbnail/route.tsx"), "utf8");
 const renderSource = readFileSync(path.resolve("scripts/render-hour-broadcast.ts"), "utf8");
 assert.match(thumbnailSource, /if \(isMeetingWatch && seriesLabel\)/);

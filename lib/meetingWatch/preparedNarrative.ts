@@ -26,7 +26,7 @@ const packageSchema = z.object({
 export type PreparedNarrativePackage = z.infer<typeof packageSchema>;
 
 const fiveNewsSchema = z.object({
-  schema_version: z.literal("conferencehype_meeting_watch_five_news_v1"),
+  schema_version: z.enum(["conferencehype_meeting_watch_five_news_v1", "conferencehype_meeting_watch_story_v2"]),
   status: z.literal("ready"),
   meeting: z.object({
     name: z.string().trim().min(2),
@@ -36,10 +36,16 @@ const fiveNewsSchema = z.object({
     eye_catching_topic: z.string().trim().min(8),
     specialist_alert: z.string().trim().optional()
   }),
+  story: z.object({
+    thesis: z.string().trim().min(20),
+    opening_hook: z.string().trim().min(250),
+    closing_synthesis: z.string().trim().min(250)
+  }).optional(),
   news_items: z.array(z.object({
     position: z.number().int().min(1).max(5),
     headline: z.string().trim().min(5),
     visible_text: z.string().trim().min(10).max(260),
+    bridge_from_previous: z.string().trim().optional().default(""),
     narration: z.string().trim().min(250),
     primary_source_url: z.string().url(),
     source_label: z.string().trim().min(2),
@@ -50,7 +56,7 @@ const fiveNewsSchema = z.object({
     limitations: z.array(z.string()).default([])
   })).length(5),
   disclaimer: z.string().trim().min(20),
-  closing: z.string().trim().min(20),
+  closing: z.string().trim().min(20).optional(),
   quality_report: z.record(z.string(), z.unknown()).optional()
 }).superRefine((value, context) => {
   const positions = value.news_items.map((item) => item.position);
@@ -58,8 +64,12 @@ const fiveNewsSchema = z.object({
   if (new Set(value.news_items.map((item) => item.primary_source_url)).size !== 5) context.addIssue({ code: "custom", path: ["news_items"], message: "The five news items must use five distinct primary-source URLs." });
   if (!value.news_items.some((item) => item.pharma_companies.length > 0)) context.addIssue({ code: "custom", path: ["news_items"], message: "Include at least one source-supported pharma company attribution across the five news items." });
   value.news_items.forEach((item, index) => {
-    if (item.narration.split(/\s+/).length < 55) context.addIssue({ code: "custom", path: ["news_items", index, "narration"], message: "Each news narration needs at least 55 words." });
+    const minimumWords = value.schema_version === "conferencehype_meeting_watch_story_v2" ? 90 : 55;
+    if (item.narration.split(/\s+/).length < minimumWords) context.addIssue({ code: "custom", path: ["news_items", index, "narration"], message: `Each news narration needs at least ${minimumWords} words.` });
+    if (value.schema_version === "conferencehype_meeting_watch_story_v2" && item.bridge_from_previous.split(/\s+/).length < 8) context.addIssue({ code: "custom", path: ["news_items", index, "bridge_from_previous"], message: "Every story item needs a narrative bridge of at least 8 words." });
   });
+  if (value.schema_version === "conferencehype_meeting_watch_story_v2" && !value.story) context.addIssue({ code: "custom", path: ["story"], message: "The continuous-story package requires a story thesis, opening hook, and closing synthesis." });
+  if (value.schema_version === "conferencehype_meeting_watch_five_news_v1" && !value.closing) context.addIssue({ code: "custom", path: ["closing"], message: "The legacy five-news package requires a closing." });
 });
 
 function fiveNewsToPreparedPackage(input: z.infer<typeof fiveNewsSchema>): PreparedNarrativePackage {
@@ -71,17 +81,20 @@ function fiveNewsToPreparedPackage(input: z.infer<typeof fiveNewsSchema>): Prepa
   const alert = input.meeting.specialist_alert?.trim() || meetingWatchSpecialistAlert(input.meeting.specialty);
   const title = meetingWatchCaption(meetingLabel, input.meeting.specialty, input.meeting.eye_catching_topic);
   const first = input.news_items[0];
+  const continuousStory = input.schema_version === "conferencehype_meeting_watch_story_v2";
+  const storyOpening = input.story ? `${input.story.thesis} ${input.story.opening_hook}` : `${alert}. Here are five meeting news and abstract updates physicians should know.`;
+  const storyClosing = input.story?.closing_synthesis ?? input.closing ?? "Comment with the abstract or company update we should cover next and subscribe.";
   return packageSchema.parse({
     schema_version: "conferencehype_prepared_broadcast_v1",
     status: "ready",
     content_type: "CONFERENCE_ROUNDUP",
     source: { publication: meetingLabel, article_title: "Five Meeting News Updates", url: first.primary_source_url, publication_date: input.meeting.dates, authors: [] },
     program: { conference_name: meetingLabel, specialty: input.meeting.specialty, title, thumbnail_headline: input.meeting.eye_catching_topic, description_opening: `${title}. Conference dates: ${input.meeting.dates}. Five source-attributed news and abstract updates from ${meetingLabel}.`, studies_covered: input.news_items.map((item) => item.study_name || item.headline) },
-    opening_hook: { visible_text: `${meetingLabel} — ${input.meeting.dates} — ${alert}`, speaker_turns: [{ speaker: "HOST_1", text: `${meetingLabel}, held ${input.meeting.dates}. ${alert}. Here are five meeting news and abstract updates physicians should know.` }], source_anchor: `${meetingLabel} official meeting coverage` },
-    cards: input.news_items.map((item) => ({ position: item.position, title: item.headline, card_type: "MEETING_NEWS", visible_text: item.visible_text, speaker_turns: [{ speaker: item.position % 2 ? "HOST_1" : "HOST_2", text: `Number ${["one", "two", "three", "four", "five"][item.position - 1]}. ${item.headline}. ${item.narration}` }], source_anchor: [item.source_label, item.abstract_number, ...item.pharma_companies].filter(Boolean).join(" | "), source_url: item.primary_source_url, source_label: item.source_label, pharma_companies: item.pharma_companies, study_name: item.study_name, reported_numbers: item.reported_numbers, limitations: item.limitations })),
-    transitions: input.news_items.slice(0, 4).map((item) => ({ after_card_position: item.position, duration_seconds: 20, next_topic: input.news_items[item.position]?.headline ?? meetingLabel })),
+    opening_hook: { visible_text: `${meetingLabel} — ${input.meeting.dates} — ${alert}`, speaker_turns: [{ speaker: "HOST_1", text: `${meetingLabel}, held ${input.meeting.dates}. ${storyOpening}` }], source_anchor: `${meetingLabel} official meeting coverage` },
+    cards: input.news_items.map((item) => ({ position: item.position, title: item.headline, card_type: "MEETING_NEWS", visible_text: item.visible_text, speaker_turns: [{ speaker: item.position % 2 ? "HOST_1" : "HOST_2", text: continuousStory ? `${item.bridge_from_previous} ${item.narration}` : `Number ${["one", "two", "three", "four", "five"][item.position - 1]}. ${item.headline}. ${item.narration}` }], source_anchor: [item.source_label, item.abstract_number, ...item.pharma_companies].filter(Boolean).join(" | "), source_url: item.primary_source_url, source_label: item.source_label, pharma_companies: item.pharma_companies, study_name: item.study_name, reported_numbers: item.reported_numbers, limitations: item.limitations })),
+    transitions: continuousStory ? [] : input.news_items.slice(0, 4).map((item) => ({ after_card_position: item.position, duration_seconds: 20, next_topic: input.news_items[item.position]?.headline ?? meetingLabel })),
     disclaimer: { after_card_position: 5, text: input.disclaimer },
-    closing: { speaker_turns: [{ speaker: "HOST_2", text: `${meetingLabel}. ${input.closing}` }] },
+    closing: { speaker_turns: [{ speaker: "HOST_2", text: `${meetingLabel}. ${storyClosing}` }] },
     chapters: input.news_items.map((item) => ({ card_position: item.position, title: item.headline })),
     youtube_tags: [meetingLabel, input.meeting.specialty, alert, ...input.news_items.flatMap((item) => item.pharma_companies)],
     quality_report: input.quality_report
@@ -93,7 +106,7 @@ export function parsePreparedNarrative(raw: string, overridesInput?: PreparedNar
   const end = raw.lastIndexOf("}");
   if (start < 0 || end <= start) throw new Error("No JSON broadcast package was found.");
   const candidate = JSON.parse(raw.slice(start, end + 1));
-  const isFiveNews = candidate?.schema_version === "conferencehype_meeting_watch_five_news_v1";
+  const isFiveNews = candidate?.schema_version === "conferencehype_meeting_watch_five_news_v1" || candidate?.schema_version === "conferencehype_meeting_watch_story_v2";
   const parsed = isFiveNews ? fiveNewsToPreparedPackage(fiveNewsSchema.parse(candidate)) : packageSchema.parse(candidate);
   const overrides = preparedOverridesSchema.parse(overridesInput);
   if (overrides?.title) {
