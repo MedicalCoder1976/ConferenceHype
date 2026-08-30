@@ -3,6 +3,7 @@ import type { BroadcastSlot } from "@/lib/rundown/slots";
 import { buildClinicalEvidencePackaging } from "@/lib/youtube/clinicalEvidencePackaging";
 import type { BroadcastMetadata } from "@/lib/youtube/broadcastMetadata";
 import { formatFiveThingsDisclaimer } from "@/lib/story/fiveThingsDisclaimer";
+import { cleanMeetingWatchCopy, meetingWatchCaption, meetingWatchSpecialistAlert } from "@/lib/meetingWatch/packaging";
 
 const MAX_TAG_LENGTH = 30;
 const MAX_TAGS_TOTAL_CHARS = 500;
@@ -106,6 +107,10 @@ export function buildMeetingWatchMetadata({
   ]);
   const isPreparedStory = resolved.some(({ segment }) => segment.riskFlags.includes("prepared_story"));
   const isPreparedFiveThings = resolved.some(({ segment }) => segment.riskFlags.includes("prepared_five_things"));
+  const isMeetingWatchFiveNews = resolved.some(({ segment }) => segment.riskFlags.includes("meeting_watch_five_news"));
+  const meetingWatchCompanies = unique(resolved.flatMap(({ segment }) => segment.riskFlags
+    .filter((flag) => flag.startsWith("meeting_watch_companies:"))
+    .flatMap((flag) => flag.slice("meeting_watch_companies:".length).split(",").map((company) => company.trim()))));
   const fiveThingItems = isPreparedFiveThings
     ? resolved.filter(({ segment }) => segment.riskFlags.some((flag) => flag.startsWith("five_things_item:")))
     : [];
@@ -167,9 +172,25 @@ export function buildMeetingWatchMetadata({
     ...[specialty ?? "Medicine", "5ThingsToKnow", "ConferenceHype"].map((value) => `#${value.replace(/[^a-zA-Z0-9]/g, "")}`)
   ].join("\n");
   const description = isPreparedFiveThings ? fiveThingsDescription : standardDescription;
+  const meetingTopic = cleanMeetingWatchCopy(fiveThingTopics.slice(0, 3).join("; ") || packaging.thumbnailHook || packaging.clinicalTopic || title);
+  const meetingTitle = meetingWatchCaption(meetingLabel, specialty, meetingTopic);
+  const meetingDates = descriptionOpening?.match(/Conference dates:\s*([^.]*(?:\d{4})?)/i)?.[1]?.trim();
+  const meetingDescription = [
+    `${meetingTitle}.`,
+    meetingDates ? `Conference dates: ${meetingDates}.` : "",
+    `Five source-attributed meeting news updates and abstracts from ${cleanMeetingWatchCopy(meetingLabel)}.`,
+    specialty ? `Audience: Physicians; Medical Students; ${specialistAudience(specialty).join("; ")}; Advanced Practice Providers (APPs).` : "Audience: Physicians; Medical Students; Specialists; Advanced Practice Providers (APPs).",
+    "",
+    ...chapters,
+    "",
+    `Conference: ${cleanMeetingWatchCopy(meetingLabel)}.`,
+    `Full source: ${sourceUrl}`,
+    "",
+    ...[meetingLabel, specialty ?? "Medical Specialists", "MeetingWatch", "ConferenceHype"].map((value) => `#${value.replace(/[^a-zA-Z0-9]/g, "")}`)
+  ].join("\n");
   return {
-    title: isPreparedStory || isPreparedFiveThings ? truncate(title, 100) : packaging.youtubeTitle,
-    description,
+    title: isPreparedStory || isPreparedFiveThings ? truncate(title, 100) : truncate(meetingTitle, 100),
+    description: isMeetingWatchFiveNews || (!isPreparedStory && !isPreparedFiveThings) ? meetingDescription : description,
     tags,
     categoryId: "27",
     tier: "roundup",
@@ -177,10 +198,13 @@ export function buildMeetingWatchMetadata({
     dateLabel,
     studyNames,
     clinicalTopic: isPreparedFiveThings ? specialty : storyResult ?? packaging.clinicalTopic,
-    thumbnailHeadline: isPreparedFiveThings ? "5 THINGS TO KNOW" : preparedThumbnail ?? (storyOrigin ? "From " + storyOrigin + "?" : packaging.thumbnailHook),
-    thumbnailHook: isPreparedFiveThings ? "5 THINGS TO KNOW" : preparedThumbnail ?? (storyOrigin ? "From " + storyOrigin + "?" : packaging.thumbnailHook),
-    thumbnailEntity: isPreparedFiveThings ? fiveThingTopics.slice(0, 3).join(" • ") : storyEntity ?? packaging.thumbnailEntity,
+    thumbnailHeadline: isPreparedFiveThings ? "5 THINGS TO KNOW" : isPreparedStory ? preparedThumbnail ?? (storyOrigin ? "From " + storyOrigin + "?" : packaging.thumbnailHook) : meetingTopic,
+    thumbnailHook: isPreparedFiveThings ? "5 THINGS TO KNOW" : isPreparedStory ? preparedThumbnail ?? (storyOrigin ? "From " + storyOrigin + "?" : packaging.thumbnailHook) : meetingTopic,
+    thumbnailEntity: isPreparedFiveThings ? fiveThingTopics.slice(0, 3).join(" • ") : isMeetingWatchFiveNews && meetingWatchCompanies.length ? meetingWatchCompanies.slice(0, 4).join(" • ") : storyEntity ?? packaging.thumbnailEntity,
     thumbnailJournalNames: undefined,
-    thumbnailJournalCount: undefined
+    thumbnailJournalCount: undefined,
+    meetingLabel: !isPreparedStory && !isPreparedFiveThings ? cleanMeetingWatchCopy(meetingLabel) : undefined,
+    specialistAlert: !isPreparedStory && !isPreparedFiveThings ? meetingWatchSpecialistAlert(specialty) : undefined,
+    meetingDates: !isPreparedStory && !isPreparedFiveThings ? meetingDates : undefined
   };
 }

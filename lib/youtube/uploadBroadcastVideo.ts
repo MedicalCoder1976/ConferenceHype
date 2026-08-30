@@ -240,6 +240,7 @@ export type YoutubeThumbnailSpec = {
   articleTitle?: string;
   cleanStoryLayout?: boolean;
   fiveThings?: boolean;
+  meetingWatch?: boolean;
   variant?: "thumbnail" | "persistent-frame";
   siteUrl?: string;
 };
@@ -263,6 +264,7 @@ export async function downloadYoutubeThumbnail({
   articleTitle,
   cleanStoryLayout,
   fiveThings,
+  meetingWatch,
   variant,
   siteUrl
 }: YoutubeThumbnailSpec) {
@@ -284,6 +286,7 @@ export async function downloadYoutubeThumbnail({
   if (articleTitle) params.set("articleTitle", articleTitle);
   if (cleanStoryLayout) params.set("storyLayout", "clean");
   if (fiveThings) params.set("fiveThings", "1");
+  if (meetingWatch) params.set("meetingWatch", "1");
   if (variant) params.set("variant", variant);
   const thumbnailResponse = await fetch(`${resolvedSiteUrl}/api/youtube-thumbnail?${params.toString()}`);
   if (!thumbnailResponse.ok) {

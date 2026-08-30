@@ -4,7 +4,7 @@ import { fetchArticleLinks, fetchPageSummary } from "@/lib/sources/scraper";
 import { generateCardsFromSource } from "@/lib/generation/llm";
 import type { IngestedItem, Segment, SourceConfig } from "@/lib/types";
 
-const MIN_CARD_COUNT = 20;
+const NEWS_ITEMS_PER_EPISODE = 5;
 const FETCH_CONCURRENCY = 5;
 const MAX_CANDIDATES = 50;
 
@@ -59,7 +59,7 @@ export async function discoverMeetingWatchArticles({
   if (!env.LLM_API_KEY) {
     throw new Error("LLM_API_KEY is required to discover Meeting Watch articles.");
   }
-  const targetCardCount = episodeCount * MIN_CARD_COUNT;
+  const targetCardCount = episodeCount * NEWS_ITEMS_PER_EPISODE;
   const seedSource: SourceConfig = {
     id: `meeting-watch-seed-${Date.now()}`,
     name: meetingLabel,
@@ -94,11 +94,11 @@ export async function discoverMeetingWatchArticles({
       role: "user",
       content: `These are candidate articles scraped from and linked around ${seedUrl}, for a "${meetingLabel}" broadcast. Many of these are the SAME underlying story reposted across different issue dates or news sections -- identify and collapse duplicates, keeping only the most complete version of each genuinely distinct real story. Discard anything that isn't real substantive content (navigation, ads, unrelated site sections, video-only pages with no real text).
 
-For each genuinely distinct real story you keep, estimate how many ~75-second spoken cards its real content actually supports (1 to 3 -- only if the article states that many genuinely separate facts, like design/population, a primary result with real numbers, and a safety/implication point; do not inflate this), and assign a short thematic cluster label (e.g. a disease/topic grouping) so multiple stories on the same theme can be grouped into one broadcast episode together.
+Keep exactly ${targetCardCount} genuinely distinct real news stories or meeting abstracts: five for each requested episode. Each story becomes one substantive spoken news card. Include the pharma company name in the facts only when an official abstract, trial registry, publication, or company primary source explicitly supports that attribution; never infer or guess company ownership or sponsorship. Assign a short thematic cluster label so related stories can be grouped coherently.
 
-Select enough distinct stories, preferring richer ones, to comfortably reach a total of about ${targetCardCount} cards across all selected stories combined.
+Select exactly ${targetCardCount} distinct stories, preferring source-rich items with concrete results, trial names, abstract numbers, and explicit company attribution.
 
-Return JSON: {"articles":[{"url":"...","title":"...","author":"...","facts":"a few sentences of the real facts from the excerpt, suitable for writing spoken cards from","cardCount":2,"cluster":"..."}]}
+Return JSON: {"articles":[{"url":"...","title":"...","author":"...","facts":"source-grounded facts suitable for one 70-85 word spoken news card; include a verified pharma company name when explicit","cardCount":1,"cluster":"..."}]}
 
 Candidates:
 ${candidateText}`
@@ -110,7 +110,7 @@ ${candidateText}`
     articles?: Array<{ url?: string; title?: string; author?: string; facts?: string; cardCount?: number; cluster?: string }>;
   };
   const byUrl = new Map(allCandidates.map((item) => [item.url, item]));
-  const curated = (parsed.articles ?? [])
+  const curatedCandidates = (parsed.articles ?? [])
     .filter((article) => article.url && article.title && article.facts && byUrl.has(article.url))
     .map((article) => ({
       url: article.url!,
@@ -118,19 +118,21 @@ ${candidateText}`
       author: article.author,
       sourceName: byUrl.get(article.url!)!.sourceName,
       facts: article.facts!,
-      cardCount: Math.max(1, Math.min(3, Math.round(article.cardCount ?? 1))),
+      cardCount: 1,
       cluster: article.cluster?.trim() || "General"
     }));
+  const curated = [...new Map(curatedCandidates.map((article) => [article.url, article])).values()];
   if (curated.length === 0) {
     throw new Error(`The discovery pass found no genuinely distinct, substantive articles at ${seedUrl}.`);
   }
   const totalCards = curated.reduce((sum, article) => sum + article.cardCount, 0);
-  if (totalCards < episodeCount * MIN_CARD_COUNT) {
+  if (totalCards < episodeCount * NEWS_ITEMS_PER_EPISODE) {
     console.warn(
-      `Meeting Watch discovery for ${seedUrl} only found ${totalCards} real cards' worth of content across ${curated.length} articles, short of the ${episodeCount * MIN_CARD_COUNT} target for ${episodeCount} episode(s). Proceeding with what's real rather than padding.`
+      `Meeting Watch discovery for ${seedUrl} only found ${totalCards} real news items, short of the ${episodeCount * NEWS_ITEMS_PER_EPISODE} required for ${episodeCount} episode(s).`
     );
+    throw new Error(`Meeting Watch requires five distinct source-backed news items per episode; only ${totalCards} were found.`);
   }
-  return curated;
+  return curated.slice(0, targetCardCount);
 }
 
 function toSource(article: CuratedMeetingArticle): IngestedItem {
@@ -155,23 +157,10 @@ export function splitArticlesIntoEpisodes(
   articles: CuratedMeetingArticle[],
   episodeCount: number
 ): CuratedMeetingArticle[][] {
-  const clusters = new Map<string, CuratedMeetingArticle[]>();
-  for (const article of articles) {
-    const bucket = clusters.get(article.cluster) ?? [];
-    bucket.push(article);
-    clusters.set(article.cluster, bucket);
-  }
-  const clusterGroups = Array.from(clusters.values()).sort(
-    (a, b) => b.reduce((sum, item) => sum + item.cardCount, 0) - a.reduce((sum, item) => sum + item.cardCount, 0)
+  const selected = articles.slice(0, episodeCount * NEWS_ITEMS_PER_EPISODE);
+  return Array.from({ length: episodeCount }, (_, index) =>
+    selected.slice(index * NEWS_ITEMS_PER_EPISODE, (index + 1) * NEWS_ITEMS_PER_EPISODE)
   );
-  const episodes: CuratedMeetingArticle[][] = Array.from({ length: episodeCount }, () => []);
-  const episodeTotals = new Array(episodeCount).fill(0);
-  for (const group of clusterGroups) {
-    const lightestIndex = episodeTotals.indexOf(Math.min(...episodeTotals));
-    episodes[lightestIndex].push(...group);
-    episodeTotals[lightestIndex] += group.reduce((sum, item) => sum + item.cardCount, 0);
-  }
-  return episodes;
 }
 
 export async function generateCardsForEpisode(articles: CuratedMeetingArticle[], meetingLabel: string): Promise<Segment[]> {

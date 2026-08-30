@@ -6,6 +6,8 @@ import { useState, useTransition } from "react";
 import { CardDeckSummary } from "@/components/CardDeckSummary";
 import { EMPTY_CARD_DECK, type EntityCardDeck } from "@/lib/cardDeck";
 import type { MedicalConference } from "@/lib/types";
+import { MEETING_WATCH_CLAUDE_INSTRUCTIONS, MEETING_WATCH_CLAUDE_OUTPUT_FORMAT } from "@/lib/meetingWatch/claudeFormat";
+import { meetingWatchCaption } from "@/lib/meetingWatch/packaging";
 
 type PreviewEpisode = {
   index: number;
@@ -53,9 +55,10 @@ export function PreparedNarrativeBroadcast() {
     try { const response = await fetch("/api/admin/meeting-watch/prepared/publish", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ raw }) }); const payload = await response.json(); if (!response.ok || !payload.ok) throw new Error(payload.error ?? "Could not start this broadcast."); setRaw(""); setPreview(null); setMessage(payload.alreadyExists ? "This exact package already exists; no duplicate was dispatched. The form is ready for another narrative." : `Broadcast render started: ${payload.cardCount} cards, ${Math.round(payload.durationSeconds / 60)} estimated minutes, ${payload.speakerTurnCount} speaker turns. The form is ready for another narrative.`); } catch (error) { setMessage(error instanceof Error ? error.message : "Could not start this broadcast."); }
   });
   return <div className="border-2 border-broadcast/30 bg-white p-5 shadow-panel">
-    <div className="flex items-center gap-2"><WandSparkles className="h-5 w-5 text-broadcast" /><h2 className="text-2xl font-black">Prepared Narrative</h2></div>
-    <p className="mt-2 text-sm font-semibold leading-6 text-ink/65">Paste Claude&apos;s complete ConferenceHype JSON package. Ask Claude to name the article title and authors only in the opening, then begin the evidence immediately. Do not repeat show labels, host descriptors, or phrases such as &quot;A new ASCO Educational Book review.&quot; Keep each visible card concise, include the disclaimer once, and end with a brief invitation to like, subscribe, and recommend the next article. We enforce these rules without changing station or journal schedules.</p>
-    <textarea value={raw} onChange={(event) => { setRaw(event.target.value); setPreview(null); }} rows={14} placeholder='Paste the complete Claude response, beginning with { "schema_version": "conferencehype_prepared_broadcast_v1" ...' className="mt-4 w-full border border-ink/20 px-3 py-3 font-mono text-xs text-ink" />
+    <div className="flex items-center gap-2"><WandSparkles className="h-5 w-5 text-broadcast" /><h2 className="text-2xl font-black">Meeting Watch: 5 News + Story</h2></div>
+    <p className="mt-2 text-sm font-semibold leading-6 text-ink/65">Paste Claude&apos;s five-news Meeting Watch JSON. Every video leads with the meeting name and year, uses a specialty-specific alert, attributes company names only when a primary source supports them, repeats the meeting name and dates, and removes the generic evidence labels from thumbnails and video panels.</p>
+    <details className="mt-4 border border-ink/15 bg-paper p-3"><summary className="cursor-pointer text-xs font-black uppercase">Copy Claude instructions and output format</summary><p className="mt-3 whitespace-pre-wrap text-sm font-semibold leading-6">{MEETING_WATCH_CLAUDE_INSTRUCTIONS}</p><pre className="mt-3 max-h-96 overflow-auto whitespace-pre-wrap border border-ink/10 bg-white p-3 text-xs">{MEETING_WATCH_CLAUDE_OUTPUT_FORMAT}</pre></details>
+    <textarea value={raw} onChange={(event) => { setRaw(event.target.value); setPreview(null); }} rows={14} placeholder='Paste Claude JSON beginning with { "schema_version": "conferencehype_meeting_watch_five_news_v1" ...' className="mt-4 w-full border border-ink/20 px-3 py-3 font-mono text-xs text-ink" />
     <div className="mt-3 flex flex-wrap gap-3"><button disabled={pending || raw.length < 2000} onClick={validate} className="min-h-11 bg-ink px-4 text-xs font-black uppercase text-white disabled:opacity-50">{pending ? "Checking..." : "Validate and preview"}</button>{preview ? <button disabled={pending} onClick={publish} className="min-h-11 bg-broadcast px-4 text-xs font-black uppercase text-white disabled:opacity-50">Approve, render and upload</button> : null}</div>
     {message ? <div className="mt-3 border border-cyanline/30 bg-cyanline/10 p-3 text-sm font-bold">{message}</div> : null}
     {preview ? <div className="mt-4 grid gap-3 border border-ink/10 p-4"><div className="text-lg font-black">{preview.package.program.title}</div><div className="grid gap-2 text-sm font-semibold md:grid-cols-4"><div><b>Type:</b> {preview.package.content_type}</div><div><b>Cards:</b> {preview.package.cards.length}</div><div><b>Spoken words:</b> {preview.spokenWords}</div><div><b>Estimated video:</b> {preview.durationMinutes} min</div></div><div className="text-sm"><b>Opening hook:</b> {preview.package.opening_hook.visible_text}</div><details><summary className="cursor-pointer text-xs font-black uppercase">Review every card</summary><div className="mt-2 grid gap-2">{preview.package.cards.map((card) => <div key={card.position} className="border border-ink/10 p-3"><div className="font-black">{card.position}. {card.title}</div><div className="mt-1 text-sm">{card.visible_text}</div><div className="mt-2 text-xs font-semibold text-ink/55">{card.speaker_turns.length} speaker turn(s) · Source: {card.source_anchor}</div></div>)}</div></details></div> : null}
@@ -88,8 +91,8 @@ export function NewMeetingWatchBroadcast() {
       setPreview(payload);
       setEpisodeMeta(
         payload.episodes.map((episode: PreviewEpisode, index: number) => ({
-          title: `${episode.clusters[0] ?? specialty ?? "Clinical Research"}: ${meetingLabel} Evidence Brief - Part ${index + 1} of ${payload.episodes.length}`,
-          description: `Highlights from ${meetingLabel}${episode.clusters.length ? ` -- ${episode.clusters.join(", ")}` : ""}.\n\nWatch now on our YouTube channel.`
+          title: meetingWatchCaption(payload.meetingLabel, payload.specialty, episode.clusters.slice(0, 2).join(" and ") || "Five Meeting News Updates"),
+          description: `${meetingWatchCaption(payload.meetingLabel, payload.specialty, episode.clusters.slice(0, 2).join(" and ") || "Five Meeting News Updates")}.\n\nFive source-attributed news and abstract updates from ${payload.meetingLabel}.`
         }))
       );
       setMessage(`Found enough real content for ${payload.episodes.length} episode(s) -- review the cards below, then set a start time and schedule.`);
@@ -133,7 +136,7 @@ export function NewMeetingWatchBroadcast() {
         <h2 className="text-2xl font-black">New Meeting Watch broadcast</h2>
       </div>
       <p className="mt-2 text-sm font-semibold leading-6 text-ink/65">
-        Paste a link to a meeting/issue page (any specialty), pick how many 30-minute episodes to produce, and we&apos;ll find enough real, source-attributed content to fill each one.
+        Paste a meeting source page, include the meeting name and year, and choose how many five-news episodes to produce. Each episode uses five distinct primary sources and meeting-first Specialist Alert packaging.
       </p>
       <div className="mt-4 grid gap-3 md:grid-cols-2">
         <label className="grid gap-1 text-xs font-black uppercase text-ink/55">

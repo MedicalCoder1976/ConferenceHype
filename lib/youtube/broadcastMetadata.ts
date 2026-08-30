@@ -44,6 +44,9 @@ export type BroadcastMetadata = {
   thumbnailArticleTitle?: string;
   relevantSpecialties?: string[];
   journalClubSeriesLabel?: string;
+  meetingLabel?: string;
+  specialistAlert?: string;
+  meetingDates?: string;
 };
 
 const TITLE_MAX_LENGTH = 100;

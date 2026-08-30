@@ -11,6 +11,7 @@
     "test:guards": "tsx scripts/verify-broadcast-guards.ts",
     "test:story-publish": "tsx scripts/verify-story-publish.ts",
     "test:five-things": "tsx scripts/verify-five-things.ts",
+    "test:meeting-watch": "tsx scripts/verify-meeting-watch-five-news.ts",
     "test:admin-access": "tsx scripts/verify-admin-access.ts",
     "test:rss": "tsx scripts/verify-rss-feeds.ts",
     "test:weekly-source-cards": "tsx scripts/verify-weekly-source-cards.ts",

@@ -7,6 +7,7 @@ import {
   generateCardsForEpisode,
   splitArticlesIntoEpisodes
 } from "@/lib/editorial/meetingWatchPipeline";
+import { assertMeetingNameAndYear } from "@/lib/meetingWatch/packaging";
 
 const schema = z.object({
   sourceUrl: z.string().url(),
@@ -24,15 +25,16 @@ export async function POST(request: NextRequest) {
   try {
     assertAdminRequest(request);
     const body = schema.parse(await request.json());
+    const meetingLabel = assertMeetingNameAndYear(body.meetingLabel);
     const articles = await discoverMeetingWatchArticles({
       seedUrl: body.sourceUrl,
-      meetingLabel: body.meetingLabel,
+      meetingLabel,
       episodeCount: body.episodeCount
     });
     const episodeArticles = splitArticlesIntoEpisodes(articles, body.episodeCount);
     const episodes = [];
     for (let index = 0; index < episodeArticles.length; index += 1) {
-      const segments = await generateCardsForEpisode(episodeArticles[index], body.meetingLabel);
+      const segments = await generateCardsForEpisode(episodeArticles[index], meetingLabel);
       const saved = await saveGeneratedSegmentsToDb(segments);
       episodes.push({
         index,
@@ -42,7 +44,7 @@ export async function POST(request: NextRequest) {
         clusters: Array.from(new Set(episodeArticles[index].map((article) => article.cluster)))
       });
     }
-    return NextResponse.json({ ok: true, sourceUrl: body.sourceUrl, meetingLabel: body.meetingLabel, specialty: body.specialty, episodes });
+    return NextResponse.json({ ok: true, sourceUrl: body.sourceUrl, meetingLabel, specialty: body.specialty, episodes });
   } catch (error) {
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : String(error) }, { status: 400 });
   }

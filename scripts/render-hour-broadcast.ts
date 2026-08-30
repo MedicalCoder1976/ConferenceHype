@@ -1560,6 +1560,8 @@ async function uploadRenderedBroadcast(
     entityLabel: actualMetadata?.thumbnailEntity,
     seriesLabel: isPreparedStoryMode
       ? "BREAKING"
+      : isMeetingWatchMode && !isPreparedFiveThingsMode
+        ? actualMetadata?.meetingLabel
       : isRegionalMode
       ? ["JOURNAL CLUB", actualMetadata?.journalClubSeriesLabel, ...(actualMetadata?.relevantSpecialties ?? [])].filter(Boolean).join(" | ")
       : isWeekendMode
@@ -1568,13 +1570,17 @@ async function uploadRenderedBroadcast(
     journalSeriesName: isRegionalMode ? actualMetadata?.journalClubSeriesLabel : undefined,
     journalNames: isBreakingMode ? [] : actualMetadata?.thumbnailJournalNames,
     journalCount: isBreakingMode ? 0 : actualMetadata?.thumbnailJournalCount,
-    panelLabel: isBreakingMode
+    panelLabel: isMeetingWatchMode && !isPreparedStoryMode && !isPreparedFiveThingsMode
+      ? actualMetadata?.specialistAlert
+      : isBreakingMode
       ? "BREAKING MEDICAL RESEARCH"
       : isMeetingWatchMode
         ? `${(actualMetadata?.specialty ?? "MEETING").toUpperCase()} HIGHLIGHTS`
         : undefined,
-    detailLabel: undefined,
-    promiseLabel: isJournalMode || isWeekendMode || isRegionalMode
+    detailLabel: isMeetingWatchMode && !isPreparedStoryMode && !isPreparedFiveThingsMode ? actualMetadata?.meetingDates : undefined,
+    promiseLabel: isMeetingWatchMode && !isPreparedStoryMode && !isPreparedFiveThingsMode
+      ? actualMetadata?.meetingLabel
+      : isJournalMode || isWeekendMode || isRegionalMode
       ? "KEY RESULTS IN MINUTES"
       : isMeetingWatchMode
           ? "THE STORY BEHIND THE RESULT"
@@ -1585,6 +1591,7 @@ async function uploadRenderedBroadcast(
     articleTitle: isJournalMode ? actualMetadata?.thumbnailArticleTitle : undefined,
     cleanStoryLayout: isPreparedStoryMode,
     fiveThings: isPreparedFiveThingsMode,
+    meetingWatch: isMeetingWatchMode && !isPreparedStoryMode && !isPreparedFiveThingsMode,
     siteUrl: process.env.PUBLIC_SITE_URL
   };
   const { downloadYoutubeThumbnail, getYoutubeAccessToken, uploadVideoToYoutube, uploadYoutubeThumbnail } = await import(
@@ -1777,6 +1784,14 @@ async function main() {
       : isMeetingWatchMode
       ? await buildMeetingWatchCards()
       : await buildCards();
+  if (isMeetingWatchMode) {
+    const { cleanMeetingWatchCopy } = await import("@/lib/meetingWatch/packaging");
+    for (const card of rawCards) {
+      card.title = cleanMeetingWatchCopy(card.title ?? "");
+      if (card.text) card.text = cleanMeetingWatchCopy(card.text);
+      if (card.script) card.script = cleanMeetingWatchCopy(card.script);
+    }
+  }
   // A journal review ends after its final narrated outro. The 30-minute value is
   // a scheduling ceiling, not a target to reach with trailing music.
   const shouldPadToFrame = !isJournalMode;
@@ -2139,6 +2154,18 @@ async function main() {
   const narrationDelay = reserveOpeningNarrationDelay(cards, cardCacheKeys);
   const isPreparedStoryRender = cards.some((card) => card.riskFlags?.includes("prepared_story"));
   const isPreparedFiveThingsRender = cards.some((card) => card.riskFlags?.includes("prepared_five_things"));
+  let meetingWatchDisplayLabel: string | undefined;
+  let meetingWatchAlertLabel: string | undefined;
+  let meetingWatchDatesLabel: string | undefined;
+  if (isMeetingWatchMode && !isPreparedStoryRender && !isPreparedFiveThingsRender && process.env.MEETING_WATCH_BROADCAST_ID) {
+    const [{ getMeetingWatchBroadcastFromDb }, { meetingWatchSpecialistAlert }] = await Promise.all([
+      import("@/lib/meetingWatch/db"), import("@/lib/meetingWatch/packaging")
+    ]);
+    const meetingWatchBroadcast = await getMeetingWatchBroadcastFromDb(process.env.MEETING_WATCH_BROADCAST_ID);
+    meetingWatchDisplayLabel = meetingWatchBroadcast?.meetingLabel;
+    meetingWatchAlertLabel = meetingWatchSpecialistAlert(meetingWatchBroadcast?.specialty);
+    meetingWatchDatesLabel = meetingWatchBroadcast?.description.match(/Conference dates:\s*([^.]*(?:\d{4})?)/i)?.[1]?.trim();
+  }
   const concatLines: string[] = [];
 
   for (let index = 0; index < cards.length; index += 1) {
@@ -2159,6 +2186,8 @@ async function main() {
       isOpening: cards[index].riskFlags?.includes("prepared_opening"),
       seriesHeadline: isPreparedStoryRender
         ? "BREAKING"
+        : isMeetingWatchMode
+          ? meetingWatchDisplayLabel ?? "MEETING WATCH"
         : isBreakingMode
         ? "Clinical Evidence Brief: Breaking Paper"
         : isRegionalMode
@@ -2178,7 +2207,9 @@ async function main() {
               ? meetingWatchSpecialtyForRender
               : undefined,
       programLabel: isPreparedFiveThingsRender ? "5 THINGS TO KNOW" : undefined,
-      featureLabel: isBreakingMode
+      featureLabel: isMeetingWatchMode && !isPreparedStoryRender && !isPreparedFiveThingsRender
+        ? [meetingWatchAlertLabel, meetingWatchDisplayLabel, meetingWatchDatesLabel].filter(Boolean).join(" | ")
+        : isBreakingMode
         ? [process.env.BREAKING_DISEASE_TYPE, cards[index].title].filter(Boolean).join(" | ")
         : isJournalMode || isWeekendMode || isRegionalMode || isPreparedFiveThingsRender
           ? cards[index].sourceLabel ?? cards[index].title

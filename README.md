@@ -623,6 +623,11 @@ that no psychiatry journals or articles were missed.
 
 ### Meeting Watch
 
+- Meeting Watch is a conference-first five-news format. Every episode contains exactly five distinct, source-attributed meeting news items or abstracts. The YouTube caption starts `<Meeting name> <year> | <SPECIALIST ALERT>: <eye-catching topic>`.
+- Thumbnails and every recurring in-video frame repeat the meeting name and year plus the specialty-specific alert. Meeting Watch must never display or narrate `CLINICAL EVIDENCE BRIEF`, `NEW EVIDENCE`, `THE STORY BEHIND THE RESULT`, or `WHY THIS RESULT MATTERS`.
+- Prepared Claude packages use schema `conferencehype_meeting_watch_five_news_v1`, include meeting name, year, full dates, specialty, eye-catching topic, exactly five news items, five distinct primary-source URLs, at least 55 narrated words per item, a specialty disclaimer, and a closing that repeats the meeting name and dates.
+- Pharma company names are included when an official meeting abstract, trial registry, publication, or company primary source explicitly supports the relationship. Never guess sponsorship, ownership, or drug-company attribution merely to improve search performance.
+
 - Manage the medical-conference catalog.
 - Add exact dates only from official conference sources.
 - Choose one-hour coverage slots.

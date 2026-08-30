@@ -50,6 +50,7 @@ export async function GET(request: NextRequest) {
   const seriesLabel = params.get("seriesLabel") ? truncate(params.get("seriesLabel")!, 72) : undefined;
   const journalSeriesName = params.get("journalSeriesName") ? truncate(params.get("journalSeriesName")!, 48) : undefined;
   const isFiveThings = params.get("fiveThings") === "1";
+  const isMeetingWatch = params.get("meetingWatch") === "1";
   const topicLabel = params.get("topicLabel") ? truncate(params.get("topicLabel")!, 48) : undefined;
   const entityLabel = params.get("entityLabel") ? truncate(params.get("entityLabel")!, isFiveThings ? 110 : 34) : undefined;
   const detailLabel = params.get("detailLabel") ? truncate(params.get("detailLabel")!, 96) : undefined;
@@ -82,12 +83,33 @@ export async function GET(request: NextRequest) {
           <div style={{ display: "flex", position: "absolute", top: 0, left: 0, width: "100%", height: 82, backgroundColor: "rgba(16,20,31,0.94)", borderTop: `9px solid ${COLORS.broadcast}`, alignItems: "center", padding: "9px 34px 0" }}>
             <div style={{ display: "flex", backgroundColor: COLORS.broadcast, borderRadius: 6, padding: "7px 12px", fontSize: persistentSpecialty ? 23 : 20, fontWeight: 950, letterSpacing: 1 }}>{persistentSpecialty ?? "CONFERENCEHYPE"}</div>
             <div style={{ display: "flex", marginLeft: 20, fontSize: 23, fontWeight: 850, letterSpacing: 0.4 }}>{isFiveThings ? "5 THINGS TO KNOW" : persistentSpecialty ? "JOURNAL CLUB" : seriesLabel ?? panelLabel}</div>
-            <div style={{ display: "flex", marginLeft: "auto", color: COLORS.gold, fontSize: 20, fontWeight: 800 }}>{date}</div>
+            <div style={{ display: "flex", marginLeft: "auto", color: COLORS.gold, fontSize: 20, fontWeight: 800 }}>{isMeetingWatch ? detailLabel ?? seriesLabel : date}</div>
           </div>
           <div style={{ display: "flex", position: "absolute", bottom: 0, left: 0, width: "100%", height: 72, backgroundColor: "rgba(16,20,31,0.94)", borderBottom: `9px solid ${COLORS.mint}`, alignItems: "center", padding: "0 34px 9px" }}>
-            <div style={{ display: "flex", color: COLORS.mint, fontSize: 19, fontWeight: 850, letterSpacing: 0.9 }}>{promiseLabel ?? "MEDICAL EVIDENCE, CLEARLY EXPLAINED"}</div>
+            <div style={{ display: "flex", color: COLORS.mint, fontSize: 19, fontWeight: 850, letterSpacing: 0.9 }}>{isMeetingWatch ? seriesLabel : promiseLabel ?? "MEDICAL EVIDENCE, CLEARLY EXPLAINED"}</div>
             <div style={{ display: "flex", marginLeft: "auto", color: "#aeb8ca", fontSize: 17, fontWeight: 700 }}>conferencehype.com</div>
           </div>
+        </div>
+      ),
+      { width: WIDTH, height: HEIGHT }
+    );
+  }
+
+  if (isMeetingWatch && seriesLabel) {
+    const alert = suppliedPanelLabel?.toUpperCase() || "SPECIALIST ALERT";
+    return new ImageResponse(
+      (
+        <div style={{ width: "100%", height: "100%", display: "flex", position: "relative", flexDirection: "column", backgroundColor: COLORS.ink, color: COLORS.paper, fontFamily: "sans-serif", padding: "58px 74px 54px" }}>
+          <div style={{ display: "flex", position: "absolute", top: 0, left: 0, width: "100%", height: 18, backgroundColor: COLORS.broadcast }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 22 }}>
+            <div style={{ display: "flex", backgroundColor: COLORS.broadcast, borderRadius: 9, padding: "12px 20px 10px", fontSize: seriesLabel.length > 34 ? 33 : 43, fontWeight: 950, lineHeight: 1, letterSpacing: 1.3 }}>{seriesLabel.toUpperCase()}</div>
+          </div>
+          <div style={{ display: "flex", marginTop: 34, color: COLORS.gold, fontSize: alert.length > 34 ? 48 : 62, fontWeight: 950, lineHeight: 0.98 }}>{alert}</div>
+          <div style={{ display: "flex", marginTop: 28, color: COLORS.paper, fontSize: headline.length > 52 ? 46 : 58, fontWeight: 900, lineHeight: 1.04, maxWidth: 1120 }}>{headline}</div>
+          {entityLabel ? <div style={{ display: "flex", marginTop: 22, color: COLORS.cyan, fontSize: 29, fontWeight: 850, lineHeight: 1.05, maxWidth: 1080 }}>{entityLabel}</div> : null}
+          {detailLabel ? <div style={{ display: "flex", marginTop: 18, color: "#aeb8ca", fontSize: 24, fontWeight: 800 }}>{detailLabel}</div> : null}
+          <div style={{ display: "flex", marginTop: "auto", color: COLORS.mint, fontSize: 24, fontWeight: 900 }}>{seriesLabel.toUpperCase()}</div>
+          <div style={{ display: "flex", position: "absolute", bottom: 0, left: 0, width: "100%", height: 18, backgroundColor: COLORS.mint }} />
         </div>
       ),
       { width: WIDTH, height: HEIGHT }
