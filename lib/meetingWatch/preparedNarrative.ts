@@ -1,7 +1,13 @@
 import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { Segment } from "@/lib/types";
-import { assertMeetingNameAndYear, meetingWatchCaption, meetingWatchSpecialistAlert } from "@/lib/meetingWatch/packaging";
+import { assertMeetingNameAndYear, cleanMeetingWatchCopy, meetingWatchCaption, meetingWatchSpecialistAlert, PROHIBITED_MEETING_WATCH_COPY } from "@/lib/meetingWatch/packaging";
+
+const preparedOverridesSchema = z.object({
+  title: z.string().trim().min(10).max(150).optional(),
+  thumbnailStatement: z.string().trim().min(8).max(120).optional()
+}).optional();
+export type PreparedNarrativeOverrides = z.infer<typeof preparedOverridesSchema>;
 
 const turnSchema = z.object({ speaker: z.enum(["HOST_1", "HOST_2"]), text: z.string().trim().min(1) });
 const packageSchema = z.object({
@@ -82,13 +88,26 @@ function fiveNewsToPreparedPackage(input: z.infer<typeof fiveNewsSchema>): Prepa
   });
 }
 
-export function parsePreparedNarrative(raw: string) {
+export function parsePreparedNarrative(raw: string, overridesInput?: PreparedNarrativeOverrides) {
   const start = raw.indexOf("{");
   const end = raw.lastIndexOf("}");
   if (start < 0 || end <= start) throw new Error("No JSON broadcast package was found.");
   const candidate = JSON.parse(raw.slice(start, end + 1));
   const isFiveNews = candidate?.schema_version === "conferencehype_meeting_watch_five_news_v1";
   const parsed = isFiveNews ? fiveNewsToPreparedPackage(fiveNewsSchema.parse(candidate)) : packageSchema.parse(candidate);
+  const overrides = preparedOverridesSchema.parse(overridesInput);
+  if (overrides?.title) {
+    if (new RegExp(PROHIBITED_MEETING_WATCH_COPY.source, "i").test(overrides.title)) throw new Error("The title cannot use generic evidence labels.");
+    const title = overrides.title.replace(/\s+/g, " ").trim();
+    const meetingLabel = parsed.program.conference_name || parsed.source.publication;
+    if (!title.toLowerCase().startsWith(meetingLabel.toLowerCase())) throw new Error(`The title must start with ${meetingLabel}.`);
+    if (!title.includes(meetingWatchSpecialistAlert(parsed.program.specialty))) throw new Error(`The title must include ${meetingWatchSpecialistAlert(parsed.program.specialty)}.`);
+    parsed.program.title = title;
+  }
+  if (overrides?.thumbnailStatement) {
+    if (new RegExp(PROHIBITED_MEETING_WATCH_COPY.source, "i").test(overrides.thumbnailStatement)) throw new Error("The thumbnail statement cannot use generic evidence labels.");
+    parsed.program.thumbnail_headline = cleanMeetingWatchCopy(overrides.thumbnailStatement);
+  }
   const positions = parsed.cards.map((card) => card.position);
   if (new Set(positions).size !== positions.length) throw new Error("Card positions must be unique.");
   const positionOrdered = [...parsed.cards].sort((a, b) => a.position - b.position);

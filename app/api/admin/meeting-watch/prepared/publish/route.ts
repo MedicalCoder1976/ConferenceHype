@@ -5,13 +5,13 @@ import { env } from "@/lib/env";
 import { parsePreparedNarrative, preparedNarrativeSegments } from "@/lib/meetingWatch/preparedNarrative";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-const schema = z.object({ raw: z.string().min(2_000).max(500_000) });
+const schema = z.object({ raw: z.string().min(2_000).max(500_000), title: z.string().trim().min(10).max(150), thumbnailStatement: z.string().trim().min(8).max(120) });
 export async function POST(request: NextRequest) {
   try {
     assertAdminRequest(request);
     if (!env.GITHUB_DISPATCH_TOKEN) return NextResponse.json({ ok: false, error: "GITHUB_DISPATCH_TOKEN is not configured." }, { status: 503 });
-    const { raw } = schema.parse(await request.json());
-    const parsed = parsePreparedNarrative(raw);
+    const { raw, title, thumbnailStatement } = schema.parse(await request.json());
+    const parsed = parsePreparedNarrative(raw, { title, thumbnailStatement });
     const pkg = parsed.package;
     const segments = preparedNarrativeSegments(pkg);
     const payload = {

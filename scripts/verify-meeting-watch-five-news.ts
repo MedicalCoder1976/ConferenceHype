@@ -34,6 +34,12 @@ assert.match(segments[0].script, /ESC Congress 2026, held August 28-31, 2026/);
 assert.match(metadata.thumbnailEntity ?? "", /Novartis.*AstraZeneca/);
 assert.doesNotMatch([metadata.title, metadata.description, metadata.thumbnailHeadline].join(" "), /Clinical Evidence Brief|New Evidence|The Story Behind the Result|Why This Result Matters/i);
 assert.equal(cleanMeetingWatchCopy("Clinical Evidence Brief: New Evidence — Why This Result Matters"), "");
+const edited = parsePreparedNarrative(JSON.stringify(packageJson), { title: "ESC Congress 2026 | CARDIOLOGIST ALERT: Five Practice-Changing Trials", thumbnailStatement: "FIVE PRACTICE-CHANGING TRIALS" });
+assert.equal(edited.package.program.title, "ESC Congress 2026 | CARDIOLOGIST ALERT: Five Practice-Changing Trials");
+assert.equal(edited.package.program.thumbnail_headline, "FIVE PRACTICE-CHANGING TRIALS");
+assert.notEqual(edited.sourceHash, parsed.sourceHash);
+assert.throws(() => parsePreparedNarrative(JSON.stringify(packageJson), { title: "Five Practice-Changing Trials", thumbnailStatement: "FIVE PRACTICE-CHANGING TRIALS" }), /must start with ESC Congress 2026/);
+assert.throws(() => parsePreparedNarrative(JSON.stringify(packageJson), { title: "ESC Congress 2026 | CARDIOLOGIST ALERT: Five Trials", thumbnailStatement: "Clinical Evidence Brief" }), /generic evidence labels/);
 
 const thumbnailSource = readFileSync(path.resolve("app/api/youtube-thumbnail/route.tsx"), "utf8");
 const renderSource = readFileSync(path.resolve("scripts/render-hour-broadcast.ts"), "utf8");
