@@ -1,17 +1,30 @@
 import { spawn } from "node:child_process";
 
-export type BroadcastQualityMode = "presentation" | "journal30" | "weekend30" | "regional30" | "breaking15" | "meeting_watch30" | "fiveThings15";
+export type BroadcastQualityMode = "presentation" | "journal30" | "weekend30" | "regional30" | "breaking15" | "meeting_watch30" | "meetingWatchFiveNews" | "fiveThings15";
 
-type QualityCard = { duration: number; isMusic: boolean; segmentId?: string };
+type QualityCard = { duration: number; isMusic: boolean; segmentId?: string; riskFlags?: string[] };
 
 export function minimumSubstantiveCards(mode: BroadcastQualityMode, stationProgramId?: string) {
   if (mode === "breaking15") return 1;
   if (mode === "fiveThings15") return 5;
+  if (mode === "meetingWatchFiveNews") return 5;
   if (mode === "weekend30") return 12;
   if (mode === "regional30") return 12;
   if (mode === "meeting_watch30") return 12;
   if (mode === "journal30") return stationProgramId ? 12 : 8;
   return 6;
+}
+
+export function assertMeetingWatchFiveNewsComplete(cards: QualityCard[]) {
+  const sourcedNews = new Set(cards
+    .filter((card) => !card.isMusic && card.segmentId && card.riskFlags?.includes("meeting_watch_five_news"))
+    .map((card) => card.segmentId));
+  const hasDisclaimer = cards.some((card) => !card.isMusic && card.riskFlags?.includes("prepared_disclaimer"));
+  const hasClosing = cards.some((card) => !card.isMusic && card.riskFlags?.includes("prepared_closing"));
+  if (sourcedNews.size !== 5 || !hasDisclaimer || !hasClosing) {
+    throw new Error(`Meeting Watch five-news completeness gate failed: found ${sourcedNews.size}/5 news items, disclaimer=${hasDisclaimer}, closing=${hasClosing}. Refusing to upload an incomplete story.`);
+  }
+  return { sourcedNewsItems: sourcedNews.size, hasDisclaimer, hasClosing };
 }
 
 export function assertMinimumSubstantiveCards({ cards, mode, stationProgramId }: {

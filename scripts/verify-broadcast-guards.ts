@@ -1111,7 +1111,8 @@ assert.match(renderHourSource, /Narration overlap detected/);
 assert.match(renderHourSource, /const pronunciationDefinitions = new Map/);
 assert.match(renderHourSource, /applySpokenPronunciations\(card\.script, pronunciationDefinitions\.get/);
 assert.match(renderHourSource, /const STORY_NARRATION_SPEED = 1\.05/);
-assert.match(renderHourSource, /card\.riskFlags\?\.includes\("prepared_story"\) \? STORY_NARRATION_SPEED : 1\.15/);
+assert.match(renderHourSource, /flag === "prepared_story" \|\| flag === "meeting_watch_five_news"/);
+assert.match(renderHourSource, /\? STORY_NARRATION_SPEED : 1\.15/);
 assert.match(renderHourSource, /\$\{persona\.voiceEnvKey\}\|\$\{speed\}\|\$\{processedScript\}/);
 const preparedStorySource = readFileSync(path.resolve("lib/story/preparedStory.ts"), "utf8");
 assert.match(preparedStorySource, /STORY_WORDS_PER_SECOND_AT_MEASURED_PACE = 1\.95/);
@@ -1768,6 +1769,7 @@ assert.equal(minimumSubstantiveCards("journal30"), 8);
 assert.equal(minimumSubstantiveCards("journal30", "station-program"), 12);
 assert.equal(minimumSubstantiveCards("weekend30"), 12);
 assert.equal(minimumSubstantiveCards("breaking15"), 1);
+assert.equal(minimumSubstantiveCards("meetingWatchFiveNews"), 5);
 assert.throws(
   () => assertMinimumSubstantiveCards({
     mode: "presentation",

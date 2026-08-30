@@ -5,6 +5,7 @@ import { parsePreparedNarrative, preparedNarrativeSegments } from "@/lib/meeting
 import { buildMeetingWatchSlots } from "@/lib/rundown/meetingWatchSlots";
 import { buildMeetingWatchMetadata } from "@/lib/youtube/meetingWatchMetadata";
 import { cleanMeetingWatchCopy } from "@/lib/meetingWatch/packaging";
+import { assertMeetingWatchFiveNewsComplete, minimumSubstantiveCards } from "@/lib/media/broadcastQuality";
 
 const narration = "The official primary source reports a meeting update with a defined population, intervention, comparator, endpoint, numerical result, safety context, and follow-up. Clinicians should review eligibility criteria, absolute effects, limitations, and the complete abstract before interpreting the finding. The company attribution is included only because the official source explicitly identifies the sponsor or developer. This recap distinguishes the reported result from interpretation and avoids extending the evidence beyond the population and follow-up described by investigators.";
 const packageJson = {
@@ -40,6 +41,10 @@ assert.equal(edited.package.program.thumbnail_headline, "FIVE PRACTICE-CHANGING 
 assert.notEqual(edited.sourceHash, parsed.sourceHash);
 assert.throws(() => parsePreparedNarrative(JSON.stringify(packageJson), { title: "Five Practice-Changing Trials", thumbnailStatement: "FIVE PRACTICE-CHANGING TRIALS" }), /must start with ESC Congress 2026/);
 assert.throws(() => parsePreparedNarrative(JSON.stringify(packageJson), { title: "ESC Congress 2026 | CARDIOLOGIST ALERT: Five Trials", thumbnailStatement: "Clinical Evidence Brief" }), /generic evidence labels/);
+assert.equal(minimumSubstantiveCards("meetingWatchFiveNews"), 5);
+const completeCards = segments.map((segment) => ({ duration: 60, isMusic: false, segmentId: segment.id, riskFlags: segment.riskFlags }));
+assert.deepEqual(assertMeetingWatchFiveNewsComplete(completeCards), { sourcedNewsItems: 5, hasDisclaimer: true, hasClosing: true });
+assert.throws(() => assertMeetingWatchFiveNewsComplete(completeCards.filter((card) => !card.riskFlags.includes("prepared_disclaimer"))), /incomplete story/);
 
 const thumbnailSource = readFileSync(path.resolve("app/api/youtube-thumbnail/route.tsx"), "utf8");
 const renderSource = readFileSync(path.resolve("scripts/render-hour-broadcast.ts"), "utf8");

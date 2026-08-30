@@ -1905,10 +1905,12 @@ async function main() {
     throw new Error(reason);
   }
 
-  const { assertMinimumSubstantiveCards } = await import("@/lib/media/broadcastQuality");
+  const { assertMeetingWatchFiveNewsComplete, assertMinimumSubstantiveCards } = await import("@/lib/media/broadcastQuality");
+  const isMeetingWatchFiveNews = cards.some((card) => card.riskFlags?.includes("meeting_watch_five_news"));
+  if (isMeetingWatchFiveNews) assertMeetingWatchFiveNewsComplete(cards);
   assertMinimumSubstantiveCards({
     cards,
-    mode: cards.some((card) => card.riskFlags?.includes("prepared_five_things")) ? "fiveThings15" : broadcastMode,
+    mode: cards.some((card) => card.riskFlags?.includes("prepared_five_things")) ? "fiveThings15" : isMeetingWatchFiveNews ? "meetingWatchFiveNews" : broadcastMode,
     stationProgramId: process.env.STATION_PROGRAM_ID
   });
 
@@ -1986,7 +1988,7 @@ async function main() {
         `Narration configuration is missing ${persona.voiceEnvKey}; refusing to render or upload a video with missing speech.`
       );
     }
-    const speed = card.riskFlags?.includes("prepared_story") ? STORY_NARRATION_SPEED : 1.15;
+    const speed = card.riskFlags?.some((flag) => flag === "prepared_story" || flag === "meeting_watch_five_news") ? STORY_NARRATION_SPEED : 1.15;
     const cacheKey = createHash("sha256")
       .update(`${persona.voiceEnvKey}|${speed}|${processedScript}`)
       .digest("hex");

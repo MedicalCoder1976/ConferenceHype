@@ -149,7 +149,14 @@ export function parsePreparedNarrative(raw: string, overridesInput?: PreparedNar
   const spokenWords = [...parsed.opening_hook.speaker_turns, ...parsed.cards.flatMap((card) => card.speaker_turns), ...parsed.closing.speaker_turns].reduce((sum, turn) => sum + turn.text.trim().split(/\s+/).length, 0);
   const transitionSeconds = parsed.transitions.reduce((sum, item) => sum + item.duration_seconds, 0);
   const disclaimerWords = parsed.disclaimer.text.trim().split(/\s+/).length;
-  const estimatedSeconds = Math.ceil((spokenWords + disclaimerWords) / 2.1) + transitionSeconds + 15;
+  // Five-news Meeting Watch uses the same measured, continuous narration pace
+  // as a prepared Story. Budget every voiced segment plus a conservative lead
+  // and closing allowance so the frame never drops item five or the disclaimer.
+  const voicedSegmentCount = parsed.opening_hook.speaker_turns.length + parsed.cards.reduce((sum, card) => sum + card.speaker_turns.length, 0) + parsed.closing.speaker_turns.length + 1;
+  const measuredStorySeconds = Math.ceil((spokenWords + disclaimerWords) / 1.8) + voicedSegmentCount * 5;
+  const estimatedSeconds = isFiveNews
+    ? measuredStorySeconds + transitionSeconds + 30
+    : Math.ceil((spokenWords + disclaimerWords) / 2.1) + transitionSeconds + 15;
   const durationSeconds = Math.max(300, Math.min(7200, Math.ceil(estimatedSeconds / 15) * 15));
   const sourceHash = createHash("sha256").update(JSON.stringify(parsed)).digest("hex");
   return { package: parsed, spokenWords, transitionSeconds, durationSeconds, sourceHash, trialOrderNormalized, preambleRemoved: raw.slice(0, start).trim().length > 0 };
