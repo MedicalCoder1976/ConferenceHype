@@ -2,7 +2,7 @@
 
 import { CalendarSearch, Radio, WandSparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { CardDeckSummary } from "@/components/CardDeckSummary";
 import { EMPTY_CARD_DECK, type EntityCardDeck } from "@/lib/cardDeck";
 import type { MedicalConference } from "@/lib/types";
@@ -32,12 +32,54 @@ type Preview = {
 // as-is since it feeds a different (Journal-Watch-style) package format.
 export function PreparedNarrativeBroadcast() {
   const [raw, setRaw] = useState("");
+  const [title, setTitle] = useState("");
+  const [thumbnailStatement, setThumbnailStatement] = useState("");
+  const [packagingStatus, setPackagingStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [packagingMessage, setPackagingMessage] = useState("");
   const [message, setMessage] = useState("");
   const [pending, startTransition] = useTransition();
+
+  useEffect(() => {
+    setTitle("");
+    setThumbnailStatement("");
+    setPackagingMessage("");
+    if (raw.trim().length < 2000) {
+      setPackagingStatus("idle");
+      return;
+    }
+    setPackagingStatus("loading");
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      try {
+        const response = await fetch("/api/admin/meeting-watch/prepared/preview", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ raw }),
+          signal: controller.signal
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) throw new Error(payload.error ?? "Could not generate the video packaging.");
+        setTitle(payload.package.program.title);
+        setThumbnailStatement(payload.package.program.thumbnail_headline);
+        setPackagingStatus("ready");
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        setPackagingStatus("error");
+        setPackagingMessage(error instanceof Error ? error.message : "Could not generate the video packaging.");
+      }
+    }, 500);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [raw]);
+
+  const packagingValid = packagingStatus === "ready" && title.trim().length >= 10 && title.length <= 150 && thumbnailStatement.trim().length >= 8 && thumbnailStatement.length <= 120;
   const publish = () => startTransition(async () => {
     setMessage("");
     try {
-      const response = await fetch("/api/admin/meeting-watch/prepared/publish", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ raw }) });
+      const response = await fetch("/api/admin/meeting-watch/prepared/publish", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ raw, title, thumbnailStatement }) });
       const payload = await response.json();
       if (!response.ok || !payload.ok) throw new Error(payload.error ?? "Could not develop and publish this broadcast.");
       setRaw("");
@@ -49,7 +91,24 @@ export function PreparedNarrativeBroadcast() {
     <p className="mt-2 text-sm font-semibold leading-6 text-ink/65">Paste Claude or Grok&apos;s complete beginning-to-end narrative for 5-10 source-grounded abstracts. The first words are its concise meeting-and-pharma hook. ConferenceHype narrates the supplied text in order, inserts 20-second speech-free music transitions, and rejects anything estimated beyond 10 minutes.</p>
     <details className="mt-4 border border-ink/15 bg-paper p-3"><summary className="cursor-pointer text-xs font-black uppercase">Copy Claude or Grok instructions and output format</summary><p className="mt-3 whitespace-pre-wrap text-sm font-semibold leading-6">{MEETING_WATCH_CLAUDE_INSTRUCTIONS}</p><pre className="mt-3 max-h-96 overflow-auto whitespace-pre-wrap border border-ink/10 bg-white p-3 text-xs">{MEETING_WATCH_CLAUDE_OUTPUT_FORMAT}</pre></details>
     <textarea value={raw} onChange={(event) => setRaw(event.target.value)} rows={14} placeholder='Paste JSON beginning with { "schema_version": "conferencehype_meeting_watch_full_narrative_v3" ...' className="mt-4 w-full border border-ink/20 px-3 py-3 font-mono text-xs text-ink" />
-    <div className="mt-3 flex flex-wrap gap-3"><button disabled={pending || raw.length < 2000} onClick={publish} className="min-h-11 bg-broadcast px-4 text-xs font-black uppercase text-white disabled:opacity-50">{pending ? "Developing video..." : "Develop and publish YouTube video"}</button></div>
+    <div className="mt-3 border-2 border-cyanline/30 bg-cyanline/5 p-4">
+      <div className="text-sm font-black">Video headline and thumbnail</div>
+      <p className="mt-1 text-xs font-semibold leading-5 text-ink/60">These are generated automatically from the pasted narrative. Edit them for maximum impact before publishing while keeping every claim source-grounded.</p>
+      <div className="mt-3 grid gap-3">
+        <label className="grid gap-1 text-xs font-black uppercase text-ink/60">
+          YouTube headline
+          <input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={150} disabled={packagingStatus !== "ready"} placeholder={packagingStatus === "loading" ? "Generating headline..." : "Paste valid JSON to generate the headline"} className="min-h-12 border border-ink/20 bg-white px-3 text-sm font-bold normal-case text-ink disabled:bg-paper" />
+          <span className="text-right text-[11px] normal-case text-ink/50">{title.length}/150 characters</span>
+        </label>
+        <label className="grid gap-1 text-xs font-black uppercase text-ink/60">
+          Thumbnail writeup
+          <textarea value={thumbnailStatement} onChange={(event) => setThumbnailStatement(event.target.value)} maxLength={120} disabled={packagingStatus !== "ready"} rows={2} placeholder={packagingStatus === "loading" ? "Generating thumbnail copy..." : "Paste valid JSON to generate the thumbnail copy"} className="border border-ink/20 bg-white px-3 py-3 text-sm font-black normal-case text-ink disabled:bg-paper" />
+          <span className="text-right text-[11px] normal-case text-ink/50">{thumbnailStatement.length}/120 characters</span>
+        </label>
+      </div>
+      {packagingMessage ? <div className="mt-2 text-xs font-bold text-broadcast">{packagingMessage}</div> : null}
+    </div>
+    <div className="mt-3 flex flex-wrap gap-3"><button disabled={pending || !packagingValid} onClick={publish} className="min-h-11 bg-broadcast px-4 text-xs font-black uppercase text-white disabled:opacity-50">{pending ? "Developing video..." : "Develop and publish YouTube video"}</button></div>
     {message ? <div className="mt-3 border border-cyanline/30 bg-cyanline/10 p-3 text-sm font-bold">{message}</div> : null}
   </div>;
 }
