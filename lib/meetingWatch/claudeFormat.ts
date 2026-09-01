@@ -1,49 +1,48 @@
 export const MEETING_WATCH_CLAUDE_OUTPUT_FORMAT = `{
-  "schema_version": "conferencehype_meeting_watch_story_v2",
+  "schema_version": "conferencehype_meeting_watch_full_narrative_v3",
   "status": "ready",
   "meeting": {
-    "name": "ESC Congress",
+    "name": "ERS Congress",
     "year": 2026,
-    "dates": "August 28-31, 2026",
-    "specialty": "Cardiology",
-    "specialist_alert": "CARDIOLOGIST ALERT",
-    "eye_catching_topic": "Five Hot Trials From Novartis, AstraZeneca and Other Leaders"
+    "dates": "September 5-9, 2026",
+    "specialty": "Respiratory Medicine",
+    "specialist_alert": "PULMONOLOGIST ALERT",
+    "eye_catching_topic": "AstraZeneca, GSK and Boehringer Lead ERS Respiratory Updates"
   },
-  "story": {
-    "thesis": "One source-grounded sentence explaining the common clinical question or change connecting all five meeting updates.",
-    "opening_hook": "A compelling 60-120 word continuation after the system-supplied meeting name, year, and dates. Create curiosity and preview the connected story without listing five unrelated headlines.",
-    "closing_synthesis": "A 90-160 word ending that brings the five findings back to the thesis, distinguishes signals from practice-changing evidence, states the most important unanswered question, repeats the meeting name and full dates, and invites viewers to comment and subscribe."
-  },
-  "news_items": [
+  "opening_hook": "Write the exact first 30-55 spoken words. Start with the meeting name and year, name two or more source-supported pharma companies, and briefly preview the connected clinical subjects that follow. Be concise, conversational, and complete.",
+  "abstracts": [
     {
       "position": 1,
-      "headline": "Complete, source-grounded news or abstract headline",
+      "headline": "Complete, source-grounded abstract headline",
       "visible_text": "One concise on-screen sentence with the key result",
-      "bridge_from_previous": "Connect the opening thesis to item one; for later items, explain why this finding follows naturally from the previous one.",
-      "narration": "A 90-180 word scene in the same continuous story. Cover what happened, study design or abstract context, exact key numbers, limitations, and clinical meaning. Attribute facts to the primary source, preserve uncertainty, and end with a thought that leads naturally into the next item. Do not restart the show, repeat the meeting introduction, say Number one through five, or give medical advice.",
-      "primary_source_url": "https://official-primary-source.example/item-1",
-      "source_label": "Official meeting abstract or company primary source",
+      "narration": "Write the exact 30-65 spoken words for this abstract. Move naturally from the prior section, identify the study and population, state the most important source-supported number or result, preserve uncertainty, and end cleanly. Do not add a host label, section label, restart, or music cue.",
+      "primary_source_url": "https://official-primary-source.example/abstract-1",
+      "source_label": "Official meeting abstract or primary source",
       "abstract_number": "Abstract 1234",
-      "study_name": "Exact study or trial name, or blank",
-      "pharma_companies": ["Novartis"],
+      "study_name": "Exact study or trial name",
+      "pharma_companies": ["AstraZeneca"],
       "reported_numbers": ["Exact source-supported number"],
       "limitations": ["Source-supported limitation"]
     }
   ],
-  "disclaimer": "A concise medical and educational disclaimer tailored to the meeting specialty and the specific subjects discussed. It belongs near the end and must not interrupt the opening story.",
+  "disclaimer": "Write the exact concise educational disclaimer to narrate near the end.",
+  "closing": "Write the exact final 20-50 spoken words. Synthesize what the abstracts collectively mean, repeat the meeting name and dates, state the key uncertainty, and invite viewers to comment and subscribe.",
   "quality_report": {
-    "one_continuous_story": true,
-    "exactly_five_news_items": true,
-    "five_distinct_primary_source_urls": true,
-    "narrative_bridges_present": true,
+    "concise_hook": true,
+    "five_to_ten_abstracts": true,
+    "distinct_primary_source_urls": true,
     "company_names_source_supported": true,
-    "meeting_name_year_and_dates_repeated": true,
-    "prohibited_phrases_absent": true
+    "complete_beginning_to_end_narration": true,
+    "estimated_total_under_ten_minutes": true
   }
 }`;
 
-export const MEETING_WATCH_CLAUDE_INSTRUCTIONS = `Return JSON only in the exact schema below. Write one continuous Meeting Watch story, not five disconnected evidence summaries. Model the pacing on a strong ConferenceHype story: begin with a curiosity-driven meeting hook, establish one clinical thesis, move through exactly five source-grounded meeting news items with explicit narrative bridges, then finish with a tailored disclaimer and a closing synthesis. The viewer should feel one argument developing from start to finish.
+export const MEETING_WATCH_CLAUDE_INSTRUCTIONS = `Return JSON only in the exact schema below. This must be the complete, ready-to-narrate Meeting Watch script from the first spoken word through the final spoken word. ConferenceHype will not rewrite, summarize, join, or invent connective narration. It will narrate your text in order and insert 20 seconds of speech-free music between the hook, each abstract, and the closing.
 
-Keep the Meeting Watch identity: the YouTube caption begins with the meeting name and year followed by the specialty-specific alert; the opening and closing repeat the meeting name and full dates; and all five items must come from that meeting or its directly related abstracts. Keep eye_catching_topic at 120 characters or fewer and make it a complete phrase, never a truncated fragment. The application builds the final YouTube title at 150 characters or fewer. Each item needs a distinct primary-source URL and 90-180 spoken words. Include exact study names and numbers when supported. Use pharma company names only when an official abstract, trial registry, publication, or company primary source explicitly supports the relationship; never guess sponsorship or ownership.
+The opening_hook must be a concise 30-55-word hook, not a long overview. Begin with the meeting name and year. Name at least two pharma companies only when the supplied primary sources support those relationships. In one or two clear sentences, preview the diseases, mechanisms, or clinical questions covered next. It must sound natural when spoken and must not contain labels such as Hook, Introduction, Number one, or Abstract one.
 
-Write conversational narration, not an abstract template. Do not say Number one, Number two, or reset the host between items. Do not repeat generic introductions, conclusions, or calls to action inside the five items. Do not use these phrases anywhere: Clinical Evidence Brief; New Evidence; The Story Behind the Result; Why This Result Matters. Do not provide medical advice.`;
+Provide 5-10 source-grounded abstracts. Each narration must be 30-65 words and must be the exact spoken copy. Use a distinct primary-source URL for every abstract. Include exact study names and numbers only when supported. Move naturally from one abstract to the next without phrases that sound mechanically attached. Do not write host names, production directions, slide directions, music cues, markdown, or repeated show introductions.
+
+The complete narration—including hook, every abstract, disclaimer, and closing—plus the required music must calculate to 10 minutes or less. Aim for 350-520 total spoken words; never exceed 600. Keep eye_catching_topic at 120 characters or fewer and make it a complete phrase. The application builds the final YouTube title at 150 characters or fewer.
+
+Do not use these phrases anywhere: Clinical Evidence Brief; New Evidence; The Story Behind the Result; Why This Result Matters. Do not provide medical advice. Before returning JSON, read the hook, abstracts, disclaimer, and closing consecutively and repair any abrupt, duplicated, fragmented, or disconnected wording.`;

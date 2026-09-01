@@ -21,8 +21,10 @@ export function assertMeetingWatchFiveNewsComplete(cards: QualityCard[]) {
     .map((card) => card.segmentId));
   const hasDisclaimer = cards.some((card) => !card.isMusic && card.riskFlags?.includes("prepared_disclaimer"));
   const hasClosing = cards.some((card) => !card.isMusic && card.riskFlags?.includes("prepared_closing"));
-  if (sourcedNews.size !== 5 || !hasDisclaimer || !hasClosing) {
-    throw new Error(`Meeting Watch five-news completeness gate failed: found ${sourcedNews.size}/5 news items, disclaimer=${hasDisclaimer}, closing=${hasClosing}. Refusing to upload an incomplete story.`);
+  const isFullNarrative = cards.some((card) => card.riskFlags?.includes("meeting_watch_full_narrative"));
+  const itemCountValid = isFullNarrative ? sourcedNews.size >= 5 && sourcedNews.size <= 10 : sourcedNews.size === 5;
+  if (!itemCountValid || !hasDisclaimer || !hasClosing) {
+    throw new Error(`Meeting Watch completeness gate failed: found ${sourcedNews.size}/${isFullNarrative ? "5-10" : "5"} sourced items, disclaimer=${hasDisclaimer}, closing=${hasClosing}. Refusing to upload an incomplete story.`);
   }
   return { sourcedNewsItems: sourcedNews.size, hasDisclaimer, hasClosing };
 }

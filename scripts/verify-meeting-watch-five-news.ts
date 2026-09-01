@@ -81,10 +81,46 @@ assert.ok(oversizedTopic.package.program.title.length <= 150);
 assert.ok(oversizedTopic.package.program.thumbnail_headline.length <= 120);
 assert.match(oversizedTopic.package.program.thumbnail_headline, /Novartis.*AstraZeneca/);
 
+const fullNarrativeAbstract = "This trial enrolled a defined respiratory population and tested a targeted intervention against the stated comparator. The primary source reports the key clinical result with appropriate uncertainty, while follow-up and generalizability remain important limitations for physicians interpreting the abstract.";
+const fullNarrativePackage = {
+  schema_version: "conferencehype_meeting_watch_full_narrative_v3", status: "ready",
+  meeting: { name: "ERS Congress", year: 2026, dates: "September 5-9, 2026", specialty: "Respiratory Medicine", specialist_alert: "PULMONOLOGIST ALERT", eye_catching_topic: "AstraZeneca, GSK and Boehringer Lead ERS Respiratory Updates" },
+  opening_hook: "ERS Congress 2026 brings AstraZeneca, GSK, and Boehringer Ingelheim into one respiratory story: targeted inflammation in COPD and asthma, alongside new approaches to progressive pulmonary fibrosis. The next ten abstracts show where these strategies produced clinical signals and where important uncertainty remains.",
+  abstracts: Array.from({ length: 10 }, (_, index) => ({ position: index + 1, headline: `Complete ERS abstract headline ${index + 1}`, visible_text: `Source-supported ERS result ${index + 1}`, narration: fullNarrativeAbstract, primary_source_url: `https://example.com/ers-abstract-${index + 1}`, source_label: `Official ERS abstract ${index + 1}`, abstract_number: `Abstract ${200 + index}`, study_name: `ERS-TRIAL-${index + 1}`, pharma_companies: index === 0 ? ["AstraZeneca"] : index === 1 ? ["GSK"] : index === 2 ? ["Boehringer Ingelheim"] : [], reported_numbers: ["Source-supported result"], limitations: ["Follow-up remains limited"] })),
+  disclaimer: "This educational meeting summary is not medical advice; clinicians should review each complete abstract before applying its findings.",
+  closing: "ERS Congress 2026, held September 5-9, shows respiratory precision medicine advancing across inflammation and fibrosis, but comparative effectiveness remains unresolved. Review the linked abstracts, comment on what matters most, and subscribe for the next meeting briefing.",
+  quality_report: { complete_beginning_to_end_narration: true }
+};
+const fullNarrative = parsePreparedNarrative(JSON.stringify(fullNarrativePackage));
+assert.equal(fullNarrative.package.cards.length, 10);
+assert.ok(fullNarrative.durationSeconds <= 600);
+const fullNarrativeSegments = preparedNarrativeSegments(fullNarrative.package);
+assert.equal(fullNarrativeSegments[0].script, fullNarrativePackage.opening_hook);
+assert.equal(fullNarrativeSegments.filter((segment) => segment.riskFlags.includes("meeting_watch_narrative_abstract")).length, 10);
+assert.equal(fullNarrativeSegments.filter((segment) => segment.riskFlags.some((flag) => flag === "prepared_transition:20")).length, 11);
+assert.equal(fullNarrativeSegments.filter((segment) => segment.riskFlags.includes("prepared_closing")).length, 1);
+assert.equal(fullNarrativeSegments.filter((segment) => segment.riskFlags.includes("prepared_disclaimer")).length, 1);
+assert.equal(fullNarrativeSegments.at(-1)?.script, `${fullNarrativePackage.disclaimer} ${fullNarrativePackage.closing}`);
+const fullNarrativeSlots = buildMeetingWatchSlots({ segments: fullNarrativeSegments, baseTime: new Date("2026-09-01T12:00:00Z"), meetingWatchBroadcastId: "full-narrative-test", meetingLabel: "ERS Congress 2026", showSeconds: fullNarrative.durationSeconds });
+const fullNarrativeMusic = fullNarrativeSlots.filter((slot) => slot.kind === "music");
+assert.equal(fullNarrativeMusic.length, 12);
+assert.ok(fullNarrativeMusic.slice(0, -1).every((slot) => slot.durationSeconds === 20));
+assert.equal(fullNarrativeMusic.at(-1)?.durationSeconds, 15);
+const fullNarrativeCards = fullNarrativeSegments.map((segment) => ({ duration: 45, isMusic: false, segmentId: segment.id, riskFlags: segment.riskFlags }));
+assert.deepEqual(assertMeetingWatchFiveNewsComplete(fullNarrativeCards), { sourcedNewsItems: 10, hasDisclaimer: true, hasClosing: true });
+assert.throws(() => parsePreparedNarrative(JSON.stringify({ ...fullNarrativePackage, opening_hook: `${fullNarrativePackage.opening_hook} This unnecessary extension makes the opening too long and less concise for viewers. It repeats context, delays the abstracts, and weakens the immediate reason physicians should continue watching this meeting briefing.` })), /30-55 spoken words/);
+assert.throws(() => parsePreparedNarrative(JSON.stringify({ ...fullNarrativePackage, abstracts: [...fullNarrativePackage.abstracts, { ...fullNarrativePackage.abstracts[0], position: 11, primary_source_url: "https://example.com/ers-abstract-11" }] })), /at most 10|Too big/i);
+
 const thumbnailSource = readFileSync(path.resolve("app/api/youtube-thumbnail/route.tsx"), "utf8");
 const renderSource = readFileSync(path.resolve("scripts/render-hour-broadcast.ts"), "utf8");
+const meetingWatchDeskSource = readFileSync(path.resolve("components/MeetingWatchDesk.tsx"), "utf8");
+const meetingWatchPublishSource = readFileSync(path.resolve("app/api/admin/meeting-watch/prepared/publish/route.ts"), "utf8");
 assert.match(thumbnailSource, /if \(isMeetingWatch && seriesLabel\)/);
 assert.match(thumbnailSource, /isMeetingWatch \? detailLabel \?\? seriesLabel : date/);
 assert.match(renderSource, /meetingWatch: isMeetingWatchMode/);
 assert.match(renderSource, /cleanMeetingWatchCopy\(card\.script\)/);
+assert.match(renderSource, /Meeting Watch full-narrative music gate failed/);
+assert.match(meetingWatchDeskSource, /Develop and publish YouTube video/);
+assert.doesNotMatch(meetingWatchDeskSource, /Validate and preview/);
+assert.match(meetingWatchPublishSource, /title: z\.string\(\)\.trim\(\)\.min\(10\)\.max\(150\)\.optional\(\)/);
 console.log("Meeting Watch five-news verification passed.");

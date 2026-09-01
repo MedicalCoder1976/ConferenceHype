@@ -30,66 +30,27 @@ type Preview = {
 // covers the general case; the per-conference "Develop material" section
 // below is the older Oncology/Hematology-only editorial-package path, kept
 // as-is since it feeds a different (Journal-Watch-style) package format.
-type PreparedPreview = {
-  ok: true;
-  package: {
-    content_type: string;
-    program: { title: string; thumbnail_headline: string };
-    opening_hook: { visible_text: string };
-    cards: Array<{ position: number; title: string; visible_text: string; source_anchor: string; speaker_turns: Array<{ speaker: string; text: string }> }>;
-  };
-  spokenWords: number;
-  durationMinutes: number;
-  preambleRemoved: boolean;
-  trialOrderNormalized: boolean;
-};
 export function PreparedNarrativeBroadcast() {
   const [raw, setRaw] = useState("");
-  const [preview, setPreview] = useState<PreparedPreview | null>(null);
   const [message, setMessage] = useState("");
-  const [title, setTitle] = useState("");
-  const [thumbnailStatement, setThumbnailStatement] = useState("");
   const [pending, startTransition] = useTransition();
-  const requestPreview = async () => {
-    const send = () => fetch("/api/admin/meeting-watch/prepared/preview", {
-      method: "POST",
-      credentials: "same-origin",
-      cache: "no-store",
-      headers: { "Accept": "application/json", "Content-Type": "application/json" },
-      body: JSON.stringify({ raw, title: title || undefined, thumbnailStatement: thumbnailStatement || undefined })
-    });
-    let response: Response;
-    try {
-      response = await send();
-    } catch {
-      await new Promise((resolve) => window.setTimeout(resolve, 400));
-      response = await send();
-    }
-    const responseText = await response.text();
-    let payload: PreparedPreview & { error?: string };
-    try {
-      payload = JSON.parse(responseText) as PreparedPreview & { error?: string };
-    } catch {
-      throw new Error(`Preview service returned HTTP ${response.status}. Reload the admin page and try again.`);
-    }
-    if (!response.ok || !payload.ok) throw new Error(payload.error ?? `Preview failed with HTTP ${response.status}.`);
-    return payload;
-  };
-  const validate = () => startTransition(async () => {
-    setMessage(""); setPreview(null);
-    try { const payload = await requestPreview(); setPreview(payload); setTitle(payload.package.program.title); setThumbnailStatement(payload.package.program.thumbnail_headline); setMessage(payload.trialOrderNormalized ? "Validated. Trial cards were automatically grouped so each trial is discussed once without interruption. Review the corrected sequence below." : payload.preambleRemoved ? "Validated. Introductory text outside the JSON was removed automatically." : "Validated and ready to render."); } catch (error) { setMessage(error instanceof TypeError ? "Could not reach the preview service after two attempts. Reload this admin page and try again." : error instanceof Error ? error.message : "Could not validate this package."); }
-  });
   const publish = () => startTransition(async () => {
-    try { const response = await fetch("/api/admin/meeting-watch/prepared/publish", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ raw, title, thumbnailStatement }) }); const payload = await response.json(); if (!response.ok || !payload.ok) throw new Error(payload.error ?? "Could not start this broadcast."); setRaw(""); setPreview(null); setTitle(""); setThumbnailStatement(""); setMessage(payload.alreadyExists ? "This exact package already exists; no duplicate was dispatched. The form is ready for another narrative." : `Broadcast render started: ${payload.cardCount} cards, ${Math.round(payload.durationSeconds / 60)} estimated minutes, ${payload.speakerTurnCount} speaker turns. The form is ready for another narrative.`); } catch (error) { setMessage(error instanceof Error ? error.message : "Could not start this broadcast."); }
+    setMessage("");
+    try {
+      const response = await fetch("/api/admin/meeting-watch/prepared/publish", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ raw }) });
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) throw new Error(payload.error ?? "Could not develop and publish this broadcast.");
+      setRaw("");
+      setMessage(payload.alreadyExists ? "This exact narrative already exists; no duplicate was dispatched." : `Video development started: ${payload.cardCount} abstracts, ${Math.round(payload.durationSeconds / 60)} estimated minutes, and ${payload.speakerTurnCount} narrated sections.`);
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Could not develop and publish this broadcast."); }
   });
   return <div className="border-2 border-broadcast/30 bg-white p-5 shadow-panel">
-    <div className="flex items-center gap-2"><WandSparkles className="h-5 w-5 text-broadcast" /><h2 className="text-2xl font-black">Meeting Watch: 5 News + Story</h2></div>
-    <p className="mt-2 text-sm font-semibold leading-6 text-ink/65">Paste Claude&apos;s continuous-story Meeting Watch JSON. Every video develops one narrative through five source-grounded meeting updates, leads with the meeting name and year, uses a specialty-specific alert, attributes company names only when a primary source supports them, and closes by returning to the central story.</p>
-    <details className="mt-4 border border-ink/15 bg-paper p-3"><summary className="cursor-pointer text-xs font-black uppercase">Copy Claude instructions and output format</summary><p className="mt-3 whitespace-pre-wrap text-sm font-semibold leading-6">{MEETING_WATCH_CLAUDE_INSTRUCTIONS}</p><pre className="mt-3 max-h-96 overflow-auto whitespace-pre-wrap border border-ink/10 bg-white p-3 text-xs">{MEETING_WATCH_CLAUDE_OUTPUT_FORMAT}</pre></details>
-    <textarea value={raw} onChange={(event) => { setRaw(event.target.value); setPreview(null); setTitle(""); setThumbnailStatement(""); }} rows={14} placeholder='Paste Claude JSON beginning with { "schema_version": "conferencehype_meeting_watch_story_v2" ...' className="mt-4 w-full border border-ink/20 px-3 py-3 font-mono text-xs text-ink" />
-    <div className="mt-3 flex flex-wrap gap-3"><button disabled={pending || raw.length < 2000} onClick={validate} className="min-h-11 bg-ink px-4 text-xs font-black uppercase text-white disabled:opacity-50">{pending ? "Checking..." : "Validate and preview"}</button></div>
+    <div className="flex items-center gap-2"><WandSparkles className="h-5 w-5 text-broadcast" /><h2 className="text-2xl font-black">Meeting Watch: Complete Narrative</h2></div>
+    <p className="mt-2 text-sm font-semibold leading-6 text-ink/65">Paste Claude or Grok&apos;s complete beginning-to-end narrative for 5-10 source-grounded abstracts. The first words are its concise meeting-and-pharma hook. ConferenceHype narrates the supplied text in order, inserts 20-second speech-free music transitions, and rejects anything estimated beyond 10 minutes.</p>
+    <details className="mt-4 border border-ink/15 bg-paper p-3"><summary className="cursor-pointer text-xs font-black uppercase">Copy Claude or Grok instructions and output format</summary><p className="mt-3 whitespace-pre-wrap text-sm font-semibold leading-6">{MEETING_WATCH_CLAUDE_INSTRUCTIONS}</p><pre className="mt-3 max-h-96 overflow-auto whitespace-pre-wrap border border-ink/10 bg-white p-3 text-xs">{MEETING_WATCH_CLAUDE_OUTPUT_FORMAT}</pre></details>
+    <textarea value={raw} onChange={(event) => setRaw(event.target.value)} rows={14} placeholder='Paste JSON beginning with { "schema_version": "conferencehype_meeting_watch_full_narrative_v3" ...' className="mt-4 w-full border border-ink/20 px-3 py-3 font-mono text-xs text-ink" />
+    <div className="mt-3 flex flex-wrap gap-3"><button disabled={pending || raw.length < 2000} onClick={publish} className="min-h-11 bg-broadcast px-4 text-xs font-black uppercase text-white disabled:opacity-50">{pending ? "Developing video..." : "Develop and publish YouTube video"}</button></div>
     {message ? <div className="mt-3 border border-cyanline/30 bg-cyanline/10 p-3 text-sm font-bold">{message}</div> : null}
-    {preview ? <div className="mt-4 grid gap-4 border border-ink/10 p-4"><div className="grid gap-3"><label className="grid gap-1 text-xs font-black uppercase">YouTube title<input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={150} className="min-h-11 border border-ink/20 px-3 text-sm font-semibold normal-case" /></label><div className="text-right text-xs font-semibold text-ink/50">{title.length}/150</div><label className="grid gap-1 text-xs font-black uppercase">Thumbnail statement<input value={thumbnailStatement} onChange={(event) => setThumbnailStatement(event.target.value)} maxLength={120} className="min-h-11 border border-ink/20 px-3 text-sm font-semibold normal-case" /></label><div className="text-right text-xs font-semibold text-ink/50">{thumbnailStatement.length}/120</div><p className="text-xs font-semibold text-ink/55">Edits here are the values sent to rendering and YouTube. The title must retain the meeting name, year, and specialist alert.</p><button disabled={pending || title.trim().length < 10 || thumbnailStatement.trim().length < 8} onClick={publish} className="min-h-11 justify-self-start bg-broadcast px-4 text-xs font-black uppercase text-white disabled:opacity-50">{pending ? "Starting..." : "Approve, render and upload"}</button></div><div className="grid gap-2 text-sm font-semibold md:grid-cols-4"><div><b>Type:</b> {preview.package.content_type}</div><div><b>Cards:</b> {preview.package.cards.length}</div><div><b>Spoken words:</b> {preview.spokenWords}</div><div><b>Estimated video:</b> {preview.durationMinutes} min</div></div><div className="text-sm"><b>Opening hook:</b> {preview.package.opening_hook.visible_text}</div><details><summary className="cursor-pointer text-xs font-black uppercase">Review every card</summary><div className="mt-2 grid gap-2">{preview.package.cards.map((card) => <div key={card.position} className="border border-ink/10 p-3"><div className="font-black">{card.position}. {card.title}</div><div className="mt-1 text-sm">{card.visible_text}</div><div className="mt-2 text-xs font-semibold text-ink/55">{card.speaker_turns.length} speaker turn(s) · Source: {card.source_anchor}</div></div>)}</div></details></div> : null}
   </div>;
 }
 
@@ -118,7 +79,7 @@ export function NewMeetingWatchBroadcast() {
       if (!response.ok || !payload.ok) throw new Error(payload.error ?? "Could not develop this Meeting Watch broadcast.");
       setPreview(payload);
       setEpisodeMeta(
-        payload.episodes.map((episode: PreviewEpisode, index: number) => ({
+        payload.episodes.map((episode: PreviewEpisode) => ({
           title: meetingWatchCaption(payload.meetingLabel, payload.specialty, episode.clusters.slice(0, 2).join(" and ") || "Five Meeting News Updates"),
           description: `${meetingWatchCaption(payload.meetingLabel, payload.specialty, episode.clusters.slice(0, 2).join(" and ") || "Five Meeting News Updates")}.\n\nFive source-attributed news and abstract updates from ${payload.meetingLabel}.`
         }))

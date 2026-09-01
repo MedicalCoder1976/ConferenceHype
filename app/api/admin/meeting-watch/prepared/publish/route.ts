@@ -5,7 +5,7 @@ import { env } from "@/lib/env";
 import { parsePreparedNarrative, preparedNarrativeSegments } from "@/lib/meetingWatch/preparedNarrative";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-const schema = z.object({ raw: z.string().min(2_000).max(500_000), title: z.string().trim().min(10).max(150), thumbnailStatement: z.string().trim().min(8).max(120) });
+const schema = z.object({ raw: z.string().min(2_000).max(500_000), title: z.string().trim().min(10).max(150).optional(), thumbnailStatement: z.string().trim().min(8).max(120).optional() });
 export async function POST(request: NextRequest) {
   try {
     assertAdminRequest(request);

@@ -72,6 +72,49 @@ const fiveNewsSchema = z.object({
   if (value.schema_version === "conferencehype_meeting_watch_five_news_v1" && !value.closing) context.addIssue({ code: "custom", path: ["closing"], message: "The legacy five-news package requires a closing." });
 });
 
+const fullNarrativeSchema = z.object({
+  schema_version: z.literal("conferencehype_meeting_watch_full_narrative_v3"),
+  status: z.literal("ready"),
+  meeting: z.object({
+    name: z.string().trim().min(2), year: z.number().int().min(2020).max(2100), dates: z.string().trim().min(1),
+    specialty: z.string().trim().min(2), eye_catching_topic: z.string().trim().min(8), specialist_alert: z.string().trim().optional()
+  }),
+  opening_hook: z.string().trim().min(120),
+  abstracts: z.array(z.object({
+    position: z.number().int().min(1).max(10), headline: z.string().trim().min(5), visible_text: z.string().trim().min(10).max(260),
+    narration: z.string().trim().min(100), primary_source_url: z.string().url(), source_label: z.string().trim().min(2),
+    abstract_number: z.string().trim().optional().default(""), study_name: z.string().trim().optional().default(""),
+    pharma_companies: z.array(z.string().trim().min(1)).default([]), reported_numbers: z.array(z.string()).default([]), limitations: z.array(z.string()).default([])
+  })).min(5).max(10),
+  disclaimer: z.string().trim().min(20), closing: z.string().trim().min(80), quality_report: z.record(z.string(), z.unknown()).optional()
+}).superRefine((value, context) => {
+  const wordCount = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
+  const hookWords = wordCount(value.opening_hook);
+  if (hookWords < 30 || hookWords > 55) context.addIssue({ code: "custom", path: ["opening_hook"], message: "The opening hook must contain 30-55 spoken words." });
+  if (!new RegExp(`\\b${value.meeting.year}\\b`).test(value.opening_hook) || !value.opening_hook.toLowerCase().includes(value.meeting.name.toLowerCase())) context.addIssue({ code: "custom", path: ["opening_hook"], message: "The opening hook must begin by identifying the meeting name and year." });
+  const supportedCompanies = [...new Set(value.abstracts.flatMap((item) => item.pharma_companies))];
+  const namedCompanies = supportedCompanies.filter((company) => value.opening_hook.toLowerCase().includes(company.toLowerCase()));
+  if (namedCompanies.length < 2) context.addIssue({ code: "custom", path: ["opening_hook"], message: "The opening hook must name at least two pharma companies that are attributed in the abstract sources." });
+  if (/^(?:hook|introduction|meeting watch)\s*[:\-]/i.test(value.opening_hook)) context.addIssue({ code: "custom", path: ["opening_hook"], message: "Narration must begin with the hook itself, not a section label." });
+  const positions = value.abstracts.map((item) => item.position);
+  if (positions.some((position, index) => position !== index + 1)) context.addIssue({ code: "custom", path: ["abstracts"], message: "Abstracts must be numbered consecutively from 1 in their narration order." });
+  if (new Set(value.abstracts.map((item) => item.primary_source_url)).size !== value.abstracts.length) context.addIssue({ code: "custom", path: ["abstracts"], message: "Every abstract must use a distinct primary-source URL." });
+  value.abstracts.forEach((item, index) => {
+    const words = wordCount(item.narration);
+    if (words < 30 || words > 65) context.addIssue({ code: "custom", path: ["abstracts", index, "narration"], message: "Each abstract narration must contain 30-65 spoken words." });
+    if (/^(?:abstract|number|item|host)\s*(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)?\s*[:.\-]/i.test(item.narration)) context.addIssue({ code: "custom", path: ["abstracts", index, "narration"], message: "Abstract narration must start naturally, without a section, number, or host label." });
+  });
+  const disclaimerWords = wordCount(value.disclaimer);
+  if (disclaimerWords < 15 || disclaimerWords > 35) context.addIssue({ code: "custom", path: ["disclaimer"], message: "The disclaimer must contain 15-35 spoken words." });
+  const closingWords = wordCount(value.closing);
+  if (closingWords < 20 || closingWords > 50) context.addIssue({ code: "custom", path: ["closing"], message: "The closing must contain 20-50 spoken words." });
+  const spokenWords = hookWords + value.abstracts.reduce((sum, item) => sum + wordCount(item.narration), 0) + disclaimerWords + closingWords;
+  const voicedSegments = value.abstracts.length + 2;
+  const transitionSeconds = (value.abstracts.length + 1) * 20;
+  const estimatedSeconds = Math.ceil(spokenWords / 1.8) + voicedSegments * 5 + transitionSeconds + 30;
+  if (spokenWords > 600 || estimatedSeconds > 600) context.addIssue({ code: "custom", path: ["abstracts"], message: `The complete script plus music is estimated at ${estimatedSeconds} seconds; reduce it to 600 seconds or less.` });
+});
+
 function fiveNewsToPreparedPackage(input: z.infer<typeof fiveNewsSchema>): PreparedNarrativePackage {
   const meetingLabel = assertMeetingNameAndYear(
     new RegExp(`\\b${input.meeting.year}\\b`).test(input.meeting.name)
@@ -108,18 +151,42 @@ function fiveNewsToPreparedPackage(input: z.infer<typeof fiveNewsSchema>): Prepa
   });
 }
 
+function fullNarrativeToPreparedPackage(input: z.infer<typeof fullNarrativeSchema>): PreparedNarrativePackage {
+  const meetingLabel = assertMeetingNameAndYear(new RegExp(`\\b${input.meeting.year}\\b`).test(input.meeting.name) ? input.meeting.name : `${input.meeting.name} ${input.meeting.year}`);
+  const alert = input.meeting.specialist_alert?.trim() || meetingWatchSpecialistAlert(input.meeting.specialty);
+  const supportedCompanies = [...new Set(input.abstracts.flatMap((item) => item.pharma_companies))];
+  const title = meetingWatchCaption(meetingLabel, input.meeting.specialty, input.meeting.eye_catching_topic, supportedCompanies);
+  const fallbackThumbnail = `${alert}: ${supportedCompanies.slice(0, 3).join(", ")} - ${input.abstracts.length} ${input.meeting.specialty} Abstracts`;
+  const thumbnailHeadline = input.meeting.eye_catching_topic.length <= 120 ? input.meeting.eye_catching_topic : fallbackThumbnail.length <= 120 ? fallbackThumbnail : `${alert}: ${input.abstracts.length} Meeting Abstracts`;
+  const first = input.abstracts[0];
+  return packageSchema.parse({
+    schema_version: "conferencehype_prepared_broadcast_v1", status: "ready", content_type: "CONFERENCE_ROUNDUP",
+    source: { publication: meetingLabel, article_title: `${input.abstracts.length} Meeting Abstracts`, url: first.primary_source_url, publication_date: input.meeting.dates, authors: [] },
+    program: { conference_name: meetingLabel, specialty: input.meeting.specialty, title, thumbnail_headline: thumbnailHeadline, description_opening: `${title}. Conference dates: ${input.meeting.dates}. ${input.abstracts.length} source-attributed abstracts from ${meetingLabel}.`, studies_covered: input.abstracts.map((item) => item.study_name || item.headline) },
+    opening_hook: { visible_text: `${meetingLabel} — ${input.meeting.dates} — ${alert}`, speaker_turns: [{ speaker: "HOST_1", text: input.opening_hook }], source_anchor: `${meetingLabel} opening synthesis` },
+    cards: input.abstracts.map((item) => ({ position: item.position, title: item.headline, card_type: "MEETING_ABSTRACT", visible_text: item.visible_text, speaker_turns: [{ speaker: item.position % 2 ? "HOST_2" : "HOST_1", text: item.narration }], source_anchor: [item.source_label, item.abstract_number, ...item.pharma_companies].filter(Boolean).join(" | "), source_url: item.primary_source_url, source_label: item.source_label, pharma_companies: item.pharma_companies, study_name: item.study_name, reported_numbers: item.reported_numbers, limitations: item.limitations })),
+    transitions: input.abstracts.map((item) => ({ after_card_position: item.position, duration_seconds: 20, next_topic: input.abstracts[item.position]?.headline ?? "Closing synthesis" })),
+    disclaimer: { after_card_position: input.abstracts.length, text: input.disclaimer },
+    closing: { speaker_turns: [{ speaker: "HOST_1", text: input.closing }] },
+    chapters: input.abstracts.map((item) => ({ card_position: item.position, title: item.headline })),
+    youtube_tags: [meetingLabel, input.meeting.specialty, alert, ...supportedCompanies],
+    quality_report: { ...input.quality_report, meeting_watch_full_narrative_v3: true }
+  });
+}
+
 export function parsePreparedNarrative(raw: string, overridesInput?: PreparedNarrativeOverrides) {
   const start = raw.indexOf("{");
   const end = raw.lastIndexOf("}");
   if (start < 0 || end <= start) throw new Error("No JSON broadcast package was found.");
   const candidate = JSON.parse(raw.slice(start, end + 1));
+  const isFullNarrative = candidate?.schema_version === "conferencehype_meeting_watch_full_narrative_v3";
   const isFiveNews = candidate?.schema_version === "conferencehype_meeting_watch_five_news_v1" || candidate?.schema_version === "conferencehype_meeting_watch_story_v2";
-  const inputResult = isFiveNews ? fiveNewsSchema.safeParse(candidate) : packageSchema.safeParse(candidate);
+  const inputResult = isFullNarrative ? fullNarrativeSchema.safeParse(candidate) : isFiveNews ? fiveNewsSchema.safeParse(candidate) : packageSchema.safeParse(candidate);
   if (!inputResult.success) {
     const detail = inputResult.error.issues.map((issue) => `${issue.path.join(".") || "package"}: ${issue.message}`).join("; ");
     throw new Error(`Prepared package validation failed: ${detail}`);
   }
-  const parsed = isFiveNews ? fiveNewsToPreparedPackage(inputResult.data as z.infer<typeof fiveNewsSchema>) : inputResult.data as PreparedNarrativePackage;
+  const parsed = isFullNarrative ? fullNarrativeToPreparedPackage(inputResult.data as z.infer<typeof fullNarrativeSchema>) : isFiveNews ? fiveNewsToPreparedPackage(inputResult.data as z.infer<typeof fiveNewsSchema>) : inputResult.data as PreparedNarrativePackage;
   const overrides = preparedOverridesSchema.parse(overridesInput);
   if (overrides?.title) {
     if (new RegExp(PROHIBITED_MEETING_WATCH_COPY.source, "i").test(overrides.title)) throw new Error("The title cannot use generic evidence labels.");
@@ -140,7 +207,7 @@ export function parsePreparedNarrative(raw: string, overridesInput?: PreparedNar
   const conversationKeyByOldPosition = new Map<number, string>();
   for (const card of positionOrdered) {
     const normalizedStudy = card.study_name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-    const conversationKey = normalizedStudy ? `study:${normalizedStudy}` : `standalone:${card.position}`;
+    const conversationKey = isFullNarrative ? `standalone:${card.position}` : normalizedStudy ? `study:${normalizedStudy}` : `standalone:${card.position}`;
     conversationKeyByOldPosition.set(card.position, conversationKey);
     const conversation = conversations.get(conversationKey) ?? [];
     conversation.push(card);
@@ -179,10 +246,11 @@ export function parsePreparedNarrative(raw: string, overridesInput?: PreparedNar
   // and closing allowance so the frame never drops item five or the disclaimer.
   const voicedSegmentCount = parsed.opening_hook.speaker_turns.length + parsed.cards.reduce((sum, card) => sum + card.speaker_turns.length, 0) + parsed.closing.speaker_turns.length + 1;
   const measuredStorySeconds = Math.ceil((spokenWords + disclaimerWords) / 1.8) + voicedSegmentCount * 5;
-  const estimatedSeconds = isFiveNews
-    ? measuredStorySeconds + transitionSeconds + 30
+  const estimatedSeconds = isFiveNews || isFullNarrative
+    ? measuredStorySeconds + transitionSeconds + (isFullNarrative ? 20 : 0) + 30
     : Math.ceil((spokenWords + disclaimerWords) / 2.1) + transitionSeconds + 15;
   const durationSeconds = Math.max(300, Math.min(7200, Math.ceil(estimatedSeconds / 15) * 15));
+  if (isFullNarrative && durationSeconds > 600) throw new Error(`The complete Meeting Watch narration plus music is ${durationSeconds} seconds; the maximum is 600 seconds.`);
   const sourceHash = createHash("sha256").update(JSON.stringify(parsed)).digest("hex");
   return { package: parsed, spokenWords, transitionSeconds, durationSeconds, sourceHash, trialOrderNormalized, preambleRemoved: raw.slice(0, start).trim().length > 0 };
 }
@@ -212,6 +280,7 @@ function openingAttribution(pkg: PreparedNarrativePackage) {
 }
 export function preparedNarrativeSegments(pkg: PreparedNarrativePackage): Segment[] {
   const now = new Date().toISOString();
+  const isFullNarrative = pkg.quality_report?.meeting_watch_full_narrative_v3 === true;
   let sequence = 0;
   const result: Segment[] = [];
   const pushTurns = (turns: Array<z.infer<typeof turnSchema>>, input: { title: string; visibleText: string; sourceAnchor: string; sourceUrl?: string; sourceLabel?: string; flags: string[]; transitionSeconds?: number }) => {
@@ -229,18 +298,21 @@ export function preparedNarrativeSegments(pkg: PreparedNarrativePackage): Segmen
   };
   const openingTurns = pkg.opening_hook.speaker_turns.map((turn, index) => ({
     ...turn,
-    text: index === 0
+    text: isFullNarrative
+      ? stripPreparedDescriptors(turn.text)
+      : index === 0
       ? `${openingAttribution(pkg)} ${stripPreparedDescriptors(turn.text)}`
       : stripPreparedDescriptors(turn.text)
   }));
-  pushTurns(openingTurns, { title: pkg.program.thumbnail_headline, visibleText: pkg.opening_hook.visible_text, sourceAnchor: pkg.opening_hook.source_anchor, flags: ["prepared_opening", "prepared_card:0"] });
+  pushTurns(openingTurns, { title: pkg.program.thumbnail_headline, visibleText: pkg.opening_hook.visible_text, sourceAnchor: pkg.opening_hook.source_anchor, flags: ["prepared_opening", "prepared_card:0", ...(isFullNarrative ? ["meeting_watch_full_narrative"] : [])], transitionSeconds: isFullNarrative ? 20 : undefined });
   for (const [cardIndex, card] of pkg.cards.entries()) {
     const studyKey = card.study_name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
     const nextStudyKey = pkg.cards[cardIndex + 1]?.study_name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") ?? "";
     const transition = studyKey && studyKey === nextStudyKey ? undefined : pkg.transitions.find((item) => item.after_card_position === card.position)?.duration_seconds;
-    pushTurns(card.speaker_turns, { title: card.title, visibleText: card.visible_text, sourceAnchor: card.source_anchor, sourceUrl: card.source_url, sourceLabel: card.source_label, flags: [`prepared_card:${card.position}`, `prepared_type:${card.card_type}`, ...(card.card_type === "MEETING_NEWS" ? ["meeting_watch_five_news", `meeting_watch_companies:${card.pharma_companies.join(", ")}`] : []), ...(studyKey ? [`prepared_study:${studyKey}`] : [])], transitionSeconds: transition });
-    if (pkg.disclaimer.after_card_position === card.position) pushTurns([{ speaker: "HOST_1", text: pkg.disclaimer.text }], { title: "Important ConferenceHype notice", visibleText: pkg.disclaimer.text, sourceAnchor: "Prepared broadcast disclaimer", flags: ["prepared_disclaimer", `prepared_card:${card.position}.5`] });
+    pushTurns(card.speaker_turns, { title: card.title, visibleText: card.visible_text, sourceAnchor: card.source_anchor, sourceUrl: card.source_url, sourceLabel: card.source_label, flags: [`prepared_card:${card.position}`, `prepared_type:${card.card_type}`, ...(card.card_type === "MEETING_NEWS" ? ["meeting_watch_five_news", `meeting_watch_companies:${card.pharma_companies.join(", ")}`] : []), ...(card.card_type === "MEETING_ABSTRACT" ? ["meeting_watch_five_news", "meeting_watch_full_narrative", "meeting_watch_narrative_abstract", `meeting_watch_companies:${card.pharma_companies.join(", ")}`] : []), ...(studyKey ? [`prepared_study:${studyKey}`] : [])], transitionSeconds: transition });
+    if (!isFullNarrative && pkg.disclaimer.after_card_position === card.position) pushTurns([{ speaker: "HOST_1", text: pkg.disclaimer.text }], { title: "Important ConferenceHype notice", visibleText: pkg.disclaimer.text, sourceAnchor: "Prepared broadcast disclaimer", flags: ["prepared_disclaimer", `prepared_card:${card.position}.5`] });
   }
-  pushTurns(pkg.closing.speaker_turns, { title: "What the evidence leaves unanswered", visibleText: "The ConferenceHype deep dive concludes with the principal finding, limitations, and the most important unanswered question.", sourceAnchor: "Prepared narrative closing synthesis", flags: ["prepared_closing", `prepared_card:${pkg.cards.length + 1}`] });
+  const closingTurns = isFullNarrative ? pkg.closing.speaker_turns.map((turn, index) => ({ ...turn, text: `${index === 0 ? `${pkg.disclaimer.text} ` : ""}${turn.text}` })) : pkg.closing.speaker_turns;
+  pushTurns(closingTurns, { title: "What the evidence leaves unanswered", visibleText: "The ConferenceHype deep dive concludes with the principal finding, limitations, and the most important unanswered question.", sourceAnchor: "Prepared narrative closing synthesis", flags: ["prepared_closing", ...(isFullNarrative ? ["prepared_disclaimer", "meeting_watch_full_narrative"] : []), `prepared_card:${pkg.cards.length + 1}`] });
   return result;
 }

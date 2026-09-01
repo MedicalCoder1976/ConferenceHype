@@ -2153,6 +2153,14 @@ async function main() {
       : Math.abs(reconciled - targetFrameSeconds) > 0.01;
     if (invalidFrame) throw new Error(`Measured broadcast frame reconciled to ${reconciled}s instead of ${targetFrameSeconds}s.`);
   }
+  const fullNarrativeAbstractCount = cards.filter((card) => card.riskFlags?.includes("meeting_watch_narrative_abstract")).length;
+  if (fullNarrativeAbstractCount > 0) {
+    const narrativeMusic = cards.filter((card) => card.isMusic && card.title === "prepared narrative music transition");
+    const requiredMusicWindows = fullNarrativeAbstractCount + 1;
+    if (narrativeMusic.length !== requiredMusicWindows || narrativeMusic.some((card) => card.duration < 19.9)) {
+      throw new Error(`Meeting Watch full-narrative music gate failed: found ${narrativeMusic.length}/${requiredMusicWindows} intact 20-second transitions. Refusing to upload a disconnected or overlong narration.`);
+    }
+  }
   const narrationDelay = reserveOpeningNarrationDelay(cards, cardCacheKeys);
   const isPreparedStoryRender = cards.some((card) => card.riskFlags?.includes("prepared_story"));
   const isPreparedFiveThingsRender = cards.some((card) => card.riskFlags?.includes("prepared_five_things"));
