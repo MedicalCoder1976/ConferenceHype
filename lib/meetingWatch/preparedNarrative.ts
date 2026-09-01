@@ -9,7 +9,7 @@ const packageSchema = z.object({
   source: z.object({ publication: z.string().trim().min(1), article_title: z.string().trim().min(1), url: z.string().url(), publication_date: z.string().optional().default(""), authors: z.array(z.string()).optional().default([]) }),
   program: z.object({ conference_name: z.string().optional().default(""), specialty: z.string().optional().default(""), title: z.string().trim().min(1).max(150), thumbnail_headline: z.string().trim().min(1), description_opening: z.string().trim().min(1), studies_covered: z.array(z.string()).default([]), estimated_spoken_words: z.number().optional(), estimated_duration_minutes: z.number().optional(), recommended_presenter_format: z.string().optional() }),
   opening_hook: z.object({ visible_text: z.string().trim().min(1), speaker_turns: z.array(turnSchema).min(1), source_anchor: z.string().trim().min(1) }),
-  cards: z.array(z.object({ position: z.number().int().positive(), title: z.string().trim().min(1), card_type: z.string().trim().min(1), visible_text: z.string().trim().min(1), speaker_turns: z.array(turnSchema).min(1), source_anchor: z.string().trim().min(1), study_name: z.string().optional().default(""), reported_numbers: z.array(z.string()).optional().default([]), limitations: z.array(z.string()).optional().default([]) })).min(6),
+  cards: z.array(z.object({ position: z.number().int().positive(), title: z.string().trim().min(1), card_type: z.string().trim().min(1), visible_text: z.string().trim().min(1), speaker_turns: z.array(turnSchema).min(1), source_anchor: z.string().trim().min(1), source_url: z.string().url().optional(), study_name: z.string().optional().default(""), reported_numbers: z.array(z.string()).optional().default([]), limitations: z.array(z.string()).optional().default([]) })).min(5),
   transitions: z.array(z.object({ after_card_position: z.number().int().positive(), duration_seconds: z.number().int().min(10).max(60), next_topic: z.string().default("") })).default([]),
   disclaimer: z.object({ after_card_position: z.number().int().nonnegative(), text: z.string().trim().min(1) }),
   closing: z.object({ speaker_turns: z.array(turnSchema).min(1) }),
@@ -18,11 +18,55 @@ const packageSchema = z.object({
 });
 export type PreparedNarrativePackage = z.infer<typeof packageSchema>;
 
+const fiveNewsSchema = z.object({
+  schema_version: z.literal("conferencehype_meeting_watch_five_news_v1"), status: z.literal("ready"),
+  meeting: z.object({ name: z.string().trim().min(1), year: z.number().int(), dates: z.string().trim().min(1), specialty: z.string().trim().min(1), specialist_alert: z.string().trim().min(1), eye_catching_topic: z.string().trim().min(1) }),
+  news_items: z.array(z.object({ position: z.number().int().min(1).max(5), headline: z.string().trim().min(1), visible_text: z.string().trim().min(1), narration: z.string().trim().min(1), primary_source_url: z.string().url(), source_label: z.string().trim().min(1), abstract_number: z.string().optional().default(""), study_name: z.string().optional().default(""), pharma_companies: z.array(z.string()).optional().default([]), reported_numbers: z.array(z.string()).optional().default([]), limitations: z.array(z.string()).optional().default([]) })).length(5),
+  disclaimer: z.string().trim().min(1), closing: z.string().trim().min(1), quality_report: z.record(z.string(), z.unknown()).optional()
+});
+
+function normalizeFiveNews(value: unknown) {
+  const input = fiveNewsSchema.parse(value);
+  const ordered = [...input.news_items].sort((a, b) => a.position - b.position);
+  if (ordered.some((item, index) => item.position !== index + 1)) throw new Error("Five-news item positions must be unique and ordered from 1 through 5.");
+  if (new Set(ordered.map((item) => item.primary_source_url)).size !== 5) throw new Error("The five news items must use five distinct primary-source URLs.");
+  ordered.forEach((item) => { if (item.narration.split(/\s+/).filter(Boolean).length < 55) throw new Error(`News item ${item.position} needs at least 55 spoken narration words.`); });
+  const meetingTitle = `${input.meeting.name} ${input.meeting.year}`;
+  // Claude's eye-catching topic is opening/thumbnail copy and can legitimately
+  // exceed the database/YouTube title contract. Build a complete title from
+  // structured fields instead of chopping that copy into a sentence fragment.
+  const supportedCompanies = [...new Set(ordered.flatMap((item) => item.pharma_companies).map((company) => company.trim()).filter(Boolean))].slice(0, 3);
+  const companyLead = supportedCompanies.length >= 2
+    ? `${supportedCompanies.slice(0, -1).join(", ")} and ${supportedCompanies.at(-1)}`
+    : "";
+  const programTitle = companyLead
+    ? `${meetingTitle}: ${companyLead} - Five ${input.meeting.specialty} Developments`
+    : `${meetingTitle}: Five ${input.meeting.specialty} Developments to Watch`;
+  if (programTitle.length > 150) throw new Error("The meeting name and specialty are too long to create a complete 150-character program title.");
+  return {
+    schema_version: "conferencehype_prepared_broadcast_v1" as const, status: "ready" as const, content_type: "CONFERENCE_ROUNDUP" as const,
+    source: { publication: input.meeting.name, article_title: `${meetingTitle} five-news briefing`, url: ordered[0].primary_source_url, publication_date: "", authors: [] },
+    program: { conference_name: meetingTitle, specialty: input.meeting.specialty, title: programTitle, thumbnail_headline: input.meeting.specialist_alert, description_opening: `${meetingTitle}, ${input.meeting.dates}: five source-linked developments for ${input.meeting.specialty}.`, studies_covered: ordered.map((item) => item.study_name).filter(Boolean) },
+    opening_hook: { visible_text: input.meeting.eye_catching_topic, speaker_turns: [{ speaker: "HOST_1" as const, text: `Here are five developments to watch at ${meetingTitle}, taking place ${input.meeting.dates}.` }], source_anchor: `${input.meeting.name} meeting briefing` },
+    cards: ordered.map((item) => ({ position: item.position, title: item.headline, card_type: "NEWS_ITEM", visible_text: item.visible_text, speaker_turns: [{ speaker: item.position % 2 ? "HOST_1" as const : "HOST_2" as const, text: item.narration }], source_anchor: item.source_label, source_url: item.primary_source_url, study_name: item.study_name, reported_numbers: item.reported_numbers, limitations: item.limitations })),
+    transitions: ordered.slice(0, -1).map((item) => ({ after_card_position: item.position, duration_seconds: 20, next_topic: ordered[item.position]?.headline ?? "" })),
+    disclaimer: { after_card_position: 3, text: input.disclaimer }, closing: { speaker_turns: [{ speaker: "HOST_2" as const, text: input.closing }] },
+    chapters: ordered.map((item) => ({ card_position: item.position, title: item.headline })), youtube_tags: ["ConferenceHype", input.meeting.name, String(input.meeting.year), input.meeting.specialty], quality_report: input.quality_report
+  };
+}
+
 export function parsePreparedNarrative(raw: string) {
   const start = raw.indexOf("{");
   const end = raw.lastIndexOf("}");
   if (start < 0 || end <= start) throw new Error("No JSON broadcast package was found.");
-  const parsed = packageSchema.parse(JSON.parse(raw.slice(start, end + 1)));
+  const decoded: unknown = JSON.parse(raw.slice(start, end + 1));
+  const candidate = typeof decoded === "object" && decoded !== null && "schema_version" in decoded && decoded.schema_version === "conferencehype_meeting_watch_five_news_v1" ? normalizeFiveNews(decoded) : decoded;
+  const result = packageSchema.safeParse(candidate);
+  if (!result.success) {
+    const detail = result.error.issues.map((issue) => `${issue.path.join(".") || "package"}: ${issue.message}`).join("; ");
+    throw new Error(`Prepared package validation failed: ${detail}`);
+  }
+  const parsed = result.data;
   const positions = parsed.cards.map((card) => card.position);
   if (new Set(positions).size !== positions.length) throw new Error("Card positions must be unique.");
   const positionOrdered = [...parsed.cards].sort((a, b) => a.position - b.position);
@@ -97,14 +141,14 @@ export function preparedNarrativeSegments(pkg: PreparedNarrativePackage): Segmen
   const now = new Date().toISOString();
   let sequence = 0;
   const result: Segment[] = [];
-  const pushTurns = (turns: Array<z.infer<typeof turnSchema>>, input: { title: string; visibleText: string; sourceAnchor: string; flags: string[]; transitionSeconds?: number }) => {
+  const pushTurns = (turns: Array<z.infer<typeof turnSchema>>, input: { title: string; visibleText: string; sourceAnchor: string; sourceUrl?: string; flags: string[]; transitionSeconds?: number }) => {
     turns.forEach((turn, turnIndex) => {
       const host = HOSTS[turn.speaker];
       sequence += 1;
       result.push({
         id: `draft-${randomUUID()}`, title: stripPreparedDescriptors(input.title), summary: stripPreparedDescriptors(input.visibleText), script: input.flags.includes("prepared_disclaimer") ? stripPreparedDescriptors(turn.text) : stripPreparedDescriptors(turn.text).replaceAll(pkg.disclaimer.text, "").trim(),
         contentType: "media_roundup", personaId: host.id, personaName: host.name, hypeLevel: "restrained", language: "English", status: "approved",
-        citations: [{ label: `${pkg.source.publication}: ${pkg.source.article_title}${pkg.source.authors.length ? ` - ${pkg.source.authors.join(", ")}` : ""}`, url: pkg.source.url, sourceType: "media" }], socialBuzzItems: [],
+        citations: [{ label: input.sourceAnchor, url: input.sourceUrl ?? pkg.source.url, sourceType: "media" }], socialBuzzItems: [],
         riskFlags: ["meeting_watch", "prepared_narrative", `prepared_sequence:${String(sequence).padStart(4, "0")}`, `source_anchor:${input.sourceAnchor.slice(0, 180)}`, ...input.flags, ...(turnIndex === turns.length - 1 && input.transitionSeconds ? [`prepared_transition:${input.transitionSeconds}`] : [])],
         confidenceScore: 95, createdAt: now, approvedAt: now, updatedAt: now
       });
@@ -121,7 +165,7 @@ export function preparedNarrativeSegments(pkg: PreparedNarrativePackage): Segmen
     const studyKey = card.study_name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
     const nextStudyKey = pkg.cards[cardIndex + 1]?.study_name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") ?? "";
     const transition = studyKey && studyKey === nextStudyKey ? undefined : pkg.transitions.find((item) => item.after_card_position === card.position)?.duration_seconds;
-    pushTurns(card.speaker_turns, { title: card.title, visibleText: card.visible_text, sourceAnchor: card.source_anchor, flags: [`prepared_card:${card.position}`, `prepared_type:${card.card_type}`, ...(studyKey ? [`prepared_study:${studyKey}`] : [])], transitionSeconds: transition });
+    pushTurns(card.speaker_turns, { title: card.title, visibleText: card.visible_text, sourceAnchor: card.source_anchor, sourceUrl: card.source_url, flags: [`prepared_card:${card.position}`, `prepared_type:${card.card_type}`, ...(studyKey ? [`prepared_study:${studyKey}`] : [])], transitionSeconds: transition });
     if (pkg.disclaimer.after_card_position === card.position) pushTurns([{ speaker: "HOST_1", text: pkg.disclaimer.text }], { title: "Important ConferenceHype notice", visibleText: pkg.disclaimer.text, sourceAnchor: "Prepared broadcast disclaimer", flags: ["prepared_disclaimer", `prepared_card:${card.position}.5`] });
   }
   pushTurns(pkg.closing.speaker_turns, { title: "What the evidence leaves unanswered", visibleText: "The ConferenceHype deep dive concludes with the principal finding, limitations, and the most important unanswered question.", sourceAnchor: "Prepared narrative closing synthesis", flags: ["prepared_closing", `prepared_card:${pkg.cards.length + 1}`] });
