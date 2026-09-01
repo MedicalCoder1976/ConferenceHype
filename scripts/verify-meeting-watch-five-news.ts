@@ -108,7 +108,11 @@ assert.ok(fullNarrativeMusic.slice(0, -1).every((slot) => slot.durationSeconds =
 assert.equal(fullNarrativeMusic.at(-1)?.durationSeconds, 15);
 const fullNarrativeCards = fullNarrativeSegments.map((segment) => ({ duration: 45, isMusic: false, segmentId: segment.id, riskFlags: segment.riskFlags }));
 assert.deepEqual(assertMeetingWatchFiveNewsComplete(fullNarrativeCards), { sourcedNewsItems: 10, hasDisclaimer: true, hasClosing: true });
-assert.throws(() => parsePreparedNarrative(JSON.stringify({ ...fullNarrativePackage, opening_hook: `${fullNarrativePackage.opening_hook} This unnecessary extension makes the opening too long and less concise for viewers. It repeats context, delays the abstracts, and weakens the immediate reason physicians should continue watching this meeting briefing.` })), /30-55 spoken words/);
+const expandedOpeningHook = `${fullNarrativePackage.opening_hook} Across the program, clinicians will hear how trial design, patient selection, dosing convenience, biomarker strategy, safety findings, and practical uncertainty shape the interpretation of these respiratory programs. The goal is to connect company pipelines with the clinical questions physicians face, while separating encouraging signals from evidence that still requires confirmation in larger or longer studies. Together, these reports frame a meeting centered on precision treatment without losing sight of implementation.`;
+assert.ok(expandedOpeningHook.split(/\s+/).filter(Boolean).length <= 120);
+const fiveAbstractPackage = { ...fullNarrativePackage, opening_hook: expandedOpeningHook, abstracts: fullNarrativePackage.abstracts.slice(0, 5) };
+assert.doesNotThrow(() => parsePreparedNarrative(JSON.stringify(fiveAbstractPackage)));
+assert.throws(() => parsePreparedNarrative(JSON.stringify({ ...fiveAbstractPackage, opening_hook: `${expandedOpeningHook} ${"excess ".repeat(121)}` })), /30-120 spoken words/);
 assert.throws(() => parsePreparedNarrative(JSON.stringify({ ...fullNarrativePackage, abstracts: [...fullNarrativePackage.abstracts, { ...fullNarrativePackage.abstracts[0], position: 11, primary_source_url: "https://example.com/ers-abstract-11" }] })), /at most 10|Too big/i);
 
 const thumbnailSource = readFileSync(path.resolve("app/api/youtube-thumbnail/route.tsx"), "utf8");

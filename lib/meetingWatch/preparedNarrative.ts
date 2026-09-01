@@ -90,7 +90,7 @@ const fullNarrativeSchema = z.object({
 }).superRefine((value, context) => {
   const wordCount = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
   const hookWords = wordCount(value.opening_hook);
-  if (hookWords < 30 || hookWords > 55) context.addIssue({ code: "custom", path: ["opening_hook"], message: "The opening hook must contain 30-55 spoken words." });
+  if (hookWords < 30 || hookWords > 120) context.addIssue({ code: "custom", path: ["opening_hook"], message: "The opening hook must contain 30-120 spoken words." });
   if (!new RegExp(`\\b${value.meeting.year}\\b`).test(value.opening_hook) || !value.opening_hook.toLowerCase().includes(value.meeting.name.toLowerCase())) context.addIssue({ code: "custom", path: ["opening_hook"], message: "The opening hook must begin by identifying the meeting name and year." });
   const supportedCompanies = [...new Set(value.abstracts.flatMap((item) => item.pharma_companies))];
   const namedCompanies = supportedCompanies.filter((company) => value.opening_hook.toLowerCase().includes(company.toLowerCase()));

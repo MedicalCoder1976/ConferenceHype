@@ -9,7 +9,7 @@ export const MEETING_WATCH_CLAUDE_OUTPUT_FORMAT = `{
     "specialist_alert": "PULMONOLOGIST ALERT",
     "eye_catching_topic": "AstraZeneca, GSK and Boehringer Lead ERS Respiratory Updates"
   },
-  "opening_hook": "Write the exact first 30-55 spoken words. Start with the meeting name and year, name two or more source-supported pharma companies, and briefly preview the connected clinical subjects that follow. Be concise, conversational, and complete.",
+  "opening_hook": "Write the exact first 30-120 spoken words. Start with the meeting name and year, name two or more source-supported pharma companies, and preview the connected clinical subjects that follow. Be focused, conversational, and complete.",
   "abstracts": [
     {
       "position": 1,
@@ -39,7 +39,7 @@ export const MEETING_WATCH_CLAUDE_OUTPUT_FORMAT = `{
 
 export const MEETING_WATCH_CLAUDE_INSTRUCTIONS = `Return JSON only in the exact schema below. This must be the complete, ready-to-narrate Meeting Watch script from the first spoken word through the final spoken word. ConferenceHype will not rewrite, summarize, join, or invent connective narration. It will narrate your text in order and insert 20 seconds of speech-free music between the hook, each abstract, and the closing.
 
-The opening_hook must be a concise 30-55-word hook, not a long overview. Begin with the meeting name and year. Name at least two pharma companies only when the supplied primary sources support those relationships. In one or two clear sentences, preview the diseases, mechanisms, or clinical questions covered next. It must sound natural when spoken and must not contain labels such as Hook, Introduction, Number one, or Abstract one.
+The opening_hook must be a focused 30-120-word hook, not an exhaustive abstract-by-abstract summary. Begin with the meeting name and year. Name at least two pharma companies only when the supplied primary sources support those relationships. In clear, connected sentences, preview the diseases, mechanisms, or clinical questions covered next. It must sound natural when spoken and must not contain labels such as Hook, Introduction, Number one, or Abstract one.
 
 Provide 5-10 source-grounded abstracts. Each narration must be 30-65 words and must be the exact spoken copy. Use a distinct primary-source URL for every abstract. Include exact study names and numbers only when supported. Move naturally from one abstract to the next without phrases that sound mechanically attached. Do not write host names, production directions, slide directions, music cues, markdown, or repeated show introductions.
 
