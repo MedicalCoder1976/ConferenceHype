@@ -22,6 +22,8 @@ const parsed = parsePreparedNarrative(JSON.stringify(packageJson));
 assert.equal(parsed.package.cards.length, 5);
 assert.equal(parsed.package.program.conference_name, "ESC Congress 2026");
 assert.match(parsed.package.program.title, /^ESC Congress 2026 \| CARDIOLOGIST ALERT:/);
+assert.match(parsed.package.program.title, /Novartis.*AstraZeneca/);
+assert.ok(parsed.package.program.title.length <= 150);
 const segments = preparedNarrativeSegments(parsed.package);
 assert.equal(segments.filter((segment) => segment.riskFlags.includes("meeting_watch_five_news")).length, 5);
 assert.equal(new Set(segments.filter((segment) => segment.riskFlags.includes("meeting_watch_five_news")).map((segment) => segment.citations[0]?.url)).size, 5);

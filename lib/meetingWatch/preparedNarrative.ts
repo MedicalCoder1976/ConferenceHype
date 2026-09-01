@@ -79,7 +79,7 @@ function fiveNewsToPreparedPackage(input: z.infer<typeof fiveNewsSchema>): Prepa
       : `${input.meeting.name} ${input.meeting.year}`
   );
   const alert = input.meeting.specialist_alert?.trim() || meetingWatchSpecialistAlert(input.meeting.specialty);
-  const title = meetingWatchCaption(meetingLabel, input.meeting.specialty, input.meeting.eye_catching_topic);
+  const title = meetingWatchCaption(meetingLabel, input.meeting.specialty, input.meeting.eye_catching_topic, input.news_items.flatMap((item) => item.pharma_companies));
   const first = input.news_items[0];
   const continuousStory = input.schema_version === "conferencehype_meeting_watch_story_v2";
   const storyOpening = input.story ? `${input.story.thesis} ${input.story.opening_hook}` : `${alert}. Here are five meeting news and abstract updates physicians should know.`;
@@ -107,7 +107,12 @@ export function parsePreparedNarrative(raw: string, overridesInput?: PreparedNar
   if (start < 0 || end <= start) throw new Error("No JSON broadcast package was found.");
   const candidate = JSON.parse(raw.slice(start, end + 1));
   const isFiveNews = candidate?.schema_version === "conferencehype_meeting_watch_five_news_v1" || candidate?.schema_version === "conferencehype_meeting_watch_story_v2";
-  const parsed = isFiveNews ? fiveNewsToPreparedPackage(fiveNewsSchema.parse(candidate)) : packageSchema.parse(candidate);
+  const inputResult = isFiveNews ? fiveNewsSchema.safeParse(candidate) : packageSchema.safeParse(candidate);
+  if (!inputResult.success) {
+    const detail = inputResult.error.issues.map((issue) => `${issue.path.join(".") || "package"}: ${issue.message}`).join("; ");
+    throw new Error(`Prepared package validation failed: ${detail}`);
+  }
+  const parsed = isFiveNews ? fiveNewsToPreparedPackage(inputResult.data as z.infer<typeof fiveNewsSchema>) : inputResult.data as PreparedNarrativePackage;
   const overrides = preparedOverridesSchema.parse(overridesInput);
   if (overrides?.title) {
     if (new RegExp(PROHIBITED_MEETING_WATCH_COPY.source, "i").test(overrides.title)) throw new Error("The title cannot use generic evidence labels.");
