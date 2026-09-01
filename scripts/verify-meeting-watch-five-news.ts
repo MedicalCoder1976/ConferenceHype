@@ -93,6 +93,7 @@ const fullNarrativePackage = {
 };
 const fullNarrative = parsePreparedNarrative(JSON.stringify(fullNarrativePackage));
 assert.equal(fullNarrative.package.cards.length, 10);
+assert.match(fullNarrative.package.program.title, /10 Respiratory Medicine Updates/);
 assert.ok(fullNarrative.durationSeconds <= 600);
 const fullNarrativeSegments = preparedNarrativeSegments(fullNarrative.package);
 assert.equal(fullNarrativeSegments[0].script, fullNarrativePackage.opening_hook);
@@ -114,6 +115,16 @@ const fiveAbstractPackage = { ...fullNarrativePackage, opening_hook: expandedOpe
 assert.doesNotThrow(() => parsePreparedNarrative(JSON.stringify(fiveAbstractPackage)));
 assert.throws(() => parsePreparedNarrative(JSON.stringify({ ...fiveAbstractPackage, opening_hook: `${expandedOpeningHook} ${"excess ".repeat(121)}` })), /30-120 spoken words/);
 assert.throws(() => parsePreparedNarrative(JSON.stringify({ ...fullNarrativePackage, abstracts: [...fullNarrativePackage.abstracts, { ...fullNarrativePackage.abstracts[0], position: 11, primary_source_url: "https://example.com/ers-abstract-11" }] })), /at most 10|Too big/i);
+const sharedSourcePackage = {
+  ...fiveAbstractPackage,
+  meeting: { ...fiveAbstractPackage.meeting, name: "IASLC World Conference on Lung Cancer", dates: "September 12-15, 2026" },
+  opening_hook: "From September 12 through 15, Seoul hosts the International Association for the Study of Lung Cancer's World Conference, where AstraZeneca and GSK advance precision treatment. The program connects targeted inflammation, biomarker selection, trial design, safety, and implementation questions across the next five studies.",
+  abstracts: fiveAbstractPackage.abstracts.map((item, index) => ({ ...item, primary_source_url: index < 3 ? "https://example.com/shared-primary-source" : item.primary_source_url }))
+};
+const sharedSource = parsePreparedNarrative(JSON.stringify(sharedSourcePackage));
+assert.equal(sharedSource.package.cards.length, 5);
+assert.throws(() => parsePreparedNarrative(JSON.stringify({ ...sharedSourcePackage, abstracts: sharedSourcePackage.abstracts.map((item, index) => index === 1 ? { ...item, study_name: "", abstract_number: "" } : item) })), /one primary source supports multiple abstracts/);
+assert.throws(() => parsePreparedNarrative(JSON.stringify({ ...sharedSourcePackage, abstracts: sharedSourcePackage.abstracts.map((item, index) => index === 1 ? { ...item, abstract_number: sharedSourcePackage.abstracts[0].abstract_number, study_name: sharedSourcePackage.abstracts[0].study_name } : item) })), /distinct abstract number, study/);
 
 const thumbnailSource = readFileSync(path.resolve("app/api/youtube-thumbnail/route.tsx"), "utf8");
 const renderSource = readFileSync(path.resolve("scripts/render-hour-broadcast.ts"), "utf8");

@@ -89,16 +89,29 @@ const fullNarrativeSchema = z.object({
   disclaimer: z.string().trim().min(20), closing: z.string().trim().min(80), quality_report: z.record(z.string(), z.unknown()).optional()
 }).superRefine((value, context) => {
   const wordCount = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
+  const normalizedWords = (text: string) => text.toLowerCase().replace(/['’]s\b/g, "").replace(/[^a-z0-9]+/g, " ").trim().split(/\s+/).filter(Boolean);
+  const meetingWords = normalizedWords(value.meeting.name).filter((word) => word.length > 2 && !["the", "and", "for", "iaslc"].includes(word));
+  const hookWordSet = new Set(normalizedWords(value.opening_hook));
+  const meetingIdentityPresent = meetingWords.length > 0 && meetingWords.filter((word) => hookWordSet.has(word)).length / meetingWords.length >= 0.75;
+  const dateWords = normalizedWords(value.meeting.dates);
+  const dateContextPresent = dateWords.some((word) => /^(?:january|february|march|april|may|june|july|august|september|october|november|december)$/.test(word) && hookWordSet.has(word))
+    && dateWords.some((word) => /^\d{1,2}$/.test(word) && hookWordSet.has(word));
   const hookWords = wordCount(value.opening_hook);
   if (hookWords < 30 || hookWords > 120) context.addIssue({ code: "custom", path: ["opening_hook"], message: "The opening hook must contain 30-120 spoken words." });
-  if (!new RegExp(`\\b${value.meeting.year}\\b`).test(value.opening_hook) || !value.opening_hook.toLowerCase().includes(value.meeting.name.toLowerCase())) context.addIssue({ code: "custom", path: ["opening_hook"], message: "The opening hook must begin by identifying the meeting name and year." });
+  if (!meetingIdentityPresent || (!new RegExp(`\\b${value.meeting.year}\\b`).test(value.opening_hook) && !dateContextPresent)) context.addIssue({ code: "custom", path: ["opening_hook"], message: "The opening hook must identify the meeting and either its year or meeting dates." });
   const supportedCompanies = [...new Set(value.abstracts.flatMap((item) => item.pharma_companies))];
   const namedCompanies = supportedCompanies.filter((company) => value.opening_hook.toLowerCase().includes(company.toLowerCase()));
   if (namedCompanies.length < 2) context.addIssue({ code: "custom", path: ["opening_hook"], message: "The opening hook must name at least two pharma companies that are attributed in the abstract sources." });
   if (/^(?:hook|introduction|meeting watch)\s*[:\-]/i.test(value.opening_hook)) context.addIssue({ code: "custom", path: ["opening_hook"], message: "Narration must begin with the hook itself, not a section label." });
   const positions = value.abstracts.map((item) => item.position);
   if (positions.some((position, index) => position !== index + 1)) context.addIssue({ code: "custom", path: ["abstracts"], message: "Abstracts must be numbered consecutively from 1 in their narration order." });
-  if (new Set(value.abstracts.map((item) => item.primary_source_url)).size !== value.abstracts.length) context.addIssue({ code: "custom", path: ["abstracts"], message: "Every abstract must use a distinct primary-source URL." });
+  const abstractIdentities = value.abstracts.map((item) => normalizedWords(item.abstract_number || item.study_name || item.headline).join(" "));
+  if (abstractIdentities.some((identity, index) => !identity || abstractIdentities.indexOf(identity) !== index)) context.addIssue({ code: "custom", path: ["abstracts"], message: "Every abstract must identify a distinct abstract number, study, or source-grounded headline." });
+  const abstractsByUrl = new Map<string, typeof value.abstracts>();
+  value.abstracts.forEach((item) => abstractsByUrl.set(item.primary_source_url, [...(abstractsByUrl.get(item.primary_source_url) ?? []), item]));
+  for (const items of abstractsByUrl.values()) {
+    if (items.length > 1 && items.some((item) => !item.abstract_number.trim() && !item.study_name.trim())) context.addIssue({ code: "custom", path: ["abstracts"], message: "When one primary source supports multiple abstracts, each item must provide a distinct abstract_number or study_name." });
+  }
   value.abstracts.forEach((item, index) => {
     const words = wordCount(item.narration);
     if (words < 30 || words > 65) context.addIssue({ code: "custom", path: ["abstracts", index, "narration"], message: "Each abstract narration must contain 30-65 spoken words." });
@@ -155,7 +168,7 @@ function fullNarrativeToPreparedPackage(input: z.infer<typeof fullNarrativeSchem
   const meetingLabel = assertMeetingNameAndYear(new RegExp(`\\b${input.meeting.year}\\b`).test(input.meeting.name) ? input.meeting.name : `${input.meeting.name} ${input.meeting.year}`);
   const alert = input.meeting.specialist_alert?.trim() || meetingWatchSpecialistAlert(input.meeting.specialty);
   const supportedCompanies = [...new Set(input.abstracts.flatMap((item) => item.pharma_companies))];
-  const title = meetingWatchCaption(meetingLabel, input.meeting.specialty, input.meeting.eye_catching_topic, supportedCompanies);
+  const title = meetingWatchCaption(meetingLabel, input.meeting.specialty, input.meeting.eye_catching_topic, supportedCompanies, input.abstracts.length);
   const fallbackThumbnail = `${alert}: ${supportedCompanies.slice(0, 3).join(", ")} - ${input.abstracts.length} ${input.meeting.specialty} Abstracts`;
   const thumbnailHeadline = input.meeting.eye_catching_topic.length <= 120 ? input.meeting.eye_catching_topic : fallbackThumbnail.length <= 120 ? fallbackThumbnail : `${alert}: ${input.abstracts.length} Meeting Abstracts`;
   const first = input.abstracts[0];

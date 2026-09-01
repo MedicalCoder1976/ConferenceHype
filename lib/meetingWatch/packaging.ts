@@ -32,12 +32,12 @@ export function meetingWatchSpecialistAlert(specialty?: string) {
   return SPECIALIST_ALERTS[normalized] ?? (normalized ? `${normalized.toUpperCase()} SPECIALIST ALERT` : "SPECIALIST ALERT");
 }
 
-export function meetingWatchCaption(meetingLabel: string, specialty: string | undefined, topic: string, companies: string[] = []) {
+export function meetingWatchCaption(meetingLabel: string, specialty: string | undefined, topic: string, companies: string[] = [], updateCount = 5) {
   const meeting = cleanMeetingWatchCopy(meetingLabel);
   const alert = meetingWatchSpecialistAlert(specialty);
   const supportedCompanies = [...new Set(companies.map((company) => company.trim()).filter(Boolean))];
   for (let count = Math.min(3, supportedCompanies.length); count >= 2; count -= 1) {
-    const companySubject = `${supportedCompanies.slice(0, count).join(", ")} - Five ${specialty?.trim() || "Meeting"} Updates`;
+    const companySubject = `${supportedCompanies.slice(0, count).join(", ")} - ${updateCount} ${specialty?.trim() || "Meeting"} Updates`;
     const companyCaption = `${meeting} | ${alert}: ${companySubject}`;
     if (companyCaption.length <= 150) return companyCaption;
   }
@@ -45,9 +45,9 @@ export function meetingWatchCaption(meetingLabel: string, specialty: string | un
     .replace(new RegExp(`^${meeting.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&")}\\s*(?:[|:—-]+\\s*)?`, "i"), "")
     .replace(new RegExp(`^${alert.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&")}\\s*(?:[|:—-]+\\s*)?`, "i"), "")
     .trim();
-  if (!subject) subject = "Five Meeting News Updates";
+  if (!subject) subject = `${updateCount} Meeting News Updates`;
   const caption = `${meeting} | ${alert}: ${subject}`;
-  if (caption.length > 150) return `${meeting} | ${alert}: Five ${specialty?.trim() || "Meeting"} Updates`;
+  if (caption.length > 150) return `${meeting} | ${alert}: ${updateCount} ${specialty?.trim() || "Meeting"} Updates`;
   return caption;
 }
 
