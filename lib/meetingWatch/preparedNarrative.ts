@@ -79,7 +79,14 @@ function fiveNewsToPreparedPackage(input: z.infer<typeof fiveNewsSchema>): Prepa
       : `${input.meeting.name} ${input.meeting.year}`
   );
   const alert = input.meeting.specialist_alert?.trim() || meetingWatchSpecialistAlert(input.meeting.specialty);
-  const title = meetingWatchCaption(meetingLabel, input.meeting.specialty, input.meeting.eye_catching_topic, input.news_items.flatMap((item) => item.pharma_companies));
+  const supportedCompanies = [...new Set(input.news_items.flatMap((item) => item.pharma_companies))];
+  const title = meetingWatchCaption(meetingLabel, input.meeting.specialty, input.meeting.eye_catching_topic, supportedCompanies);
+  const fallbackThumbnail = `${alert}: ${supportedCompanies.slice(0, 3).join(", ")} - Five ${input.meeting.specialty} Updates`;
+  const thumbnailHeadline = input.meeting.eye_catching_topic.length <= 120
+    ? input.meeting.eye_catching_topic
+    : fallbackThumbnail.length <= 120
+      ? fallbackThumbnail
+      : `${alert}: Five ${input.meeting.specialty} Updates`;
   const first = input.news_items[0];
   const continuousStory = input.schema_version === "conferencehype_meeting_watch_story_v2";
   const storyOpening = input.story ? `${input.story.thesis} ${input.story.opening_hook}` : `${alert}. Here are five meeting news and abstract updates physicians should know.`;
@@ -89,7 +96,7 @@ function fiveNewsToPreparedPackage(input: z.infer<typeof fiveNewsSchema>): Prepa
     status: "ready",
     content_type: "CONFERENCE_ROUNDUP",
     source: { publication: meetingLabel, article_title: "Five Meeting News Updates", url: first.primary_source_url, publication_date: input.meeting.dates, authors: [] },
-    program: { conference_name: meetingLabel, specialty: input.meeting.specialty, title, thumbnail_headline: input.meeting.eye_catching_topic, description_opening: `${title}. Conference dates: ${input.meeting.dates}. Five source-attributed news and abstract updates from ${meetingLabel}.`, studies_covered: input.news_items.map((item) => item.study_name || item.headline) },
+    program: { conference_name: meetingLabel, specialty: input.meeting.specialty, title, thumbnail_headline: thumbnailHeadline, description_opening: `${title}. Conference dates: ${input.meeting.dates}. Five source-attributed news and abstract updates from ${meetingLabel}.`, studies_covered: input.news_items.map((item) => item.study_name || item.headline) },
     opening_hook: { visible_text: `${meetingLabel} — ${input.meeting.dates} — ${alert}`, speaker_turns: [{ speaker: "HOST_1", text: `${meetingLabel}, held ${input.meeting.dates}. ${storyOpening}` }], source_anchor: `${meetingLabel} official meeting coverage` },
     cards: input.news_items.map((item) => ({ position: item.position, title: item.headline, card_type: "MEETING_NEWS", visible_text: item.visible_text, speaker_turns: [{ speaker: item.position % 2 ? "HOST_1" : "HOST_2", text: continuousStory ? `${item.bridge_from_previous} ${item.narration}` : `Number ${["one", "two", "three", "four", "five"][item.position - 1]}. ${item.headline}. ${item.narration}` }], source_anchor: [item.source_label, item.abstract_number, ...item.pharma_companies].filter(Boolean).join(" | "), source_url: item.primary_source_url, source_label: item.source_label, pharma_companies: item.pharma_companies, study_name: item.study_name, reported_numbers: item.reported_numbers, limitations: item.limitations })),
     transitions: continuousStory ? [] : input.news_items.slice(0, 4).map((item) => ({ after_card_position: item.position, duration_seconds: 20, next_topic: input.news_items[item.position]?.headline ?? meetingLabel })),

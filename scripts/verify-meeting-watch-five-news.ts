@@ -24,6 +24,7 @@ assert.equal(parsed.package.program.conference_name, "ESC Congress 2026");
 assert.match(parsed.package.program.title, /^ESC Congress 2026 \| CARDIOLOGIST ALERT:/);
 assert.match(parsed.package.program.title, /Novartis.*AstraZeneca/);
 assert.ok(parsed.package.program.title.length <= 150);
+assert.ok(parsed.package.program.thumbnail_headline.length <= 120);
 const segments = preparedNarrativeSegments(parsed.package);
 assert.equal(segments.filter((segment) => segment.riskFlags.includes("meeting_watch_five_news")).length, 5);
 assert.equal(new Set(segments.filter((segment) => segment.riskFlags.includes("meeting_watch_five_news")).map((segment) => segment.citations[0]?.url)).size, 5);
@@ -75,6 +76,10 @@ assert.doesNotMatch(parsedStory.package.cards.map((card) => card.speaker_turns[0
 assert.match(parsedStory.package.closing.speaker_turns[0].text, /ESC Congress 2026/);
 assert.throws(() => parsePreparedNarrative(JSON.stringify({ ...storyPackage, story: undefined })), /continuous-story package requires/);
 assert.throws(() => parsePreparedNarrative(JSON.stringify({ ...storyPackage, news_items: storyPackage.news_items.map((item, index) => index === 1 ? { ...item, bridge_from_previous: "Next." } : item) })), /narrative bridge/);
+const oversizedTopic = parsePreparedNarrative(JSON.stringify({ ...storyPackage, meeting: { ...storyPackage.meeting, eye_catching_topic: "A complete but intentionally oversized Claude topic ".repeat(5).trim() } }));
+assert.ok(oversizedTopic.package.program.title.length <= 150);
+assert.ok(oversizedTopic.package.program.thumbnail_headline.length <= 120);
+assert.match(oversizedTopic.package.program.thumbnail_headline, /Novartis.*AstraZeneca/);
 
 const thumbnailSource = readFileSync(path.resolve("app/api/youtube-thumbnail/route.tsx"), "utf8");
 const renderSource = readFileSync(path.resolve("scripts/render-hour-broadcast.ts"), "utf8");
