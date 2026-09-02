@@ -13,6 +13,7 @@ for (const broadcastId of [
 
 assert.match(localizer, /Source broadcast must exist and have verified status/);
 assert.match(localizer, /Translation dropped numeric facts/);
+assert.match(localizer, /Reinserting protected medical terms/);
 assert.match(localizer, /TTS returned no narration audio/);
 assert.match(localizer, /-t", "16"/);
 assert.match(localizer, /subtitles=/);

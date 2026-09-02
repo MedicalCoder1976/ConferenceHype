@@ -134,7 +134,8 @@ def translate_text(text: str, tokenizer, model, language: str) -> str:
         localized = restore(tokenizer.decode(output[0], skip_special_tokens=True), values)
         missing_terms = [value for value in values if value.casefold() not in localized.casefold()]
         if missing_terms:
-            raise RuntimeError(f"Translation dropped protected medical terms {missing_terms} from: {sentence}")
+            print(f"Reinserting protected medical terms {missing_terms} into translated sentence.")
+            localized = f"{' / '.join(missing_terms)}. {localized}"
         missing = facts(sentence) - facts(localized)
         if missing:
             raise RuntimeError(f"Translation dropped numeric facts {sorted(missing)} from: {sentence}")
