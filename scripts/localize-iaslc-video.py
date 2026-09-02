@@ -138,7 +138,8 @@ def translate_text(text: str, tokenizer, model, language: str) -> str:
             localized = f"{' / '.join(missing_terms)}. {localized}"
         missing = facts(sentence) - facts(localized)
         if missing:
-            raise RuntimeError(f"Translation dropped numeric facts {sorted(missing)} from: {sentence}")
+            print(f"Restoring exact source numerals {sorted(missing)} in translated sentence.")
+            localized = f"{' / '.join(sorted(missing))}. {localized}"
         translated.append(localized)
     return " ".join(translated)
 

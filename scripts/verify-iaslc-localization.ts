@@ -12,7 +12,7 @@ for (const broadcastId of [
 ]) assert.match(workflow, new RegExp(broadcastId));
 
 assert.match(localizer, /Source broadcast must exist and have verified status/);
-assert.match(localizer, /Translation dropped numeric facts/);
+assert.match(localizer, /Restoring exact source numerals/);
 assert.match(localizer, /Reinserting protected medical terms/);
 assert.match(localizer, /TTS returned no narration audio/);
 assert.match(localizer, /-t", "16"/);
