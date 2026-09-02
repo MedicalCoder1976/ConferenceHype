@@ -24,6 +24,7 @@ assert.match(publisher, /makePublic/);
 assert.match(publisher, /findExistingVideo/);
 assert.match(publisher, /Content-Transfer-Encoding: binary/);
 assert.match(publisher, /Recover a previous fail-closed upload/);
-assert.match(publisher, /status: "verified"/);
+assert.match(publisher, /verified-burned-in-subtitles/);
+assert.match(publisher, /YouTube OAuth lacks caption scope/);
 
 console.log("IASLC localization safeguards verified.");

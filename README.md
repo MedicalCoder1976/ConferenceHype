@@ -626,9 +626,9 @@ that no psychiatry journals or articles were missed.
 
 #### Free Korean, Japanese, and Simplified Chinese IASLC editions
 
-The manual `IASLC localized editions` workflow republishes the two verified IASLC/WCLC Meeting Watch broadcasts as six separate language editions: Korean, Japanese, and Simplified Chinese narration plus both burned-in and selectable YouTube subtitles over the source episode's branded thumbnail. It uses local open translation models and native Korean, Japanese, and Mandarin voices through the no-key Edge speech endpoint. No paid translation or speech API is required.
+The manual `IASLC localized editions` workflow republishes the two verified IASLC/WCLC Meeting Watch broadcasts as six separate language editions: Korean, Japanese, and Simplified Chinese narration plus synchronized burned-in subtitles over the source episode's branded thumbnail. It also attaches a selectable YouTube caption track when the channel OAuth token includes caption-management scope. It uses local open translation models and native Korean, Japanese, and Mandarin voices through the no-key Edge speech endpoint. No paid translation or speech API is required.
 
-Each run retrieves only the verified, approved source scripts from Supabase, preserves drug/trial names and numeric facts, uses the Meeting Watch 16-second speech-free transitions, uploads privately, attaches the matching caption track, and only then makes the edition public. A title-based preflight prevents duplicate uploads on retries. Delivery evidence is retained as a GitHub Actions artifact for 30 days.
+Each run retrieves only the verified, approved source scripts from Supabase, preserves drug/trial names and numeric facts, uses the Meeting Watch 16-second speech-free transitions, uploads privately, verifies the localized narration and burned-in subtitles, and only then makes the edition public. When authorized, it also attaches the matching selectable caption track. A title-based preflight prevents duplicate uploads on retries. Delivery evidence is retained as a GitHub Actions artifact for 30 days.
 
 Run it from GitHub Actions with `language=all` for all six editions, or choose one language. The two source broadcast UUIDs are pinned in `.github/workflows/iaslc-localized-editions.yml` so “last two” cannot drift while a release is running.
 

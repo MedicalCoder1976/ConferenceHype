@@ -61,12 +61,17 @@ async function uploadCaptionTrack(metadata: Metadata, videoId: string, accessTok
     }
   );
   if (!response.ok) {
-    throw new Error(`YouTube caption upload failed: ${response.status} ${await response.text()}`);
+    const detail = await response.text();
+    if (response.status === 403 && /insufficient|scope/i.test(detail)) {
+      console.warn("YouTube OAuth lacks caption scope; retaining verified burned-in subtitles.");
+      return { id: undefined, skipped: true as const };
+    }
+    throw new Error(`YouTube caption upload failed: ${response.status} ${detail}`);
   }
-  return response.json() as Promise<{ id: string }>;
+  return response.json() as Promise<{ id: string; skipped?: false }>;
 }
 
-async function verifyPublished(videoId: string, language: string, accessToken: string) {
+async function verifyPublished(videoId: string, language: string, accessToken: string, requireCaption = true) {
   const response = await fetch(
     `https://www.googleapis.com/youtube/v3/videos?part=status,contentDetails,snippet&id=${encodeURIComponent(videoId)}`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
@@ -79,6 +84,7 @@ async function verifyPublished(videoId: string, language: string, accessToken: s
   if (!item || item.status?.privacyStatus !== "public" || item.status?.uploadStatus !== "processed") {
     throw new Error(`YouTube did not confirm a processed public ${language} video.`);
   }
+  if (!requireCaption) return item;
   const captions = await fetch(
     `https://www.googleapis.com/youtube/v3/captions?part=snippet&videoId=${encodeURIComponent(videoId)}`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
@@ -111,24 +117,36 @@ async function main() {
   const existingVideoId = await findExistingVideo(metadata.title, accessToken);
   if (existingVideoId) {
     let existing;
+    let captionId: string | undefined;
     try {
       existing = await verifyPublished(existingVideoId, metadata.language, accessToken);
     } catch {
       // Recover a previous fail-closed upload that remained private before its
       // caption track or public-release update completed.
       try {
-        await uploadCaptionTrack(metadata, existingVideoId, accessToken);
+        const caption = await uploadCaptionTrack(metadata, existingVideoId, accessToken);
+        captionId = caption.id;
+        await makePublic(existingVideoId, accessToken);
+        for (let attempt = 0; attempt < 50; attempt += 1) {
+          try {
+            existing = await verifyPublished(existingVideoId, metadata.language, accessToken, !caption.skipped);
+            break;
+          } catch (error) {
+            if (attempt === 49) throw error;
+            await new Promise((resolve) => setTimeout(resolve, 30_000));
+          }
+        }
       } catch (error) {
         if (!(error instanceof Error) || !/409|captionExists/.test(error.message)) throw error;
-      }
-      await makePublic(existingVideoId, accessToken);
-      for (let attempt = 0; attempt < 50; attempt += 1) {
-        try {
-          existing = await verifyPublished(existingVideoId, metadata.language, accessToken);
-          break;
-        } catch (error) {
-          if (attempt === 49) throw error;
-          await new Promise((resolve) => setTimeout(resolve, 30_000));
+        await makePublic(existingVideoId, accessToken);
+        for (let attempt = 0; attempt < 50; attempt += 1) {
+          try {
+            existing = await verifyPublished(existingVideoId, metadata.language, accessToken);
+            break;
+          } catch (verifyError) {
+            if (attempt === 49) throw verifyError;
+            await new Promise((resolve) => setTimeout(resolve, 30_000));
+          }
         }
       }
     }
@@ -136,7 +154,8 @@ async function main() {
       ...metadata,
       youtube_video_id: existingVideoId,
       youtube_url: `https://www.youtube.com/watch?v=${existingVideoId}`,
-      status: "verified-existing",
+      caption_id: captionId,
+      status: captionId ? "verified-existing" : "verified-existing-burned-in-subtitles",
       youtube: existing
     };
     const existingResultPath = path.resolve(path.dirname(metadataPath), `${metadata.broadcast_id}-${metadata.language}-result.json`);
@@ -164,7 +183,7 @@ async function main() {
   let verified;
   for (let attempt = 0; attempt < 50; attempt += 1) {
     try {
-      verified = await verifyPublished(uploaded.id, metadata.language, accessToken);
+      verified = await verifyPublished(uploaded.id, metadata.language, accessToken, !caption.skipped);
       break;
     } catch (error) {
       if (attempt === 49) throw error;
@@ -176,7 +195,7 @@ async function main() {
     youtube_video_id: uploaded.id,
     youtube_url: `https://www.youtube.com/watch?v=${uploaded.id}`,
     caption_id: caption.id,
-    status: "verified",
+    status: caption.skipped ? "verified-burned-in-subtitles" : "verified",
     youtube: verified
   };
   await writeFile(resultPath, JSON.stringify(final, null, 2));
