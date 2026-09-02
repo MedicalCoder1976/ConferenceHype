@@ -1,0 +1,70 @@
+name: IASLC localized editions
+
+on:
+  workflow_dispatch:
+    inputs:
+      language:
+        description: "Language edition to publish"
+        required: true
+        default: all
+        type: choice
+        options: [all, ko, ja, zh-Hans]
+
+concurrency:
+  group: iaslc-localized-${{ inputs.language }}
+  cancel-in-progress: false
+
+jobs:
+  localize:
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ${{ inputs.language == 'all' && fromJSON('["ko","ja","zh-Hans"]') || fromJSON(format('["{0}"]', inputs.language)) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: ${{ runner.os }}-iaslc-translation-${{ matrix.language }}-v1
+      - run: npm ci
+      - name: Install free localization toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-noto-cjk
+          pip install "transformers<5" torch sentencepiece sacremoses edge-tts yt-dlp kokoro numpy soundfile "misaki[ja,zh]"
+      - name: Build and publish both verified IASLC editions
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
+          YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
+          YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
+        run: |
+          mkdir -p localized-output
+          for BROADCAST_ID in 9832487d-dfe5-458d-89cf-85241fbf4e8c 67709ac5-b18d-4aeb-ac5b-b88c1337974c; do
+            python scripts/localize-iaslc-video.py \
+              --broadcast-id "${BROADCAST_ID}" \
+              --language "${{ matrix.language }}" \
+              --output-dir localized-output
+            npx tsx scripts/publish-localized-iaslc.ts "localized-output/${BROADCAST_ID}-${{ matrix.language }}.json"
+          done
+      - name: Preserve delivery evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iaslc-${{ matrix.language }}-delivery-evidence
+          path: |
+            localized-output/*.json
+            localized-output/*.srt
+          if-no-files-found: warn
+          retention-days: 30
