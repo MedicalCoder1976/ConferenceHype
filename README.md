@@ -626,7 +626,7 @@ that no psychiatry journals or articles were missed.
 
 #### Free Korean, Japanese, and Simplified Chinese IASLC editions
 
-The manual `IASLC localized editions` workflow republishes the two verified IASLC/WCLC Meeting Watch broadcasts as six separate language editions: Korean, Japanese, and Simplified Chinese narration plus both burned-in and selectable YouTube subtitles over the source episode's branded thumbnail. It uses local open translation models and local Kokoro speech for Japanese and Chinese; Korean uses the no-key Edge speech endpoint. No paid translation or speech API is required.
+The manual `IASLC localized editions` workflow republishes the two verified IASLC/WCLC Meeting Watch broadcasts as six separate language editions: Korean, Japanese, and Simplified Chinese narration plus both burned-in and selectable YouTube subtitles over the source episode's branded thumbnail. It uses local open translation models and native Korean, Japanese, and Mandarin voices through the no-key Edge speech endpoint. No paid translation or speech API is required.
 
 Each run retrieves only the verified, approved source scripts from Supabase, preserves drug/trial names and numeric facts, uses the Meeting Watch 16-second speech-free transitions, uploads privately, attaches the matching caption track, and only then makes the edition public. A title-based preflight prevents duplicate uploads on retries. Delivery evidence is retained as a GitHub Actions artifact for 30 days.
 

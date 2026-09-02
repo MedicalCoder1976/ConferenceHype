@@ -20,8 +20,6 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-import numpy as np
-import soundfile as sf
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 
 
@@ -37,17 +35,15 @@ LANGUAGES = {
         "name": "Japanese",
         "native": "日本語",
         "model": "Helsinki-NLP/opus-mt-en-jap",
-        "voice": "jf_alpha",
-        "engine": "kokoro",
-        "lang_code": "j",
+        "voice": "ja-JP-NanamiNeural",
+        "engine": "edge",
     },
     "zh-Hans": {
         "name": "Simplified Chinese",
         "native": "简体中文",
         "model": "Helsinki-NLP/opus-mt-en-zh",
-        "voice": "zf_xiaobei",
-        "engine": "kokoro",
-        "lang_code": "z",
+        "voice": "zh-CN-XiaoxiaoNeural",
+        "engine": "edge",
     },
 }
 
@@ -152,14 +148,7 @@ def synthesize(text: str, output: Path, config: dict):
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         output.with_suffix(".mp3").unlink(missing_ok=True)
         return
-    from kokoro import KPipeline
-    pipeline = KPipeline(lang_code=config["lang_code"])
-    chunks = []
-    for _graphemes, _phonemes, audio in pipeline(text, voice=config["voice"], speed=1.0):
-        chunks.append(audio)
-    if not chunks:
-        raise RuntimeError("TTS returned no narration audio.")
-    sf.write(output, np.concatenate(chunks), 24000)
+    raise RuntimeError(f"Unsupported speech engine: {config['engine']}")
 
 
 def duration(path: Path) -> float:

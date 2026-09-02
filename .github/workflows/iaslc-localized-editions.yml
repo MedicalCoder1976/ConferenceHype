@@ -40,7 +40,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg fonts-noto-cjk
-          pip install "transformers<5" torch sentencepiece sacremoses edge-tts kokoro numpy soundfile "misaki[ja,zh]"
+          pip install "transformers<5" torch sentencepiece sacremoses edge-tts
       - name: Build and publish both verified IASLC editions
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
