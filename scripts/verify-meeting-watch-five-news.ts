@@ -94,6 +94,8 @@ const fullNarrativePackage = {
 const fullNarrative = parsePreparedNarrative(JSON.stringify(fullNarrativePackage));
 assert.equal(fullNarrative.package.cards.length, 10);
 assert.match(fullNarrative.package.program.title, /10 Respiratory Medicine Updates/);
+const extractedHeadlineOverride = parsePreparedNarrative(JSON.stringify(fullNarrativePackage), { title: fullNarrativePackage.meeting.eye_catching_topic });
+assert.equal(extractedHeadlineOverride.package.program.title, fullNarrativePackage.meeting.eye_catching_topic);
 assert.ok(fullNarrative.durationSeconds <= 600);
 const fullNarrativeSegments = preparedNarrativeSegments(fullNarrative.package);
 assert.equal(fullNarrativeSegments[0].script, fullNarrativePackage.opening_hook);
@@ -139,6 +141,8 @@ assert.match(renderSource, /intact 16-second transitions/);
 assert.match(meetingWatchDeskSource, /Develop and publish YouTube video/);
 assert.doesNotMatch(meetingWatchDeskSource, /Validate and preview/);
 assert.match(meetingWatchDeskSource, /Video headline and thumbnail/);
+assert.match(meetingWatchDeskSource, /extractPastedHeadline/);
+assert.match(meetingWatchDeskSource, /meeting\?\.eye_catching_topic/);
 assert.match(meetingWatchDeskSource, /YouTube headline/);
 assert.match(meetingWatchDeskSource, /Thumbnail writeup/);
 assert.match(meetingWatchDeskSource, /prepared\/preview/);

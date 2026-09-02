@@ -205,8 +205,8 @@ export function parsePreparedNarrative(raw: string, overridesInput?: PreparedNar
     if (new RegExp(PROHIBITED_MEETING_WATCH_COPY.source, "i").test(overrides.title)) throw new Error("The title cannot use generic evidence labels.");
     const title = overrides.title.replace(/\s+/g, " ").trim();
     const meetingLabel = parsed.program.conference_name || parsed.source.publication;
-    if (!title.toLowerCase().startsWith(meetingLabel.toLowerCase())) throw new Error(`The title must start with ${meetingLabel}.`);
-    if (!title.includes(meetingWatchSpecialistAlert(parsed.program.specialty))) throw new Error(`The title must include ${meetingWatchSpecialistAlert(parsed.program.specialty)}.`);
+    if (!isFullNarrative && !title.toLowerCase().startsWith(meetingLabel.toLowerCase())) throw new Error(`The title must start with ${meetingLabel}.`);
+    if (!isFullNarrative && !title.includes(meetingWatchSpecialistAlert(parsed.program.specialty))) throw new Error(`The title must include ${meetingWatchSpecialistAlert(parsed.program.specialty)}.`);
     parsed.program.title = title;
   }
   if (overrides?.thumbnailStatement) {

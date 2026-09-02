@@ -24,6 +24,18 @@ type Preview = {
   episodes: PreviewEpisode[];
 };
 
+function extractPastedHeadline(raw: string) {
+  try {
+    const start = raw.indexOf("{");
+    const end = raw.lastIndexOf("}");
+    if (start < 0 || end <= start) return "";
+    const candidate = JSON.parse(raw.slice(start, end + 1));
+    return typeof candidate?.meeting?.eye_catching_topic === "string" ? candidate.meeting.eye_catching_topic.trim() : "";
+  } catch {
+    return "";
+  }
+}
+
 // Any meeting, any specialty: paste a URL, pick how many 30-minute episodes,
 // and the pipeline (lib/editorial/meetingWatchPipeline.ts) discovers,
 // dedupes, and generates enough real cards to fill each one. This desk
@@ -40,7 +52,8 @@ export function PreparedNarrativeBroadcast() {
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
-    setTitle("");
+    const extractedHeadline = extractPastedHeadline(raw);
+    setTitle(extractedHeadline);
     setThumbnailStatement("");
     setPackagingMessage("");
     if (raw.trim().length < 2000) {
@@ -60,7 +73,7 @@ export function PreparedNarrativeBroadcast() {
         });
         const payload = await response.json();
         if (!response.ok || !payload.ok) throw new Error(payload.error ?? "Could not generate the video packaging.");
-        setTitle(payload.package.program.title);
+        setTitle((current) => current.trim() || payload.package.program.title);
         setThumbnailStatement(payload.package.program.thumbnail_headline);
         setPackagingStatus("ready");
       } catch (error) {
@@ -97,7 +110,7 @@ export function PreparedNarrativeBroadcast() {
       <div className="mt-3 grid gap-3">
         <label className="grid gap-1 text-xs font-black uppercase text-ink/60">
           YouTube headline
-          <input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={150} disabled={packagingStatus !== "ready"} placeholder={packagingStatus === "loading" ? "Generating headline..." : "Paste valid JSON to generate the headline"} className="min-h-12 border border-ink/20 bg-white px-3 text-sm font-bold normal-case text-ink disabled:bg-paper" />
+          <input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={150} disabled={!title && packagingStatus !== "ready"} placeholder={packagingStatus === "loading" ? "Extracting headline..." : "The headline is extracted from meeting.eye_catching_topic"} className="min-h-12 border border-ink/20 bg-white px-3 text-sm font-bold normal-case text-ink disabled:bg-paper" />
           <span className="text-right text-[11px] normal-case text-ink/50">{title.length}/150 characters</span>
         </label>
         <label className="grid gap-1 text-xs font-black uppercase text-ink/60">
