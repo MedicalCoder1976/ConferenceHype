@@ -22,6 +22,8 @@ assert.match(publisher, /privacyStatus: "private"/);
 assert.match(publisher, /uploadCaptionTrack/);
 assert.match(publisher, /makePublic/);
 assert.match(publisher, /findExistingVideo/);
+assert.match(publisher, /Content-Transfer-Encoding: binary/);
+assert.match(publisher, /Recover a previous fail-closed upload/);
 assert.match(publisher, /status: "verified"/);
 
 console.log("IASLC localization safeguards verified.");

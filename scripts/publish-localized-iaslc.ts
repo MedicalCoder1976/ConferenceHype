@@ -44,7 +44,7 @@ async function uploadCaptionTrack(metadata: Metadata, videoId: string, accessTok
   const body = Buffer.concat([
     Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n`),
     resource,
-    Buffer.from(`\r\n--${boundary}\r\nContent-Type: application/octet-stream\r\nContent-Disposition: attachment; filename="captions.srt"\r\n\r\n`),
+    Buffer.from(`\r\n--${boundary}\r\nContent-Type: application/octet-stream\r\nContent-Transfer-Encoding: binary\r\n\r\n`),
     caption,
     Buffer.from(`\r\n--${boundary}--\r\n`)
   ]);
@@ -54,7 +54,7 @@ async function uploadCaptionTrack(metadata: Metadata, videoId: string, accessTok
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
-        "Content-Type": `multipart/related; boundary=${boundary}`,
+        "Content-Type": `multipart/related; boundary="${boundary}"`,
         "Content-Length": String(body.length)
       },
       body
@@ -110,7 +110,28 @@ async function main() {
   const accessToken = await getYoutubeAccessToken();
   const existingVideoId = await findExistingVideo(metadata.title, accessToken);
   if (existingVideoId) {
-    const existing = await verifyPublished(existingVideoId, metadata.language, accessToken);
+    let existing;
+    try {
+      existing = await verifyPublished(existingVideoId, metadata.language, accessToken);
+    } catch {
+      // Recover a previous fail-closed upload that remained private before its
+      // caption track or public-release update completed.
+      try {
+        await uploadCaptionTrack(metadata, existingVideoId, accessToken);
+      } catch (error) {
+        if (!(error instanceof Error) || !/409|captionExists/.test(error.message)) throw error;
+      }
+      await makePublic(existingVideoId, accessToken);
+      for (let attempt = 0; attempt < 50; attempt += 1) {
+        try {
+          existing = await verifyPublished(existingVideoId, metadata.language, accessToken);
+          break;
+        } catch (error) {
+          if (attempt === 49) throw error;
+          await new Promise((resolve) => setTimeout(resolve, 30_000));
+        }
+      }
+    }
     const result = {
       ...metadata,
       youtube_video_id: existingVideoId,
