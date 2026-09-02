@@ -1,0 +1,26 @@
+name: Quarantine localized IASLC uploads
+
+on:
+  workflow_dispatch:
+    inputs:
+      video_ids:
+        description: "Space-separated YouTube video IDs"
+        required: true
+        type: string
+
+jobs:
+  quarantine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Make affected localized uploads private
+        env:
+          YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
+          YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
+          YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
+        run: npx tsx scripts/quarantine-youtube-videos.ts ${{ inputs.video_ids }}

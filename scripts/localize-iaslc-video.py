@@ -27,21 +27,24 @@ LANGUAGES = {
     "ko": {
         "name": "Korean",
         "native": "한국어",
-        "model": "Helsinki-NLP/opus-mt-tc-big-en-ko",
+        "model": "facebook/nllb-200-distilled-600M",
+        "target_lang": "kor_Hang",
         "voice": "ko-KR-SunHiNeural",
         "engine": "edge",
     },
     "ja": {
         "name": "Japanese",
         "native": "日本語",
-        "model": "Helsinki-NLP/opus-mt-en-jap",
+        "model": "facebook/nllb-200-distilled-600M",
+        "target_lang": "jpn_Jpan",
         "voice": "ja-JP-NanamiNeural",
         "engine": "edge",
     },
     "zh-Hans": {
         "name": "Simplified Chinese",
         "native": "简体中文",
-        "model": "Helsinki-NLP/opus-mt-en-zh",
+        "model": "facebook/nllb-200-distilled-600M",
+        "target_lang": "zho_Hans",
         "voice": "zh-CN-XiaoxiaoNeural",
         "engine": "edge",
     },
@@ -119,14 +122,35 @@ def facts(text: str) -> set[str]:
     return set(re.findall(r"\b\d+(?:\.\d+)?\b", text))
 
 
-def translate_text(text: str, tokenizer, model, language: str) -> str:
+def target_script_count(text: str, language: str) -> int:
+    ranges = {
+        "ko": r"[\uac00-\ud7a3]",
+        "ja": r"[\u3040-\u30ff\u3400-\u9fff]",
+        "zh-Hans": r"[\u3400-\u9fff]",
+    }
+    return len(re.findall(ranges[language], text))
+
+
+def assert_translation_quality(source: str, localized: str, language: str):
+    if len(localized) < max(12, int(len(source) * 0.18)) or len(localized) > len(source) * 3:
+        raise RuntimeError("Translation length is outside the safe range.")
+    if target_script_count(localized, language) < max(6, int(len(localized) * 0.12)):
+        raise RuntimeError("Translation lacks sufficient target-language script.")
+    if re.search(r"(.)\1{11,}", localized) or re.search(r"(\b\w+\b)(?:[\s,./]*\1){7,}", localized, re.I):
+        raise RuntimeError("Translation contains pathological repetition.")
+
+
+def translate_text(text: str, tokenizer, model, language: str, target_lang: str) -> str:
     translated: list[str] = []
     for sentence in split_sentences(text):
         protected, values = protect(sentence)
-        if language == "zh-Hans":
-            protected = ">>cmn_Hans<< " + protected
         batch = tokenizer(protected, return_tensors="pt", truncation=True, max_length=480)
-        output = model.generate(**batch, max_new_tokens=480, num_beams=5)
+        output = model.generate(
+            **batch,
+            forced_bos_token_id=tokenizer.convert_tokens_to_ids(target_lang),
+            max_new_tokens=480,
+            num_beams=5,
+        )
         localized = restore(tokenizer.decode(output[0], skip_special_tokens=True), values)
         missing_terms = [value for value in values if value.casefold() not in localized.casefold()]
         if missing_terms:
@@ -137,7 +161,9 @@ def translate_text(text: str, tokenizer, model, language: str) -> str:
             print(f"Restoring exact source numerals {sorted(missing)} in translated sentence.")
             localized = f"{' / '.join(sorted(missing))}. {localized}"
         translated.append(localized)
-    return " ".join(translated)
+    result = " ".join(translated)
+    assert_translation_quality(text, result, language)
+    return result
 
 
 def synthesize(text: str, output: Path, config: dict):
@@ -208,14 +234,14 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
     broadcast, segments = source_package(args.broadcast_id)
 
-    tokenizer = AutoTokenizer.from_pretrained(config["model"])
+    tokenizer = AutoTokenizer.from_pretrained(config["model"], src_lang="eng_Latn")
     model = AutoModelForSeq2SeqLM.from_pretrained(config["model"])
     localized = []
     for segment in segments:
         localized.append({
             **segment,
-            "title_localized": translate_text(segment["title"], tokenizer, model, args.language),
-            "script_localized": translate_text(segment["script"], tokenizer, model, args.language),
+            "title_localized": translate_text(segment["title"], tokenizer, model, args.language, config["target_lang"]),
+            "script_localized": translate_text(segment["script"], tokenizer, model, args.language, config["target_lang"]),
         })
 
     with tempfile.TemporaryDirectory(prefix="iaslc-localized-") as temp_name:
@@ -275,7 +301,7 @@ def main():
         "language_name": config["name"],
         "language_native": config["native"],
         "title": f"[{config['native']}] {localized[0]['title_localized']}",
-        "description": f"{config['native']} narration and subtitles. Original English report: {broadcast['youtube_url']}\n\n{translate_text(broadcast['description'], tokenizer, model, args.language)}\n\nPrimary sources:\n{sources_block}\n\nTranslation model: {config['model']}. Medical names, trial names, numbers, and source links are retained from the approved English report.",
+        "description": f"{config['native']} narration and subtitles. Original English report: {broadcast['youtube_url']}\n\n{translate_text(broadcast['description'], tokenizer, model, args.language, config['target_lang'])}\n\nPrimary sources:\n{sources_block}\n\nTranslation model: {config['model']}. Medical names, trial names, numbers, and source links are retained from the approved English report.",
         "video_path": str(video),
         "subtitle_path": str(srt),
         "segments": localized,

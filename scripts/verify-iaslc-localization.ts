@@ -12,6 +12,9 @@ for (const broadcastId of [
 ]) assert.match(workflow, new RegExp(broadcastId));
 
 assert.match(localizer, /Source broadcast must exist and have verified status/);
+assert.match(localizer, /facebook\/nllb-200-distilled-600M/);
+assert.match(localizer, /assert_translation_quality/);
+assert.match(localizer, /pathological repetition/);
 assert.match(localizer, /Restoring exact source numerals/);
 assert.match(localizer, /Reinserting protected medical terms/);
 assert.match(localizer, /edge_tts/);
