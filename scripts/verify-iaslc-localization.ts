@@ -14,7 +14,8 @@ for (const broadcastId of [
 assert.match(localizer, /Source broadcast must exist and have verified status/);
 assert.match(localizer, /Restoring exact source numerals/);
 assert.match(localizer, /Reinserting protected medical terms/);
-assert.match(localizer, /TTS returned no narration audio/);
+assert.match(localizer, /edge_tts/);
+assert.match(localizer, /Narration clip.*unexpectedly short/);
 assert.match(localizer, /-t", "16"/);
 assert.match(localizer, /subtitles=/);
 assert.match(publisher, /privacyStatus: "private"/);
