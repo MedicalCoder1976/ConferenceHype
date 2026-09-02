@@ -105,19 +105,17 @@ def split_sentences(text: str) -> list[str]:
 
 
 def protect(text: str):
-    values: list[str] = []
-    pattern = re.compile("|".join(re.escape(term) for term in PROTECTED_TERMS), re.I)
-
-    def replace(match: re.Match):
-        values.append(match.group(0))
-        return f" ZXQ{len(values)-1}QXZ "
-
-    return pattern.sub(replace, text), values
+    # Marian reliably copies Latin medical tokens. Sending synthetic
+    # placeholders is less safe: some language models delete or translate
+    # them. Keep the real terms in context and verify every one afterwards.
+    pattern = re.compile(
+        r"(?<![A-Za-z0-9])(" + "|".join(re.escape(term) for term in PROTECTED_TERMS) + r")(?![A-Za-z0-9])",
+        re.I,
+    )
+    return text, [match.group(0) for match in pattern.finditer(text)]
 
 
 def restore(text: str, values: list[str]):
-    for index, value in enumerate(values):
-        text = re.sub(rf"ZXQ\s*{index}\s*QXZ", value, text, flags=re.I)
     return re.sub(r"\s+([,.;:!?])", r"\1", text).strip()
 
 
