@@ -5,7 +5,7 @@ import { sanitizeBroadcastCopy } from "@/lib/broadcast/sanitizeCopy";
 import { formatVoiceSegment, SEGMENT_CLOSE } from "@/lib/broadcast/voiceSegment";
 import { buildBroadcastSlots, buildJournalShowSlots } from "@/lib/rundown/slots";
 import { assertSearchOptimizedBroadcastMetadata, buildBroadcastMetadata, extractExplicitStudyName, extractExplicitStudyNames } from "@/lib/youtube/broadcastMetadata";
-import { applySpokenPronunciations, extractSpokenAbbreviationDefinitions } from "@/lib/media/tts";
+import { applySpokenPronunciations, extractSpokenAbbreviationDefinitions, PHARMA_SPOKEN_PRONUNCIATIONS } from "@/lib/media/tts";
 import { addSpecialistAudienceToTitle, buildClinicalEvidencePackaging, buildJournalClubYoutubeTitle, extractClinicalTopic } from "@/lib/youtube/clinicalEvidencePackaging";
 import { buildMeetingWatchSlots, groupMeetingWatchSegmentsByTrial } from "@/lib/rundown/meetingWatchSlots";
 import { parsePreparedNarrative, preparedNarrativeSegments } from "@/lib/meetingWatch/preparedNarrative";
@@ -166,6 +166,16 @@ assert.equal(
   "January February March April May June July August September September October November December"
 );
 assert.equal(applySpokenPronunciations("Published Jun. 2026."), "Published June. 2026.");
+assert.ok(PHARMA_SPOKEN_PRONUNCIATIONS.length >= 20, "The shared TTS layer must retain a broad pharma pronunciation list.");
+assert.equal(
+  applySpokenPronunciations("Roche, AbbVie, Novartis, AstraZeneca, Boehringer Ingelheim, Pfizer, and GSK reported data."),
+  "Rohsh, Abb-vee, no-VAR-tis, As-truh-ZEN-eh-kuh, Bear-ing-er Ing-el-hime, Fye-zer, and G S K reported data."
+);
+assert.equal(
+  applySpokenPronunciations("The objective, response-rate endpoint was the objective response rate."),
+  "The objective response rate endpoint was the objective response rate."
+);
+assert.equal(applySpokenPronunciations("A novel-novel combination used a novel novel design."), "A novel combination used a novel design.");
 {
   const largeContext = Array.from({ length: 75 }, (_, index) => `Card ${index + 1}: progression-free survival (PFS) was assessed in Jul.`).join(" ");
   const started = performance.now();

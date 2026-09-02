@@ -2157,8 +2157,8 @@ async function main() {
   if (fullNarrativeAbstractCount > 0) {
     const narrativeMusic = cards.filter((card) => card.isMusic && card.title === "prepared narrative music transition");
     const requiredMusicWindows = fullNarrativeAbstractCount + 1;
-    if (narrativeMusic.length !== requiredMusicWindows || narrativeMusic.some((card) => card.duration < 19.9)) {
-      throw new Error(`Meeting Watch full-narrative music gate failed: found ${narrativeMusic.length}/${requiredMusicWindows} intact 20-second transitions. Refusing to upload a disconnected or overlong narration.`);
+    if (narrativeMusic.length !== requiredMusicWindows || narrativeMusic.some((card) => card.duration < 15.9)) {
+      throw new Error(`Meeting Watch full-narrative music gate failed: found ${narrativeMusic.length}/${requiredMusicWindows} intact 16-second transitions. Refusing to upload a disconnected or overlong narration.`);
     }
   }
   const narrationDelay = reserveOpeningNarrationDelay(cards, cardCacheKeys);

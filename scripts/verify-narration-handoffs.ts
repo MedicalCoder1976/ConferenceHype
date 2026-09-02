@@ -19,8 +19,8 @@ assert.equal(applySpokenPronunciations("The ESC guideline changed"), "The E S C 
 assert.equal(applySpokenPronunciations("The ESC guideline changed", "European Society of Cardiology (ESC)"), "The E S C guideline changed");
 assert.equal(applySpokenPronunciations("European Society of Cardiology (ESC) issued an ESC guideline", "European Society of Cardiology (ESC)"), "European Society of Cardiology issued an E S C guideline");
 assert.equal(applySpokenPronunciations("Escape and esc remain unchanged"), "Escape and esc remain unchanged");
-assert.equal(applySpokenPronunciations("NOVARTIS announced new data"), "Novartis announced new data");
-assert.equal(applySpokenPronunciations("Novartis and novartis"), "Novartis and Novartis");
+assert.equal(applySpokenPronunciations("NOVARTIS announced new data"), "no-VAR-tis announced new data");
+assert.equal(applySpokenPronunciations("Novartis and novartis"), "no-VAR-tis and no-VAR-tis");
 assert.equal(JOURNAL_MUSIC_SECONDS, 20);
 
 console.log("Narration and handoff verification passed.");

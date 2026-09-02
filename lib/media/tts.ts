@@ -130,9 +130,42 @@ function expandMonthAbbreviations(text: string): string {
   });
 }
 
+// Spoken-only spellings shared by every configured TTS persona. Visible copy,
+// titles, citations, and source text retain the companies' official spelling.
+export const PHARMA_SPOKEN_PRONUNCIATIONS = [
+  ["AbbVie", "Abb-vee"],
+  ["Amgen", "Am-jen"],
+  ["AstraZeneca", "As-truh-ZEN-eh-kuh"],
+  ["BioNTech", "Bye-ON-tek"],
+  ["Boehringer Ingelheim", "Bear-ing-er Ing-el-hime"],
+  ["Bristol Myers Squibb", "Bris-tol Myers Squibb"],
+  ["Daiichi Sankyo", "Dye-ee-chee Sank-yoh"],
+  ["Eli Lilly", "Ee-ly Lilly"],
+  ["Genentech", "Jen-en-tek"],
+  ["Gilead", "Gil-ee-ad"],
+  ["GlaxoSmithKline", "Glak-so Smith Kline"],
+  ["GSK", "G S K"],
+  ["Merck", "Murk"],
+  ["Novartis", "no-VAR-tis"],
+  ["Novo Nordisk", "No-vo Nor-disk"],
+  ["Pfizer", "Fye-zer"],
+  ["Regeneron", "Reh-jen-er-on"],
+  ["Roche", "Rohsh"],
+  ["Sanofi", "Sah-no-fee"],
+  ["Takeda", "Tah-keh-dah"],
+  ["Taiho", "Tie-ho"]
+] as const;
+
+function applyPharmaSpokenPronunciations(text: string) {
+  return PHARMA_SPOKEN_PRONUNCIATIONS.reduce((result, [company, spoken]) => {
+    const escaped = company.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&");
+    return result.replace(new RegExp(`\\b${escaped}\\b`, "gi"), spoken);
+  }, text);
+}
+
 export function applySpokenPronunciations(script: string, sourceContext: string | ReadonlyMap<string, string> = script) {
   const definitions = typeof sourceContext === "string" ? extractSpokenAbbreviationDefinitions(sourceContext) : sourceContext;
-  return expandMonthAbbreviations(expandRomanNumerals(expandDefinedAbbreviations(script, definitions)))
+  return applyPharmaSpokenPronunciations(expandMonthAbbreviations(expandRomanNumerals(expandDefinedAbbreviations(script, definitions))))
     // PubMed sometimes exposes a combined "BACKGROUND AND AIMS:" label.
     // Older cards wrapped that raw label inside the normalized Background
     // section, producing "Background: Background and aims:" on air. Keep
@@ -140,6 +173,12 @@ export function applySpokenPronunciations(script: string, sourceContext: string 
     .replace(/\bBackground\s*:\s*(?:Background\s+and\s+Aims?|Aims?)\s*:\s*/gi, "Background: ")
     .replace(/\b(Background|Methods?|Results?|Discussion|Conclusions?)\s*:\s*\1\s*:\s*/gi, "$1: ")
     .replace(STRUCTURED_ABSTRACT_LABELS, (word) => word.charAt(0) + word.slice(1).toLowerCase())
+    // Keep this endpoint phrase intact even when generated copy inserts
+    // punctuation that would otherwise create an unnatural TTS pause.
+    .replace(/\bobjective\s*[,;:—–-]?\s*response\s*[,;:—–-]?\s*rate\b/gi, "objective response rate")
+    // Avoid the audible "novel novel" duplication sometimes produced for
+    // combination regimens (including the hyphenated "novel-novel" form).
+    .replace(/\bnovel\s*(?:[-—–,]\s*|\s+)novel\b/gi, "novel")
     // Rule 1: strip URLs — TTS would read out raw links character-by-character
     .replace(/https?:\/\/[^\s)\]}>]+/g, "")
     .replace(/\bwww\.\S+/g, "")
@@ -172,10 +211,6 @@ export function applySpokenPronunciations(script: string, sourceContext: string 
     .replace(/\bASCO\b/g, "Ask-ho")
     .replace(/\bMI\b/g, "M I")
     .replace(/\bESC\b/g, "E S C")
-    // Company names may arrive in all caps from headlines or source feeds.
-    // Restore normal casing so Kokoro pronounces the name as a word rather
-    // than interpreting it as an initialism.
-    .replace(/\bNOVARTIS\b/gi, "Novartis")
     // The "ch" in cholangiocarcinoma is pronounced as a hard "k" sound,
     // not as "cho". Removing the silent h gives Kokoro the intended
     // "colangio-carcinoma" pronunciation without changing visible card copy.

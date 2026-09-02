@@ -123,7 +123,7 @@ const fullNarrativeSchema = z.object({
   if (closingWords < 20 || closingWords > 50) context.addIssue({ code: "custom", path: ["closing"], message: "The closing must contain 20-50 spoken words." });
   const spokenWords = hookWords + value.abstracts.reduce((sum, item) => sum + wordCount(item.narration), 0) + disclaimerWords + closingWords;
   const voicedSegments = value.abstracts.length + 2;
-  const transitionSeconds = (value.abstracts.length + 1) * 20;
+  const transitionSeconds = (value.abstracts.length + 1) * 16;
   const estimatedSeconds = Math.ceil(spokenWords / 1.8) + voicedSegments * 5 + transitionSeconds + 30;
   if (spokenWords > 600 || estimatedSeconds > 600) context.addIssue({ code: "custom", path: ["abstracts"], message: `The complete script plus music is estimated at ${estimatedSeconds} seconds; reduce it to 600 seconds or less.` });
 });
@@ -178,7 +178,7 @@ function fullNarrativeToPreparedPackage(input: z.infer<typeof fullNarrativeSchem
     program: { conference_name: meetingLabel, specialty: input.meeting.specialty, title, thumbnail_headline: thumbnailHeadline, description_opening: `${title}. Conference dates: ${input.meeting.dates}. ${input.abstracts.length} source-attributed abstracts from ${meetingLabel}.`, studies_covered: input.abstracts.map((item) => item.study_name || item.headline) },
     opening_hook: { visible_text: `${meetingLabel} — ${input.meeting.dates} — ${alert}`, speaker_turns: [{ speaker: "HOST_1", text: input.opening_hook }], source_anchor: `${meetingLabel} opening synthesis` },
     cards: input.abstracts.map((item) => ({ position: item.position, title: item.headline, card_type: "MEETING_ABSTRACT", visible_text: item.visible_text, speaker_turns: [{ speaker: item.position % 2 ? "HOST_2" : "HOST_1", text: item.narration }], source_anchor: [item.source_label, item.abstract_number, ...item.pharma_companies].filter(Boolean).join(" | "), source_url: item.primary_source_url, source_label: item.source_label, pharma_companies: item.pharma_companies, study_name: item.study_name, reported_numbers: item.reported_numbers, limitations: item.limitations })),
-    transitions: input.abstracts.map((item) => ({ after_card_position: item.position, duration_seconds: 20, next_topic: input.abstracts[item.position]?.headline ?? "Closing synthesis" })),
+    transitions: input.abstracts.map((item) => ({ after_card_position: item.position, duration_seconds: 16, next_topic: input.abstracts[item.position]?.headline ?? "Closing synthesis" })),
     disclaimer: { after_card_position: input.abstracts.length, text: input.disclaimer },
     closing: { speaker_turns: [{ speaker: "HOST_1", text: input.closing }] },
     chapters: input.abstracts.map((item) => ({ card_position: item.position, title: item.headline })),
@@ -260,7 +260,7 @@ export function parsePreparedNarrative(raw: string, overridesInput?: PreparedNar
   const voicedSegmentCount = parsed.opening_hook.speaker_turns.length + parsed.cards.reduce((sum, card) => sum + card.speaker_turns.length, 0) + parsed.closing.speaker_turns.length + 1;
   const measuredStorySeconds = Math.ceil((spokenWords + disclaimerWords) / 1.8) + voicedSegmentCount * 5;
   const estimatedSeconds = isFiveNews || isFullNarrative
-    ? measuredStorySeconds + transitionSeconds + (isFullNarrative ? 20 : 0) + 30
+    ? measuredStorySeconds + transitionSeconds + (isFullNarrative ? 16 : 0) + 30
     : Math.ceil((spokenWords + disclaimerWords) / 2.1) + transitionSeconds + 15;
   const durationSeconds = Math.max(300, Math.min(7200, Math.ceil(estimatedSeconds / 15) * 15));
   if (isFullNarrative && durationSeconds > 600) throw new Error(`The complete Meeting Watch narration plus music is ${durationSeconds} seconds; the maximum is 600 seconds.`);
@@ -317,7 +317,7 @@ export function preparedNarrativeSegments(pkg: PreparedNarrativePackage): Segmen
       ? `${openingAttribution(pkg)} ${stripPreparedDescriptors(turn.text)}`
       : stripPreparedDescriptors(turn.text)
   }));
-  pushTurns(openingTurns, { title: pkg.program.thumbnail_headline, visibleText: pkg.opening_hook.visible_text, sourceAnchor: pkg.opening_hook.source_anchor, flags: ["prepared_opening", "prepared_card:0", ...(isFullNarrative ? ["meeting_watch_full_narrative"] : [])], transitionSeconds: isFullNarrative ? 20 : undefined });
+  pushTurns(openingTurns, { title: pkg.program.thumbnail_headline, visibleText: pkg.opening_hook.visible_text, sourceAnchor: pkg.opening_hook.source_anchor, flags: ["prepared_opening", "prepared_card:0", ...(isFullNarrative ? ["meeting_watch_full_narrative"] : [])], transitionSeconds: isFullNarrative ? 16 : undefined });
   for (const [cardIndex, card] of pkg.cards.entries()) {
     const studyKey = card.study_name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
     const nextStudyKey = pkg.cards[cardIndex + 1]?.study_name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") ?? "";
