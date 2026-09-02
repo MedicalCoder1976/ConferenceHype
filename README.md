@@ -630,6 +630,8 @@ The manual `IASLC localized editions` workflow republishes the two verified IASL
 
 Each run retrieves only the verified, approved source scripts from Supabase, preserves drug/trial names and numeric facts, uses the Meeting Watch 16-second speech-free transitions, uploads privately, verifies the localized narration and burned-in subtitles, and only then makes the edition public. When authorized, it also attaches the matching selectable caption track. A title-based preflight prevents duplicate uploads on retries. Delivery evidence is retained as a GitHub Actions artifact for 30 days.
 
+The workflow defaults to generation-only (`publish: false`). Review the JSON/SRT evidence for coherent medical translation before rerunning the selected language with `publish: true`; this explicit review gate prevents a structurally valid but semantically malformed machine translation from reaching YouTube.
+
 Run it from GitHub Actions with `language=all` for all six editions, or choose one language. The two source broadcast UUIDs are pinned in `.github/workflows/iaslc-localized-editions.yml` so “last two” cannot drift while a release is running.
 
 - Meeting Watch is a conference-first format. New complete-narrative episodes contain 5-10 distinct, source-attributed meeting news items or abstracts; legacy five-news packages retain exactly five. The YouTube caption starts `<Meeting name> <year> | <SPECIALIST ALERT>: <eye-catching topic>`.

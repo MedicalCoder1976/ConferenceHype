@@ -9,6 +9,11 @@ on:
         default: all
         type: choice
         options: [all, ko, ja, zh-Hans]
+      publish:
+        description: "Publish after localization (use only after reviewing a generation-only run)"
+        required: true
+        default: false
+        type: boolean
 
 concurrency:
   group: iaslc-localized-${{ inputs.language }}
@@ -55,7 +60,9 @@ jobs:
               --broadcast-id "${BROADCAST_ID}" \
               --language "${{ matrix.language }}" \
               --output-dir localized-output
-            npx tsx scripts/publish-localized-iaslc.ts "localized-output/${BROADCAST_ID}-${{ matrix.language }}.json"
+            if [ "${{ inputs.publish }}" = "true" ]; then
+              npx tsx scripts/publish-localized-iaslc.ts "localized-output/${BROADCAST_ID}-${{ matrix.language }}.json"
+            fi
           done
       - name: Preserve delivery evidence
         if: always()
