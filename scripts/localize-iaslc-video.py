@@ -259,13 +259,16 @@ def main():
         run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(concat), "-c:a", "aac", "-b:a", "192k", str(audio)],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-        source = temp / "source.mp4"
-        run(["yt-dlp", "-f", "bv*[height<=1080]+ba/b[height<=1080]", "--merge-output-format", "mp4", "-o", str(source), broadcast["youtube_url"]])
+        source_image = temp / "source-thumbnail.jpg"
+        thumbnail_url = f"https://i.ytimg.com/vi/{broadcast['youtube_video_id']}/maxresdefault.jpg"
+        urllib.request.urlretrieve(thumbnail_url, source_image)
+        if source_image.stat().st_size < 10_000:
+            raise RuntimeError("The source YouTube thumbnail was unavailable or unexpectedly small.")
         srt = output_dir / f"{args.broadcast_id}-{args.language}.srt"
         write_srt(subtitles, srt)
         video = output_dir / f"{args.broadcast_id}-{args.language}.mp4"
         subtitle_filter = str(srt).replace("\\", "/").replace(":", "\\:").replace("'", "\\'")
-        run(["ffmpeg", "-y", "-stream_loop", "-1", "-i", str(source), "-i", str(audio), "-t", f"{cursor:.3f}",
+        run(["ffmpeg", "-y", "-loop", "1", "-framerate", "30", "-i", str(source_image), "-i", str(audio), "-t", f"{cursor:.3f}",
              "-map", "0:v:0", "-map", "1:a:0", "-vf", f"subtitles='{subtitle_filter}':force_style='FontName=Noto Sans CJK,FontSize=22,Outline=2,Shadow=1,MarginV=36'",
              "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(video)])
 
