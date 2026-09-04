@@ -1128,7 +1128,11 @@ assert.match(renderHourSource, /isJournalMode[\s\S]*buildJournalClubYoutubeTitle
 assert.match(renderHourSource, /isMeetingWatchMode\s*\? baseTitle/);
 assert.match(storyDeskSource, /specialty: specialty \|\| "Story"/);
 assert.doesNotMatch(storyDeskSource, /specialty: specialty \|\| "Preventive Cardiology"/);
-assert.match(storyDeskSource, /const title = completeHeadline\(titleOverride\.trim\(\) \|\| inferTitle\(narrative, topic\), 100\)/);
+assert.match(storyDeskSource, /const title = headline\.trim\(\)/);
+assert.match(storyDeskSource, /const thumbnail = thumbnailHeadline\.trim\(\)/);
+assert.match(storyDeskSource, /2\. Claude YouTube headline/);
+assert.match(storyDeskSource, /3\. Claude thumbnail headline/);
+assert.doesNotMatch(storyDeskSource, /titleOverride|inferTitle/);
 const voiceSegmentSource = readFileSync(path.resolve("lib/broadcast/voiceSegment.ts"), "utf8");
 assert.match(voiceSegmentSource, /resultsFirstStructuredNarrative/);
 assert.match(voiceSegmentSource, /\["Results", sectionText\(value, "Results"\)\]/);

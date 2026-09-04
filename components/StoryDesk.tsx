@@ -44,43 +44,17 @@ function concise(value: string, max: number) {
   return `${prefix.slice(0, boundary > max * 0.65 ? boundary : undefined).trim()}…`;
 }
 
-function completeHeadline(value: string, max: number) {
-  const normalized = value.replace(/\s+/g, " ").trim();
-  if (normalized.length <= max) return normalized.replace(/\.{3,}$|…$/g, "").trim();
-  const firstCompleteSentence = normalized
-    .match(/[^.!?]+[.!?]+/g)
-    ?.map((sentence) => sentence.trim())
-    .find((sentence) => sentence.length >= 16 && sentence.length <= max);
-  if (firstCompleteSentence) return firstCompleteSentence.replace(/[.!?]+$/, "").trim();
-  const prefix = normalized.slice(0, max + 1);
-  const strongBoundary = Math.max(prefix.lastIndexOf(":"), prefix.lastIndexOf(";"), prefix.lastIndexOf(" — "), prefix.lastIndexOf(" - "));
-  const bounded = strongBoundary >= Math.floor(max * 0.6)
-    ? prefix.slice(0, strongBoundary)
-    : prefix.slice(0, prefix.lastIndexOf(" "));
-  return bounded
-    .replace(/\b(?:just\s+)?(?:crushed|changed|shocked|stunned|destroyed|blew away)$/i, "")
-    .replace(/\b(?:and|or|but|for|with|from|to|the|a|an)$/i, "")
-    .replace(/[,:;\-–—\s]+$/, "")
-    .trim();
-}
-
 function inferTopic(narrative: string) {
   if (/\bASPC\s+2026\b/i.test(narrative)) return "ASPC 2026 Preventive Cardiology Congress";
   const firstSentence = narrative.match(/^.*?[.!?](?:\s|$)/)?.[0] ?? narrative;
   return concise(firstSentence.replace(/[.!?]+$/, ""), 160);
 }
 
-function inferTitle(narrative: string, topic: string) {
-  if (/\bPREVENT\b/i.test(narrative) && /psoriatic/i.test(narrative)) {
-    return "ASPC 2026: PREVENT Risk Scores and Hidden Coronary Calcium";
-  }
-  return completeHeadline(topic || narrative, 100);
-}
-
 export function StoryDesk() {
   const [narrative, setNarrative] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
-  const [titleOverride, setTitleOverride] = useState("");
+  const [headline, setHeadline] = useState("");
+  const [thumbnailHeadline, setThumbnailHeadline] = useState("");
   const [topicOverride, setTopicOverride] = useState("");
   const [specialty, setSpecialty] = useState("");
   const [sourceName, setSourceName] = useState("");
@@ -97,8 +71,8 @@ export function StoryDesk() {
 
   const wordCount = narrative.trim() ? narrative.trim().split(/\s+/).length : 0;
   const topic = topicOverride.trim() || inferTopic(narrative);
-  const title = completeHeadline(titleOverride.trim() || inferTitle(narrative, topic), 100);
-  const thumbnailHeadline = completeHeadline(title, 58);
+  const title = headline.trim();
+  const thumbnail = thumbnailHeadline.trim();
   const descriptionOpening = topic
     ? `The findings, limitations, and clinical implications from ${topic}, explained in a source-attributed ConferenceHype meeting review.`
     : "";
@@ -111,9 +85,9 @@ export function StoryDesk() {
     authors,
     specialty: specialty || "Story",
     descriptionOpening,
-    thumbnailHeadline,
+    thumbnailHeadline: thumbnail,
     narrative
-  }), [authors, descriptionOpening, narrative, sourceName, sourceUrl, specialty, thumbnailHeadline, title, topic]);
+  }), [authors, descriptionOpening, narrative, sourceName, sourceUrl, specialty, thumbnail, title, topic]);
 
   useEffect(() => {
     if (!broadcastId) return;
@@ -134,7 +108,8 @@ export function StoryDesk() {
           window.localStorage.removeItem("conferencehype:last-story-broadcast-id");
           setNarrative("");
           setSourceUrl("");
-          setTitleOverride("");
+          setHeadline("");
+          setThumbnailHeadline("");
           setTopicOverride("");
           setSpecialty("");
           setSourceName("");
@@ -185,7 +160,7 @@ export function StoryDesk() {
     }
   });
 
-  const canDevelop = Boolean(sourceUrl && wordCount >= 420 && narrative.length >= 1_200 && title.length >= 8 && topic.length >= 3);
+  const canDevelop = Boolean(sourceUrl && wordCount >= 420 && narrative.length >= 1_200 && title.length >= 8 && title.length <= 100 && thumbnail.length >= 8 && thumbnail.length <= 58 && topic.length >= 3);
   const working = pending || Boolean(broadcastId && !(delivery?.status === "failed" || (delivery?.status === "verified" && delivery.publicReachable)));
 
   return (
@@ -193,7 +168,7 @@ export function StoryDesk() {
       <div className="border-2 border-broadcast/30 bg-white p-5 shadow-panel">
         <div className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-broadcast" /><h2 className="text-2xl font-black">Create a Story</h2></div>
         <p className="mt-2 max-w-4xl text-sm font-semibold leading-6 text-ink/65">
-          Paste Claude&apos;s completed meeting review and its primary source. One click validates the narrative, creates 12 substantive chapters, develops the title and thumbnail, renders the video, uploads it publicly, and verifies the exact YouTube video ID.
+          Have Claude develop the narrative, YouTube headline, and thumbnail headline independently, then paste each one below. One click validates the package, creates 12 substantive chapters, renders the video, uploads it publicly, and verifies the exact YouTube video ID.
         </p>
 
         <label className="mt-5 grid gap-1 text-xs font-black uppercase text-ink/55">
@@ -201,15 +176,26 @@ export function StoryDesk() {
           <input value={sourceUrl} onChange={(event) => setSourceUrl(event.target.value)} placeholder="https://…" className="min-h-12 border border-ink/20 px-3 text-sm font-semibold normal-case text-ink" />
         </label>
         <label className="mt-4 grid gap-1 text-xs font-black uppercase text-ink/55">
-          Claude narrative
+          1. Claude narrative
           <textarea value={narrative} onChange={(event) => setNarrative(event.target.value)} rows={22} placeholder="Paste Claude's complete, source-supported meeting review here…" className="w-full border border-ink/20 px-3 py-3 text-sm font-semibold normal-case leading-6 text-ink" />
           <span className={wordCount >= 420 ? "font-semibold normal-case text-emerald-700" : "font-semibold normal-case text-ink/45"}>{wordCount} words · minimum 420</span>
         </label>
 
+        <label className="mt-4 grid gap-1 text-xs font-black uppercase text-ink/55">
+          2. Claude YouTube headline
+          <textarea value={headline} maxLength={100} onChange={(event) => setHeadline(event.target.value)} rows={2} placeholder="Paste Claude's complete YouTube headline here…" className="w-full border border-ink/20 px-3 py-3 text-sm font-semibold normal-case leading-6 text-ink" />
+          <span className={title.length >= 8 ? "font-semibold normal-case text-emerald-700" : "font-semibold normal-case text-ink/45"}>{title.length}/100 characters</span>
+        </label>
+
+        <label className="mt-4 grid gap-1 text-xs font-black uppercase text-ink/55">
+          3. Claude thumbnail headline
+          <textarea value={thumbnailHeadline} maxLength={58} onChange={(event) => setThumbnailHeadline(event.target.value)} rows={2} placeholder="Paste Claude's short, high-impact thumbnail text here…" className="w-full border border-ink/20 px-3 py-3 text-sm font-semibold normal-case leading-6 text-ink" />
+          <span className={thumbnail.length >= 8 ? "font-semibold normal-case text-emerald-700" : "font-semibold normal-case text-ink/45"}>{thumbnail.length}/58 characters</span>
+        </label>
+
         <details className="mt-4 border border-ink/10 bg-paper p-3">
-          <summary className="flex cursor-pointer list-none items-center gap-2 text-xs font-black uppercase text-ink/60"><ChevronDown className="h-4 w-4" />Optional title and source overrides</summary>
+          <summary className="flex cursor-pointer list-none items-center gap-2 text-xs font-black uppercase text-ink/60"><ChevronDown className="h-4 w-4" />Optional topic and source details</summary>
           <div className="mt-3 grid gap-3 md:grid-cols-2">
-            <label className="grid gap-1 text-xs font-black uppercase text-ink/55">YouTube title<input value={titleOverride} maxLength={100} onChange={(event) => setTitleOverride(event.target.value)} placeholder={title || "Developed automatically"} className="min-h-11 border border-ink/20 px-3 text-sm font-semibold normal-case text-ink" /></label>
             <label className="grid gap-1 text-xs font-black uppercase text-ink/55">Topic<input value={topicOverride} maxLength={160} onChange={(event) => setTopicOverride(event.target.value)} placeholder={topic || "Developed automatically"} className="min-h-11 border border-ink/20 px-3 text-sm font-semibold normal-case text-ink" /></label>
             <label className="grid gap-1 text-xs font-black uppercase text-ink/55">Specialty, optional<input value={specialty} onChange={(event) => setSpecialty(event.target.value)} placeholder="Leave blank for news Stories" className="min-h-11 border border-ink/20 px-3 text-sm font-semibold normal-case text-ink" /></label>
             <label className="grid gap-1 text-xs font-black uppercase text-ink/55">Publication or organization<input value={sourceName} onChange={(event) => setSourceName(event.target.value)} placeholder="American Society for Preventive Cardiology" className="min-h-11 border border-ink/20 px-3 text-sm font-semibold normal-case text-ink" /></label>
