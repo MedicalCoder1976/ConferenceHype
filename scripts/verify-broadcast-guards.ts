@@ -10,6 +10,7 @@ import { addSpecialistAudienceToTitle, buildClinicalEvidencePackaging, buildJour
 import { buildMeetingWatchSlots, groupMeetingWatchSegmentsByTrial } from "@/lib/rundown/meetingWatchSlots";
 import { parsePreparedNarrative, preparedNarrativeSegments } from "@/lib/meetingWatch/preparedNarrative";
 import { getUnsafeGeneratedSourceErrors } from "@/lib/generation/sourceSafety";
+import { buildMeetingWatchArticleLead } from "@/lib/generation/llm";
 import { validateSegmentForApproval } from "@/lib/generation/validator";
 import { assertMinimumSubstantiveCards, minimumSubstantiveCards, parseVolumeDetect } from "@/lib/media/broadcastQuality";
 import { buildConferenceCardDecks, buildJournalCardDecks, buildSourceCardDecks, isJournalVerticalSegment } from "@/lib/cardDeck";
@@ -109,6 +110,19 @@ assert.match(
   /^Good (morning|evening), wherever you are\. This is Echo Sage from ConferenceHype\./
 );
 assert.ok(!framed.endsWith(SEGMENT_CLOSE));
+const firstJournalCardWithSpokenSectionPauses = formatVoiceSegment({
+  voiceName: "Kai Lennox",
+  topic: "Eltrombopag plus cyclosporine A for moderate aplastic anemia",
+  narrative:
+    "From the 2026 Aug 18 edition of Blood. Background, Standard care was cyclosporine based. Methods, EMAA randomized patients to eltrombopag or placebo. Results, Response was 71.4 percent versus 42.5 percent. Discussion, The combination improved response at week 24.",
+  at: new Date("2026-08-20T11:15:00Z"),
+  includeIntro: true
+});
+assert.match(firstJournalCardWithSpokenSectionPauses, /Our segment will focus on Eltrombopag/);
+assert.match(firstJournalCardWithSpokenSectionPauses, /Results: Response was 71\.4 percent versus 42\.5 percent\./);
+assert.match(firstJournalCardWithSpokenSectionPauses, /Discussion: The combination improved response at week 24\./);
+assert.match(firstJournalCardWithSpokenSectionPauses, /Background: Standard care was cyclosporine based\./);
+assert.match(firstJournalCardWithSpokenSectionPauses, /Methods: EMAA randomized patients to eltrombopag or placebo\./);
 const fourthFramed = formatVoiceSegment({
   voiceName: "Echo Sage",
   topic: "journal review",
@@ -128,6 +142,27 @@ assert.match(fourthFramed, /subscribe with notifications turned on/);
 assert.doesNotMatch(fourthFramed, /That is it for this segment/i);
 assert.doesNotMatch(framed, /interactive AI commentary only/i);
 assert.equal(applySpokenPronunciations("ASCO 2026 and Ib disease"), "Ask-ho 2026 and one B disease");
+assert.equal(
+  applySpokenPronunciations("Novartis presented at ESC Congress."),
+  "no-VAR-tis presented at E-S-C Congress."
+);
+assert.equal(
+  buildMeetingWatchArticleLead({
+    company: "Novartis",
+    outcomeFraming: "advances",
+    meetingLabel: "ESC Congress 2026",
+    sourceText: "Novartis reported phase 3 findings for the trial."
+  }),
+  "Novartis advances at ESC Congress 2026."
+);
+assert.throws(
+  () => buildMeetingWatchArticleLead({ company: "Invented Pharma", outcomeFraming: "wins", meetingLabel: "ESC Congress 2026", sourceText: "The trial results were reported." }),
+  /explicitly named in the source/
+);
+assert.throws(
+  () => buildMeetingWatchArticleLead({ company: "Novartis", outcomeFraming: "dominates", meetingLabel: "ESC Congress 2026", sourceText: "Novartis reported results." }),
+  /Unsupported Meeting Watch outcome framing/
+);
 assert.equal(
   applySpokenPronunciations("Cholangiocarcinoma treatment"),
   "colangiocarcinoma treatment"

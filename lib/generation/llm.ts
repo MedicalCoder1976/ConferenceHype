@@ -135,6 +135,26 @@ export async function generateSegmentFromSources({
 // single source in one LLM call, mirroring the one-call-returns-many-cards
 // shape already used by lib/editorial/packages.ts's generateSection, but
 // scoped to one source instead of a pooled section.
+const MEETING_WATCH_OUTCOME_FRAMINGS = [
+  "wins", "advances", "delivers", "reports", "shows promise",
+  "falls short", "misses", "faces a setback", "posts mixed results"
+] as const;
+
+export function buildMeetingWatchArticleLead({ company, outcomeFraming, meetingLabel, sourceText }: {
+  company: string;
+  outcomeFraming: string;
+  meetingLabel: string;
+  sourceText: string;
+}) {
+  const namedCompany = company.trim();
+  if (!namedCompany || !sourceText.toLowerCase().includes(namedCompany.toLowerCase())) {
+    throw new Error("Meeting Watch article generation requires a pharma company explicitly named in the source.");
+  }
+  const activeOutcome = MEETING_WATCH_OUTCOME_FRAMINGS.find((value) => value === outcomeFraming.trim().toLowerCase());
+  if (!activeOutcome) throw new Error(`Unsupported Meeting Watch outcome framing: ${outcomeFraming}`);
+  return `${namedCompany} ${activeOutcome} at ${meetingLabel}.`;
+}
+
 export async function generateCardsFromSource({
   source,
   cardCount,
@@ -159,7 +179,9 @@ export async function generateCardsFromSource({
 
 Keep all cards about the same trial consecutive and complete that trial's design, results, safety, and interpretation before moving to another trial. Never mix two trials in one card and never return to an earlier trial after starting a new one. When the source states the full form of an abbreviation, introduce that full form before using the abbreviation; never infer an expansion that is absent from the source. Every card's title must start with the trial/drug/study name from the source title (e.g. "BRUIN CLL-313: Primary Efficacy Result", "MajesTEC-3: Safety Outcomes") -- never a bare generic title like "Efficacy Results" or "Trial Design and Population" with no name attached. This is a hard requirement: when this broadcast's real cards get chaptered into the YouTube description with timestamps, a title-less card is indistinguishable from every other card's "Efficacy Results" chapter in the same video.
 
-Return JSON: {"cards":[{"title":"...","script":"..."}]}
+Identify the pharma company explicitly named in the source and choose one concise, source-supported active outcome framing from this exact list: ${MEETING_WATCH_OUTCOME_FRAMINGS.join(", ")}. Use "reports" when the facts do not clearly support a positive, negative, or mixed judgment. Do not turn an announcement, interim result, surrogate endpoint, or company claim into a win. The system constructs the opening sentence in this fixed order: company, active outcome framing, meeting name. Do not repeat that lead in the returned script; begin the first card directly with trial details.
+
+Return JSON: {"company":"a pharma company name copied exactly from the source","outcomeFraming":"one exact allowed framing","cards":[{"title":"...","script":"..."}]}
 
 Source:
 Title: ${source.title}
@@ -171,14 +193,23 @@ Facts: ${source.excerpt}`
     temperature: 0.35
   });
   const parsed = JSON.parse(response.choices[0]?.message.content ?? "{}") as {
+    company?: string;
+    outcomeFraming?: string;
     cards?: Array<{ title?: string; script?: string }>;
   };
   const cards = (parsed.cards ?? []).slice(0, cardCount);
   if (cards.length !== cardCount) {
     throw new Error(`Expected ${cardCount} cards for "${source.title}" but got ${cards.length}.`);
   }
+  const articleLead = buildMeetingWatchArticleLead({
+    company: parsed.company ?? "",
+    outcomeFraming: parsed.outcomeFraming ?? "",
+    meetingLabel,
+    sourceText: `${source.title} ${source.excerpt}`
+  });
   return cards.map((card, index) => {
-    const script = card.script?.trim();
+    const body = card.script?.trim();
+    const script = index === 0 && body ? `${articleLead} ${body}` : body;
     if (!script) {
       throw new Error(`Card ${index + 1} for "${source.title}" returned no script.`);
     }

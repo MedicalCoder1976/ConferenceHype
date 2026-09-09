@@ -163,6 +163,10 @@ export function applySpokenPronunciations(script: string, sourceContext: string 
     // Percent sign → "percent"
     .replace(/(\d)\s*%/g, "$1 percent")
     .replace(/\bASCO\b/g, "Ask-ho")
+    // Preserve the intended company-name stress and prevent the cardiology
+    // meeting acronym from being pronounced as the word "esc".
+    .replace(/\bNovartis\b/gi, "no-VAR-tis")
+    .replace(/\bESC\b/g, "E-S-C")
     // The "ch" in cholangiocarcinoma is pronounced as a hard "k" sound,
     // not as "cho". Removing the silent h gives Kokoro the intended
     // "colangio-carcinoma" pronunciation without changing visible card copy.

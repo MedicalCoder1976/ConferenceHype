@@ -209,6 +209,8 @@ For the Story opening/title-card format that previously displayed `CLINICAL
 EVIDENCE BRIEF` above the story topic, display `BREAKING` instead. Do not use
 `CLINICAL EVIDENCE BRIEF` in that position for this format.
 
+**Story narratives must stick to demonstrated facts from the source material.** Never include speculative paragraphs predicting future outcomes, adoption patterns, policy changes, or likely clinical trials. Examples to avoid: "Expect to see rapid adoption," "will likely be incorporated into guidelines," "Insurance companies will need to determine," "Clinical trials will probably expand." Report the trial results, efficacy data, safety findings, clinical implications, and commercial significance based on verifiable information only. [[feedback_no_predictive_speculation]]
+
 ### 5 Things to Know editorial rule
 
 `5 Things to Know` is a separate manual editorial lane for completed Claude or
