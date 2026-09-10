@@ -6,6 +6,7 @@ import type { Segment } from "@/lib/types";
 
 export const fiveThingsInputSchema = z.object({
   specialty: z.enum(FIVE_THINGS_SPECIALTIES),
+  title: z.string().trim().min(1).max(100).optional(),
   writeup: z.string().trim().min(1_500).max(120_000),
   startsAt: z.string().datetime().optional()
 });
@@ -93,12 +94,13 @@ export function parsePreparedFiveThings(input: FiveThingsInput) {
   }
   const spokenWords = items.reduce((total, item) => total + wordCount(item.script), wordCount(intro) + 55);
   if (spokenWords < 400) throw new Error("The five-item write-up needs at least 400 spoken words after structural labels and URLs are removed.");
-  const title = buildFiveThingsSearchTitle(parsed.specialty, items.map((item) => item.title));
+  const suggestedTitle = buildFiveThingsSearchTitle(parsed.specialty, items.map((item) => item.title));
+  const title = parsed.title ?? suggestedTitle;
   const disclaimer = buildFiveThingsDisclaimer(parsed.specialty, items.map((item) => item.title));
   const closingWords = wordCount(disclaimer.text) + 30;
   const durationSeconds = Math.max(360, Math.ceil(((spokenWords + closingWords) / WORDS_PER_SECOND + TRANSITION_SECONDS * 4 + 15) / 15) * 15);
   const sourceHash = createHash("sha256")
-    .update(JSON.stringify({ specialty: parsed.specialty, writeup: parsed.writeup.replace(/\s+/g, " ").trim() }))
+    .update(JSON.stringify({ specialty: parsed.specialty, writeup: parsed.writeup.replace(/\s+/g, " ").trim(), ...(title !== suggestedTitle ? { title } : {}) }))
     .digest("hex");
   return { input: parsed, intro, items, title, spokenWords, durationSeconds, sourceHash };
 }

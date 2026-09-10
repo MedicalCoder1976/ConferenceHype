@@ -31,6 +31,14 @@ const slots = buildMeetingWatchSlots({ segments, baseTime, meetingWatchBroadcast
 assert.ok(slots.at(-1)?.segment?.riskFlags.includes("five_things_tailored_disclaimer"), "The tailored disclaimer must be the final audible part of every 5 Things episode.");
 const metadata = buildMeetingWatchMetadata({ hourStart: baseTime, slots, title: prepared.title, meetingLabel: "5 Things to Know: Cardiology", specialty: "Cardiology", sourceUrl: prepared.items[0].sourceUrl });
 assert.equal(metadata.title, prepared.title);
+const customTitle = "Five cardiology updates: TAVR, LDL lowering and heart failure";
+const edited = parsePreparedFiveThings({ specialty: "Cardiology", writeup, title: customTitle });
+assert.equal(edited.title, customTitle);
+assert.notEqual(edited.sourceHash, prepared.sourceHash);
+assert.equal(parsePreparedFiveThings({ specialty: "Cardiology", writeup, title: prepared.title }).sourceHash, prepared.sourceHash);
+assert.equal(buildMeetingWatchMetadata({ hourStart: baseTime, slots, title: edited.title, meetingLabel: "5 Things to Know: Cardiology", specialty: "Cardiology", sourceUrl: edited.items[0].sourceUrl }).title, customTitle);
+assert.throws(() => parsePreparedFiveThings({ specialty: "Cardiology", writeup, title: " " }));
+assert.throws(() => parsePreparedFiveThings({ specialty: "Cardiology", writeup, title: "a".repeat(101) }));
 assert.equal(metadata.thumbnailHeadline, "5 THINGS TO KNOW");
 assert.match(metadata.description, /^Cardiology: 5 Things to Know Today\./);
 assert.match(metadata.description, /Audience: Physicians; Medical Students; Cardiologists; Advanced Practice Providers \(APPs\)\./);
