@@ -27,9 +27,13 @@ export function buildFiveThingsSearchTitle(specialty: string, itemTitles: string
   return topics.length ? `${prefix} — ${topics.join(", ")}` : prefix;
 }
 
+// A separator must be followed by whitespace: clinical prose such as
+// "5-year survival" or "1.5 mg" is not a numbered item heading.
+export const FIVE_THINGS_ITEM_HEADING = /^(?:#{1,6}\s*)?(?:item\s*)?([1-5])\s*[).:\-]\s+(.+)$/i;
+
 export function fiveThingsItemTitles(writeup: string) {
   return writeup.split(/\r?\n/)
-    .map((line) => line.trim().match(/^(?:#{1,6}\s*)?(?:item\s*)?([1-5])\s*[).:\-]\s*(.+)$/i))
+    .map((line) => line.trim().match(FIVE_THINGS_ITEM_HEADING))
     .filter((match): match is RegExpMatchArray => Boolean(match))
     .sort((left, right) => Number(left[1]) - Number(right[1]))
     .map((match) => match[2].replace(/\*+/g, "").trim());

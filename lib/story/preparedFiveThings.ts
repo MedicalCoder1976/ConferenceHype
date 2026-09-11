@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
-import { buildFiveThingsSearchTitle, FIVE_THINGS_SPECIALTIES } from "@/lib/story/fiveThingsConfig";
+import { buildFiveThingsSearchTitle, FIVE_THINGS_SPECIALTIES, FIVE_THINGS_ITEM_HEADING } from "@/lib/story/fiveThingsConfig";
 import { buildFiveThingsDisclaimer } from "@/lib/story/fiveThingsDisclaimer";
 import type { Segment } from "@/lib/types";
 
@@ -22,7 +22,6 @@ type FiveThingsItem = {
 
 const TRANSITION_SECONDS = 15;
 const WORDS_PER_SECOND = 1.95;
-const ITEM_HEADING = /^(?:#{1,6}\s*)?(?:item\s*)?([1-5])\s*[).:\-]\s*(.+)$/i;
 const URL_PATTERN = /https?:\/\/[^\s<>"')\]]+/gi;
 const NUMBER_WORDS = ["one", "two", "three", "four", "five"];
 
@@ -70,7 +69,7 @@ export function parsePreparedFiveThings(input: FiveThingsInput) {
   const parsed = fiveThingsInputSchema.parse(input);
   const lines = parsed.writeup.replace(/```(?:\w+)?/g, "").split(/\r?\n/);
   const headings = lines
-    .map((line, index) => ({ index, match: line.trim().match(ITEM_HEADING) }))
+    .map((line, index) => ({ index, match: line.trim().match(FIVE_THINGS_ITEM_HEADING) }))
     .filter((entry): entry is { index: number; match: RegExpMatchArray } => Boolean(entry.match));
   if (headings.length !== 5 || headings.some((entry, index) => Number(entry.match[1]) !== index + 1)) {
     throw new Error("The write-up must contain exactly five numbered item headings, in order from 1 through 5.");

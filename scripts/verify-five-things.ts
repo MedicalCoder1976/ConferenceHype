@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { minimumSubstantiveCards } from "@/lib/media/broadcastQuality";
 import { buildMeetingWatchSlots } from "@/lib/rundown/meetingWatchSlots";
-import { buildFiveThingsSearchTitle } from "@/lib/story/fiveThingsConfig";
+import { buildFiveThingsSearchTitle, fiveThingsItemTitles } from "@/lib/story/fiveThingsConfig";
 import { parsePreparedFiveThings, preparedFiveThingsSegments } from "@/lib/story/preparedFiveThings";
 import { buildFiveThingsDisclaimer } from "@/lib/story/fiveThingsDisclaimer";
 import { buildMeetingWatchMetadata } from "@/lib/youtube/meetingWatchMetadata";
@@ -13,6 +13,14 @@ const paragraph = "A randomized clinical study reports a meaningful result for p
 const writeup = `INTRO:\nThese developments were selected for practicing cardiologists reviewing today's evidence.\n\n${Array.from({ length: 5 }, (_, index) => `${index + 1}. ${["TAVR outcomes", "LDL lowering", "Heart failure therapy", "Atrial fibrillation", "Hypertension guidance"][index]}\nWhat happened: ${paragraph}\nKey evidence: ${paragraph}\nPrimary source URL: https://example.com/source-${index + 1}`).join("\n\n")}`;
 
 const prepared = parsePreparedFiveThings({ specialty: "Cardiology", writeup });
+const clinicalWriteup = writeup.replace("Key evidence:", "5-year OS data remain under review.\n1.5 mg was the study dose.\nKey evidence:");
+assert.equal(fiveThingsItemTitles(clinicalWriteup).length, 5);
+const clinicalPrepared = parsePreparedFiveThings({ specialty: "Cardiology", writeup: clinicalWriteup });
+assert.equal(clinicalPrepared.items.length, 5);
+assert.match(clinicalPrepared.items[0].script, /5-year OS data remain under review/);
+assert.match(clinicalPrepared.items[0].script, /1\.5 mg was the study dose/);
+assert.equal(fiveThingsItemTitles("1. First\n2) Second\n3: Third\n4 - Fourth\n5- Fifth").length, 5);
+assert.throws(() => parsePreparedFiveThings({ specialty: "Cardiology", writeup: writeup + "\n5. Duplicate heading" }), /exactly five numbered item headings/);
 assert.equal(prepared.items.length, 5);
 assert.equal(prepared.title, buildFiveThingsSearchTitle("Cardiology", prepared.items.map((item) => item.title)));
 assert.match(prepared.title, /^Cardiology: 5 Things to Know Today/);
