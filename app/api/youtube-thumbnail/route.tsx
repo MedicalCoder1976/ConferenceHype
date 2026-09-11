@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
   const isJournalClub = params.get("journalClub") === "1";
   const articleTitle = viewerLabel(params.get("articleTitle"));
   const headline = suppliedHeadline
-    ? truncate(suppliedHeadline, 58)
+    ? isFiveThings ? suppliedHeadline : truncate(suppliedHeadline, 58)
     : tier === "dominant" && journal
       ? journal
       : tier === "roundup" && specialty
@@ -125,7 +125,7 @@ export async function GET(request: NextRequest) {
           <div style={{ display: "flex", alignItems: "center", gap: 22 }}>
             <div style={{ display: "flex", backgroundImage: "linear-gradient(135deg, #ffbd45 0%, #ffe58a 100%)", color: COLORS.ink, border: `4px solid ${COLORS.paper}`, borderRadius: 12, padding: "17px 28px 15px", fontSize: specialtyFontSize, fontWeight: 950, lineHeight: 0.95, letterSpacing: 2.4, boxShadow: "0 0 0 6px rgba(244,72,58,0.78)" }}>{specialty.toUpperCase()}</div>
           </div>
-          <div style={{ display: "flex", marginTop: 40, color: COLORS.gold, fontSize: 78, fontWeight: 950, lineHeight: 0.95 }}>5 THINGS TO KNOW</div>
+          <div style={{ display: "flex", marginTop: 32, color: COLORS.gold, fontSize: headline.length > 80 ? 48 : headline.length > 60 ? 56 : 66, fontWeight: 950, lineHeight: 1.05, maxWidth: 1128, overflowWrap: "break-word" }}>{suppliedHeadline ? headline : `${specialty.toUpperCase()}: 5 Things to Know Today`}</div>
           {entityLabel ? <div style={{ display: "flex", marginTop: 34, color: COLORS.paper, fontSize: entityLabel.length > 30 ? 35 : 42, fontWeight: 850, lineHeight: 1.1, maxWidth: 1060 }}>{entityLabel}</div> : null}
           <div style={{ display: "flex", marginTop: "auto", color: COLORS.cyan, fontSize: 25, fontWeight: 850 }}>DAILY SPECIALTY BRIEFING</div>
           {date ? <div style={{ display: "flex", position: "absolute", right: 76, bottom: 58, color: "#aeb8ca", fontSize: 23, fontWeight: 700 }}>{date}</div> : null}

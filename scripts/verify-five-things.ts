@@ -39,7 +39,7 @@ assert.equal(parsePreparedFiveThings({ specialty: "Cardiology", writeup, title: 
 assert.equal(buildMeetingWatchMetadata({ hourStart: baseTime, slots, title: edited.title, meetingLabel: "5 Things to Know: Cardiology", specialty: "Cardiology", sourceUrl: edited.items[0].sourceUrl }).title, customTitle);
 assert.throws(() => parsePreparedFiveThings({ specialty: "Cardiology", writeup, title: " " }));
 assert.throws(() => parsePreparedFiveThings({ specialty: "Cardiology", writeup, title: "a".repeat(101) }));
-assert.equal(metadata.thumbnailHeadline, "5 THINGS TO KNOW");
+assert.equal(metadata.thumbnailHeadline, prepared.title);
 assert.match(metadata.description, /^Cardiology: 5 Things to Know Today\./);
 assert.match(metadata.description, /Audience: Physicians; Medical Students; Cardiologists; Advanced Practice Providers \(APPs\)\./);
 assert.equal((metadata.description.match(/https:\/\/example\.com\/source-/g) ?? []).length, 5);
@@ -57,7 +57,7 @@ assert.ok(new TextEncoder().encode(normalizeYoutubeDescription("Evidence 😀 ".
 assert.throws(() => parsePreparedFiveThings({ specialty: "Cardiology", writeup: writeup.replace("https://example.com/source-5", "https://example.com/source-4") }), /five distinct primary-source URLs/);
 const thumbnailSource = readFileSync(path.resolve("app/api/youtube-thumbnail/route.tsx"), "utf8");
 assert.match(thumbnailSource, /isFiveThings/);
-assert.match(thumbnailSource, />5 THINGS TO KNOW</);
+assert.match(thumbnailSource, /isFiveThings \? suppliedHeadline : truncate/);
 assert.match(thumbnailSource, /specialty\.toUpperCase\(\)/);
 assert.match(thumbnailSource, /specialty\.length > 28 \? 46 : specialty\.length > 20 \? 56 : 66/);
 assert.match(thumbnailSource, /linear-gradient\(135deg, #ffbd45 0%, #ffe58a 100%\)/);

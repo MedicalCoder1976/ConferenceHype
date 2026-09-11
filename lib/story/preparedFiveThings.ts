@@ -143,7 +143,7 @@ export function preparedFiveThingsSegments(prepared: ReturnType<typeof parsePrep
       flags: [
         `prepared_card:${item.position}`,
         `five_things_item:${item.position}`,
-        ...(item.position === 1 ? ["prepared_opening", "prepared_thumbnail:5 THINGS TO KNOW"] : []),
+        ...(item.position === 1 ? ["prepared_opening", `prepared_thumbnail:${prepared.title}`] : []),
         ...(item.position < 5 ? [`prepared_transition:${TRANSITION_SECONDS}`] : [])
       ]
     }));

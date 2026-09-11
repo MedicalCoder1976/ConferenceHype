@@ -167,7 +167,7 @@ export function FiveThingsDesk() {
         </div>
         <div className="mt-3 text-xs font-black uppercase text-ink/55">Topics · {specialty}</div>
         {titles.length ? <ol className="mt-1 list-decimal space-y-1 pl-5 text-sm font-semibold text-ink">{titles.map((topic, index) => <li key={index}>{topic}</li>)}</ol> : <p className="mt-1 text-sm text-ink/55">The five item topics will appear here after you paste the write-up.</p>}
-        <div className="mt-1 text-xs font-semibold text-ink/50">One fixed thumbnail: {specialty.toUpperCase()} · 5 THINGS TO KNOW · first three item topics. No experiments.</div>
+        <div className="mt-1 text-xs font-semibold text-ink/50">Thumbnail and first slide: full title above · first three item topics.</div>
       </div>
       <button disabled={!canDevelop || working} onClick={develop} className="mt-5 inline-flex min-h-13 w-full items-center justify-center gap-2 bg-broadcast px-5 py-4 text-sm font-black uppercase text-white disabled:opacity-50">
         {working ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Youtube className="h-5 w-5" />}{working ? "Developing and verifying YouTube video…" : "Develop and publish 5 Things to Know"}
