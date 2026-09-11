@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { filterBroadcastReadySegments } from "@/lib/data";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { minimumSubstantiveCards } from "@/lib/media/broadcastQuality";
@@ -26,6 +27,10 @@ assert.equal(prepared.title, buildFiveThingsSearchTitle("Cardiology", prepared.i
 assert.match(prepared.title, /^Cardiology: 5 Things to Know Today/);
 assert.equal(new Set(prepared.items.map((item) => item.sourceUrl)).size, 5);
 const segments = preparedFiveThingsSegments(prepared);
+const pollutionSegments = segments.map((segment, index) => index === 4 ? { ...segment, script: `${segment.script} Air pollution prevention is part of lung health.` } : segment);
+assert.equal(filterBroadcastReadySegments(pollutionSegments).length, segments.length, "Keep all five sourced items and the tailored disclaimer, including air pollution language.");
+assert.equal(filterBroadcastReadySegments([{ ...segments[0], citations: [] }]).length, 0, "Source-less content must still be rejected.");
+assert.equal(filterBroadcastReadySegments([{ ...segments[0], script: "We are on air now." }]).length, 0, "Broadcast filler must still be rejected.");
 assert.equal(segments.filter((segment) => segment.riskFlags.some((flag) => flag.startsWith("five_things_item:"))).length, 5);
 assert.ok(segments.every((segment) => segment.riskFlags.includes("prepared_five_things")));
 assert.equal(segments.filter((segment) => segment.riskFlags.includes("prepared_disclaimer")).length, 1);

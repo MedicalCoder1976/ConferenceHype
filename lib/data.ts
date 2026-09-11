@@ -57,7 +57,7 @@ const fullSpokenDisclaimer =
 function isUnsafeForBroadcastRundown(scriptish: string) {
   return (
     scriptish.includes(fullSpokenDisclaimer) ||
-    /\b(early social chatter|unverified buzz|operator-selected audience tip|audience tip|snack|coffee|hallway energy|rising energy|pending review|we verify|verify|verified|airtime|aired|airing|air)\b/i.test(
+    /\b(early social chatter|unverified buzz|operator-selected audience tip|audience tip|snack|coffee|hallway energy|rising energy|pending review|we verify|verify|verified|airtime|aired|airing|on air)\b/i.test(
       scriptish
     )
   );
@@ -106,7 +106,11 @@ export function filterBroadcastReadySegments<T extends {
       !isWeeklySourceContext &&
       !hasMissingIntakeFailureLanguage(`${segment.title ?? ""}\n${text}`) &&
       !isUnsafeForBroadcastRundown(text) &&
-      hasVerifiedBroadcastSource(segment) &&
+      (hasVerifiedBroadcastSource(segment) || (
+        segment.riskFlags?.includes("prepared_five_things") &&
+        segment.riskFlags.includes("prepared_disclaimer") &&
+        segment.riskFlags.includes("five_things_tailored_disclaimer")
+      )) &&
       getUnsafeReviewSourceErrors({
         title: "",
         summary: segment.summary,
