@@ -1,7 +1,7 @@
 "use client";
 
 import { CheckCircle2, ListChecks, LoaderCircle, Youtube } from "lucide-react";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { buildFiveThingsSearchTitle, FIVE_THINGS_SPECIALTIES, fiveThingsItemTitles } from "@/lib/story/fiveThingsConfig";
 
 type DeliveryStatus = { status: string; title: string; youtubeVideoId?: string; youtubeUrl?: string; publicReachable: boolean; failureReason?: string };
@@ -61,6 +61,7 @@ What to watch next:
 Primary source URL: https://example.com/source-5`;
 
 export function FiveThingsDesk() {
+  const specialtyField = useRef<HTMLSelectElement>(null);
   const [specialty, setSpecialty] = useState<(typeof FIVE_THINGS_SPECIALTIES)[number]>("Cardiology");
   const [writeup, setWriteup] = useState("");
   const [titleOverride, setTitleOverride] = useState<string | null>(null);
@@ -97,11 +98,14 @@ export function FiveThingsDesk() {
         }
         if (body.delivery.status === "verified" && body.delivery.publicReachable) {
           window.localStorage.removeItem("conferencehype:last-five-things-broadcast-id");
+          setSpecialty("Cardiology");
           setWriteup("");
           setTitleOverride(null);
           setPublishAt("");
           setBroadcastId("");
           setMessage("5 Things to Know was verified public on YouTube. The form is ready for the next specialty briefing.");
+          specialtyField.current?.focus({ preventScroll: true });
+          specialtyField.current?.scrollIntoView({ behavior: "smooth", block: "center" });
           return;
         }
         setMessage(body.delivery.status === "verified" ? "Upload finished. Waiting for the public YouTube watch page…" : "Developing the video now. This page will verify YouTube automatically when rendering finishes.");
@@ -141,7 +145,7 @@ export function FiveThingsDesk() {
       <div className="flex items-center gap-2"><ListChecks className="h-5 w-5 text-broadcast" /><h2 className="text-2xl font-black">5 Things to Know</h2></div>
       <p className="mt-2 max-w-4xl text-sm font-semibold leading-6 text-ink/65">Paste a completed Claude or Grok write-up with exactly five numbered items and five distinct primary-source URLs. ConferenceHype preserves the supplied evidence, develops one search-focused title and one fixed thumbnail, renders the narration, publishes it, and verifies the public YouTube video.</p>
       <label className="mt-5 grid gap-1 text-xs font-black uppercase text-ink/55">Specialty
-        <select value={specialty} onChange={(event) => setSpecialty(event.target.value as (typeof FIVE_THINGS_SPECIALTIES)[number])} className="min-h-12 border border-ink/20 bg-white px-3 text-sm font-semibold normal-case text-ink">
+        <select ref={specialtyField} value={specialty} onChange={(event) => setSpecialty(event.target.value as (typeof FIVE_THINGS_SPECIALTIES)[number])} className="min-h-12 border border-ink/20 bg-white px-3 text-sm font-semibold normal-case text-ink">
           {FIVE_THINGS_SPECIALTIES.map((value) => <option key={value}>{value}</option>)}
         </select>
       </label>
