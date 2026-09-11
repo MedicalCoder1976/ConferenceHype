@@ -19,6 +19,7 @@ function required(name: string) {
 async function main() {
   const videoId = required("YOUTUBE_VIDEO_ID");
   const title = required("YOUTUBE_TITLE");
+  const fiveThings = process.env.THUMBNAIL_FIVE_THINGS === "true";
   const accessToken = await getYoutubeAccessToken();
   const lookup = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${encodeURIComponent(videoId)}`, {
     headers: { Authorization: `Bearer ${accessToken}` }
@@ -37,10 +38,11 @@ async function main() {
     categoryId: snippet.categoryId ?? "27"
   });
   const thumbnailSpec = {
+    fiveThings,
     tier: "generic",
     specialty: process.env.THUMBNAIL_SPECIALTY || "Obesity Medicine",
-    dateLabel: process.env.THUMBNAIL_DATE || "Aug 1, 2026",
-    headline: required("THUMBNAIL_HEADLINE"),
+    dateLabel: fiveThings ? "" : process.env.THUMBNAIL_DATE || "Aug 1, 2026",
+    headline: fiveThings ? title : required("THUMBNAIL_HEADLINE"),
     topicLabel: required("THUMBNAIL_TOPIC"),
     entityLabel: required("THUMBNAIL_ENTITY"),
     seriesLabel: process.env.THUMBNAIL_SERIES || "THE RETATRUTIDE STORY",

@@ -18,6 +18,13 @@ on:
       entity:
         description: "Thumbnail supporting line"
         required: true
+      five_things:
+        description: "Use the Five Things full-title layout"
+        type: boolean
+        default: false
+      specialty:
+        description: "Specialty for Five Things artwork"
+        default: "Obesity Medicine"
 
 jobs:
   repackage:
@@ -41,7 +48,8 @@ jobs:
           THUMBNAIL_SERIES: "THE RETATRUTIDE STORY"
           THUMBNAIL_PANEL: "STORY HIGHLIGHTS"
           THUMBNAIL_PROMISE: "HOW A TRIPLE AGONIST GOT HERE"
-          THUMBNAIL_SPECIALTY: "Obesity Medicine"
+          THUMBNAIL_SPECIALTY: ${{ inputs.specialty || 'Obesity Medicine' }}
+          THUMBNAIL_FIVE_THINGS: ${{ inputs.five_things }}
           THUMBNAIL_DATE: "Aug 1, 2026"
           PUBLIC_SITE_URL: "https://conferencehype.com"
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}

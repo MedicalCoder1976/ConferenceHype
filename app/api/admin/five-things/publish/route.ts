@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { assertAdminRequest } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { errorMessage } from "@/lib/errors";
-import { fiveThingsInputSchema, parsePreparedFiveThings, preparedFiveThingsSegments } from "@/lib/story/preparedFiveThings";
+import { fiveThingsPublishInputSchema, parsePreparedFiveThings, preparedFiveThingsSegments } from "@/lib/story/preparedFiveThings";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(request: NextRequest) {
   try {
     assertAdminRequest(request);
     if (!env.GITHUB_DISPATCH_TOKEN) return NextResponse.json({ ok: false, error: "GITHUB_DISPATCH_TOKEN is not configured." }, { status: 503 });
-    const prepared = parsePreparedFiveThings(fiveThingsInputSchema.parse(await request.json()));
+    const prepared = parsePreparedFiveThings(fiveThingsPublishInputSchema.parse(await request.json()));
     const segments = preparedFiveThingsSegments(prepared);
     const sources = prepared.items.map((item) => item.sourceUrl);
     const supabase = createAdminClient();

@@ -69,6 +69,7 @@ export function FiveThingsDesk() {
   const [message, setMessage] = useState("");
   const [broadcastId, setBroadcastId] = useState("");
   const [delivery, setDelivery] = useState<DeliveryStatus | null>(null);
+  const [draftLoaded, setDraftLoaded] = useState(false);
   const [pending, startTransition] = useTransition();
   const titles = useMemo(() => fiveThingsItemTitles(writeup), [writeup]);
   const searchTitle = buildFiveThingsSearchTitle(specialty, titles);
@@ -77,9 +78,33 @@ export function FiveThingsDesk() {
   const sourceCount = new Set(writeup.match(/https?:\/\/[^\s<>"')\]]+/gi) ?? []).size;
 
   useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem("conferencehype:five-things-draft");
+      if (raw) {
+        const draft = JSON.parse(raw);
+        if (FIVE_THINGS_SPECIALTIES.includes(draft.specialty)) setSpecialty(draft.specialty);
+        if (typeof draft.writeup === "string") setWriteup(draft.writeup);
+        if (typeof draft.titleOverride === "string") setTitleOverride(draft.titleOverride);
+        if (typeof draft.publishAt === "string") setPublishAt(draft.publishAt);
+      }
+    } catch { /* A damaged draft must not prevent opening the form. */ }
+    setDraftLoaded(true);
     const saved = window.localStorage.getItem("conferencehype:last-five-things-broadcast-id");
     if (saved) setBroadcastId(saved);
   }, []);
+
+  useEffect(() => {
+    if (!draftLoaded) return;
+    try {
+      if (!writeup && titleOverride === null && !publishAt) {
+        window.localStorage.removeItem("conferencehype:five-things-draft");
+      } else {
+        window.localStorage.setItem("conferencehype:five-things-draft", JSON.stringify({ specialty, writeup, titleOverride, publishAt }));
+      }
+    } catch {
+      setMessage("Your browser could not save this draft. Copy the write-up and edited title before refreshing.");
+    }
+  }, [draftLoaded, specialty, writeup, titleOverride, publishAt]);
 
   useEffect(() => {
     if (!broadcastId) return;

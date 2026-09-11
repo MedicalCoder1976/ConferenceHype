@@ -12,6 +12,7 @@ export const fiveThingsInputSchema = z.object({
 });
 
 export type FiveThingsInput = z.infer<typeof fiveThingsInputSchema>;
+export const fiveThingsPublishInputSchema = fiveThingsInputSchema.extend({ title: z.string().trim().min(1).max(100) });
 
 type FiveThingsItem = {
   position: number;
