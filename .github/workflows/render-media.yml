@@ -22,7 +22,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p .tmp/korean-release
-          gh release download codex-korean-wclc-20260912 --dir .tmp/korean-release
+          gh api -H 'Accept: application/octet-stream' repos/MedicalCoder1976/ConferenceHype/releases/assets/560135220 > .tmp/korean-release/qa.json
+          gh api -H 'Accept: application/octet-stream' repos/MedicalCoder1976/ConferenceHype/releases/assets/560135217 > .tmp/korean-release/release.json
+          gh api -H 'Accept: application/octet-stream' repos/MedicalCoder1976/ConferenceHype/releases/assets/560135216 > .tmp/korean-release/thumbnail.png
+          gh api -H 'Accept: application/octet-stream' repos/MedicalCoder1976/ConferenceHype/releases/assets/560135219 > .tmp/korean-release/wclc-seoul-2026-ko.mp4
+          gh api -H 'Accept: application/octet-stream' repos/MedicalCoder1976/ConferenceHype/releases/assets/560135218 > .tmp/korean-release/wclc-seoul-2026-ko.srt
       - name: Publish reviewed Korean video
         env:
           YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
@@ -35,3 +39,4 @@ jobs:
         with:
           name: korean-wclc-publication-evidence
           path: .tmp/korean-release/youtube-result.json
+
