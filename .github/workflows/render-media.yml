@@ -2,7 +2,7 @@ name: Publish reviewed Korean WCLC edition
 on:
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 concurrency:
   group: korean-wclc-20260912
   cancel-in-progress: false
@@ -39,4 +39,5 @@ jobs:
         with:
           name: korean-wclc-publication-evidence
           path: .tmp/korean-release/youtube-result.json
+
 
