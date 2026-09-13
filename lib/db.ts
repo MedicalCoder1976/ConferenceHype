@@ -650,10 +650,15 @@ export async function getAllApprovedOrRenderedSegmentsFromDb() {
   if (!hasSupabase()) {
     return null;
   }
-  const [approved, rendered] = await Promise.all([
-    getAllSegmentsByStatusFromDb("approved"),
-    getAllSegmentsByStatusFromDb("rendered")
-  ]);
+  // Approved has grown past 9,000 rows. Running both statuses' default
+  // concurrent paging (10 pages at once each) at the same time via
+  // Promise.all fires well over a dozen simultaneous full select("*")
+  // queries -- confirmed live 2026-09-13 as a second source of the same
+  // 57014 statement-timeout failure already fixed for pending_review below.
+  // Serial (both status and the two calls) trades latency for not
+  // exhausting the connection/statement budget on this bulk-release path.
+  const approved = await getAllSegmentsByStatusFromDb("approved", true);
+  const rendered = await getAllSegmentsByStatusFromDb("rendered", true);
   return [...approved, ...rendered];
 }
 
