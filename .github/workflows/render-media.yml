@@ -2,7 +2,7 @@ name: Publish reviewed Korean WCLC edition
 on:
   workflow_dispatch:
 permissions:
-  contents: write
+  contents: read
 concurrency:
   group: korean-day2-289afedf
   cancel-in-progress: false
