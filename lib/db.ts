@@ -597,7 +597,18 @@ export async function getAllPendingSegmentsFromDb() {
   if (!hasSupabase()) {
     return null;
   }
-  return getAllSegmentsByStatusFromDb("pending_review");
+  // Every interactive /admin render calls this unconditionally (unlike
+  // getAllApprovedSegmentsFromDb, which only runs on the rarer full-deck-
+  // inventory path). With pending_review past 5,000 rows, the default
+  // concurrent paging fires 6+ full select("*") queries at once, piling onto
+  // the ~20 other parallel queries in getAdminSnapshot's Promise.all -- this
+  // was confirmed live 2026-09-13 as the cause of intermittent /admin
+  // outages (a Postgres 57014 statement timeout immediately followed by a
+  // page-level Gateway Timeout). Serial paging trades a little latency for
+  // not competing with everything else for the connection/statement budget,
+  // the same fix already applied below for the station planner's approved-
+  // segment fetch.
+  return getAllSegmentsByStatusFromDb("pending_review", true);
 }
 
 export async function getAllApprovedSegmentsFromDb() {
