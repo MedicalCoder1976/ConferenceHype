@@ -537,7 +537,15 @@ export async function getAdminSnapshot(
     // newly-pinned card was silently dropped and the UI reverted after refresh.
     getNextBroadcastSegmentsFromDb(200),
     getAiredSegmentsFromDb(200),
-    getBroadcastWriteoutsFromDb(),
+    // Each row carries the full writeout_markdown text plus the entire
+    // hour's cards jsonb, so the unbounded default (200) transferred and
+    // deserialized megabytes on every /admin render regardless of whether
+    // the Writeouts tab was even open -- confirmed live 2026-09-13 at
+    // ~2.9s on its own, the single slowest query in getAdminSnapshot and a
+    // direct contributor to repeated statement timeouts. getPublicBroadcastContext
+    // already treats 20 as plenty for the equivalent "recent glance" need;
+    // use the same order of magnitude here.
+    getBroadcastWriteoutsFromDb(30),
     getSpecialtyXVoicesFromDb(),
     getMedicalConferencesFromDb(),
     getConferenceCoverageSlotsFromDb(),
