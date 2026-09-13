@@ -3,14 +3,14 @@ import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { getYoutubeAccessToken, uploadVideoToYoutube } from '../lib/youtube/uploadBroadcastVideo';
 loadEnvConfig(process.cwd());
-const base=path.resolve('.tmp/korean-release');
+const base=path.resolve('.tmp/korean-289afedf');
 const statePath=path.join(base,'youtube-result.json');
 async function main(){
  const m=JSON.parse(await readFile(path.join(base,'release.json'),'utf8'));
- m.video_path=path.join(base,'wclc-seoul-2026-ko.mp4');
- m.subtitle_path=path.join(base,'wclc-seoul-2026-ko.srt');
+ m.video_path=path.join(base,'wclc-day2-289afedf-ko.mp4');
+ m.subtitle_path=path.join(base,'wclc-day2-289afedf-ko.srt');
  if(m.quality.narration_pages.length<14 || m.quality.narration_pages.some((p:any)=>p.mean_db < -40)) throw Error('Audio acceptance failed');
- const token=await getYoutubeAccessToken();
+ if(m.broadcast_id!=='289afedf-e4f8-4751-87fa-56df357af78d'||m.source_video_id!=='7SBNI5aUdhM') throw Error('Wrong source'); const qa=JSON.parse(await readFile(path.join(base,'qa.json'),'utf8')); if(!qa.all_14_source_sections_present||qa.silence_over_2sec.length) throw Error('QA failed'); const token=await getYoutubeAccessToken();
  async function api(url:string, init:any={}) {const r=await fetch(url,{...init,headers:{Authorization:`Bearer ${token}`,...init.headers}});if(!r.ok)throw Error(`YouTube ${r.status}: ${await r.text()}`);return r.json();}
  let state:any={};try{state=JSON.parse(await readFile(statePath,'utf8'));}catch{}
  if(!state.id){
@@ -51,4 +51,3 @@ async function main(){
  } else console.log('Private video prepared. Publication requires --publish.');
 }
 main().catch(e=>{console.error(e);process.exitCode=1});
-
