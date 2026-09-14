@@ -1,3 +1,4 @@
+import { cleanStoryNarrative as cleanNarrative } from "@/lib/story/storyFormValidation";
 import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
 import { broadcastDisclaimer } from "@/lib/generation/disclaimers";
@@ -22,16 +23,6 @@ export type StoryInput = z.infer<typeof storyInputSchema>;
 const STORY_CARD_COUNT = 12;
 const STORY_TRANSITION_SECONDS = 15;
 const STORY_WORDS_PER_SECOND_AT_MEASURED_PACE = 1.95;
-
-function cleanNarrative(value: string) {
-  return value
-    .replace(/^#{1,6}\s+/gm, "")
-    .replace(/^[-*]\s+/gm, "")
-    .replace(/\*\*(.*?)\*\*/g, "$1")
-    .replace(/\*(.*?)\*/g, "$1")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 function words(value: string) {
   return value.split(/\s+/).filter(Boolean);
@@ -156,3 +147,4 @@ export function preparedStorySegments(story: ReturnType<typeof parsePreparedStor
   ));
   return result;
 }
+

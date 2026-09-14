@@ -3,6 +3,8 @@
 import { CheckCircle2, ChevronDown, LoaderCircle, Sparkles, Youtube } from "lucide-react";
 import { useEffect, useMemo, useState, useTransition } from "react";
 
+import { storyFormIssues, storyWordCount } from "@/lib/story/storyFormValidation";
+
 type DeliveryStatus = {
   status: string;
   title: string;
@@ -95,7 +97,7 @@ export function StoryDesk() {
     if (savedBroadcastId) setBroadcastId(savedBroadcastId);
   }, []);
 
-  const wordCount = narrative.trim() ? narrative.trim().split(/\s+/).length : 0;
+  const wordCount = storyWordCount(narrative);
   const topic = topicOverride.trim() || inferTopic(narrative);
   const title = completeHeadline(titleOverride.trim() || inferTitle(narrative, topic), 100);
   const thumbnailHeadline = completeHeadline(title, 58);
@@ -105,7 +107,7 @@ export function StoryDesk() {
   const payload = useMemo(() => ({
     title,
     topic,
-    sourceUrl,
+    sourceUrl: sourceUrl.trim(),
     sourceName,
     articleTitle: title,
     authors,
@@ -158,7 +160,14 @@ export function StoryDesk() {
     return () => { stopped = true; if (timer) clearTimeout(timer); };
   }, [broadcastId]);
 
+  const issues = storyFormIssues(payload);
+
   const develop = () => startTransition(async () => {
+    if (issues.length) {
+      setMessage(`Video generation did not start: ${issues.join(" ")}`);
+      document.getElementById("story-publish-requirements")?.focus();
+      return;
+    }
     if ("Notification" in window && Notification.permission === "default") {
       void Notification.requestPermission();
     }
@@ -185,7 +194,7 @@ export function StoryDesk() {
     }
   });
 
-  const canDevelop = Boolean(sourceUrl && wordCount >= 420 && narrative.length >= 1_200 && title.length >= 8 && topic.length >= 3);
+
   const working = pending || Boolean(broadcastId && !(delivery?.status === "failed" || (delivery?.status === "verified" && delivery.publicReachable)));
 
   return (
@@ -217,7 +226,13 @@ export function StoryDesk() {
           </div>
         </details>
 
-        <button disabled={!canDevelop || working} onClick={develop} className="mt-5 inline-flex min-h-13 w-full items-center justify-center gap-2 bg-broadcast px-5 py-4 text-sm font-black uppercase text-white disabled:opacity-50">
+        {issues.length > 0 ? (
+          <div id="story-publish-requirements" tabIndex={-1} className="mt-5 border border-amber-500 bg-amber-50 p-4 text-sm text-amber-950">
+            <p className="font-bold">Before you can publish:</p>
+            <ul className="mt-2 list-disc space-y-1 pl-5">{issues.map((issue) => <li key={issue}>{issue}</li>)}</ul>
+          </div>
+        ) : <p className="mt-5 text-sm font-bold text-emerald-700">Ready to validate and publish.</p>}
+        <button disabled={working} aria-describedby={issues.length ? "story-publish-requirements" : undefined} onClick={develop} className="mt-5 inline-flex min-h-13 w-full items-center justify-center gap-2 bg-broadcast px-5 py-4 text-sm font-black uppercase text-white disabled:opacity-50">
           {working ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Youtube className="h-5 w-5" />}
           {working ? "Developing and verifying YouTube video…" : "Develop and publish YouTube video"}
         </button>
@@ -232,3 +247,4 @@ export function StoryDesk() {
     </section>
   );
 }
+
