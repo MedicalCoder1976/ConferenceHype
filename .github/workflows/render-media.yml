@@ -4,13 +4,13 @@ on:
     inputs:
       mode:
         type: choice
-        options: [publish, verify]
+        options: [publish, verify, inspect]
         default: verify
         description: Publish reviewed editions or verify existing uploads
 permissions:
   contents: read
 concurrency:
-  group: asia-wclc-20260914
+  group: asia-wclc-20260914-${{ inputs.mode }}
   cancel-in-progress: false
 jobs:
   publish:
@@ -57,3 +57,4 @@ jobs:
         with:
           name: asia-wclc-${{ matrix.language }}-delivery
           path: edition/youtube-result.json
+

@@ -37,12 +37,18 @@ async function main(){
   }while(page);
  }
  if(!state.id){
-  if(process.argv.includes('--verify'))throw Error('No existing edition found; verification never uploads');
+  if(process.argv.includes('--verify') || process.argv.includes('--inspect'))throw Error('No existing edition found; read-only checks never upload');
   const uploaded=await uploadVideoToYoutube({filePath:path.join(base,`asia-wclc-${code}.mp4`),accessToken:token,title:m.title,description,tags:['WCLC 2026','Seoul','Lung cancer','Yuhan','Akeso','Hansoh','Daiichi Sankyo',m.language_native,'ConferenceHype'],categoryId:'28',privacyStatus:'private'});
   state={id:uploaded.id,status:'private-uploaded',edition_id:m.edition_id};
  }
  await writeFile(statePath,JSON.stringify(state,null,2));
  console.log('Recovered or uploaded video:',state.id);
+ if(process.argv.includes('--inspect')){
+  const result=await api(`https://www.googleapis.com/youtube/v3/videos?part=status,snippet,contentDetails&id=${state.id}`);
+  state={...state,status:'inspected',youtube:result.items?.[0]};
+  await writeFile(statePath,JSON.stringify(state,null,2));
+  console.log(JSON.stringify(state));return;
+ }
  let item:any;
  for(let n=0;n<60;n++){
   const result=await api(`https://www.googleapis.com/youtube/v3/videos?part=status,snippet,contentDetails&id=${state.id}`);
