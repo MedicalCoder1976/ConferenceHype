@@ -1,10 +1,10 @@
-name: Publish reviewed Korean WCLC edition
+name: Publish reviewed Mandarin WCLC edition
 on:
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 concurrency:
-  group: korean-day2-289afedf
+  group: mandarin-day2-289afedf
   cancel-in-progress: false
 jobs:
   publish:
@@ -17,17 +17,17 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Download reviewed Korean assets
+      - name: Download reviewed Mandarin assets
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          mkdir -p .tmp/korean-289afedf
-          gh api -H 'Accept: application/octet-stream' repos/MedicalCoder1976/ConferenceHype/releases/assets/561977833 > .tmp/korean-289afedf/qa.json
-          gh api -H 'Accept: application/octet-stream' repos/MedicalCoder1976/ConferenceHype/releases/assets/561977840 > .tmp/korean-289afedf/release.json
-          gh api -H 'Accept: application/octet-stream' repos/MedicalCoder1976/ConferenceHype/releases/assets/561977845 > .tmp/korean-289afedf/thumbnail.png
-          gh api -H 'Accept: application/octet-stream' repos/MedicalCoder1976/ConferenceHype/releases/assets/561977832 > .tmp/korean-289afedf/wclc-day2-289afedf-ko.mp4
-          gh api -H 'Accept: application/octet-stream' repos/MedicalCoder1976/ConferenceHype/releases/assets/561977844 > .tmp/korean-289afedf/wclc-day2-289afedf-ko.srt
-      - name: Publish reviewed Korean video
+          mkdir -p .tmp/mandarin-289afedf
+          gh api -H 'Accept: application/octet-stream' repos/MedicalCoder1976/ConferenceHype/releases/assets/562201954 > .tmp/mandarin-289afedf/qa.json
+          gh api -H 'Accept: application/octet-stream' repos/MedicalCoder1976/ConferenceHype/releases/assets/562201952 > .tmp/mandarin-289afedf/release.json
+          gh api -H 'Accept: application/octet-stream' repos/MedicalCoder1976/ConferenceHype/releases/assets/562201953 > .tmp/mandarin-289afedf/thumbnail.png
+          gh api -H 'Accept: application/octet-stream' repos/MedicalCoder1976/ConferenceHype/releases/assets/562201958 > .tmp/mandarin-289afedf/wclc-china-289afedf-zh.mp4
+          gh api -H 'Accept: application/octet-stream' repos/MedicalCoder1976/ConferenceHype/releases/assets/562201951 > .tmp/mandarin-289afedf/wclc-china-289afedf-zh.srt
+      - name: Publish reviewed Mandarin video
         env:
           YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
           YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
@@ -37,5 +37,5 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: korean-day2-289afedf-evidence
-          path: .tmp/korean-289afedf/youtube-result.json
+          name: mandarin-day2-289afedf-evidence
+          path: .tmp/mandarin-289afedf/youtube-result.json
