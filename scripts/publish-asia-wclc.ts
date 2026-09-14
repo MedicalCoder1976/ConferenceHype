@@ -12,6 +12,8 @@ async function main(){
  const qa=JSON.parse(await readFile(path.join(base,'qa.json'),'utf8'));
  if(m.edition_id!==`asia-wclc-20260914-${code}` || m.segments.length!==14 || !qa.all_14_source_sections_present || !qa.subtitles_match_reviewed_translation || !qa.audio_stream_present || qa.silence_over_2sec.length || qa.minimum_voice_mean_db < -40) throw Error('Edition or QA acceptance failed');
  const marker=`Edition: ${m.edition_id}`;
+ // YouTube canonicalizes ko-KR and ja-JP to ko and ja in stored audio metadata.
+ const expectedAudioLanguage=code==='ko'?'ko':code==='ja'?'ja':m.audio_language;
  const description=m.description+'\n\n'+marker;
  if(Buffer.byteLength(description,'utf8')>5000)throw Error('Description too long');
  const token=await getYoutubeAccessToken();
@@ -58,7 +60,7 @@ async function main(){
   await sleep();
  }
  if(!process.argv.includes('--verify')){
-  await api('https://www.googleapis.com/youtube/v3/videos?part=snippet',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:state.id,snippet:{title:m.title,description,categoryId:'28',tags:item.snippet.tags,defaultLanguage:m.language,defaultAudioLanguage:m.audio_language}})});
+  await api('https://www.googleapis.com/youtube/v3/videos?part=snippet',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:state.id,snippet:{title:m.title,description,categoryId:'28',tags:item.snippet.tags,defaultLanguage:m.language,defaultAudioLanguage:expectedAudioLanguage}})});
   await api(`https://www.googleapis.com/upload/youtube/v3/thumbnails/set?videoId=${state.id}`,{method:'POST',headers:{'Content-Type':'image/png'},body:await readFile(path.join(base,'thumbnail.png'))});
   state.thumbnail_uploaded=true;
   await writeFile(statePath,JSON.stringify(state,null,2));
@@ -72,7 +74,7 @@ async function main(){
   state={...state,youtube:v};
   await writeFile(statePath,JSON.stringify(state,null,2));
   console.log(JSON.stringify({id:state.id,privacy:v?.status.privacyStatus,upload:v?.status.uploadStatus,language:v?.snippet.defaultLanguage,audio:v?.snippet.defaultAudioLanguage}));
-  if(v?.status.privacyStatus==='public' && v?.status.uploadStatus==='processed' && v?.snippet.title===m.title && v?.snippet.defaultLanguage===m.language && v?.snippet.defaultAudioLanguage===m.audio_language){
+  if(v?.status.privacyStatus==='public' && v?.status.uploadStatus==='processed' && v?.snippet.title===m.title && v?.snippet.defaultLanguage===m.language && v?.snippet.defaultAudioLanguage===expectedAudioLanguage){
    const url=`https://www.youtube.com/watch?v=${state.id}`;
    const response=await fetch('https://www.youtube.com/oembed?format=json&url='+encodeURIComponent(url));
    if(response.ok){
