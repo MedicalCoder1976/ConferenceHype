@@ -12,7 +12,7 @@ async function main(){
  if(m.quality.narration_pages.length<14 || m.quality.narration_pages.some((p:any)=>p.mean_db < -40)) throw Error('Audio acceptance failed');
  if(m.broadcast_id!=='289afedf-e4f8-4751-87fa-56df357af78d'||m.source_video_id!=='7SBNI5aUdhM') throw Error('Wrong source'); const qa=JSON.parse(await readFile(path.join(base,'qa.json'),'utf8')); if(!qa.all_14_source_sections_present||qa.silence_over_2sec.length) throw Error('QA failed'); const token=await getYoutubeAccessToken();
  async function api(url:string, init:any={}) {const r=await fetch(url,{...init,headers:{Authorization:`Bearer ${token}`,...init.headers}});if(!r.ok)throw Error(`YouTube ${r.status}: ${await r.text()}`);return r.json();}
- let state:any={};try{state=JSON.parse(await readFile(statePath,'utf8'));}catch{}
+ if(process.argv.includes('--verify')) { const r=await api('https://www.googleapis.com/youtube/v3/videos?part=status,snippet,contentDetails&id=uChyBDoLofY'); console.log(JSON.stringify(r)); await writeFile(statePath,JSON.stringify(r,null,2)); return; } let state:any={};try{state=JSON.parse(await readFile(statePath,'utf8'));}catch{}
  if(!state.id){
   const dup=await api('https://www.googleapis.com/youtube/v3/search?part=snippet&forMine=true&type=video&maxResults=10&q='+encodeURIComponent(m.title));
   const match=dup.items?.find((x:any)=>x.snippet.title===m.title);
