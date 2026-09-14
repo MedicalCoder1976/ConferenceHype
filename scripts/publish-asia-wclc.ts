@@ -63,6 +63,9 @@ async function main(){
  for(let n=0;n<30;n++){
   const result=await api(`https://www.googleapis.com/youtube/v3/videos?part=status,snippet,contentDetails&id=${state.id}`);
   const v=result.items?.[0];
+  state={...state,youtube:v};
+  await writeFile(statePath,JSON.stringify(state,null,2));
+  console.log(JSON.stringify({id:state.id,privacy:v?.status.privacyStatus,upload:v?.status.uploadStatus,language:v?.snippet.defaultLanguage,audio:v?.snippet.defaultAudioLanguage}));
   if(v?.status.privacyStatus==='public' && v?.status.uploadStatus==='processed' && v?.snippet.title===m.title && v?.snippet.defaultLanguage===m.language && v?.snippet.defaultAudioLanguage===m.audio_language){
    const url=`https://www.youtube.com/watch?v=${state.id}`;
    const response=await fetch('https://www.youtube.com/oembed?format=json&url='+encodeURIComponent(url));
