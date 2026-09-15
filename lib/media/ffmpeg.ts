@@ -5,48 +5,23 @@ export function getFfmpegBinary() {
   return process.env.FFMPEG_PATH ?? ffmpegStatic ?? "ffmpeg";
 }
 
-export function buildSegmentRenderCommand({
-  voicePath,
-  musicPath,
-  outputPath,
-  withMusic = true
-}: {
-  voicePath: string;
-  musicPath: string;
-  outputPath: string;
-  withMusic?: boolean;
+export function buildSegmentRenderCommand({ voicePath, outputPath }: {
+  voicePath: string; outputPath: string; musicPath?: string; withMusic?: boolean;
 }) {
-  if (!withMusic) {
-    return [
-      getFfmpegBinary(),
-      "-y",
-      "-i",
-      voicePath,
-      "-c:a",
-      "aac",
-      "-b:a",
-      "128k",
-      outputPath
-    ];
-  }
+  // Narration-only applies even to callers carrying legacy music options.
+  return [getFfmpegBinary(), "-y", "-i", voicePath, "-c:a", "aac", "-b:a", "128k", outputPath];
+}
 
-  return [
-    getFfmpegBinary(),
-    "-y",
-    "-stream_loop",
-    "-1",
-    "-i",
-    musicPath,
-    "-i",
-    voicePath,
-    "-filter_complex",
-    "[0:a]volume=0.12[a0];[1:a]volume=1.0[a1];[a0][a1]amix=inputs=2:duration=shortest",
-    "-c:a",
-    "aac",
-    "-b:a",
-    "192k",
-    outputPath
-  ];
+export function buildNarrationAudioArgs(entries: Array<{path: string; startMs: number; durationMs: number}>) {
+  if (!entries.length) throw new Error("Narration audio is required; music and silent fallbacks are disabled.");
+  for (const entry of entries) {
+    if (!entry.path || !Number.isFinite(entry.startMs) || entry.startMs < 0 || !Number.isFinite(entry.durationMs) || entry.durationMs <= 0) throw new Error("Invalid narration window.");
+  }
+  const filters = entries.map((entry, i) =>
+    `[${i + 1}:a]volume=0.85,atrim=0:${(entry.durationMs / 1000).toFixed(3)},asetpts=PTS-STARTPTS,adelay=${Math.round(entry.startMs)}|${Math.round(entry.startMs)}[v${i}]`
+  );
+  filters.push(`${entries.map((_, i) => `[v${i}]`).join("")}amix=inputs=${entries.length}:duration=longest:normalize=0[a]`);
+  return [...entries.flatMap(entry => ["-i", entry.path]), "-filter_complex", filters.join(";")];
 }
 
 export function runCommand(command: string[]) {

@@ -63,7 +63,7 @@ for (const voiceKey of [
 ]) {
   assert.match(workflow, new RegExp(`${voiceKey}: \\$\\{\\{ secrets\\.${voiceKey} \\}\\}`));
 }
-assert.match(rendererSource, /if \(!voicePath && voiceEntries\.length === 0\)/);
+assert.match(rendererSource, /if \(voiceEntries\.length === 0\)/);
 assert.match(rendererSource, /refusing to render or upload a music-only video/);
 assert.match(rendererSource, /voiceEntries\.length !== plannedVoiceEntries/);
 assert.match(rendererSource, /Narration configuration is missing/);

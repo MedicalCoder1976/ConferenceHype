@@ -134,10 +134,10 @@ assert.match(
   fourthFramed,
   /This concludes ConferenceHype's coverage of the June 2026 issue of Journal of Clinical Oncology\./
 );
-assert.match(fourthFramed, /Which paper could change practice/);
-assert.match(fourthFramed, /Tag us on X @conferencehype\./);
-assert.match(fourthFramed, /Share this broadcast with a colleague or your clinical team/);
-assert.match(fourthFramed, /subscribe with notifications turned on/);
+assert.match(fourthFramed, /content you would like us to cover/);
+assert.match(fourthFramed, /translation into another language/);
+assert.match(fourthFramed, /which conferences we should cover next/);
+assert.match(fourthFramed, /like this video and subscribe/);
 assert.doesNotMatch(fourthFramed, /That is it for this segment/i);
 assert.doesNotMatch(framed, /interactive AI commentary only/i);
 assert.equal(applySpokenPronunciations("ASCO 2026 and Ib disease"), "Ask-ho 2026 and one B disease");
@@ -408,10 +408,10 @@ assert.match(
   shortJournalOutro,
   /That's it for now for ConferenceHype's coverage of the July 2026 issue of Test Journal\./
 );
-assert.match(shortJournalOutro, /If anything was missed/);
-assert.match(shortJournalOutro, /Tag us on X @conferencehype\./);
-assert.match(shortJournalOutro, /share this review with your clinical team/);
-assert.match(shortJournalOutro, /subscribe with notifications turned on/);
+assert.match(shortJournalOutro, /content you would like us to cover/);
+assert.match(shortJournalOutro, /translation into another language/);
+assert.match(shortJournalOutro, /which conferences we should cover next/);
+assert.match(shortJournalOutro, /like this video and subscribe/);
 assert.doesNotMatch(shortJournalOutro, /That (?:is it|wraps up) for this segment/i);
 const shortJournalContentScripts = shortJournalShowSlots
   .filter((slot) => slot.segment && !slot.segment.riskFlags.includes("journal_show_outro"))
@@ -1111,12 +1111,6 @@ const renderHourSource = readFileSync(
 assert.match(renderHourSource, /function enforceOneHourFrame/);
 // Single-journal shows use 30 minutes only as a ceiling; they must not add
 // trailing music merely to make the uploaded video exactly 30:00.
-assert.match(renderHourSource, /const shouldPadToFrame = !isJournalMode/);
-assert.match(renderHourSource, /remainingSeconds > 0 && padToFrame/);
-assert.match(renderHourSource, /delta > 0\.001 && !isJournalMode/);
-assert.match(renderHourSource, /const NARRATION_START_DELAY_SECONDS = 2/);
-assert.match(renderHourSource, /reserveOpeningNarrationDelay/);
-assert.match(renderHourSource, /volume=0\.85,adelay=2000\|2000\[voice\]/);
 assert.match(renderHourSource, /Narration overlap detected/);
 assert.match(renderHourSource, /const pronunciationDefinitions = new Map/);
 assert.match(renderHourSource, /applySpokenPronunciations\(card\.script, pronunciationDefinitions\.get/);
@@ -1180,10 +1174,6 @@ assert.match(renderHourSource, /durationSeconds = Math\.min\(Number\(process\.en
 // card scheduled after it even though the video kept rendering for the
 // full hour. Confirmed on a real broadcast where only the opening stretch
 // of content was audible.
-assert.match(renderHourSource, /amix=inputs=\$\{totalStreams\}:duration=longest:normalize=0/);
-assert.doesNotMatch(renderHourSource, /amix=inputs=\$\{totalStreams\}:duration=first/);
-assert.match(renderHourSource, /placedMusicPath/);
-assert.match(renderHourSource, /!card\.riskFlags\?\.includes\("operator_music_card"\)/);
 assert.match(renderHourSource, /\.filter\(\(card\) => card\.segmentId\)/);
 
 // Migrated 2026-07-16 from live RTMP streaming to render-then-upload: the
@@ -1193,8 +1183,6 @@ assert.match(renderHourSource, /\.filter\(\(card\) => card\.segmentId\)/);
 // as the single source of truth for title/description/tags -- there's no
 // separate earlier snapshot left to drift from.
 assert.match(renderHourSource, /Uploaded \$\{youtubeUrl\}, public immediately/);
-assert.match(renderHourSource, /useFullLengthMusicPadding/);
-assert.match(renderHourSource, /OPERATOR_MUSIC_TRACKS\[musicIndex % OPERATOR_MUSIC_TRACKS\.length\]/);
 assert.match(renderHourSource, /buildBroadcastMetadata\(\{/);
 assert.match(renderHourSource, /headline: actualMetadata\?\.thumbnailHook/);
 assert.match(renderHourSource, /topicLabel: isBreakingMode/);
@@ -1798,7 +1786,7 @@ assert.deepEqual(parseVolumeDetect("mean_volume: -21.4 dB\nmax_volume: -3.0 dB")
 assert.equal(parseVolumeDetect("mean_volume: -inf dB\nmax_volume: -inf dB").maxVolumeDb, Number.NEGATIVE_INFINITY);
 assert.match(renderHourSource, /Broadcast narration is missing; refusing to render or upload a music-only video/);
 assert.match(renderHourSource, /Broadcast narration is incomplete: \$\{voiceEntries\.length\} of \$\{plannedVoiceEntries\}/);
-assert.match(renderHourSource, /await assertMusicWindowsAudible\(\{ ffmpeg: finalFfmpeg, mediaPath: outputPath, cards \}\)/);
+assert.match(renderHourSource, /await assertNarrationWindowsAudible\(\{ ffmpeg: finalFfmpeg, mediaPath: outputPath, cards \}\)/);
 assert.match(renderHourSource, /await assertMediaGenerated\(outputPath\)/);
 const youtubeDeliveryVerifierSource = readFileSync(path.resolve("lib/media/youtubeDeliveryVerifier.ts"), "utf8");
 assert.match(youtubeDeliveryVerifierSource, /Rendered media \$\{mediaPath\} has no audio stream/);
@@ -1847,3 +1835,6 @@ assert.match(youtubeDeliveryVerifierSource, /Rendered media \$\{mediaPath\} has 
   assert.equal(preparedSlots.at(-1)?.durationSeconds, 15);
   assert.match(preparedSlots.at(-1)?.label ?? "", /Like, subscribe, and recommend/);
 }
+
+assert.match(renderHourSource, /prepareNarrationOnlyCards/);
+assert.match(renderHourSource, /buildNarrationAudioArgs/);

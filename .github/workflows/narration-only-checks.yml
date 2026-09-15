@@ -1,0 +1,29 @@
+name: Narration-only broadcast checks
+on:
+  push:
+    branches: [main]
+    paths: ['lib/broadcast/**', 'lib/media/**', 'scripts/**', '.github/workflows/narration-only-checks.yml']
+  pull_request:
+    paths: ['lib/broadcast/**', 'lib/media/**', 'scripts/**', '.github/workflows/narration-only-checks.yml']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run test:narration-only
+      - run: npm run test:guards
+      - run: npm run test:story-publish
+      - run: npm run test:meeting-watch
+      - run: npm run test:iaslc-localization
+      - run: npm run test:regional-journal-club
+      - run: npm run test:weekend-roundup
+      - run: npm run test:five-things

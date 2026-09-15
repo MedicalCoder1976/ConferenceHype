@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "test:narration-only": "tsx scripts/verify-narration-only.ts",
     "test:guards": "tsx scripts/verify-broadcast-guards.ts",
     "test:story-publish": "tsx scripts/verify-story-publish.ts",
     "test:five-things": "tsx scripts/verify-five-things.ts",

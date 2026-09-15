@@ -61,8 +61,8 @@ assert.equal(metadata.thumbnailJournalCount, 2);
 assert.deepEqual(metadata.relevantSpecialties, ["Neurology", "Internal Medicine"]);
 
 const renderSource = readFileSync(path.join(process.cwd(), "scripts", "render-hour-broadcast.ts"), "utf8");
-assert.match(renderSource, /Measured broadcast frame reconciled/);
-assert.match(renderSource, /cardCacheKeys\.splice\(insertAt, 0, undefined\)/);
+assert.match(renderSource, /assertNarrationOnlyCards/);
+assert.match(renderSource, /buildNarrationAudioArgs/);
 
 const workflow = readFileSync(path.join(process.cwd(), ".github", "workflows", "weekend-medical-roundup.yml"), "utf8");
 const stationProgramWorkflow = readFileSync(path.join(process.cwd(), ".github", "workflows", "station-program.yml"), "utf8");

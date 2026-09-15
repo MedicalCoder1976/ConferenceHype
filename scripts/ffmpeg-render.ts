@@ -84,7 +84,7 @@ async function main() {
   await mkdir(path.dirname(voicePath), { recursive: true });
   await writeFile(voicePath, speech.audioBuffer);
 
-  const withMusic = existsSync(musicPath);
+  const withMusic = false;
   const command = buildSegmentRenderCommand({ voicePath, musicPath, outputPath, withMusic });
   console.log(
     JSON.stringify(
@@ -96,9 +96,7 @@ async function main() {
         voicePath,
         outputPath,
         withMusic,
-        note: withMusic
-          ? "Rendering voice with music bed."
-          : "Music bed not found; rendering voice-only audio."
+        note: "Rendering narration-only audio."
       },
       null,
       2

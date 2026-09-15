@@ -64,7 +64,7 @@ function analyzeWindow(ffmpeg: string, mediaPath: string, startSeconds: number, 
     child.on("error", reject);
     child.on("exit", (code) => {
       if (code !== 0) {
-        reject(new Error(`Could not analyze rendered music audio (ffmpeg exit ${code}).`));
+        reject(new Error(`Could not analyze rendered audio (ffmpeg exit ${code}).`));
         return;
       }
       resolve(parseVolumeDetect(stderr));
@@ -89,5 +89,21 @@ export async function assertMusicWindowsAudible({ ffmpeg, mediaPath, cards }: {
         `Broadcast quality gate failed: music window ${index + 1} at ${window.startSeconds.toFixed(1)}s is silent or inaudible (mean ${volume.meanVolumeDb} dB, max ${volume.maxVolumeDb} dB). Refusing to upload.`
       );
     }
+  }
+}
+
+export async function assertNarrationWindowsAudible({ ffmpeg, mediaPath, cards }: {
+  ffmpeg: string; mediaPath: string; cards: QualityCard[];
+}) {
+  if (!cards.length || cards.some(card => card.isMusic || !Number.isFinite(card.duration) || card.duration <= 0)) {
+    throw new Error("Narration-only quality gate failed: missing speech cards or unexpected music.");
+  }
+  let startSeconds = 0;
+  for (const [index, card] of cards.entries()) {
+    const volume = await analyzeWindow(ffmpeg, mediaPath, startSeconds, card.duration);
+    if (volume.maxVolumeDb < -35 || volume.meanVolumeDb < -50) {
+      throw new Error(`Narration-only quality gate failed: speech card ${index + 1} is silent or inaudible. Refusing to upload.`);
+    }
+    startSeconds += card.duration;
   }
 }

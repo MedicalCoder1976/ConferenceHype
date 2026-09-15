@@ -244,15 +244,18 @@ def main():
             "script_localized": translate_text(segment["script"], tokenizer, model, args.language, config["target_lang"]),
         })
 
+    # The closing is maintained in each supported language, never machine translated.
+    engagement = json.loads((Path(__file__).resolve().parents[1] / "lib/broadcast/engagement.json").read_text(encoding="utf-8"))
+    language_key = "zh" if args.language == "zh-Hans" else args.language
+    localized = [item for item in localized if item.get("script") != engagement["en"]]
+    localized.append({"id": "narrative-engagement", "title": "ConferenceHype", "script": engagement["en"],
+                      "title_localized": "ConferenceHype", "script_localized": engagement[language_key], "citations": []})
+
     with tempfile.TemporaryDirectory(prefix="iaslc-localized-") as temp_name:
         temp = Path(temp_name)
         audio_parts: list[Path] = []
         subtitles: list[tuple[float, float, str]] = []
         cursor = 0.0
-        transition = Path("public/music/conferencehype-gap-music-20sec-preview-v1.mp3").resolve()
-        transition_wav = temp / "transition.wav"
-        run(["ffmpeg", "-y", "-i", str(transition), "-t", "16", "-ar", "24000", "-ac", "1", str(transition_wav)],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         for index, segment in enumerate(localized):
             voice = temp / f"voice-{index:02d}.wav"
             synthesize(segment["script_localized"], voice, config)
@@ -262,9 +265,6 @@ def main():
             audio_parts.append(voice)
             subtitles.append((cursor, cursor + voice_seconds, segment["script_localized"]))
             cursor += voice_seconds
-            if index < len(localized) - 1:
-                audio_parts.append(transition_wav)
-                cursor += 16.0
 
         if cursor > 900:
             raise RuntimeError(f"Localized edition is {cursor:.1f}s; refusing an over-15-minute upload.")

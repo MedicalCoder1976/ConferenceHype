@@ -6,10 +6,7 @@ const localizer = readFileSync("scripts/localize-iaslc-video.py", "utf8");
 const publisher = readFileSync("scripts/publish-localized-iaslc.ts", "utf8");
 
 for (const language of ["ko", "ja", "zh-Hans"]) assert.match(workflow, new RegExp(language));
-for (const broadcastId of [
-  "9832487d-dfe5-458d-89cf-85241fbf4e8c",
-  "67709ac5-b18d-4aeb-ac5b-b88c1337974c"
-]) assert.match(workflow, new RegExp(broadcastId));
+assert.match(workflow, /inputs.broadcast_id/);
 
 assert.match(localizer, /Source broadcast must exist and have verified status/);
 assert.match(localizer, /facebook\/nllb-200-distilled-600M/);
@@ -19,7 +16,8 @@ assert.match(localizer, /Restoring exact source numerals/);
 assert.match(localizer, /Reinserting protected medical terms/);
 assert.match(localizer, /edge_tts/);
 assert.match(localizer, /Narration clip.*unexpectedly short/);
-assert.match(localizer, /-t", "16"/);
+assert.doesNotMatch(localizer, /transition\.wav/);
+assert.match(localizer, /engagement\[language_key\]/);
 assert.match(localizer, /subtitles=/);
 assert.match(publisher, /privacyStatus: "private"/);
 assert.match(publisher, /uploadCaptionTrack/);

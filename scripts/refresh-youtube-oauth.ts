@@ -10,7 +10,11 @@ loadEnvConfig(process.cwd());
 // clients, which allow any port). Register this once and it never changes.
 const PORT = 53682;
 const REDIRECT_URI = `http://localhost:${PORT}/oauth/callback`;
-const SCOPE = "https://www.googleapis.com/auth/youtube";
+// Analytics access is requested explicitly; Google still requires user consent.
+const SCOPE = [
+  "https://www.googleapis.com/auth/youtube",
+  ...(process.argv.includes("--analytics") ? ["https://www.googleapis.com/auth/yt-analytics.readonly", "https://www.googleapis.com/auth/youtube.readonly"] : [])
+].join(" ");
 const REPO = "MedicalCoder1976/ConferenceHype";
 
 function openBrowser(url: string) {

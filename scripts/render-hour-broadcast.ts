@@ -1,3 +1,5 @@
+import { prepareNarrationOnlyCards, assertNarrationOnlyCards } from "@/lib/broadcast/narrationOnly";
+import { buildNarrationAudioArgs } from "@/lib/media/ffmpeg";
 import { existsSync } from "node:fs";
 import { mkdir, rename, rm, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
@@ -1603,8 +1605,8 @@ async function uploadRenderedBroadcast(
     : undefined;
   const finalFfmpeg = process.env.FFMPEG_PATH ?? ffmpegPath ?? "ffmpeg";
   await burnOpeningThumbnailIntoVideo(finalFfmpeg, outputPath, openingThumbnailBytes, persistentFrameBytes);
-  const { assertMusicWindowsAudible } = await import("@/lib/media/broadcastQuality");
-  await assertMusicWindowsAudible({ ffmpeg: finalFfmpeg, mediaPath: outputPath, cards });
+  const { assertNarrationWindowsAudible } = await import("@/lib/media/broadcastQuality");
+  await assertNarrationWindowsAudible({ ffmpeg: finalFfmpeg, mediaPath: outputPath, cards });
 
   const { assertMediaGenerated } = await import("@/lib/media/youtubeDeliveryVerifier");
   await assertMediaGenerated(outputPath);
@@ -1792,31 +1794,16 @@ async function main() {
       if (card.script) card.script = cleanMeetingWatchCopy(card.script);
     }
   }
-  // A journal review ends after its final narrated outro. The 30-minute value is
-  // a scheduling ceiling, not a target to reach with trailing music.
-  const shouldPadToFrame = !isJournalMode;
-  const cards = enforceOneHourFrame(
-    await fillLeftoverGapsWithBonusCards(
-      expandContentDurations(
-        replaceEmptyContentCardsWithMusic(
-          replaceMissingIntakeCardsWithMusic(
-            applyPresentationPolicy(rawCards, isJournalMode || isWeekendMode || isRegionalMode || isBreakingMode || isMeetingWatchMode ? Infinity : DISCLAIMER_INTERVAL_SECONDS)
-          )
-        )
-      ),
-      unusedApproved,
-      applySpokenPronunciations,
-      getPersona
-    ),
-    isBreakingMode ? 15 * 60 : isMeetingWatchMode ? durationSeconds : isJournalMode || isWeekendMode || isRegionalMode ? JOURNAL_SHOW_SECONDS : 3600,
-    isJournalMode || isWeekendMode || isRegionalMode || isMeetingWatchMode,
-    isJournalMode || isWeekendMode || isRegionalMode || isMeetingWatchMode,
-    shouldPadToFrame
+  // Scheduling windows never force the finished video to contain music or silence.
+  const cards = prepareNarrationOnlyCards(
+    replaceEmptyContentCardsWithMusic(replaceMissingIntakeCardsWithMusic(
+      applyPresentationPolicy(rawCards, isJournalMode || isWeekendMode || isRegionalMode || isBreakingMode || isMeetingWatchMode ? Infinity : DISCLAIMER_INTERVAL_SECONDS)
+    ))
   );
+  assertNarrationOnlyCards(cards);
 
   // Opt-in, no-op-by-default escape hatch for sanity-checking the full card
-  // pipeline (scheduling, duration expansion, bonus-gap-filling, hour
-  // framing) against real data without running ffmpeg or writing anything.
+  // pipeline against real data without running ffmpeg or writing anything.
   if (process.env.HOUR_BROADCAST_DRY_RUN === "1") {
     console.log(
       JSON.stringify(
@@ -2062,13 +2049,13 @@ async function main() {
   const durationByCacheKey = new Map<string, number>();
   for (const [cacheKey, task] of taskByCacheKey) {
     if (!existsSync(task.cachePath)) {
-      continue; // synthesis or conversion failed for this card -- word-count estimate stands
+      continue; // The completeness gate rejects missing clips below.
     }
     try {
       durationByCacheKey.set(cacheKey, await probeAudioDurationSeconds(ffmpeg, task.cachePath));
     } catch (error) {
       console.warn(
-        `Could not measure real audio duration for a synthesized card, falling back to its word-count estimate: ${describeError(error)}`
+        `Could not measure real audio duration for a synthesized card, the render will be rejected: ${describeError(error)}`
       );
     }
   }
@@ -2076,7 +2063,7 @@ async function main() {
   // Small fixed pad so adjacent voice cards never share a hard, zero-gap
   // jump-cut, and so a fractional-second probe reading always rounds up
   // safely rather than shaving a hair off the real clip.
-  const VOICE_CARD_PAD_SECONDS = 0.4;
+  const VOICE_CARD_PAD_SECONDS = 0.2;
 
   for (let index = 0; index < cards.length; index += 1) {
     const cacheKey = cardCacheKeys[index];
@@ -2085,83 +2072,13 @@ async function main() {
     }
     const measuredSeconds = durationByCacheKey.get(cacheKey);
     if (measuredSeconds === undefined) {
-      continue;
+      throw new Error("Narration duration could not be measured; refusing to risk truncating speech.");
     }
-    const estimatedSeconds = cards[index].duration;
-    const correctedSeconds = Math.ceil(measuredSeconds) + VOICE_CARD_PAD_SECONDS;
-    cards[index].duration = correctedSeconds;
-    // Mirrors expandContentDurations' own slack rule: only ever hand leftover
-    // time forward into a following music card, never borrow time back from
-    // one. An overrun (real audio longer than estimated) simply makes the
-    // show run a little long instead of shrinking anything -- a fully
-    // acceptable trade for correctness given the alternative is overlapping
-    // voices or a hard mid-sentence cutoff.
-    const slack = estimatedSeconds - correctedSeconds;
-    const nextCard = cards[index + 1];
-    if (slack > 0 && nextCard?.isMusic) {
-      nextCard.duration += slack;
-    }
+    cards[index].duration = measuredSeconds + VOICE_CARD_PAD_SECONDS;
   }
 
-  // Real Kokoro durations replace estimates after the first frame pass. Reconcile
-  // the music tail again so journal/weekend programs still end at exactly 1800s
-  // with the final spoken outro at the true end, never a silent video tail.
-  if (isJournalMode || isWeekendMode || isRegionalMode || isMeetingWatchMode) {
-    const targetFrameSeconds = isMeetingWatchMode ? durationSeconds : JOURNAL_SHOW_SECONDS;
-    let delta = targetFrameSeconds - totalCardSeconds(cards);
-    const preparedClosingIndex = cards.findIndex((card) => card.riskFlags?.includes("prepared_closing"));
-    const outroIndex = preparedClosingIndex >= 0 ? preparedClosingIndex : cards.findLastIndex((card) => card.riskFlags?.some((flag) => flag === "journal_show_outro" || flag === "weekend_roundup_outro" || flag === "meeting_watch_outro"));
-    const insertionIndex = outroIndex >= 0 ? outroIndex : cards.length;
-    if (delta < 0) {
-      let excess = -delta;
-      for (let index = insertionIndex - 1; index >= 0 && excess > 0; index -= 1) {
-        if (!cards[index].isMusic) continue;
-        const removable = Math.min(cards[index].duration, excess);
-        cards[index].duration -= removable;
-        excess -= removable;
-        if (cards[index].duration <= 0.001) {
-          cards.splice(index, 1);
-          cardCacheKeys.splice(index, 1);
-        }
-      }
-      if (excess > 0.001) throw new Error(`Measured narration exceeds the ${targetFrameSeconds}-second broadcast frame after all music was removed.`);
-    } else if (delta > 0.001 && !isJournalMode) {
-      let insertAt = insertionIndex;
-      const priorMusic = cards[insertAt - 1];
-      if (priorMusic?.isMusic && priorMusic.duration < OPERATOR_MUSIC_SECONDS) {
-        const added = Math.min(OPERATOR_MUSIC_SECONDS - priorMusic.duration, delta);
-        priorMusic.duration += added;
-        delta -= added;
-      }
-      let musicIndex = cards.filter((card) => card.isMusic).length;
-      while (delta > 0.001) {
-        const chunk = Math.min(OPERATOR_MUSIC_SECONDS, delta);
-        const musicCard = musicTransitionCard(chunk, musicIndex);
-        const track = OPERATOR_MUSIC_TRACKS[musicIndex % OPERATOR_MUSIC_TRACKS.length];
-        musicCard.gapClipPath = `public${track.publicPath}`;
-        musicCard.title = `${track.title} music break`;
-        cards.splice(insertAt, 0, musicCard);
-        cardCacheKeys.splice(insertAt, 0, undefined);
-        insertAt += 1;
-        musicIndex += 1;
-        delta -= chunk;
-      }
-    }
-    const reconciled = totalCardSeconds(cards);
-    const invalidFrame = isJournalMode
-      ? reconciled - targetFrameSeconds > 0.01
-      : Math.abs(reconciled - targetFrameSeconds) > 0.01;
-    if (invalidFrame) throw new Error(`Measured broadcast frame reconciled to ${reconciled}s instead of ${targetFrameSeconds}s.`);
-  }
-  const fullNarrativeAbstractCount = cards.filter((card) => card.riskFlags?.includes("meeting_watch_narrative_abstract")).length;
-  if (fullNarrativeAbstractCount > 0) {
-    const narrativeMusic = cards.filter((card) => card.isMusic && card.title === "prepared narrative music transition");
-    const requiredMusicWindows = fullNarrativeAbstractCount + 1;
-    if (narrativeMusic.length !== requiredMusicWindows || narrativeMusic.some((card) => card.duration < 15.9)) {
-      throw new Error(`Meeting Watch full-narrative music gate failed: found ${narrativeMusic.length}/${requiredMusicWindows} intact 16-second transitions. Refusing to upload a disconnected or overlong narration.`);
-    }
-  }
-  const narrationDelay = reserveOpeningNarrationDelay(cards, cardCacheKeys);
+  assertNarrationOnlyCards(cards);
+  const narrationDelay = { cardIndex: -1, delayMs: 0 };
   const isPreparedStoryRender = cards.some((card) => card.riskFlags?.includes("prepared_story"));
   const isPreparedFiveThingsRender = cards.some((card) => card.riskFlags?.includes("prepared_five_things"));
   let meetingWatchDisplayLabel: string | undefined;
@@ -2237,35 +2154,11 @@ async function main() {
   await writeFile(concatPath, concatLines.join("\n"), "utf8");
 
   type VoiceEntry = { path: string; startMs: number; durationMs: number };
-  type GapEntry = { path: string; startMs: number; durationMs: number };
-  type BedEntry = { startMs: number; durationMs: number };
   const voiceEntries: VoiceEntry[] = [];
-  const gapEntries: GapEntry[] = [];    // gap-clip stingers, one per music card
-  // Music-bed windows, one per music-kind card -- confined to that card's own
-  // slot so the bed only ever plays during an actual gap, never under voice.
-  const bedEntries: BedEntry[] = [];
   let offsetMs = 0;
 
   for (let index = 0; index < cards.length; index += 1) {
     const card = cards[index];
-    // Rule 9: the music bed only plays inside a music-kind card's own slot,
-    // never under voice -- previously it looped continuously for the whole
-    // hour and got mixed under every voice card too, confirmed as a real
-    // bug from a live operator report (background music audible "often",
-    // not just between cards) rather than the intended gap-only sound.
-    if (card.isMusic) {
-      if (!card.riskFlags?.includes("operator_music_card")) {
-        bedEntries.push({ startMs: offsetMs, durationMs: card.duration * 1000 });
-      }
-      // Rule 7: collect gap-clip start times for music cards
-      if (card.gapClipPath) {
-        const resolvedGap = path.resolve(card.gapClipPath);
-        if (existsSync(resolvedGap)) {
-          gapEntries.push({ path: resolvedGap, startMs: offsetMs, durationMs: card.duration * 1000 });
-        }
-      }
-    }
-
     // Every occurrence of a cacheKey gets its own voiceEntry at its own
     // startMs, even when several slots share one synthesized mp3 (e.g. the
     // BROADCAST_DISCLAIMER card, which repeats verbatim every ~15 minutes) --
@@ -2285,8 +2178,8 @@ async function main() {
 
   // Sort voice entries by start time so adelay values are ordered
   voiceEntries.sort((a, b) => a.startMs - b.startMs);
-  const plannedVoiceEntries = cardCacheKeys.filter(Boolean).length;
-  if (!voicePath && voiceEntries.length === 0) {
+  const plannedVoiceEntries = cards.length;
+  if (voiceEntries.length === 0) {
     throw new Error("Broadcast narration is missing; refusing to render or upload a music-only video.");
   }
   if (voiceEntries.length !== plannedVoiceEntries) {
@@ -2302,102 +2195,10 @@ async function main() {
     }
   }
 
-  const hasVoice = Boolean(voicePath) || voiceEntries.length > 0;
+  const hasVoice = voiceEntries.length > 0;
   const renderedDurationSeconds = totalCardSeconds(cards);
 
-  let audioArgs: string[];
-  if (voiceEntries.length > 0 || gapEntries.length > 0) {
-    // Kokoro per-card voices + gap-clip stingers, all delayed to their slot start,
-    // mixed over a music bed confined to each music-kind card's own window.
-    const voiceInputArgs = voiceEntries.flatMap((e) => ["-i", e.path]);
-    // Loop each speech-free gap clip for the full transition window. This is
-    // a renderer-wide backstop: if any format schedules a gap longer than
-    // the source clip, audible music continues instead of ending in silence.
-    const gapInputArgs = gapEntries.flatMap((e) => ["-stream_loop", "-1", "-i", e.path]);
-    const filterParts: string[] = [];
-    // Rule 9: the bed must only sound during an actual gap slot, never under
-    // voice. It previously looped continuously for the whole hour and got
-    // mixed into every voice card too -- a real operator-reported bug
-    // ("hearing background music/noise often", not just between cards).
-    // Referencing the single looped bed input [1:a] more than once directly
-    // is invalid ffmpeg filter syntax, so asplit fans it out to one
-    // independent copy per music-kind slot, each trimmed/delayed to just
-    // that slot's own window.
-    const bedStreamLabels = bedEntries.map((_, i) => `[bed${i}]`);
-    if (bedEntries.length > 0) {
-      const bedSplitLabels = bedEntries.map((_, i) => `[bedsrc${i}]`);
-      filterParts.push(`[1:a]asplit=${bedEntries.length}${bedSplitLabels.join("")}`);
-      bedEntries.forEach((e, i) => {
-        const durationSeconds = Math.max(0.1, e.durationMs / 1000);
-        filterParts.push(
-          `[bedsrc${i}]atrim=0:${durationSeconds.toFixed(
-            3
-          )},asetpts=PTS-STARTPTS,adelay=${e.startMs}|${e.startMs},volume=0.25[bed${i}]`
-        );
-      });
-    }
-    voiceEntries.forEach((e, i) => {
-      // e.durationMs now comes from the card's real measured audio duration
-      // (plus VOICE_CARD_PAD_SECONDS), not a word-count guess, so atrim no
-      // longer needs a blind safety margin to avoid cutting off a card's
-      // last words -- the window already covers the real clip length.
-      const durationSeconds = Math.max(0.1, e.durationMs / 1000);
-      filterParts.push(
-        `[${i + 2}:a]volume=0.85,atrim=0:${durationSeconds.toFixed(
-          3
-        )},asetpts=PTS-STARTPTS,adelay=${e.startMs}|${e.startMs}[v${i}]`
-      );
-    });
-    const gapOffset = voiceEntries.length + 2;
-    // Gap clips at 0.70 â€” prominent, above the bed but below the speaker voice
-    gapEntries.forEach((e, i) => {
-      const durationSeconds = Math.max(0.1, e.durationMs / 1000);
-      filterParts.push(
-        `[${gapOffset + i}:a]volume=0.70,atrim=0:${durationSeconds.toFixed(3)},asetpts=PTS-STARTPTS,adelay=${e.startMs}|${e.startMs}[g${i}]`
-      );
-    });
-    const allStreams = [
-      ...bedStreamLabels,
-      ...voiceEntries.map((_, i) => `[v${i}]`),
-      ...gapEntries.map((_, i) => `[g${i}]`)
-    ].join("");
-    const totalStreams = bedStreamLabels.length + voiceEntries.length + gapEntries.length;
-    // Bug fixed 2026-07-12: this was "duration=first" from before the
-    // per-gap bed fix, when the single [1:a] bed stream (looped for the
-    // whole hour) was always first in allStreams and never naturally ended,
-    // so "first" was effectively "as long as needed." Once the bed became
-    // one short, finite-duration entry per music slot ([bed0], [bed1], ...)
-    // -- still listed first in allStreams -- "duration=first" made the
-    // WHOLE mixed output end the instant that first, short bed clip ended,
-    // often just minutes into the hour: everything scheduled after that
-    // point (the large majority of the hour's narration) went completely
-    // silent even though ffmpeg reported success and the video rendered for
-    // the full 3600s. Confirmed against a real broadcast (2026-07-12, video
-    // Lh_PPcBQuU4) where only the first stretch of content was actually
-    // audible. "longest" makes the mix run until the latest-ending stream
-    // (always a card near the end of the hour) instead of the earliest one.
-    filterParts.push(
-      `${allStreams}amix=inputs=${totalStreams}:duration=longest:normalize=0[a]`
-    );
-    audioArgs = [
-      "-stream_loop", "-1", "-i", musicPath,
-      ...voiceInputArgs,
-      ...gapInputArgs,
-      "-filter_complex", filterParts.join(";")
-    ];
-  } else if (voicePath) {
-    audioArgs = [
-      "-stream_loop", "-1", "-i", musicPath,
-      "-stream_loop", "-1", "-i", voicePath,
-      "-filter_complex",
-      "[1:a]volume=0.25[music];[2:a]volume=0.85,adelay=2000|2000[voice];[music][voice]amix=inputs=2:duration=first:dropout_transition=0[a]"
-    ];
-  } else {
-    audioArgs = [
-      "-stream_loop", "-1", "-i", musicPath,
-      "-filter_complex", "[1:a]volume=0.28[a]"
-    ];
-  }
+  const audioArgs = buildNarrationAudioArgs(voiceEntries);
 
   // Keep the legacy center-screen decorative bars only for already-scheduled
   // pre-launch renders. New branding uses the finished audio-driven waveform.
@@ -2454,7 +2255,7 @@ async function main() {
         plannedDurationSeconds: durationSeconds,
         renderedDurationSeconds,
         outputPath,
-        musicPath,
+        audioPolicy: "narration-only",
         voicePath: voicePath ?? null
       },
       null,
