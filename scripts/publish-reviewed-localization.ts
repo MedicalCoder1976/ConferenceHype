@@ -52,9 +52,15 @@ async function main() {
     console.log("Separate captions unavailable or already present; full narration text is visible in the video.");
   }
   await api("https://www.googleapis.com/youtube/v3/videos?part=status", {method: "PUT", headers: {"Content-Type": "application/json"}, body: JSON.stringify({id: state.id, status: {privacyStatus: "public", selfDeclaredMadeForKids: false, embeddable: true}})});
-  const verified = await api(`https://www.googleapis.com/youtube/v3/videos?part=status,snippet,contentDetails&id=${state.id}`);
-  const video = verified.items?.[0];
-  if (video?.status.privacyStatus !== "public" || video?.status.uploadStatus !== "processed" || video?.snippet.defaultAudioLanguage !== metadata.language || video?.snippet.title !== metadata.title) throw new Error("Public language/title verification failed.");
+  let video;
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const verified = await api(`https://www.googleapis.com/youtube/v3/videos?part=status,snippet,contentDetails&id=${state.id}`);
+    video = verified.items?.[0];
+    if (video?.status.privacyStatus === "public" && video?.status.uploadStatus === "processed" && video?.snippet.defaultAudioLanguage === metadata.language && video?.snippet.title === metadata.title) break;
+    if (attempt === 11) throw new Error(`Public language/title verification failed: ${JSON.stringify({id: state.id, status: video?.status, title: video?.snippet.title, audioLanguage: video?.snippet.defaultAudioLanguage})}`);
+    console.log("Waiting for public metadata propagation", state.id);
+    await new Promise(resolve => setTimeout(resolve, 10000));
+  }
   state = {...state, status: "verified", youtube_url: `https://www.youtube.com/watch?v=${state.id}`, youtube: video};
   await writeFile(statePath, JSON.stringify(state, null, 2));
   console.log(JSON.stringify({status: state.status, url: state.youtube_url, title: video.snippet.title, duration: video.contentDetails.duration}));
