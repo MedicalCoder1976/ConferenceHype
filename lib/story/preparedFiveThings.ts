@@ -62,8 +62,9 @@ function sourceUrl(lines: string[]) {
   const explicit = lines.find((line) => /^(?:primary source(?: url)?|source(?: url)?)\s*:/i.test(line.trim()));
   const candidates = (explicit ?? lines.join("\n")).match(URL_PATTERN) ?? [];
   const value = candidates[0]?.replace(/[.,;:!?]+$/, "");
-  if (!value) throw new Error("Every item must include its own Primary source URL.");
-  return z.string().url().parse(value);
+  if (!value) return "";
+  const parsed = z.string().url().safeParse(value);
+  return parsed.success ? parsed.data : "";
 }
 
 export function parsePreparedFiveThings(input: FiveThingsInput) {
@@ -89,9 +90,6 @@ export function parsePreparedFiveThings(input: FiveThingsInput) {
       sourceUrl: sourceUrl(block)
     };
   });
-  if (new Set(items.map((item) => item.sourceUrl)).size !== 5) {
-    throw new Error("The five items must use five distinct primary-source URLs.");
-  }
   const spokenWords = items.reduce((total, item) => total + wordCount(item.script), wordCount(intro) + 55);
   if (spokenWords < 400) throw new Error("The five-item write-up needs at least 400 spoken words after structural labels and URLs are removed.");
   const suggestedTitle = buildFiveThingsSearchTitle(parsed.specialty, items.map((item) => item.title));
@@ -151,7 +149,7 @@ export function preparedFiveThingsSegments(prepared: ReturnType<typeof parsePrep
   const disclaimer = buildFiveThingsDisclaimer(prepared.input.specialty, prepared.items.map((item) => item.title));
   segments.push(makeSegment({
     title: disclaimer.heading,
-    script: `Those are the five ${prepared.input.specialty.toLowerCase()} developments to know today. Review every primary source in the description and share this briefing with a colleague. ${disclaimer.heading.replace(/:$/, ".")} ${disclaimer.text}`,
+    script: `Those are the five ${prepared.input.specialty.toLowerCase()} developments to know today. Share this briefing with a colleague. ${disclaimer.heading.replace(/:$/, ".")} ${disclaimer.text}`,
     flags: ["prepared_disclaimer", "prepared_closing", "five_things_tailored_disclaimer", "prepared_card:6"]
   }));
   return segments;

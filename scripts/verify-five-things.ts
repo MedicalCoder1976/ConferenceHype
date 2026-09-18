@@ -75,7 +75,16 @@ assert.equal(normalizeYoutubeDescription("LDL-C <55 mg/dL and LVEF >40%"), "LDL-
 assert.doesNotMatch(normalizeYoutubeDescription(metadata.description.replace("LVEF", "LVEF >40%")), /[<>]/);
 assert.ok(new TextEncoder().encode(normalizeYoutubeDescription("Evidence 😀 ".repeat(1000))).length <= 5000);
 
-assert.throws(() => parsePreparedFiveThings({ specialty: "Cardiology", writeup: writeup.replace("https://example.com/source-5", "https://example.com/source-4") }), /five distinct primary-source URLs/);
+assert.equal(parsePreparedFiveThings({ specialty: "Cardiology", writeup: writeup.replace("https://example.com/source-5", "https://example.com/source-4") }).items.length, 5);
+const noLinks = parsePreparedFiveThings({ specialty: "Cardiology", writeup: writeup.replace(/Primary source URL: https:\/\/example.com\/source-\d/g, "") });
+assert.ok(noLinks.items.every((item) => item.sourceUrl === ""));
+const noLinkSegments = preparedFiveThingsSegments(noLinks);
+assert.ok(noLinkSegments.every((segment) => segment.citations.length === 0));
+const noLinkSlots = buildMeetingWatchSlots({ segments: noLinkSegments, baseTime, meetingWatchBroadcastId: "00000000-0000-4000-8000-000000000002", meetingLabel: "5 Things to Know: Cardiology", showSeconds: noLinks.durationSeconds });
+const noLinkMetadata = buildMeetingWatchMetadata({ hourStart: baseTime, slots: noLinkSlots, title: noLinks.title, meetingLabel: "5 Things to Know: Cardiology", specialty: "Cardiology", sourceUrl: "" });
+assert.doesNotMatch(noLinkMetadata.description, /Primary sources:|undefined|null|https?:/);
+const partial = parsePreparedFiveThings({ specialty: "Cardiology", writeup: writeup.replace(/Primary source URL: https:\/\/example.com\/source-[1-4]/g, "") });
+assert.deepEqual(partial.items.map((item) => item.sourceUrl), ["", "", "", "", "https://example.com/source-5"]);
 const thumbnailSource = readFileSync(path.resolve("app/api/youtube-thumbnail/route.tsx"), "utf8");
 assert.match(thumbnailSource, /isFiveThings/);
 assert.match(thumbnailSource, /isFiveThings \? suppliedHeadline : truncate/);

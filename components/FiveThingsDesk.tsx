@@ -26,7 +26,7 @@ Key evidence:
 Why it matters:
 Limitation:
 What to watch next:
-Primary source URL: https://example.com/source-1
+
 
 2. Second searchable clinical topic
 What happened:
@@ -34,7 +34,7 @@ Key evidence:
 Why it matters:
 Limitation:
 What to watch next:
-Primary source URL: https://example.com/source-2
+
 
 3. Third searchable clinical topic
 What happened:
@@ -42,7 +42,7 @@ Key evidence:
 Why it matters:
 Limitation:
 What to watch next:
-Primary source URL: https://example.com/source-3
+
 
 4. Fourth searchable clinical topic
 What happened:
@@ -50,7 +50,7 @@ Key evidence:
 Why it matters:
 Limitation:
 What to watch next:
-Primary source URL: https://example.com/source-4
+
 
 5. Fifth searchable clinical topic
 What happened:
@@ -58,7 +58,7 @@ Key evidence:
 Why it matters:
 Limitation:
 What to watch next:
-Primary source URL: https://example.com/source-5`;
+`;
 
 export function FiveThingsDesk() {
   const specialtyField = useRef<HTMLSelectElement>(null);
@@ -146,7 +146,7 @@ export function FiveThingsDesk() {
   }, [broadcastId]);
 
   const develop = () => startTransition(async () => {
-    setMessage("Validating exactly five sourced items and preparing the search-focused YouTube video…");
+    setMessage("Validating exactly five items and preparing the search-focused YouTube video…");
     setDelivery(null);
     try {
       const response = await fetch("/api/admin/five-things/publish", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ specialty, writeup, title: title.trim(), startsAt: publishAt ? new Date(publishAt).toISOString() : undefined }) });
@@ -162,13 +162,13 @@ export function FiveThingsDesk() {
     }
   });
 
-  const canDevelop = titles.length === 5 && sourceCount === 5 && wordCount >= 400 && writeup.length >= 1_500 && title.trim().length > 0 && title.trim().length <= 100;
+  const canDevelop = titles.length === 5 && wordCount >= 400 && writeup.length >= 1_500 && title.trim().length > 0 && title.trim().length <= 100;
   const working = pending || Boolean(broadcastId && !(delivery?.status === "failed" || (delivery?.status === "verified" && delivery.publicReachable)));
 
   return <section className="grid gap-5">
     <div className="border-2 border-broadcast/30 bg-white p-5 shadow-panel">
       <div className="flex items-center gap-2"><ListChecks className="h-5 w-5 text-broadcast" /><h2 className="text-2xl font-black">5 Things to Know</h2></div>
-      <p className="mt-2 max-w-4xl text-sm font-semibold leading-6 text-ink/65">Paste a completed Claude or Grok write-up with exactly five numbered items and five distinct primary-source URLs. ConferenceHype preserves the supplied evidence, develops one search-focused title and one fixed thumbnail, renders the narration, publishes it, and verifies the public YouTube video.</p>
+      <p className="mt-2 max-w-4xl text-sm font-semibold leading-6 text-ink/65">Paste a completed Claude or Grok write-up with exactly five numbered items. Source URLs are optional. ConferenceHype preserves the supplied evidence, develops one search-focused title and one fixed thumbnail, renders the narration, publishes it, and verifies the public YouTube video.</p>
       <label className="mt-5 grid gap-1 text-xs font-black uppercase text-ink/55">Specialty
         <select ref={specialtyField} value={specialty} onChange={(event) => setSpecialty(event.target.value as (typeof FIVE_THINGS_SPECIALTIES)[number])} className="min-h-12 border border-ink/20 bg-white px-3 text-sm font-semibold normal-case text-ink">
           {FIVE_THINGS_SPECIALTIES.map((value) => <option key={value}>{value}</option>)}
@@ -183,7 +183,7 @@ export function FiveThingsDesk() {
       </label>
       <div className="mt-2 grid gap-2 text-xs font-bold text-ink/60 sm:grid-cols-3">
         <span className={titles.length === 5 ? "text-emerald-700" : ""}>{titles.length}/5 numbered items</span>
-        <span className={sourceCount === 5 ? "text-emerald-700" : ""}>{sourceCount}/5 distinct source URLs</span>
+        <span>{sourceCount} optional source URLs</span>
         <span className={wordCount >= 400 ? "text-emerald-700" : ""}>{wordCount} words · minimum 400</span>
       </div>
       <div className="mt-4 border border-cyanline/25 bg-cyanline/10 p-3">

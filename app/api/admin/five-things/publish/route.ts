@@ -11,19 +11,19 @@ export async function POST(request: NextRequest) {
     if (!env.GITHUB_DISPATCH_TOKEN) return NextResponse.json({ ok: false, error: "GITHUB_DISPATCH_TOKEN is not configured." }, { status: 503 });
     const prepared = parsePreparedFiveThings(fiveThingsPublishInputSchema.parse(await request.json()));
     const segments = preparedFiveThingsSegments(prepared);
-    const sources = prepared.items.map((item) => item.sourceUrl);
+    const sources = prepared.items.map((item) => item.sourceUrl).filter(Boolean);
     const supabase = createAdminClient();
     const { data, error } = await supabase.rpc("create_prepared_meeting_watch", {
       payload: {
         source_hash: prepared.sourceHash,
-        source_url: sources[0],
+        source_url: sources[0] ?? "",
         meeting_label: `5 Things to Know: ${prepared.input.specialty}`,
         specialty: prepared.input.specialty,
         title: prepared.title,
         description: [
           `Five ${prepared.input.specialty.toLowerCase()} developments physicians should know today.`,
           "",
-          ...prepared.items.map((item) => `${item.position}. ${item.title}\nPrimary source: ${item.sourceUrl}`)
+          ...prepared.items.map((item) => `${item.position}. ${item.title}${item.sourceUrl ? `\nPrimary source: ${item.sourceUrl}` : ""}`)
         ].join("\n"),
         duration_seconds: prepared.durationSeconds,
         starts_at: prepared.input.startsAt ?? new Date().toISOString(),
