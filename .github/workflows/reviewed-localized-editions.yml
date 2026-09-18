@@ -1,0 +1,85 @@
+name: Reviewed localized editions
+on:
+  workflow_dispatch:
+    inputs:
+      package_path:
+        description: Reviewed translation JSON in the repository
+        required: true
+        type: string
+      stage:
+        description: Render first; publish the reviewed rendered artifacts afterward
+        type: choice
+        options: [render, publish]
+        default: render
+      reviewed_run_id:
+        description: Successful render run ID to publish without retranslation or rerendering
+        type: string
+      language:
+        type: choice
+        options: [both, ko, ja]
+        default: both
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: reviewed-localized-${{ inputs.package_path }}-${{ inputs.language }}
+  cancel-in-progress: false
+jobs:
+  edition:
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ${{ inputs.language == 'both' && fromJSON('["ko","ja"]') || fromJSON(format('["{0}"]', inputs.language)) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - name: Render reviewed copy
+        if: inputs.stage == 'render'
+        env:
+          PACKAGE_PATH: ${{ inputs.package_path }}
+          LANGUAGE: ${{ matrix.language }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-noto-cjk
+          pip install edge-tts pillow
+          python scripts/render-reviewed-localization.py --package "$PACKAGE_PATH" --language "$LANGUAGE" --output localized-output
+      - name: Download reviewed render
+        if: inputs.stage == 'publish'
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.reviewed_run_id }}
+          name: reviewed-localized-${{ matrix.language }}
+          path: localized-output
+      - name: Publish reviewed video
+        if: inputs.stage == 'publish'
+        env:
+          PACKAGE_PATH: ${{ inputs.package_path }}
+          LANGUAGE: ${{ matrix.language }}
+          YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
+          YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
+          YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
+        run: npx tsx scripts/publish-reviewed-localization.ts localized-output/release.json
+      - name: Save editions and delivery evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reviewed-localized-${{ matrix.language }}
+          path: |
+            localized-output/release.json
+            localized-output/youtube-result.json
+            localized-output/edition.mp4
+            localized-output/edition.srt
+            localized-output/*.png
+            localized-output/*.mp3
+          retention-days: 30
+          if-no-files-found: warn

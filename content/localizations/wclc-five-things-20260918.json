@@ -1,0 +1,85 @@
+{
+  "broadcast_id": "5af40d0c-5d12-4fbf-b8bb-44905cb86f99",
+  "source_video_id": "o6PN9SkWxAM",
+  "source_title": "WCLC 2026: Five Transformative Lung Cancer Advances",
+  "editorial_note": "User approved correcting verified errors before translation on 2026-09-18. These concise revised editions retain the five themes; unsupported projections, company attributions and numerical claims were removed. ADAURA uses the actual 2026 eight-year update. KEYNOTE-189 is explicitly historical context. Original English upload is unchanged.",
+  "sources": [
+    "https://www.iaslc.org/iaslc-news/press-release/phase-iii-maverick-trial-supports-brain-mri-surveillance-alone-standard",
+    "https://www.astrazeneca.com/media-centre/press-releases/2026/tagrisso-demonstrated-eight-year-landmark-survival-in-adaura-phase-iii-trial.html",
+    "https://www.sec.gov/Archives/edgar/data/1789972/000119312526389844/cgem-ex99_1.htm",
+    "https://pubmed.ncbi.nlm.nih.gov/36809080/",
+    "https://www.ilcn.org/a-whole-continuum-wclc-2026-plenary-to-describe-a-tale-of-two-lung-cancer-realities/"
+  ],
+  "editions": {
+    "ko": {
+      "reviewed": true,
+      "title": "WCLC 2026: 폐암 진료를 바꾸는 다섯 가지 진전 [한국어]",
+      "description": "WCLC 2026: 폐암 진료를 바꾸는 다섯 가지 진전.\n종양학: 오늘 알아야 할 다섯 가지.\n\n영어판의 다섯 가지 주제를 공식 자료와 대조하여 수정하고 요약한 한국어판입니다. 기존 치료 근거와 WCLC 2026의 새로운 발표를 구분했습니다. 한국어 내레이션과 화면 자막으로 구성되며 음악은 없습니다.\n\n주제: MAVERICK, ADAURA, REZILIENT3, KEYNOTE-189, 폐암 진료의 형평성.\n원본 영어 영상: https://www.youtube.com/watch?v=o6PN9SkWxAM\n\n교육 및 정보 제공을 위한 영상입니다. 개인의 진단이나 치료에 관한 의료진의 판단을 대신하지 않습니다.\n\n#WCLC2026 #폐암 #종양학 #한국어 #ConferenceHype\n\n근거 자료:\n1. https://www.iaslc.org/iaslc-news/press-release/phase-iii-maverick-trial-supports-brain-mri-surveillance-alone-standard\n2. https://www.astrazeneca.com/media-centre/press-releases/2026/tagrisso-demonstrated-eight-year-landmark-survival-in-adaura-phase-iii-trial.html\n3. https://www.sec.gov/Archives/edgar/data/1789972/000119312526389844/cgem-ex99_1.htm\n4. https://pubmed.ncbi.nlm.nih.gov/36809080/\n5. https://www.ilcn.org/a-whole-continuum-wclc-2026-plenary-to-describe-a-tale-of-two-lung-cancer-realities/",
+      "segments": [
+        {
+          "title": "WCLC 2026 · 폐암 진료의 다섯 가지 주제",
+          "script": "ConferenceHype의 한국어 폐암 브리핑입니다. 오늘은 소세포폐암의 뇌 자기공명영상 추적 관찰, 수술 후 표적치료의 장기 생존, EGFR 엑손 20 삽입 변이 치료, 면역항암제 병용요법, 그리고 진료 접근성이라는 다섯 가지 주제를 살펴봅니다. 새로운 학회 발표와 이미 확립된 근거를 구분하고, 아직 확정되지 않은 결과는 그 한계와 함께 설명하겠습니다."
+        },
+        {
+          "title": "1. MAVERICK · 뇌 MRI 추적 관찰",
+          "script": "첫 번째는 소세포폐암의 MAVERICK 연구입니다. 초기 치료를 마쳤고 뇌 전이가 없는 환자 304명을 뇌 MRI 추적 관찰 단독군과 예방적 전뇌 방사선조사를 추가한 군으로 무작위 배정했습니다. 국제폐암연구학회 발표에 따르면, MRI 단독군의 인지기능 저하 또는 사망 위험은 더 낮았으며 위험비는 0.60이었습니다. 중증 치료 관련 이상반응은 각각 0.8%와 7.9%였습니다. 다만 전체 생존 분석은 아직 예비 결과입니다. 인지기능 보존의 이점과 생존 효과의 최종 확인을 구분해서 해석해야 합니다."
+        },
+        {
+          "title": "2. ADAURA · 8년 생존 추적 결과",
+          "script": "두 번째는 ADAURA의 장기 추적입니다. WCLC 2026에서 발표된 새로운 자료는 5년이 아니라 8년 생존 결과입니다. 완전 절제된 EGFR 변이 양성 비소세포폐암의 전체 연구 집단인 1B기부터 3A기에서, 오시머티닙군의 8년 생존율은 79%, 위약군은 64%였고 사망 위험비는 0.52였습니다. 이번 분석은 탐색적 장기 추적 결과입니다. 수술 후 표적치료의 지속적인 이점을 뒷받침하지만, 모든 환자의 완치를 뜻하거나 필요한 항암화학요법을 자동으로 대체한다는 의미는 아닙니다."
+        },
+        {
+          "title": "3. REZILIENT3 · 지팔러티닙 병용요법",
+          "script": "세 번째는 EGFR 엑손 20 삽입 변이가 있는 진행성 비소세포폐암의 REZILIENT3 연구입니다. 지팔러티닙은 타이호와 컬리넌이 개발하는 약물입니다. 무작위 배정된 279명에서 항암화학요법에 지팔러티닙을 추가했을 때 무진행 생존기간 중앙값은 14.5개월로, 화학요법 단독의 8.5개월보다 길었습니다. 위험비는 0.50이었습니다. 전체 생존 자료는 미성숙하며, 3등급 이상 이상반응은 병용군에서 더 많았습니다. 2026년 9월 13일 발표 당시에는 연구용 약물이었으므로, 임상시험의 유효성 결과와 규제 승인을 구분해야 합니다."
+        },
+        {
+          "title": "4. KEYNOTE-189 · 기존 면역항암 근거",
+          "script": "네 번째는 펨브롤리주맙 병용요법의 기존 근거입니다. 이것을 WCLC 2026에서 새로 발표된 통합 분석으로 소개해서는 안 됩니다. KEYNOTE-189의 5년 추적은 EGFR 또는 ALK 변이가 없는 전이성 비편평 비소세포폐암을 대상으로 했습니다. 펨브롤리주맙과 페메트렉시드 및 백금계 항암제 병용군의 5년 생존율은 19.4%, 대조군은 11.3%였으며 사망 위험비는 0.60이었습니다. 이러한 연구의 대상과 치료 조합을 확인해야 합니다. 수치를 다른 조직형이나 표적 변이 양성 환자에게 그대로 적용할 수는 없습니다."
+        },
+        {
+          "title": "5. 폐암 진료의 형평성과 접근성",
+          "script": "다섯 번째는 진료 접근성입니다. 학회 공식 매체가 소개한 세계보건기구 관점은 예방부터 진단, 치료, 완화의료, 생존자 관리까지 이어지는 통합적 접근입니다. 의료비, 거주 지역, 진단 인프라, 환자 참여가 과학적 발전이 실제 환자에게 도달하는 데 영향을 줍니다. 이는 정책과 실행의 과제이며, 특정 국가 사업의 생존 개선이 이미 입증됐다는 뜻은 아닙니다. 검증되지 않은 사망률 감소 목표나 약가 협상 수치를 덧붙이기보다, 지속적인 재원과 국가별 실행 계획, 필수 진단 및 치료에 대한 접근을 살펴봐야 합니다."
+        },
+        {
+          "title": "종양학 · 교육 및 정보 안내",
+          "script": "이 영상은 교육과 정보 제공을 위한 것입니다. 개인의 진단이나 치료에 관한 전문 의료진의 판단을 대신하지 않습니다. 폐암 치료는 암의 유형과 병기, 바이오마커, 이전 치료, 전신 상태와 환자의 목표에 따라 달라집니다. 치료 결정은 담당 의료진과 상의해 주세요. 각 주제의 근거 자료는 영상 설명에서 확인할 수 있습니다."
+        }
+      ]
+    },
+    "ja": {
+      "reviewed": true,
+      "title": "WCLC 2026：肺がん診療を変える5つの進展【日本語】",
+      "description": "WCLC 2026：肺がん診療を変える5つの進展。\n腫瘍学：今日知っておきたい5つの話題。\n\n英語版の5つのテーマを公式資料と照合して修正・要約した日本語版です。既存の治療エビデンスとWCLC 2026の新しい発表を区別しています。日本語ナレーションと画面字幕で構成し、音楽は使用していません。\n\nテーマ：MAVERICK、ADAURA、REZILIENT3、KEYNOTE-189、肺がん診療の公平性。\n英語の元動画：https://www.youtube.com/watch?v=o6PN9SkWxAM\n\n教育・情報提供を目的とした動画です。個別の診断や治療に関する医療専門家の判断に代わるものではありません。\n\n#WCLC2026 #肺がん #腫瘍学 #日本語 #ConferenceHype\n\n参考資料：\n1. https://www.iaslc.org/iaslc-news/press-release/phase-iii-maverick-trial-supports-brain-mri-surveillance-alone-standard\n2. https://www.astrazeneca.com/media-centre/press-releases/2026/tagrisso-demonstrated-eight-year-landmark-survival-in-adaura-phase-iii-trial.html\n3. https://www.sec.gov/Archives/edgar/data/1789972/000119312526389844/cgem-ex99_1.htm\n4. https://pubmed.ncbi.nlm.nih.gov/36809080/\n5. https://www.ilcn.org/a-whole-continuum-wclc-2026-plenary-to-describe-a-tale-of-two-lung-cancer-realities/",
+      "segments": [
+        {
+          "title": "WCLC 2026 · 肺がん診療の5つの話題",
+          "script": "ConferenceHypeの日本語肺がんブリーフィングです。今回は、小細胞肺がんの脳MRIによる経過観察、術後分子標的治療の長期生存、EGFRエクソン20挿入変異に対する治療、免疫療法の併用、そして診療へのアクセスという5つのテーマを取り上げます。新しい学会発表と既存のエビデンスを区別し、まだ確定していない結果は、その限界とともにお伝えします。"
+        },
+        {
+          "title": "1. MAVERICK · 脳MRIによる経過観察",
+          "script": "1つ目は、小細胞肺がんのMAVERICK試験です。初回治療を終え、脳転移のない304人を、脳MRIによる経過観察のみの群と、予防的全脳照射を追加する群に無作為に割り付けました。国際肺癌学会の発表では、MRIのみの群で認知機能障害または死亡のリスクが低く、ハザード比は0.60でした。重度の治療関連有害事象は、それぞれ0.8%と7.9%でした。ただし、全生存期間の解析はまだ予備的なものです。認知機能を保つ利益と、生存への影響の最終的な確認は、分けて解釈する必要があります。"
+        },
+        {
+          "title": "2. ADAURA · 8年の生存追跡結果",
+          "script": "2つ目は、ADAURAの長期追跡です。WCLC 2026で発表された新しいデータは、5年ではなく8年の生存結果です。完全切除されたEGFR変異陽性非小細胞肺がんの全体集団、ステージIBからIIIAでは、オシメルチニブ群の8年生存率は79%、プラセボ群は64%で、死亡のハザード比は0.52でした。今回は探索的な長期追跡解析です。術後分子標的治療の持続的な利益を支持しますが、全員の治癒を意味したり、必要な化学療法を自動的に置き換えたりするものではありません。"
+        },
+        {
+          "title": "3. REZILIENT3 · ジパレルチニブ併用療法",
+          "script": "3つ目は、EGFRエクソン20挿入変異を持つ進行非小細胞肺がんのREZILIENT3試験です。ジパレルチニブは、大鵬とCullinanが開発する薬剤です。無作為化された279人で、化学療法にジパレルチニブを加えた群の無増悪生存期間中央値は14.5か月で、化学療法のみの8.5か月より長く、ハザード比は0.50でした。全生存期間のデータは未成熟で、グレード3以上の有害事象は併用群で多くみられました。2026年9月13日の発表時点では治験薬であり、試験の有効性結果と規制当局による承認は区別しなければなりません。"
+        },
+        {
+          "title": "4. KEYNOTE-189 · 既存の免疫療法の根拠",
+          "script": "4つ目は、ペムブロリズマブ併用療法の既存のエビデンスです。これをWCLC 2026で新たに報告された統合解析として扱うことはできません。KEYNOTE-189の5年追跡は、EGFRまたはALKの遺伝子異常がない転移性非扁平上皮非小細胞肺がんを対象にしています。ペムブロリズマブとペメトレキセド、白金製剤の併用群の5年生存率は19.4%、対照群は11.3%で、死亡のハザード比は0.60でした。対象集団と治療の組み合わせを確認することが重要です。別の組織型や標的遺伝子異常のある患者に、この数値をそのまま当てはめることはできません。"
+        },
+        {
+          "title": "5. 肺がん診療の公平性とアクセス",
+          "script": "5つ目は、診療へのアクセスです。学会公式メディアが紹介した世界保健機関の視点は、予防、診断、治療、緩和ケア、そして治療後の支援をつなぐ包括的な取り組みです。費用、居住地域、診断基盤、患者参加は、科学の進歩が患者に届くかどうかを左右します。これは政策と実行の課題であり、特定の国の事業で生存改善がすでに実証されたという意味ではありません。未確認の死亡率削減目標や薬価交渉の数字を加えるのではなく、持続的な財源、国ごとの実行計画、必要な診断と治療へのアクセスに注目する必要があります。"
+        },
+        {
+          "title": "腫瘍学 · 教育と情報提供について",
+          "script": "この動画は教育と情報提供を目的としており、個別の診断や治療に関する医療専門家の判断に代わるものではありません。肺がんの治療は、がんの種類、病期、バイオマーカー、治療歴、全身状態、患者さんの希望によって異なります。治療については担当の医療チームにご相談ください。各テーマの根拠資料は、動画の説明欄に掲載しています。"
+        }
+      ]
+    }
+  }
+}
