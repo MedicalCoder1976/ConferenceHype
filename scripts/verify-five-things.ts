@@ -46,6 +46,12 @@ const metadata = buildMeetingWatchMetadata({ hourStart: baseTime, slots, title: 
 assert.equal(metadata.title, prepared.title);
 const customTitle = "Five cardiology updates: TAVR, LDL lowering and heart failure";
 assert.equal(fiveThingsPublishInputSchema.safeParse({ specialty: "Cardiology", writeup }).success, false, "Publishing must not silently replace a missing admin title.");
+for (const specialty of [undefined, "", "Not a specialty"]) {
+  assert.equal(fiveThingsPublishInputSchema.safeParse({ specialty, writeup, title: "ERS Congress 2026" }).success, false, "Publishing requires an explicit valid specialty.");
+}
+const pulmonology = parsePreparedFiveThings(fiveThingsPublishInputSchema.parse({ specialty: "Pulmonology", writeup, title: "ERS Congress 2026: Five Revolutionary Respiratory Medicine Breakthroughs" }));
+assert.equal(pulmonology.title, "ERS Congress 2026: Five Revolutionary Respiratory Medicine Breakthroughs");
+assert.match(preparedFiveThingsSegments(pulmonology)[0].script, /five pulmonology developments/);
 const meetingHeading = "WCLC 2026 SEOUL Oncology: 5 Things to Know Today";
 const headingPrepared = parsePreparedFiveThings(fiveThingsPublishInputSchema.parse({ specialty: "Oncology", writeup, title: meetingHeading }));
 const headingMetadata = buildMeetingWatchMetadata({ hourStart: baseTime, slots, title: headingPrepared.title, meetingLabel: "5 Things to Know: Oncology", specialty: "Oncology", sourceUrl: headingPrepared.items[0].sourceUrl });

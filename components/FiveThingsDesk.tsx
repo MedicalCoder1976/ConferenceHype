@@ -62,7 +62,7 @@ What to watch next:
 
 export function FiveThingsDesk() {
   const specialtyField = useRef<HTMLSelectElement>(null);
-  const [specialty, setSpecialty] = useState<(typeof FIVE_THINGS_SPECIALTIES)[number]>("Cardiology");
+  const [specialty, setSpecialty] = useState<(typeof FIVE_THINGS_SPECIALTIES)[number] | "">("");
   const [writeup, setWriteup] = useState("");
   const [titleOverride, setTitleOverride] = useState<string | null>(null);
   const [publishAt, setPublishAt] = useState("");
@@ -72,7 +72,7 @@ export function FiveThingsDesk() {
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [pending, startTransition] = useTransition();
   const titles = useMemo(() => fiveThingsItemTitles(writeup), [writeup]);
-  const searchTitle = buildFiveThingsSearchTitle(specialty, titles);
+  const searchTitle = specialty ? buildFiveThingsSearchTitle(specialty, titles) : "";
   const title = titleOverride ?? searchTitle;
   const wordCount = writeup.trim() ? writeup.trim().split(/\s+/).length : 0;
   const sourceCount = new Set(writeup.match(/https?:\/\/[^\s<>"')\]]+/gi) ?? []).size;
@@ -82,7 +82,8 @@ export function FiveThingsDesk() {
       const raw = window.localStorage.getItem("conferencehype:five-things-draft");
       if (raw) {
         const draft = JSON.parse(raw);
-        if (FIVE_THINGS_SPECIALTIES.includes(draft.specialty)) setSpecialty(draft.specialty);
+        // Older drafts may contain the former automatic Cardiology default.
+        if (draft.version === 2 && FIVE_THINGS_SPECIALTIES.includes(draft.specialty)) setSpecialty(draft.specialty);
         if (typeof draft.writeup === "string") setWriteup(draft.writeup);
         if (typeof draft.titleOverride === "string") setTitleOverride(draft.titleOverride);
         if (typeof draft.publishAt === "string") setPublishAt(draft.publishAt);
@@ -99,7 +100,7 @@ export function FiveThingsDesk() {
       if (!writeup && titleOverride === null && !publishAt) {
         window.localStorage.removeItem("conferencehype:five-things-draft");
       } else {
-        window.localStorage.setItem("conferencehype:five-things-draft", JSON.stringify({ specialty, writeup, titleOverride, publishAt }));
+        window.localStorage.setItem("conferencehype:five-things-draft", JSON.stringify({ version: 2, specialty, writeup, titleOverride, publishAt }));
       }
     } catch {
       setMessage("Your browser could not save this draft. Copy the write-up and edited title before refreshing.");
@@ -123,7 +124,7 @@ export function FiveThingsDesk() {
         }
         if (body.delivery.status === "verified" && body.delivery.publicReachable) {
           window.localStorage.removeItem("conferencehype:last-five-things-broadcast-id");
-          setSpecialty("Cardiology");
+          setSpecialty("");
           setWriteup("");
           setTitleOverride(null);
           setPublishAt("");
@@ -146,6 +147,11 @@ export function FiveThingsDesk() {
   }, [broadcastId]);
 
   const develop = () => startTransition(async () => {
+    if (!specialty) {
+      setMessage("Select a specialty for this video before publishing.");
+      specialtyField.current?.focus();
+      return;
+    }
     setMessage("Validating exactly five items and preparing the search-focused YouTube video…");
     setDelivery(null);
     try {
@@ -162,15 +168,16 @@ export function FiveThingsDesk() {
     }
   });
 
-  const canDevelop = titles.length === 5 && wordCount >= 400 && writeup.length >= 1_500 && title.trim().length > 0 && title.trim().length <= 100;
+  const canDevelop = draftLoaded && Boolean(specialty) && titles.length === 5 && wordCount >= 400 && writeup.length >= 1_500 && title.trim().length > 0 && title.trim().length <= 100;
   const working = pending || Boolean(broadcastId && !(delivery?.status === "failed" || (delivery?.status === "verified" && delivery.publicReachable)));
 
   return <section className="grid gap-5">
     <div className="border-2 border-broadcast/30 bg-white p-5 shadow-panel">
       <div className="flex items-center gap-2"><ListChecks className="h-5 w-5 text-broadcast" /><h2 className="text-2xl font-black">5 Things to Know</h2></div>
       <p className="mt-2 max-w-4xl text-sm font-semibold leading-6 text-ink/65">Paste a completed Claude or Grok write-up with exactly five numbered items. Source URLs are optional. ConferenceHype preserves the supplied evidence, develops one search-focused title and one fixed thumbnail, renders the narration, publishes it, and verifies the public YouTube video.</p>
-      <label className="mt-5 grid gap-1 text-xs font-black uppercase text-ink/55">Specialty
-        <select ref={specialtyField} value={specialty} onChange={(event) => setSpecialty(event.target.value as (typeof FIVE_THINGS_SPECIALTIES)[number])} className="min-h-12 border border-ink/20 bg-white px-3 text-sm font-semibold normal-case text-ink">
+      <label className="mt-5 grid gap-1 text-xs font-black uppercase text-ink/55">Specialty for this video (required)
+        <select ref={specialtyField} value={specialty} required disabled={working || !draftLoaded} onChange={(event) => setSpecialty(event.target.value as (typeof FIVE_THINGS_SPECIALTIES)[number] | "")} className="min-h-12 border border-ink/20 bg-white px-3 text-sm font-semibold normal-case text-ink">
+          <option value="" disabled>Select a specialty</option>
           {FIVE_THINGS_SPECIALTIES.map((value) => <option key={value}>{value}</option>)}
         </select>
       </label>
@@ -187,14 +194,14 @@ export function FiveThingsDesk() {
         <span className={wordCount >= 400 ? "text-emerald-700" : ""}>{wordCount} words · minimum 400</span>
       </div>
       <div className="mt-4 border border-cyanline/25 bg-cyanline/10 p-3">
-        <label className="grid gap-1 text-xs font-black uppercase text-ink/55">Search-focused YouTube title
-          <input value={title} onChange={(event) => setTitleOverride(event.target.value)} disabled={working} maxLength={100} className="min-h-12 w-full border border-ink/20 bg-white px-3 text-sm font-semibold normal-case text-ink" />
+        <label className="grid gap-1 text-xs font-black uppercase text-ink/55">YouTube title (editable)
+          <input value={title} onChange={(event) => setTitleOverride(event.target.value)} placeholder="Choose a specialty for a suggested title, or enter your own" disabled={working || !draftLoaded} maxLength={100} className="min-h-12 w-full border border-ink/20 bg-white px-3 text-sm font-semibold normal-case text-ink" />
         </label>
         <div className="mt-1 flex items-center justify-between gap-3 text-xs font-semibold text-ink/55">
           <span>{title.length}/100 characters · Edit before publishing.</span>
           <button type="button" disabled={working || titleOverride === null} onClick={() => setTitleOverride(null)} className="underline disabled:opacity-50">Use suggested title</button>
         </div>
-        <div className="mt-3 text-xs font-black uppercase text-ink/55">Topics · {specialty}</div>
+        <div className="mt-3 text-xs font-black uppercase text-ink/55">Topics · {specialty || "Select a specialty"}</div>
         {titles.length ? <ol className="mt-1 list-decimal space-y-1 pl-5 text-sm font-semibold text-ink">{titles.map((topic, index) => <li key={index}>{topic}</li>)}</ol> : <p className="mt-1 text-sm text-ink/55">The five item topics will appear here after you paste the write-up.</p>}
         <div className="mt-1 text-xs font-semibold text-ink/50">Thumbnail and first slide: full title above · first three item topics.</div>
       </div>
