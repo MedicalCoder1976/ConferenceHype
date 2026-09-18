@@ -60,6 +60,21 @@ def stamp(seconds):
     return f"{hours:02}:{minutes:02}:{seconds:02},{milliseconds:03}"
 
 
+def thumbnail(title, language, output):
+    image = Image.new("RGB", (1280, 720), "#101721")
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((0, 0, 1280, 14), fill="#ef5449")
+    draw.text((60, 55), "CONFERENCEHYPE", font=ImageFont.truetype(FONT, 35), fill="#59c6cf")
+    draw.text((60, 123), LABELS[language], font=ImageFont.truetype(FONT, 36), fill="#f3f4f6")
+    lines = wrap(title, 64, 1150)
+    if len(lines) > 4:
+        raise ValueError("Thumbnail headline is too long")
+    for index, line in enumerate(lines):
+        draw.text((60, 230 + index * 87), line, font=ImageFont.truetype(FONT, 64), fill="#efbb53")
+    draw.rectangle((0, 706, 1280, 720), fill="#59c6cf")
+    image.save(output)
+
+
 async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--package", required=True)
@@ -125,7 +140,7 @@ async def main():
     run(["-f", "concat", "-safe", "0", "-i", concat, "-c", "copy", "-movflags", "+faststart", video])
     subtitles = output / "edition.srt"
     subtitles.write_text("\n\n".join(f"{i + 1}\n{stamp(start)} --> {stamp(end)}\n{text}" for i, (start, end, text) in enumerate(cues)) + "\n", encoding="utf-8")
-    slide(edition["title"], [], args.language, output / "thumbnail.png", "WCLC 2026 | ConferenceHype")
+    thumbnail(edition["title"], args.language, output / "thumbnail.png")
     metadata = {**edition, "language": args.language, "broadcast_id": package["broadcast_id"], "source_video_id": package["source_video_id"], "video_path": "edition.mp4", "subtitle_path": "edition.srt", "thumbnail_path": "thumbnail.png", "duration_seconds": cursor, "package_sha256": hashlib.sha256(package_path.read_bytes()).hexdigest(), "video_sha256": hashlib.sha256(video.read_bytes()).hexdigest(), "quality": {"narration_pages": quality, "music_windows": 0}}
     (output / "release.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"Complete: {cursor:.1f} seconds, {len(parts)} narration pages", flush=True)
