@@ -1,0 +1,34 @@
+{
+  "source_video_id": "o6PN9SkWxAM",
+  "package": "content/localizations/wclc-five-things-20260918.json",
+  "editorial_note": "Corrected, condensed Korean and Japanese editions with narration only and localized like-and-subscribe closing.",
+  "verified_at_utc": "2026-09-18T23:40:46.0236640Z",
+  "editions": [
+    {
+      "language": "ko",
+      "video_id": "R4JwI7UMVTA",
+      "url": "https://www.youtube.com/watch?v=R4JwI7UMVTA",
+      "title": "WCLC 2026: 폐암 진료를 바꾸는 다섯 가지 진전 [한국어]",
+      "audio_language": "ko",
+      "privacy": "public",
+      "upload_status": "processed",
+      "duration": "PT4M52S",
+      "verified": "verified"
+    },
+    {
+      "language": "ja",
+      "video_id": "nD4QfWJ0YTE",
+      "url": "https://www.youtube.com/watch?v=nD4QfWJ0YTE",
+      "title": "WCLC 2026：肺がん診療を変える5つの進展【日本語】",
+      "audio_language": "ja",
+      "privacy": "public",
+      "upload_status": "processed",
+      "duration": "PT5M43S",
+      "verified": "verified"
+    }
+  ],
+  "render_run": "https://github.com/MedicalCoder1976/ConferenceHype/actions/runs/35373769864",
+  "korean_publish_run": "https://github.com/MedicalCoder1976/ConferenceHype/actions/runs/35374304486",
+  "japanese_verified_publish_run": "https://github.com/MedicalCoder1976/ConferenceHype/actions/runs/35406530771",
+  "public_oembed_verified": true
+}
