@@ -1,4 +1,5 @@
 import { loadEnvConfig } from "@next/env";
+import { writeFile } from "node:fs/promises";
 
 loadEnvConfig(process.cwd());
 
@@ -106,7 +107,19 @@ async function main() {
     }
   }
 
-  console.log(JSON.stringify({ ok: true, videoId, privacyStatus }, null, 2));
+  for (let attempt = 0; attempt < 18; attempt += 1) {
+    const verification = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=status,snippet,contentDetails&id=${encodeURIComponent(videoId)}`, { headers: { Authorization: authorization } });
+    if (!verification.ok) throw new Error(`YouTube verification failed: ${verification.status}`);
+    const current = (await verification.json()).items?.[0];
+    if (current?.status?.privacyStatus === privacyStatus && (privacyStatus !== "public" || current.status.uploadStatus === "processed")) {
+      const evidence = { ok: true, videoId, privacyStatus, uploadStatus: current.status.uploadStatus, title: current.snippet.title, duration: current.contentDetails.duration, verifiedAt: new Date().toISOString() };
+      await writeFile("youtube-privacy-result.json", JSON.stringify(evidence, null, 2));
+      console.log(JSON.stringify(evidence, null, 2));
+      return;
+    }
+    await new Promise(resolve => setTimeout(resolve, 10000));
+  }
+  throw new Error("YouTube privacy/processing state did not verify.");
 }
 
 main().catch((error) => {
