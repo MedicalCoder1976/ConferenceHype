@@ -7,6 +7,15 @@ on:
         description: "meeting_watch_broadcasts UUID to render immediately, bypassing the due-time poll"
         required: false
         default: ""
+      privacy_status:
+        description: "Upload privately for review or publish normally"
+        type: choice
+        options: [public, private]
+        default: public
+      repair_story_narration:
+        description: "Rebuild Story cards from cleaned narrative before rendering (private only)"
+        type: boolean
+        default: false
   schedule:
     # Originally */15 (every 15 min). Confirmed live on 2026-07-27: with
     # this many scheduled workflows already competing in the repo (this
@@ -44,6 +53,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-meeting-watch-render-${{ hashFiles('package-lock.json', 'scripts/generate-kokoro-dj-voice.py') }}-
       - run: npm ci
+      - name: Verify narration safeguards
+        run: npm run test:story-publish && npm run test:guards
+      - name: Repair pasted Story metadata
+        if: ${{ inputs.repair_story_narration }}
+        run: npx tsx scripts/repair-story-narration.ts
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          MEETING_WATCH_BROADCAST_ID: ${{ inputs.meeting_watch_broadcast_id }}
+          YOUTUBE_PRIVACY_STATUS: ${{ inputs.privacy_status }}
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
       - name: Resolve due Meeting Watch broadcast
@@ -161,15 +180,16 @@ jobs:
           BROADCAST_TITLE: ${{ steps.resolve.outputs.title }}
           BROADCAST_DESCRIPTION: ${{ steps.resolve.outputs.description }}
           YOUTUBE_PUBLISH_AT: ${{ steps.resolve.outputs.starts_at }}
+          YOUTUBE_PRIVACY_STATUS: ${{ inputs.privacy_status }}
           PUBLIC_SITE_URL: https://conferencehype.com
           YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
           YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
           YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
-          X_API_KEY: ${{ secrets.X_API_KEY }}
-          X_API_SECRET: ${{ secrets.X_API_SECRET }}
-          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
-          X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
           HOUR_BROADCAST_OUTPUT: public/rendered/conferencehype-meeting-watch.mp4
+          X_API_KEY: ${{ inputs.privacy_status != 'private' && secrets.X_API_KEY || '' }}
+          X_API_SECRET: ${{ inputs.privacy_status != 'private' && secrets.X_API_SECRET || '' }}
+          X_ACCESS_TOKEN: ${{ inputs.privacy_status != 'private' && secrets.X_ACCESS_TOKEN || '' }}
+          X_ACCESS_TOKEN_SECRET: ${{ inputs.privacy_status != 'private' && secrets.X_ACCESS_TOKEN_SECRET || '' }}
           KOKORO_PYTHON_CMD: python3
           VOICE_AETHER_VALE: ${{ secrets.VOICE_AETHER_VALE }}
           VOICE_AMARA_SOL: ${{ secrets.VOICE_AMARA_SOL }}
@@ -188,6 +208,18 @@ jobs:
           VOICE_SOFIA_REYES: ${{ secrets.VOICE_SOFIA_REYES }}
           VOICE_TALIA_STONE: ${{ secrets.VOICE_TALIA_STONE }}
           VOICE_VESPER_QUILL: ${{ secrets.VOICE_VESPER_QUILL }}
+
+      - name: Save narration review artifacts
+        if: ${{ always() && steps.resolve.outputs.broadcast_id != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: meeting-watch-narration-review
+          retention-days: 14
+          path: |
+            public/rendered/story-repair/*.json
+            public/rendered/hour-broadcast/narration-audit.json
+            public/rendered/hour-broadcast/opening-title-thumbnail.png
+            public/rendered/conferencehype-meeting-watch.mp4
 
       - name: Record failed Meeting Watch delivery
         if: ${{ failure() && steps.resolve.outputs.broadcast_id != '' && steps.render.outputs.no_content_failure_recorded != 'true' }}

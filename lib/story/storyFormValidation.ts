@@ -1,7 +1,9 @@
+import { cleanNarrationText } from "@/lib/media/narrationText";
+
 export function cleanStoryNarrative(value: string) {
-  return value.replace(/^#{1,6}\s+/gm, "").replace(/^[-*]\s+/gm, "")
+  return cleanNarrationText(value.replace(/^#{1,6}\s+/gm, "").replace(/^[-*]\s+/gm, "")
     .replace(/\*\*(.*?)\*\*/g, "$1").replace(/\*(.*?)\*/g, "$1")
-    .replace(/\s+/g, " ").trim();
+  );
 }
 
 export function storyWordCount(value: string) {

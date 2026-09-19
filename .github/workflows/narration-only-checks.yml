@@ -2,9 +2,9 @@ name: Narration-only broadcast checks
 on:
   push:
     branches: [main]
-    paths: ['lib/broadcast/**', 'lib/media/**', 'scripts/**', '.github/workflows/narration-only-checks.yml']
+    paths: ['lib/story/**', 'lib/broadcast/**', 'lib/media/**', 'scripts/**', '.github/workflows/narration-only-checks.yml']
   pull_request:
-    paths: ['lib/broadcast/**', 'lib/media/**', 'scripts/**', '.github/workflows/narration-only-checks.yml']
+    paths: ['lib/story/**', 'lib/broadcast/**', 'lib/media/**', 'scripts/**', '.github/workflows/narration-only-checks.yml']
 permissions:
   contents: read
 jobs:

@@ -211,6 +211,7 @@ export function StoryDesk() {
         </label>
         <label className="mt-4 grid gap-1 text-xs font-black uppercase text-ink/55">
           Claude narrative
+          <span className="block text-sm font-normal">Paste only the spoken narrative. Keep Title, Topic, source URLs, and thumbnail instructions in their separate fields. Narration must contain no headings, links, code fences, music, or production directions.</span>
           <textarea value={narrative} onChange={(event) => setNarrative(event.target.value)} rows={22} placeholder="Paste Claude's complete, source-supported meeting review here…" className="w-full border border-ink/20 px-3 py-3 text-sm font-semibold normal-case leading-6 text-ink" />
           <span className={wordCount >= 420 ? "font-semibold normal-case text-emerald-700" : "font-semibold normal-case text-ink/45"}>{wordCount} words · minimum 420</span>
         </label>

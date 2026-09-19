@@ -1,4 +1,5 @@
 import { prepareNarrationOnlyCards, assertNarrationOnlyCards } from "@/lib/broadcast/narrationOnly";
+import { assertCleanNarration } from "@/lib/media/narrationText";
 import { buildNarrationAudioArgs } from "@/lib/media/ffmpeg";
 import { existsSync } from "node:fs";
 import { mkdir, rename, rm, writeFile } from "node:fs/promises";
@@ -1727,7 +1728,7 @@ async function uploadRenderedBroadcast(
     const { updateMeetingWatchBroadcastDeliveryInDb } = await import("@/lib/meetingWatch/db");
     await withRetry(() =>
       updateMeetingWatchBroadcastDeliveryInDb(process.env.MEETING_WATCH_BROADCAST_ID!, {
-        status: "verified",
+        status: requestedPrivacyStatus === "private" ? "uploaded" : "verified",
         youtubeVideoId,
         youtubeUrl,
         failureReason: null
@@ -1953,6 +1954,7 @@ async function main() {
     }
     const persona = getPersona(card.personaId);
     const processedScript = applySpokenPronunciations(card.script, pronunciationDefinitions.get(narrationGroupKey(card, index)) ?? new Map());
+    assertCleanNarration(processedScript);
     // replaceEmptyContentCardsWithMusic already screened out cards whose RAW
     // script is empty, but applySpokenPronunciations (stripping URLs,
     // bracketed citations, and internal operator-language sentences) can
@@ -1987,6 +1989,11 @@ async function main() {
     }
   }
 
+  await writeFile(path.join(renderDir, "narration-audit.json"), JSON.stringify({
+    broadcastId: process.env.MEETING_WATCH_BROADCAST_ID,
+    passed: true,
+    scripts: [...taskByCacheKey.values()].map(({ text, voice, speed }) => ({ text, voice, speed }))
+  }, null, 2));
   const tasks = [...taskByCacheKey.values()].filter((task) => !existsSync(task.cachePath));
 
   // Synthesize all uncached cards in one Python call â€” loads KPipeline once

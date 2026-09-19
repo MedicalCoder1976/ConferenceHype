@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { env } from "@/lib/env";
 import type { Persona } from "@/lib/types";
+import { cleanNarrationText, assertCleanNarration } from "@/lib/media/narrationText";
 
 // Convert Roman numerals to digits so TTS doesn't read "eye-eye-eye" instead of "three".
 // Context-aware for Stage/Phase/Type/Grade/Arm/Line (catches I–XII after those words).
@@ -164,6 +165,8 @@ function applyPharmaSpokenPronunciations(text: string) {
 }
 
 export function applySpokenPronunciations(script: string, sourceContext: string | ReadonlyMap<string, string> = script) {
+  script = cleanNarrationText(script);
+  assertCleanNarration(script);
   const definitions = typeof sourceContext === "string" ? extractSpokenAbbreviationDefinitions(sourceContext) : sourceContext;
   return applyPharmaSpokenPronunciations(expandMonthAbbreviations(expandRomanNumerals(expandDefinedAbbreviations(script, definitions))))
     // PubMed sometimes exposes a combined "BACKGROUND AND AIMS:" label.
