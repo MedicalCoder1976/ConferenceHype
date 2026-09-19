@@ -32,6 +32,7 @@ assert.equal(cleanStoryNarrative('[The trial](https://example.org/trial) reporte
 assert.throws(() => assertCleanNarration('Topic: an accidental label'), /refusing/);
 assert.throws(() => assertCleanNarration('Visit https://example.org'), /refusing/);
 assert.doesNotThrow(() => assertCleanNarration('On this topic, more evidence is needed.'));
+assert.equal(applySpokenPronunciations('Prior PD-(L)1 immunotherapy.'), 'Prior P D 1 or P D L 1 immunotherapy.');
 assert.equal(cleanStoryNarrative('Topic\nEvidence remains preliminary.\nURL\nhttps://example.org'), 'Evidence remains preliminary.');
 const retitledStoryHash = parsePreparedStory({
   ...storyFixture,

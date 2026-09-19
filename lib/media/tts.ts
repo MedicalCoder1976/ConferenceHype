@@ -207,6 +207,8 @@ export function applySpokenPronunciations(script: string, sourceContext: string 
     // Bullet points → sentence break
     .replace(/[•·]\s*/g, ". ")
     // Remove brackets and parentheses (often contain meta info like citations)
+    // PD-(L)1 includes both receptor and ligand inhibitors; never erase the L.
+    .replace(/\bPD-\(L\)1\b/gi, "P D 1 or P D L 1")
     .replace(/\[[^\]]{1,80}\]/g, "")
     .replace(/\([^)]{1,80}\)/g, "")
     // Percent sign → "percent"
