@@ -1,0 +1,48 @@
+{
+  "broadcast_id": "e8729ab3-230e-4690-ba30-8360ccc7f745",
+  "diagnosis": "Whole formatted response entered Story narration; sentence splitting broke its URL across cards, while deployed TTS lacked metadata-label removal.",
+  "original": {
+    "ok": true,
+    "videoId": "UApehuYwTqY",
+    "privacyStatus": "private",
+    "uploadStatus": "processed",
+    "title": "BioNTech WCLC 2026 Gotistobart and Pumitamig Steal the Show",
+    "duration": "PT5M45S",
+    "verifiedAt": "2026-09-19T23:51:20.071Z"
+  },
+  "replacement": {
+    "ok": true,
+    "videoId": "LF9lLPRlPbU",
+    "privacyStatus": "public",
+    "uploadStatus": "processed",
+    "title": "BioNTech WCLC 2026 Gotistobart and Pumitamig Steal the Show",
+    "duration": "PT5M6S",
+    "verifiedAt": "2026-09-19T23:56:00.435Z"
+  },
+  "replacement_url": "https://www.youtube.com/watch?v=LF9lLPRlPbU",
+  "private_review_video_id": "YJ40uppyK-U",
+  "render_revision": "fbf3277",
+  "render_run": "https://github.com/MedicalCoder1976/ConferenceHype/actions/runs/35477097507",
+  "release_run": "https://github.com/MedicalCoder1976/ConferenceHype/actions/runs/35477404636",
+  "video_sha256": "a6106bd192b18461539cfac7eb30a48de4708e459618f0ebcd4092a07144ccfc",
+  "qa": {
+    "tts_scripts_checked": 13,
+    "metadata_or_url_matches": 0,
+    "full_audio_transcription_checked": true,
+    "silence_over_two_seconds": 0,
+    "mean_volume_db": -22.8,
+    "max_volume_db": -2.5,
+    "thumbnail_reviewed": true,
+    "pd_l1_spoken_meaning_preserved": true,
+    "engagement_closing_verified": true,
+    "public_oembed_verified": true
+  },
+  "preventive_measures": [
+    "Clean narration before sentence splitting",
+    "Final TTS validation",
+    "Exact failure regression fixtures and pre-render CI checks",
+    "Persistent AGENTS.md narration instructions",
+    "Admin input reminder",
+    "Private review artifacts and verified publication"
+  ]
+}
