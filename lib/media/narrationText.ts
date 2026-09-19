@@ -13,12 +13,13 @@ export function cleanNarrationText(value: string): string {
     .replace(/\bwww\s*\.\s*(?:[a-z0-9-]+\s*\.\s*)+[a-z]{2,}(?:\/[^\s`<>]*)?/gi, " ")
     .replace(/\b[a-z0-9-]+\.(?:com|org|net|gov|edu|io)(?:\/[^\s`<>]*)?\b/gi, " ")
     .replace(/```(?:text|plaintext|markdown)?/gi, " ")
+    .replace(/^\s*(?:#{1,6}\s*)?(?:Title|Topic|Narrative|Background|Primary source URL|Source URL|URL)\s*$/gim, " ")
     .replace(/\b(?:Primary source URL|Source URL|URL|Topic|Title|Narrative|Background)\s*[:：]\s*/gi, " ")
     .replace(/\s+/g, " ").trim();
 }
 
 export function assertCleanNarration(value: string): void {
-  if (/https?\s*:|\bwww\s*\.|```|\b(?:primary source url|source url|url|topic|title|narrative)\s*[:：,]/i.test(value)) {
+  if (/https?\s*:|\bwww\s*\.|```|\b(?:primary source url|source url|url|topic|title|narrative)\s*[:：]/i.test(value)) {
     throw new Error("Narration contains a URL or structural metadata label; refusing synthesis and publication.");
   }
 }

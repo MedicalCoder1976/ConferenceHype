@@ -31,6 +31,8 @@ assert.equal(cleanStoryNarrative('Results remained at 18.5 months. https://www. 
 assert.equal(cleanStoryNarrative('[The trial](https://example.org/trial) reported 44.4% versus 48.8%.'), 'The trial reported 44.4% versus 48.8%.');
 assert.throws(() => assertCleanNarration('Topic: an accidental label'), /refusing/);
 assert.throws(() => assertCleanNarration('Visit https://example.org'), /refusing/);
+assert.doesNotThrow(() => assertCleanNarration('On this topic, more evidence is needed.'));
+assert.equal(cleanStoryNarrative('Topic\nEvidence remains preliminary.\nURL\nhttps://example.org'), 'Evidence remains preliminary.');
 const retitledStoryHash = parsePreparedStory({
   ...storyFixture,
   title: "Revised complete Story title",
