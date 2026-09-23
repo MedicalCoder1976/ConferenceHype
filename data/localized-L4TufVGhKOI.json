@@ -1,0 +1,198 @@
+{
+  "source_video_id": "L4TufVGhKOI",
+  "broadcast_id": "0703aa1a-dfeb-4d6f-bf7e-32fbf2cea688",
+  "source_title": "Novo Nordisk Stock Falls Despite $23B Target as CagriSema Tops Tirzepatide 5 mg",
+  "source_url": "https://www.cnbc.com/2026/09/21/novo-nordisk-stock-sales-target-obesity-drugs.html",
+  "languages": {
+    "ko": {
+      "title": "노보 노디스크 주가 하락…230억 달러 목표·카그리세마, 티르제파타이드 5mg 대비 체중 감소 우위 [한국어]",
+      "thumbnail": [
+        "노보 노디스크 주가 하락",
+        "230억 달러 매출 목표",
+        "카그리세마 vs 티르제파타이드 5mg"
+      ],
+      "description": "노보 노디스크의 2030년 성장 목표와 2035년 개발 의약품 매출 목표, 카그리세마의 REIMAGINE 5 및 REDEFINE 9 결과를 다룬 ConferenceHype 원본 영상의 한국어판입니다. 티르제파타이드와의 비교는 5mg 용량에 한정됩니다. 내용과 일정은 2026년 9월 21일 원본 보도 기준입니다.",
+      "segments": [
+        {
+          "id": "ecd6bb04-410d-4915-9d24-537399b942d6",
+          "title_localized": "노보 노디스크 주가 하락",
+          "script_localized": "노보 노디스크는 9월 21일 월요일 런던에서 열린 자본시장 설명회에서 2030년까지의 목표를 제시했지만, 투자자들은 회의적인 반응을 보였습니다. 회사가 개발 중인 의약품의 매출 목표를 공개했음에도 주가는 장 초반 한때 7퍼센트까지 하락했습니다.",
+          "source_script": "Novo Nordisk used its Capital Markets Day in London on Monday, September 21, to lay out its ambitions through 2030, and investors responded with skepticism. The stock fell as much as seven percent in early trading, even as the company put a headline number on its pipeline."
+        },
+        {
+          "id": "29210d51-1049-4eb6-a18c-9d6f4dc992d6",
+          "title_localized": "2035년 매출 목표",
+          "script_localized": "노보 노디스크는 2030년까지 초대형 블록버스터 의약품을 5개 넘게 출시하고, 2035년까지 개발 중인 의약품에서 위험을 반영한 매출 기준으로 1,500억 덴마크 크로네, 약 230억 달러를 넘는 매출을 창출하는 것을 목표로 한다고 밝혔습니다. 이 수치에는 현재 보유한 자산이 포함됩니다.",
+          "source_script": "Novo Nordisk said it aims to launch more than five multi-blockbuster medicines by 2030 and to generate more than 150 billion Danish kroner, about 23 billion dollars, in risk-adjusted pipeline sales by 2035, a figure that includes its current assets."
+        },
+        {
+          "id": "ad935b71-f0d3-4b66-a59d-f76e9da90301",
+          "title_localized": "성장률과 수익성 전망",
+          "script_localized": "나머지 목표는 일부 투자자들이 원했던 것보다 신중했습니다. 마이크 두스트다르 최고경영자는 노보 노디스크가 2026년부터 2030년까지 다른 대형 제약회사들과 비슷한 수준의 매출 성장률을 예상하며, 영업이익률은 대체로 안정적으로 유지하고 매력적인 배당을 제공할 계획이라고 밝혔습니다.",
+          "source_script": "The rest of the targets were more measured than some investors wanted. Chief executive Mike Doustdar said Novo Nordisk expects revenue growth between 2026 and 2030 to be in line with other large pharmaceutical companies, with a broadly stable operating margin and an attractive dividend."
+        },
+        {
+          "id": "fb60fd4a-0e8a-4355-b36a-0b38d31f737d",
+          "title_localized": "경구용 GLP-1 의약품 공급 확대",
+          "script_localized": "회사는 경구용 GLP-1 의약품을 사용하는 비만 환자 수를 10배로 늘릴 수 있도록 생산 역량을 확대하고, 2030년까지 전 세계에서 6,000만 명이 넘는 환자에게 의약품을 제공하겠다고 밝혔습니다.",
+          "source_script": "The company said it will scale capacity to serve ten times more people with obesity on oral GLP-1 medicines and reach more than 60 million patients globally by 2030."
+        },
+        {
+          "id": "7f79da1e-8a0f-4348-9613-cbb41fd7d6d9",
+          "title_localized": "임상 3상 개발 계획",
+          "script_localized": "또한 비만과 당뇨병 분야에서 최소 5개의 임상 3상 프로그램을, 다른 치료 분야에서도 최소 5개의 임상 3상 프로그램을 추진할 계획입니다.",
+          "source_script": "It also plans at least five Phase 3 programs in obesity and diabetes and at least five in other therapy areas."
+        },
+        {
+          "id": "b87f2d58-5296-493a-99b3-7ac89beef5bc",
+          "title_localized": "다른 질환 분야로 투자 확대",
+          "script_localized": "두스트다르 최고경영자는 노보 노디스크가 당뇨병과 비만 이외의 질환 분야에 대한 투자를 늘리고, 사업 개발에도 더욱 적극적으로 나설 것이라고 말했습니다. 이는 회사가 GLP-1 사업에 지나치게 의존하고 있다는 투자자들의 우려와 관련이 있습니다.",
+          "source_script": "Doustdar said Novo Nordisk will invest more in disease areas beyond diabetes and obesity and will be more active in business development, which speaks to investor concern that the company relies too heavily on its GLP-1 franchise."
+        },
+        {
+          "id": "17a7dc97-71fe-4a8a-8229-abc6b2dce48b",
+          "title_localized": "ConferenceHype 안내",
+          "script_localized": "ConferenceHype는 인공지능을 활용한 쌍방향 논평만을 제공합니다. 보도, 저널리즘, 의학 교육, 임상 지침, 과학적 검증, 법률 자문 또는 재무 자문을 제공하지 않습니다. ConferenceHype는 독립적으로 운영되며 학회 주최자, 발표자, 후원사 또는 전시 참가업체와 제휴 관계가 없습니다.",
+          "source_script": "ConferenceHype is interactive AI commentary only. It is not reporting, journalism, medical education, clinical guidance, scientific validation, legal advice, or financial advice. ConferenceHype is independent and is not affiliated with conference organizers, presenters, sponsors, or exhibitors."
+        },
+        {
+          "id": "e5e9da37-2b12-469c-b540-103a7f573aa9",
+          "title_localized": "투자자 기대에 못 미친 성장 목표",
+          "script_localized": "보도에 인용된 분석가들은 경쟁사들과 비슷한 수준의 성장 목표가 시장이 기대했던 포부에 미치지 못한다고 평가했습니다. 이는 주가 반응을 설명하는 데 도움이 됩니다.",
+          "source_script": "Analysts cited in coverage said a growth target in line with peers falls short of the ambition the market wanted, which helps explain the share price reaction."
+        },
+        {
+          "id": "46fddd1c-93b7-482e-b3ba-875b980fac73",
+          "title_localized": "카그리세마 임상 3상 주요 결과",
+          "script_localized": "같은 날 노보 노디스크는 카그리세마에 대한 두 건의 임상 3상 시험의 주요 결과를 발표했습니다. 카그리세마는 아밀린 수용체 작용제인 카그릴린타이드와 GLP-1 수용체 작용제인 세마글루타이드를 결합한 주 1회 투여 복합제입니다.",
+          "source_script": "On the same day, Novo Nordisk reported topline results from two Phase 3 trials of CagriSema, its once-weekly combination of cagrilintide, an amylin receptor agonist, and semaglutide, a GLP-1 receptor agonist."
+        },
+        {
+          "id": "23917691-0764-4452-bfc6-e3451384480c",
+          "title_localized": "REIMAGINE 5의 비교 용량",
+          "script_localized": "리이매진 5 시험에서는 메트포르민, SGLT2 억제제 또는 두 약물을 함께 사용해도 혈당이 충분히 조절되지 않는 성인 제2형 당뇨병 환자에게 각 성분 1.0밀리그램씩의 카그리세마 또는 티르제파타이드 5밀리그램을 주 1회 투여했습니다.",
+          "source_script": "In REIMAGINE 5, adults with type 2 diabetes inadequately controlled on metformin, an SGLT2 inhibitor or both received CagriSema at 1.0 milligram of each drug, or tirzepatide 5 milligrams, once weekly."
+        },
+        {
+          "id": "2ad127d8-3fba-460c-87cc-1eff05d3e1cf",
+          "title_localized": "60주 체중 및 혈당 결과",
+          "script_localized": "60주 시점에서 카그리세마의 체중 감소율은 12.4퍼센트였고, 티르제파타이드는 9.1퍼센트였습니다. 티르제파타이드는 일라이 릴리가 마운자로라는 이름으로 판매하는 의약품입니다. 카그리세마는 혈당 조절에서 비열등성을 보였으며, 당화혈색소 감소 폭은 1.71퍼센트로, 티르제파타이드의 1.67퍼센트와 비교됐습니다.",
+          "source_script": "At week 60, CagriSema produced weight loss of 12.4 percent compared with 9.1 percent for tirzepatide, which is Eli Lilly's medicine sold as Mounjaro. CagriSema was non-inferior on blood sugar control, lowering HbA1c by 1.71 percent versus 1.67 percent."
+        },
+        {
+          "id": "812f9aca-2e87-4df3-a103-381d3d8e1b01",
+          "title_localized": "비교 결과 해석의 한계",
+          "script_localized": "이번 비교에 사용된 티르제파타이드 용량은 5밀리그램이며, 사용 가능한 더 높은 용량과 비교한 것은 아닙니다. 이는 결과를 해석할 때 고려해야 할 중요한 한계입니다.",
+          "source_script": "The comparison is against the 5 milligram dose of tirzepatide rather than the higher doses available, which is an important limit on how the result should be read."
+        },
+        {
+          "id": "4dc91164-e4e3-4820-8b38-430c16a990ac",
+          "title_localized": "REDEFINE 9와 향후 일정",
+          "script_localized": "노보 노디스크는 과체중 또는 비만 성인을 대상으로 카그리세마의 두 가지 용량을 위약과 비교한 임상 3상 리디파인 9 시험 결과도 발표했습니다. 회사에 따르면 68주 시점의 체중 감소율은 카그리세마 21퍼센트, 위약 2퍼센트였으며, 수축기 혈압, 허리둘레 대 키 비율, 공복 지질 수치도 개선됐습니다. 노보 노디스크는 두 시험 모두에서 카그리세마의 내약성이 양호했고, 안전성 양상이 이전 연구와 일치했다고 밝혔습니다. 회사는 체중 관리를 위한 카그리세마의 신약 허가 신청서를 2025년 12월 미국 식품의약국에 제출했으며, 2026년 4분기에 결정이 나올 것으로 예상한다고 밝혔습니다. 카그리세마에 대한 추가 데이터 발표도 예정되어 있습니다. 노보 노디스크는 9월 30일 수요일 밀라노에서 열리는 유럽당뇨병학회 학술대회에서 리이매진 1, 2, 3 프로그램을 발표할 예정입니다. 같은 날 나온 두 발표는 서로 다른 메시지를 전달했습니다. 개발 중인 의약품의 임상 결과는 릴리 제품의 한 가지 용량과 직접 비교했을 때 체중 감소에서 우위를 보였지만, 재무 목표는 투자자들에게 업계와 비슷한 수준의 성장을 예상하도록 했고, 주가는 하락했습니다.",
+          "source_script": "Novo Nordisk also reported REDEFINE 9, a Phase 3 trial in adults with overweight or obesity that tested CagriSema at two dose levels against placebo. Novo Nordisk reported weight loss of 21 percent versus 2 percent for placebo at week 68, along with improvements in systolic blood pressure, waist-to-height ratio and fasting lipids. In both trials, Novo Nordisk said CagriSema was well tolerated, with a safety profile consistent with earlier studies. The company states that it submitted a New Drug Application for CagriSema to the US Food and Drug Administration for weight management in December 2025, with a decision anticipated in the fourth quarter of 2026. More CagriSema data are already scheduled. Novo Nordisk will present the REIMAGINE 1, 2 and 3 program in a scientific session at the European Association for the Study of Diabetes meeting in Milan on Wednesday, September 30. The two announcements carried different messages on the same day. The pipeline results gave Novo Nordisk a head-to-head weight-loss win against a Lilly product at one dose, while the financial targets told investors to expect growth in line with the industry, and the share price fell."
+        },
+        {
+          "id": "9ebdb2db-6eda-434c-9e88-d79441a21f37",
+          "title_localized": "이야기를 마치며",
+          "script_localized": "지금까지 노보 노디스크 자본시장 설명회에서 제시된 2035년까지의 개발 의약품 매출 목표 1,500억 덴마크 크로네, 2030년 성장 목표, 그리고 리이매진 5에서 티르제파타이드와 비교한 카그리세마의 결과를 살펴봤습니다. 여러분의 생각을 댓글로 남기고, 동료와 이 이야기를 공유해 주세요. 다음 ConferenceHype 이야기도 만나보실 수 있도록 구독해 주세요.",
+          "source_script": "That is the story of Novo Nordisk Capital Markets Day: DKK 150B pipeline sales target by 2035, 2030 growth goals, and CagriSema REIMAGINE 5 win over tirzepatide. Add your perspective in the comments, share this story with a colleague, and subscribe for the next ConferenceHype narrative."
+        }
+      ]
+    },
+    "ja": {
+      "title": "ノボ株下落、230億ドル目標も：カグリセマがチルゼパチド5mgとの比較で体重減少に優位性 [日本語]",
+      "thumbnail": [
+        "ノボ ノルディスク株下落",
+        "230億ドルの売上目標",
+        "カグリセマ 対 チルゼパチド5mg"
+      ],
+      "description": "ノボ ノルディスクの2030年の成長目標と2035年の開発医薬品売上目標、カグリセマのREIMAGINE 5およびREDEFINE 9の結果を扱ったConferenceHype動画の日本語版です。チルゼパチドとの比較は5mg用量に限られます。内容と予定は2026年9月21日の元の報道に基づきます。",
+      "segments": [
+        {
+          "id": "ecd6bb04-410d-4915-9d24-537399b942d6",
+          "title_localized": "ノボ ノルディスク株が下落",
+          "script_localized": "ノボ ノルディスクは9月21日月曜日、ロンドンで開催した資本市場説明会で2030年までの目標を示しましたが、投資家は懐疑的な反応を示しました。同社が開発中の医薬品の売上目標を公表したにもかかわらず、株価は取引開始直後に一時7パーセント下落しました。",
+          "source_script": "Novo Nordisk used its Capital Markets Day in London on Monday, September 21, to lay out its ambitions through 2030, and investors responded with skepticism. The stock fell as much as seven percent in early trading, even as the company put a headline number on its pipeline."
+        },
+        {
+          "id": "29210d51-1049-4eb6-a18c-9d6f4dc992d6",
+          "title_localized": "2035年の売上目標",
+          "script_localized": "ノボ ノルディスクは、2030年までに大型ブロックバスター医薬品を5品目超発売し、2035年までに開発中の医薬品によるリスク調整後売上高を1,500億デンマーククローネ、約230億米ドル超にすることを目指すと述べました。この数字には現在保有する資産も含まれています。",
+          "source_script": "Novo Nordisk said it aims to launch more than five multi-blockbuster medicines by 2030 and to generate more than 150 billion Danish kroner, about 23 billion dollars, in risk-adjusted pipeline sales by 2035, a figure that includes its current assets."
+        },
+        {
+          "id": "ad935b71-f0d3-4b66-a59d-f76e9da90301",
+          "title_localized": "成長率と収益性の見通し",
+          "script_localized": "その他の目標は、一部の投資家が望んでいたものより慎重でした。最高経営責任者のマイク・ダウストダー氏は、2026年から2030年までの売上成長率について、他の大手製薬会社と同程度を見込み、営業利益率はおおむね安定した水準を維持し、魅力的な配当を提供すると述べました。",
+          "source_script": "The rest of the targets were more measured than some investors wanted. Chief executive Mike Doustdar said Novo Nordisk expects revenue growth between 2026 and 2030 to be in line with other large pharmaceutical companies, with a broadly stable operating margin and an attractive dividend."
+        },
+        {
+          "id": "fb60fd4a-0e8a-4355-b36a-0b38d31f737d",
+          "title_localized": "経口GLP-1薬の供給拡大",
+          "script_localized": "同社は、経口GLP-1薬を使用する肥満症患者に対応できる規模を10倍に拡大し、2030年までに世界で6,000万人を超える患者に医薬品を届けるため、生産能力を増強すると述べました。",
+          "source_script": "The company said it will scale capacity to serve ten times more people with obesity on oral GLP-1 medicines and reach more than 60 million patients globally by 2030."
+        },
+        {
+          "id": "7f79da1e-8a0f-4348-9613-cbb41fd7d6d9",
+          "title_localized": "第3相試験の開発計画",
+          "script_localized": "また、肥満症と糖尿病の分野で少なくとも5つ、その他の治療分野でも少なくとも5つの第3相臨床開発プログラムを計画しています。",
+          "source_script": "It also plans at least five Phase 3 programs in obesity and diabetes and at least five in other therapy areas."
+        },
+        {
+          "id": "b87f2d58-5296-493a-99b3-7ac89beef5bc",
+          "title_localized": "他の疾患領域への投資",
+          "script_localized": "ダウストダー氏は、糖尿病と肥満症以外の疾患領域への投資を増やし、事業開発にも一段と積極的に取り組むと述べました。これは、同社がGLP-1事業に依存しすぎているという投資家の懸念に関わるものです。",
+          "source_script": "Doustdar said Novo Nordisk will invest more in disease areas beyond diabetes and obesity and will be more active in business development, which speaks to investor concern that the company relies too heavily on its GLP-1 franchise."
+        },
+        {
+          "id": "17a7dc97-71fe-4a8a-8229-abc6b2dce48b",
+          "title_localized": "ConferenceHypeからのお知らせ",
+          "script_localized": "ConferenceHypeは、AIを活用した双方向の論評のみを提供します。報道、ジャーナリズム、医学教育、臨床指針、科学的検証、法律上の助言、または金融上の助言を提供するものではありません。ConferenceHypeは独立して運営されており、学会の主催者、発表者、スポンサー、出展者とは提携していません。",
+          "source_script": "ConferenceHype is interactive AI commentary only. It is not reporting, journalism, medical education, clinical guidance, scientific validation, legal advice, or financial advice. ConferenceHype is independent and is not affiliated with conference organizers, presenters, sponsors, or exhibitors."
+        },
+        {
+          "id": "e5e9da37-2b12-469c-b540-103a7f573aa9",
+          "title_localized": "市場の期待に届かなかった目標",
+          "script_localized": "報道で引用されたアナリストは、同業他社並みという成長目標は市場が期待していた意欲的な水準に届かなかったと指摘しました。これは株価の反応を理解する手がかりになります。",
+          "source_script": "Analysts cited in coverage said a growth target in line with peers falls short of the ambition the market wanted, which helps explain the share price reaction."
+        },
+        {
+          "id": "46fddd1c-93b7-482e-b3ba-875b980fac73",
+          "title_localized": "カグリセマの第3相試験結果",
+          "script_localized": "同じ日にノボ ノルディスクは、カグリセマに関する2つの第3相試験の主要結果を発表しました。カグリセマは、アミリン受容体作動薬のカグリリンチドとGLP-1受容体作動薬のセマグルチドを組み合わせた、週1回投与の配合剤です。",
+          "source_script": "On the same day, Novo Nordisk reported topline results from two Phase 3 trials of CagriSema, its once-weekly combination of cagrilintide, an amylin receptor agonist, and semaglutide, a GLP-1 receptor agonist."
+        },
+        {
+          "id": "23917691-0764-4452-bfc6-e3451384480c",
+          "title_localized": "REIMAGINE 5の比較用量",
+          "script_localized": "リイマジン5試験では、メトホルミン、SGLT2阻害薬、またはその両方を使用しても血糖管理が不十分な成人の2型糖尿病患者に、各成分1.0ミリグラムのカグリセマ、またはチルゼパチド5ミリグラムを週1回投与しました。",
+          "source_script": "In REIMAGINE 5, adults with type 2 diabetes inadequately controlled on metformin, an SGLT2 inhibitor or both received CagriSema at 1.0 milligram of each drug, or tirzepatide 5 milligrams, once weekly."
+        },
+        {
+          "id": "2ad127d8-3fba-460c-87cc-1eff05d3e1cf",
+          "title_localized": "60週時点の体重と血糖の結果",
+          "script_localized": "60週時点の体重減少率は、カグリセマが12.4パーセント、チルゼパチドが9.1パーセントでした。チルゼパチドは、イーライリリーがマンジャロという製品名で販売する医薬品です。カグリセマは血糖管理で非劣性を示し、ヘモグロビンエーワンシーの低下幅は1.71パーセントで、チルゼパチドの1.67パーセントと比較されました。",
+          "source_script": "At week 60, CagriSema produced weight loss of 12.4 percent compared with 9.1 percent for tirzepatide, which is Eli Lilly's medicine sold as Mounjaro. CagriSema was non-inferior on blood sugar control, lowering HbA1c by 1.71 percent versus 1.67 percent."
+        },
+        {
+          "id": "812f9aca-2e87-4df3-a103-381d3d8e1b01",
+          "title_localized": "比較結果を解釈する際の限界",
+          "script_localized": "今回の比較対象はチルゼパチドの5ミリグラム用量であり、使用可能な、より高い用量ではありません。これは結果を解釈するうえで重要な制約です。",
+          "source_script": "The comparison is against the 5 milligram dose of tirzepatide rather than the higher doses available, which is an important limit on how the result should be read."
+        },
+        {
+          "id": "4dc91164-e4e3-4820-8b38-430c16a990ac",
+          "title_localized": "REDEFINE 9と今後の予定",
+          "script_localized": "ノボ ノルディスクは、過体重または肥満症の成人を対象に、カグリセマの2つの用量をプラセボと比較した第3相試験、リディファイン9の結果も発表しました。同社によると、68週時点の体重減少率はカグリセマが21パーセント、プラセボが2パーセントで、収縮期血圧、腹囲身長比、空腹時の脂質値も改善しました。ノボ ノルディスクは、両試験でカグリセマの忍容性は良好で、安全性プロファイルは過去の試験と一致していたと述べました。同社は、体重管理を目的とするカグリセマの新薬承認申請を2025年12月に米国食品医薬品局に提出し、2026年第4四半期の判断を見込んでいるとしています。カグリセマの追加データの発表も予定されています。ノボ ノルディスクは、9月30日水曜日にミラノで開催される欧州糖尿病学会の学術セッションで、リイマジン1、2、3のプログラムを発表する予定です。同日に行われた2つの発表は、異なるメッセージを伝えました。開発中の医薬品の試験結果では、リリー製品の1つの用量との直接比較で体重減少の優位性が示されました。一方、財務目標は業界並みの成長を見込む内容で、株価は下落しました。",
+          "source_script": "Novo Nordisk also reported REDEFINE 9, a Phase 3 trial in adults with overweight or obesity that tested CagriSema at two dose levels against placebo. Novo Nordisk reported weight loss of 21 percent versus 2 percent for placebo at week 68, along with improvements in systolic blood pressure, waist-to-height ratio and fasting lipids. In both trials, Novo Nordisk said CagriSema was well tolerated, with a safety profile consistent with earlier studies. The company states that it submitted a New Drug Application for CagriSema to the US Food and Drug Administration for weight management in December 2025, with a decision anticipated in the fourth quarter of 2026. More CagriSema data are already scheduled. Novo Nordisk will present the REIMAGINE 1, 2 and 3 program in a scientific session at the European Association for the Study of Diabetes meeting in Milan on Wednesday, September 30. The two announcements carried different messages on the same day. The pipeline results gave Novo Nordisk a head-to-head weight-loss win against a Lilly product at one dose, while the financial targets told investors to expect growth in line with the industry, and the share price fell."
+        },
+        {
+          "id": "9ebdb2db-6eda-434c-9e88-d79441a21f37",
+          "title_localized": "今回の話題を振り返って",
+          "script_localized": "今回は、ノボ ノルディスクの資本市場説明会で示された、2035年までの開発医薬品の売上目標1,500億デンマーククローネ、2030年の成長目標、そしてリイマジン5でチルゼパチドと比較したカグリセマの結果を取り上げました。皆さんのご意見をコメントでお寄せください。同僚にもこの話題を共有し、次のConferenceHypeの動画をご覧いただけるよう、チャンネル登録をお願いします。",
+          "source_script": "That is the story of Novo Nordisk Capital Markets Day: DKK 150B pipeline sales target by 2035, 2030 growth goals, and CagriSema REIMAGINE 5 win over tirzepatide. Add your perspective in the comments, share this story with a colleague, and subscribe for the next ConferenceHype narrative."
+        }
+      ]
+    }
+  }
+}
