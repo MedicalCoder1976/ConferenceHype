@@ -90,7 +90,8 @@ async def main():
     output.mkdir(parents=True, exist_ok=True)
     segments = list(edition["segments"])
     engagement = json.loads((Path(__file__).resolve().parents[1] / "lib/broadcast/engagement.json").read_text(encoding="utf-8"))
-    segments.append({"title": "ConferenceHype", "script": engagement[args.language]})
+    if edition.get("append_engagement", True):
+        segments.append({"title": "ConferenceHype", "script": engagement[args.language]})
     parts, cues, quality = [], [], []
     cursor = 0.0
     for index, segment in enumerate(segments):
@@ -112,7 +113,7 @@ async def main():
                 raise ValueError("Narration sentence is too long for a slide")
             key = f"{index:02}-{page:03}"
             image, audio, clip = (output / f"{key}.{extension}" for extension in ["png", "mp3", "mp4"])
-            slide(segment["title"], body, args.language, image, f"WCLC 2026 | {index + 1}/{len(segments)} | {page + 1}/{len(pages)}")
+            slide(segment["title"], body, args.language, image, f"{edition.get('event', 'WCLC 2026')} | {index + 1}/{len(segments)} | {page + 1}/{len(pages)}")
             for attempt in range(3):
                 try:
                     await edge_tts.Communicate(text, VOICES[args.language]).save(str(audio))
@@ -140,7 +141,7 @@ async def main():
     run(["-f", "concat", "-safe", "0", "-i", concat, "-c", "copy", "-movflags", "+faststart", video])
     subtitles = output / "edition.srt"
     subtitles.write_text("\n\n".join(f"{i + 1}\n{stamp(start)} --> {stamp(end)}\n{text}" for i, (start, end, text) in enumerate(cues)) + "\n", encoding="utf-8")
-    thumbnail(edition["title"], args.language, output / "thumbnail.png")
+    thumbnail(edition.get("thumbnail_title", edition["title"]), args.language, output / "thumbnail.png")
     metadata = {**edition, "language": args.language, "broadcast_id": package["broadcast_id"], "source_video_id": package["source_video_id"], "video_path": "edition.mp4", "subtitle_path": "edition.srt", "thumbnail_path": "thumbnail.png", "duration_seconds": cursor, "package_sha256": hashlib.sha256(package_path.read_bytes()).hexdigest(), "video_sha256": hashlib.sha256(video.read_bytes()).hexdigest(), "quality": {"narration_pages": quality, "music_windows": 0}}
     (output / "release.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"Complete: {cursor:.1f} seconds, {len(parts)} narration pages", flush=True)

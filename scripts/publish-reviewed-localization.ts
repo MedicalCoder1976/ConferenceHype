@@ -26,7 +26,7 @@ async function main() {
     state.id = found.items?.find((item: {snippet: {title: string}; id: {videoId: string}}) => item.snippet.title === metadata.title)?.id.videoId;
   }
   if (!state.id) {
-    const uploaded = await uploadVideoToYoutube({filePath: path.join(directory, "edition.mp4"), accessToken: token, title: metadata.title, description: metadata.description, tags: ["WCLC 2026", "Oncology", metadata.language === "ko" ? "한국어" : "日本語", "ConferenceHype"], categoryId: "28", privacyStatus: "private"});
+    const uploaded = await uploadVideoToYoutube({filePath: path.join(directory, "edition.mp4"), accessToken: token, title: metadata.title, description: metadata.description, tags: metadata.tags ?? ["WCLC 2026", "Oncology", metadata.language === "ko" ? "한국어" : "日本語", "ConferenceHype"], categoryId: "28", privacyStatus: "private"});
     state = {id: uploaded.id, status: "private-uploaded"};
     await writeFile(statePath, JSON.stringify(state, null, 2));
   }
