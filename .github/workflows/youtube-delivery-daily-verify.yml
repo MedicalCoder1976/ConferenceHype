@@ -2,6 +2,8 @@ name: Daily YouTube delivery verification
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "30 12 * * *"
 
 permissions:
   contents: read

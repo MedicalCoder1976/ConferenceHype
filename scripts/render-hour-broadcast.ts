@@ -1334,6 +1334,84 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 3, delayMs = 1000):
   throw lastError;
 }
 
+// Single place to record "this render/upload run failed" against whichever
+// delivery target is active, so every failure path (0 content cards, a
+// post-upload DB write throwing, etc.) leaves the same kind of trace instead
+// of some paths silently leaving stale state with no record at all -- the
+// gap that let the public site keep showing an old video with zero signal
+// anywhere in the database. Each write is caught independently so a DB
+// failure while recording a failure can't swallow the original error.
+async function recordDeliveryFailure(
+  reason: string,
+  extra?: { youtubeVideoId?: string; youtubeUrl?: string }
+) {
+  console.log(`::error::${reason}`);
+  const workflowUrl =
+    process.env.GITHUB_SERVER_URL && process.env.GITHUB_REPOSITORY && process.env.GITHUB_RUN_ID
+      ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
+      : undefined;
+
+  if (process.env.REGIONAL_PROGRAM_ID) {
+    const { updateRegionalProgramDelivery } = await import("@/lib/regionalJournalClub/db");
+    await updateRegionalProgramDelivery(process.env.REGIONAL_PROGRAM_ID, {
+      status: "failed",
+      failureReason: reason,
+      youtubeVideoId: extra?.youtubeVideoId,
+      youtubeUrl: extra?.youtubeUrl
+    }).catch((error) => console.warn(`Failed to record the regional program failure reason: ${describeError(error)}`));
+  }
+  if (process.env.STATION_PROGRAM_ID) {
+    const { updateStationProgramDeliveryInDb } = await import("@/lib/station/delivery");
+    await updateStationProgramDeliveryInDb(process.env.STATION_PROGRAM_ID, {
+      status: "failed",
+      failureReason: reason,
+      youtubeVideoId: extra?.youtubeVideoId,
+      youtubeUrl: extra?.youtubeUrl
+    }).catch((error) => console.warn(`Failed to record the station program failure reason: ${describeError(error)}`));
+  }
+  if (process.env.STATION_BREAKIN_ID) {
+    const { updateStationBreakInDeliveryInDb } = await import("@/lib/station/delivery");
+    await updateStationBreakInDeliveryInDb(process.env.STATION_BREAKIN_ID, {
+      status: "failed",
+      failureReason: reason
+    }).catch((error) => console.warn(`Failed to record the breaking-news failure reason: ${describeError(error)}`));
+  }
+  if (process.env.MEETING_WATCH_BROADCAST_ID) {
+    const { updateMeetingWatchBroadcastDeliveryInDb } = await import("@/lib/meetingWatch/db");
+    await updateMeetingWatchBroadcastDeliveryInDb(process.env.MEETING_WATCH_BROADCAST_ID, {
+      status: "failed",
+      failureReason: reason
+    }).catch((error) => console.warn(`Failed to record the Meeting Watch failure reason: ${describeError(error)}`));
+  }
+  const failurePatch = {
+    youtubeStatus: "failed" as const,
+    deliveryError: reason,
+    workflowRunId: process.env.GITHUB_RUN_ID,
+    workflowUrl
+  };
+  if (process.env.JOURNAL_SLOT_ID) {
+    const { updateJournalBroadcastDeliveryInDb } = await import("@/lib/db");
+    await updateJournalBroadcastDeliveryInDb(process.env.JOURNAL_SLOT_ID, failurePatch).catch((error) =>
+      console.warn(`Failed to record the journal-slot failure reason: ${describeError(error)}`)
+    );
+  } else if (process.env.COVERAGE_SLOT_ID) {
+    const { updateConferenceCoverageDeliveryInDb } = await import("@/lib/db");
+    await updateConferenceCoverageDeliveryInDb(process.env.COVERAGE_SLOT_ID, failurePatch).catch((error) =>
+      console.warn(`Failed to record the coverage-slot failure reason: ${describeError(error)}`)
+    );
+  }
+  // Marker name is load-bearing, not cosmetic: youtube-stream.yml's "Record
+  // failed YouTube delivery" step and meeting-watch-broadcast.yml's
+  // equivalent both gate a generic fallback failure-write on
+  // `no_content_failure_recorded != 'true'`, so this specific, already-
+  // written failure reason doesn't get clobbered by a generic one. Keep the
+  // name even though this helper now covers more than the 0-content case.
+  if (process.env.GITHUB_OUTPUT) {
+    const { appendFile } = await import("node:fs/promises");
+    await appendFile(process.env.GITHUB_OUTPUT, `no_content_failure_recorded=true\n`);
+  }
+}
+
 async function saveBroadcastWriteout(
   cards: Card[],
   youtubeVideoId?: string,
@@ -1646,6 +1724,12 @@ async function uploadRenderedBroadcast(
     );
   }
 
+  // A failed thumbnail upload must never block the delivery-status writes
+  // below -- confirmed live as the cause of the public site showing a stale
+  // video: for station/regional runs this used to re-throw here, aborting
+  // the function before any DB write recorded the new video id, with no
+  // compensating failure record either. The thumbnail is cosmetic; the
+  // upload above already succeeded, so always warn and continue.
   try {
     await uploadYoutubeThumbnail({
       videoId: youtubeVideoId,
@@ -1654,12 +1738,18 @@ async function uploadRenderedBroadcast(
       thumbnailBytes: openingThumbnailBytes
     });
   } catch (error) {
-    if (process.env.STATION_PROGRAM_ID || process.env.REGIONAL_PROGRAM_ID) throw error;
     console.log(
       `::warning::Could not set the custom YouTube thumbnail (channel may not be phone-verified yet): ${describeError(error)}`
     );
   }
 
+  // Everything from here through the final delivery-status write is wrapped
+  // so that any failure in this stretch -- a retried DB write exhausting
+  // retries, buildWriteoutCards throwing, etc. -- still leaves a "failed"
+  // record carrying the already-known youtubeVideoId/youtubeUrl, instead of
+  // the DB silently keeping whatever the previous broadcast left behind
+  // while a brand-new video sits live and unlinked on YouTube.
+  try {
   try {
     const { postBroadcastTweetForBroadcast } = await import("@/lib/sources/xPost");
     const posted = await postBroadcastTweetForBroadcast({
@@ -1752,6 +1842,10 @@ async function uploadRenderedBroadcast(
     await withRetry(() => updateJournalBroadcastDeliveryInDb(process.env.JOURNAL_SLOT_ID, deliveryPatch));
   } else {
     await withRetry(() => updateConferenceCoverageDeliveryInDb(process.env.COVERAGE_SLOT_ID, deliveryPatch));
+  }
+  } catch (error) {
+    await recordDeliveryFailure(describeError(error), { youtubeVideoId, youtubeUrl });
+    throw error;
   }
 }
 
@@ -1847,49 +1941,7 @@ async function main() {
       : isMeetingWatchMode
       ? "No approved segments were available for this Meeting Watch broadcast at render time -- 0 content cards scheduled, refusing to publish a music-only broadcast."
       : "No approved (or fallback schedule/social) content was available at render time -- 0 content cards scheduled, refusing to publish a music-only broadcast.";
-    console.log(`::error::${reason}`);
-    const { updateConferenceCoverageDeliveryInDb, updateJournalBroadcastDeliveryInDb } = await import("@/lib/db");
-    const workflowUrl =
-      process.env.GITHUB_SERVER_URL && process.env.GITHUB_REPOSITORY && process.env.GITHUB_RUN_ID
-        ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
-        : undefined;
-    if (isBreakingMode && process.env.STATION_BREAKIN_ID) {
-      const { updateStationBreakInDeliveryInDb } = await import("@/lib/station/delivery");
-      await updateStationBreakInDeliveryInDb(process.env.STATION_BREAKIN_ID, {
-        status: "failed",
-        failureReason: reason
-      }).catch((error) => {
-        console.warn(`Failed to record the breaking-news failure reason: ${describeError(error)}`);
-      });
-    }
-    if (isMeetingWatchMode && process.env.MEETING_WATCH_BROADCAST_ID) {
-      const { updateMeetingWatchBroadcastDeliveryInDb } = await import("@/lib/meetingWatch/db");
-      await updateMeetingWatchBroadcastDeliveryInDb(process.env.MEETING_WATCH_BROADCAST_ID, {
-        status: "failed",
-        failureReason: reason
-      }).catch((error) => {
-        console.warn(`Failed to record the Meeting Watch failure reason: ${describeError(error)}`);
-      });
-    }
-    const failurePatch = {
-      youtubeStatus: "failed" as const,
-      deliveryError: reason,
-      workflowRunId: process.env.GITHUB_RUN_ID,
-      workflowUrl
-    };
-    if (process.env.JOURNAL_SLOT_ID) {
-      await updateJournalBroadcastDeliveryInDb(process.env.JOURNAL_SLOT_ID, failurePatch).catch((error) => {
-        console.warn(`Failed to record the no-content failure reason: ${describeError(error)}`);
-      });
-    } else if (process.env.COVERAGE_SLOT_ID) {
-      await updateConferenceCoverageDeliveryInDb(process.env.COVERAGE_SLOT_ID, failurePatch).catch((error) => {
-        console.warn(`Failed to record the no-content failure reason: ${describeError(error)}`);
-      });
-    }
-    if (process.env.GITHUB_OUTPUT) {
-      const { appendFile } = await import("node:fs/promises");
-      await appendFile(process.env.GITHUB_OUTPUT, `no_content_failure_recorded=true\n`);
-    }
+    await recordDeliveryFailure(reason);
     throw new Error(reason);
   }
 
