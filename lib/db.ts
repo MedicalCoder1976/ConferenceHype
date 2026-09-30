@@ -167,6 +167,10 @@ type BroadcastWriteoutRow = {
   writeout_markdown: string;
   created_at: string;
   updated_at: string;
+  korean_dub_status?: BroadcastWriteout["koreanDubStatus"] | null;
+  korean_youtube_video_id?: string | null;
+  korean_youtube_url?: string | null;
+  korean_dub_error?: string | null;
 };
 
 type DailyCoveragePlanRow = {
@@ -369,7 +373,11 @@ function toBroadcastWriteout(row: BroadcastWriteoutRow): BroadcastWriteout {
     cards: row.cards ?? [],
     writeoutMarkdown: row.writeout_markdown,
     createdAt: row.created_at,
-    updatedAt: row.updated_at
+    updatedAt: row.updated_at,
+    koreanDubStatus: row.korean_dub_status ?? "none",
+    koreanYoutubeVideoId: row.korean_youtube_video_id ?? undefined,
+    koreanYoutubeUrl: row.korean_youtube_url ?? undefined,
+    koreanDubError: row.korean_dub_error ?? undefined
   };
 }
 
@@ -1132,6 +1140,56 @@ export async function upsertBroadcastWriteoutInDb(
       },
       { onConflict: writeout.coverageSlotId ? "coverage_slot_id" : "starts_at" }
     )
+    .select("*")
+    .single();
+  if (error) {
+    throw error;
+  }
+  return toBroadcastWriteout(data as BroadcastWriteoutRow);
+}
+
+export async function getBroadcastWriteoutByIdFromDb(
+  id: string
+): Promise<BroadcastWriteout | null> {
+  if (!hasSupabase()) {
+    return null;
+  }
+  const { data, error } = await createAdminClient()
+    .from("broadcast_writeouts")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) {
+    throw error;
+  }
+  return data ? toBroadcastWriteout(data as BroadcastWriteoutRow) : null;
+}
+
+// Status transitions for the Korean-dub button (conferencehype.com/admin):
+// 'none' -> 'pending' (API route dispatches the workflow) -> 'processing'
+// (the dub script itself starts running) -> 'done' | 'failed'.
+export async function updateBroadcastWriteoutKoreanDubInDb(
+  id: string,
+  patch: {
+    koreanDubStatus: BroadcastWriteout["koreanDubStatus"];
+    koreanYoutubeVideoId?: string;
+    koreanYoutubeUrl?: string;
+    koreanDubError?: string;
+  }
+) {
+  if (!hasSupabase()) {
+    return null;
+  }
+  const { data, error } = await createAdminClient()
+    .from("broadcast_writeouts")
+    .update({
+      korean_dub_status: patch.koreanDubStatus,
+      korean_youtube_video_id: patch.koreanYoutubeVideoId,
+      korean_youtube_url: patch.koreanYoutubeUrl,
+      korean_dub_error: patch.koreanDubError,
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", id)
     .select("*")
     .single();
   if (error) {

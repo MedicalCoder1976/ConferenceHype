@@ -1,5 +1,6 @@
 import { ExternalLink, FileText } from "lucide-react";
 import type { BroadcastWriteout } from "@/lib/types";
+import { DubToKoreanButton } from "@/components/DubToKoreanButton";
 
 function dateTime(value: string) {
   return new Intl.DateTimeFormat("en-US", {
@@ -86,7 +87,32 @@ export function BroadcastWriteoutArchive({
                     Workflow run <ExternalLink className="h-3.5 w-3.5" />
                   </a>
                 ) : null}
+                {writeout.koreanYoutubeUrl ? (
+                  <a
+                    className="inline-flex items-center gap-2 bg-mint px-3 py-2 text-xs font-black uppercase text-ink"
+                    href={writeout.koreanYoutubeUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Korean dub <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                ) : null}
+                {/* Only offered when there's an English video and a spoken
+                    script trail to translate from -- not every writeout has
+                    one, matching the "not every video" scope decision. */}
+                {writeout.youtubeUrl &&
+                writeout.cards.some((card) => card.kind === "content" && Boolean(card.script?.trim())) ? (
+                  <DubToKoreanButton
+                    writeoutId={writeout.id}
+                    status={writeout.koreanDubStatus ?? "none"}
+                  />
+                ) : null}
               </div>
+              {writeout.koreanDubError ? (
+                <p className="mb-4 border border-red-300 bg-red-50 p-3 text-sm font-bold text-red-800">
+                  Korean dub failed: {writeout.koreanDubError}
+                </p>
+              ) : null}
               {writeout.deliveryError ? (
                 <p className="mb-4 border border-red-300 bg-red-50 p-3 text-sm font-bold text-red-800">
                   {writeout.deliveryError}

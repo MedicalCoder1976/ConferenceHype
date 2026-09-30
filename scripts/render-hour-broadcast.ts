@@ -27,6 +27,7 @@ import {
 import { broadcastDisclaimer } from "@/lib/generation/disclaimers";
 import { JOURNAL_SHOW_SECONDS } from "@/lib/broadcast/journalShowSchedule";
 import { contentSignature } from "@/lib/segments/contentSignature";
+import { probeAudioDurationSeconds } from "@/lib/media/probeAudioDuration";
 import type { BroadcastWriteoutCard, ContentType, Persona, Segment } from "@/lib/types";
 import type { BroadcastSlot } from "@/lib/rundown/slots";
 
@@ -158,26 +159,9 @@ async function burnOpeningThumbnailIntoVideo(
 // decoded length from the same ffmpeg binary already used everywhere else in
 // this script, rather than trusting a container's "Duration:" header, which
 // can be a bitrate-based estimate for some MP3 encoders.
-function probeAudioDurationSeconds(ffmpeg: string, filePath: string): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(ffmpeg, ["-i", filePath, "-f", "null", "-"]);
-    let stderr = "";
-    child.stderr.on("data", (chunk) => {
-      stderr += chunk.toString();
-    });
-    child.on("error", reject);
-    child.on("exit", () => {
-      const matches = [...stderr.matchAll(/time=(\d+):(\d{2}):(\d{2}(?:\.\d+)?)/g)];
-      const last = matches[matches.length - 1];
-      if (!last) {
-        reject(new Error(`Could not determine audio duration for ${path.basename(filePath)}`));
-        return;
-      }
-      const [, hh, mm, ss] = last;
-      resolve(Number(hh) * 3600 + Number(mm) * 60 + Number(ss));
-    });
-  });
-}
+// Moved to lib/media/probeAudioDuration.ts so scripts/dub-korean-broadcast.ts
+// can reuse it without importing this file (which runs main() as a top-level
+// side effect on import -- not safe to import from another script).
 
 function cleanText(value: string) {
   return sanitizeBroadcastCopy(value)

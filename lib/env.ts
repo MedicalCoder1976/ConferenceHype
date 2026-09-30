@@ -8,6 +8,12 @@ const envSchema = z.object({
   LLM_BASE_URL: z.string().url().optional(),
   LLM_MODEL: z.string().default("grok-4.20-0309-non-reasoning"),
   VOICE_API_URL: z.string().url().optional(),
+  // Deliberately separate from LLM_API_KEY, which points at a Grok-compatible
+  // endpoint (see LLM_MODEL's default), not real OpenAI -- Korean TTS needs
+  // OpenAI's actual /v1/audio/speech endpoint, so this must be a genuine
+  // OpenAI API key.
+  OPENAI_API_KEY: z.string().optional(),
+  OPENAI_TTS_KOREAN_VOICE: z.string().default("onyx"),
   X_BEARER_TOKEN: z.string().optional(),
   X_API_KEY: z.string().optional(),
   X_API_SECRET: z.string().optional(),

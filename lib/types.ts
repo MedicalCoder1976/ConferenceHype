@@ -216,6 +216,10 @@ export type BroadcastWriteout = {
   writeoutMarkdown: string;
   createdAt: string;
   updatedAt: string;
+  koreanDubStatus?: "none" | "pending" | "processing" | "done" | "failed";
+  koreanYoutubeVideoId?: string;
+  koreanYoutubeUrl?: string;
+  koreanDubError?: string;
 };
 
 export type PlatformSmokeRun = {
