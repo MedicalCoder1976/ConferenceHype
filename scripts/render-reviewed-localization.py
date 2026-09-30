@@ -10,8 +10,8 @@ from pathlib import Path
 import edge_tts
 from PIL import Image, ImageDraw, ImageFont
 
-VOICES = {"ko": "ko-KR-SunHiNeural", "ja": "ja-JP-NanamiNeural"}
-LABELS = {"ko": "한국어 · 종양학", "ja": "日本語 · 腫瘍学"}
+VOICES = {"ko": "ko-KR-SunHiNeural", "ja": "ja-JP-NanamiNeural", "es": "es-ES-ElviraNeural", "fr": "fr-FR-DeniseNeural"}
+LABELS = {"ko": "한국어 · 종양학", "ja": "日本語 · 腫瘍学", "es": "ESPAÑOL · EASD 2026", "fr": "FRANÇAIS · EASD 2026"}
 FONT = "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"
 
 
@@ -24,6 +24,20 @@ def run(args):
 
 def wrap(text, size, width):
     font = ImageFont.truetype(FONT, size)
+    if not re.search(r"[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]", text):
+        lines, line = [], ""
+        for word in text.split():
+            candidate = f"{line} {word}".strip()
+            if line and font.getlength(candidate) > width:
+                lines.append(line)
+                line = word
+            else:
+                line = candidate
+            if font.getlength(line) > width:
+                raise ValueError("A word exceeds the slide width")
+        if line:
+            lines.append(line)
+        return lines
     lines, line = [], ""
     for char in text:
         if char == "\n" or (line and font.getlength(line + char) > width):
@@ -84,8 +98,8 @@ async def main():
     package_path = Path(args.package)
     package = json.loads(package_path.read_text(encoding="utf-8"))
     edition = package["editions"][args.language]
-    if not edition.get("reviewed") or len(edition["segments"]) < 5:
-        raise ValueError("A reviewed edition with all five stories is required")
+    if not edition.get("reviewed") or not edition.get("segments"):
+        raise ValueError("A reviewed edition with narration is required")
     output = Path(args.output).resolve()
     output.mkdir(parents=True, exist_ok=True)
     segments = list(edition["segments"])
@@ -112,7 +126,7 @@ async def main():
                 raise ValueError("Narration sentence is too long for a slide")
             key = f"{index:02}-{page:03}"
             image, audio, clip = (output / f"{key}.{extension}" for extension in ["png", "mp3", "mp4"])
-            slide(segment["title"], body, args.language, image, f"WCLC 2026 | {index + 1}/{len(segments)} | {page + 1}/{len(pages)}")
+            slide(segment["title"], body, args.language, image, f"{edition.get('event', 'WCLC 2026')} | {index + 1}/{len(segments)} | {page + 1}/{len(pages)}")
             for attempt in range(3):
                 try:
                     await edge_tts.Communicate(text, VOICES[args.language]).save(str(audio))
@@ -140,7 +154,7 @@ async def main():
     run(["-f", "concat", "-safe", "0", "-i", concat, "-c", "copy", "-movflags", "+faststart", video])
     subtitles = output / "edition.srt"
     subtitles.write_text("\n\n".join(f"{i + 1}\n{stamp(start)} --> {stamp(end)}\n{text}" for i, (start, end, text) in enumerate(cues)) + "\n", encoding="utf-8")
-    thumbnail(edition["title"], args.language, output / "thumbnail.png")
+    thumbnail(edition.get("thumbnail_title", edition["title"]), args.language, output / "thumbnail.png")
     metadata = {**edition, "language": args.language, "broadcast_id": package["broadcast_id"], "source_video_id": package["source_video_id"], "video_path": "edition.mp4", "subtitle_path": "edition.srt", "thumbnail_path": "thumbnail.png", "duration_seconds": cursor, "package_sha256": hashlib.sha256(package_path.read_bytes()).hexdigest(), "video_sha256": hashlib.sha256(video.read_bytes()).hexdigest(), "quality": {"narration_pages": quality, "music_windows": 0}}
     (output / "release.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"Complete: {cursor:.1f} seconds, {len(parts)} narration pages", flush=True)
