@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { assertAdminRequest } from "@/lib/auth";
-import { parsePreparedStory, storyInputSchema } from "@/lib/story/preparedStory";
+import { parsePreparedStory, preparedStorySegments, storyInputSchema } from "@/lib/story/preparedStory";
+import { assertStoryCardsBroadcastReady } from "@/lib/story/storyBroadcastReady";
 
 export async function POST(request: NextRequest) {
   try {
     assertAdminRequest(request);
     const story = parsePreparedStory(storyInputSchema.parse(await request.json()));
+    assertStoryCardsBroadcastReady(preparedStorySegments(story));
     return NextResponse.json({
       ok: true,
       title: story.input.title,

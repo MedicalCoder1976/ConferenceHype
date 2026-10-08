@@ -54,13 +54,18 @@ import type {
 const fullSpokenDisclaimer =
   "ConferenceHype is interactive AI commentary only. It is not reporting, journalism, medical education, clinical guidance, scientific validation, legal advice, or financial advice.";
 
+const unsafeRundownTermPattern =
+  /\b(early social chatter|unverified buzz|operator-selected audience tip|audience tip|snack|coffee|hallway energy|rising energy|pending review|we verify|verify|verified|airtime|aired|airing|on air)\b/i;
+
+// The term that makes filterBroadcastReadySegments() drop this text, so a
+// caller can reject it up front with a specific reason instead of the card
+// silently vanishing at render time.
+export function findUnsafeRundownTerm(scriptish: string) {
+  return scriptish.match(unsafeRundownTermPattern)?.[1] ?? null;
+}
+
 function isUnsafeForBroadcastRundown(scriptish: string) {
-  return (
-    scriptish.includes(fullSpokenDisclaimer) ||
-    /\b(early social chatter|unverified buzz|operator-selected audience tip|audience tip|snack|coffee|hallway energy|rising energy|pending review|we verify|verify|verified|airtime|aired|airing|on air)\b/i.test(
-      scriptish
-    )
-  );
+  return scriptish.includes(fullSpokenDisclaimer) || unsafeRundownTermPattern.test(scriptish);
 }
 
 function hasVerifiedBroadcastSource(segment: { script: string; summary: string; citations: Citation[]; contentType: string }) {

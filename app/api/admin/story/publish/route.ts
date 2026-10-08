@@ -3,6 +3,7 @@ import { assertAdminRequest } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { errorMessage } from "@/lib/errors";
 import { parsePreparedStory, preparedStorySegments, storyInputSchema } from "@/lib/story/preparedStory";
+import { assertStoryCardsBroadcastReady } from "@/lib/story/storyBroadcastReady";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(request: NextRequest) {
@@ -11,6 +12,7 @@ export async function POST(request: NextRequest) {
     if (!env.GITHUB_DISPATCH_TOKEN) return NextResponse.json({ ok: false, error: "GITHUB_DISPATCH_TOKEN is not configured." }, { status: 503 });
     const story = parsePreparedStory(storyInputSchema.parse(await request.json()));
     const segments = preparedStorySegments(story);
+    assertStoryCardsBroadcastReady(segments);
     const supabase = createAdminClient();
     const { data, error } = await supabase.rpc("create_prepared_meeting_watch", {
       payload: {
