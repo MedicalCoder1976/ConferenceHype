@@ -289,6 +289,39 @@ history in the project memory notes.
   organization, disease community tag), body about 12 to 20 words, story
   claims only, at most 280 characters.
 
+### Story narrative craft rule
+
+Operator feedback (2026-10-13): the ACG, CHEST, and ESMO updates read as a
+schedule, not a story, and were weaker than earlier Stories. Measured against
+64 earlier Stories, they carried clock times and session slots in 12 to 32
+percent of sentences (earlier median 0), roughly twice the number density,
+five to ten times the attribution hedges, and no "why it matters" sentences.
+The format below is the standing fix.
+
+- **Lead with a thesis.** The first sentences state what the meeting's data
+  actually show, not its dates. A preview leads with the one or two
+  questions the data will answer.
+- **Go deep on three or four items, not eight.** Each item runs: result
+  (with the numbers), what it means, and the one caveat that matters.
+  Everything else belongs in the YouTube description.
+- **Include results that are already reported.** For every trial or drug in
+  the story, add its published or topline results (effect sizes, endpoints,
+  safety signals), even when the new presentation is a follow-up or a
+  preview, and say which results are earlier readouts.
+- **Interpretation is required; prediction is banned.** Explain what a
+  result means, how strong the evidence is (randomized versus open-label,
+  small versus large, published versus conference-only), and why a
+  comparator or endpoint matters. Do not forecast adoption, approval, or
+  future trial outcomes.
+- **Hedge once per item.** Attribute and caveat each result once, in plain
+  language, instead of qualifying every clause.
+- **Keep logistics out of the narration.** At most the date of the one
+  presentation that matters. No rooms, session slots, or time zones.
+- **Close with a synthesis.** One short paragraph ranking the evidence
+  (which results are firm, which are preliminary) before the disclaimer.
+- **Read it aloud.** Expand abbreviations, keep sentences speakable, and
+  re-read the draft once before asking for headline approval.
+
 ### 5 Things to Know editorial rule
 
 `5 Things to Know` is a separate manual editorial lane for completed Claude or
