@@ -169,8 +169,20 @@ assert.equal(applySpokenPronunciations("Published Jun. 2026."), "Published June.
 assert.ok(PHARMA_SPOKEN_PRONUNCIATIONS.length >= 20, "The shared TTS layer must retain a broad pharma pronunciation list.");
 assert.equal(
   applySpokenPronunciations("Roche, AbbVie, Novartis, AstraZeneca, Boehringer Ingelheim, Pfizer, and GSK reported data."),
-  "Rohsh, Abb-vee, no-VAR-tis, As-truh-ZEN-eh-kuh, Bear-ing-er Ing-el-hime, Fye-zer, and G S K reported data."
+  "Rohsh, Abb-vee, no-vahr-tiss, AstraZeneca, Bear-ing-er Ing-el-hime, Fye-zer, and G S K reported data."
 );
+// 2026-10-12: Kokoro/misaki spelled the all-caps VAR in the old Novartis respelling as the letters V-A-R,
+// and the Amgen/AstraZeneca respellings the same way. Never put an ALL-CAPS token in a spoken respelling.
+for (const [, spoken] of PHARMA_SPOKEN_PRONUNCIATIONS) {
+  assert.ok(!/[A-Z]{2,}/.test(spoken.replace(/\bG S K\b/, "")), `Spoken respelling "${spoken}" has an ALL-CAPS token that Kokoro spells letter-by-letter.`);
+}
+assert.equal(applySpokenPronunciations("Novartis and Amgen"), "no-vahr-tiss and Amgen");
+// 2026-10-12: Kokoro reads the colon in "8:30" as a pause ("eight ... thirty"). Clock times are spoken as words.
+assert.equal(applySpokenPronunciations("from 8:30 to 9:45 in the morning Central"), "from eight thirty to nine forty five in the morning Central");
+assert.equal(applySpokenPronunciations("from 1:45 to 2:45 in the afternoon"), "from one forty five to two forty five in the afternoon");
+assert.equal(applySpokenPronunciations("Opens 8:30-9:45 a.m. Central, closes 10:05 p.m. Eastern."), "Opens eight thirty to nine forty five AM Central, closes ten oh five PM Eastern.");
+assert.equal(applySpokenPronunciations("At 7:00 a.m. The session starts. Lunch is at 12:00."), "At seven AM. The session starts. Lunch is at twelve o clock.");
+assert.equal(applySpokenPronunciations("Randomized 1:1 in 2026.30"), "Randomized 1:1 in 2026.30");
 assert.equal(
   applySpokenPronunciations("The objective, response-rate endpoint was the objective response rate."),
   "The objective response rate endpoint was the objective response rate."

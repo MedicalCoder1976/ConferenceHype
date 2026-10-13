@@ -132,13 +132,53 @@ function expandMonthAbbreviations(text: string): string {
   });
 }
 
+// Kokoro's G2P keeps the colon in "8:30" as a punctuation token, so a time is
+// read as "eight ... thirty" with an audible pause in the middle (found
+// 2026-10-12 on the AHA 2026 preview: "from 8:30 to 9:45"). Spell clock times
+// out as number words so they are one continuous phrase.
+const CLOCK_ONES = [
+  "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
+  "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"
+];
+const CLOCK_TENS = ["", "", "twenty", "thirty", "forty", "fifty"];
+function clockNumberWords(value: number) {
+  if (value < 20) return CLOCK_ONES[value];
+  const tens = Math.floor(value / 10);
+  const ones = value % 10;
+  return ones ? `${CLOCK_TENS[tens]} ${CLOCK_ONES[ones]}` : CLOCK_TENS[tens];
+}
+const CLOCK_TIME_RANGE_PATTERN = /(\b\d{1,2}:\d{2}(?:\s*[ap]\.?\s?m\b\.?)?)\s*[-–—]\s*(?=\d{1,2}:\d{2})/gi;
+const CLOCK_TIME_PATTERN = /(?<![\d:.])([01]?\d|2[0-3]):([0-5]\d)(?![\d:])(?:\s*([ap])\.?\s?m\b(\.)?)?/gi;
+const TIME_ZONE_WORDS = /^\s+(?:Central|Eastern|Pacific|Mountain|Standard|Daylight|ET|CT|PT|MT|EST|EDT|CST|CDT|PST|PDT|MST|MDT|GMT|UTC)\b/;
+export function expandClockTimes(text: string): string {
+  return text
+    .replace(CLOCK_TIME_RANGE_PATTERN, "$1 to ")
+    .replace(CLOCK_TIME_PATTERN, (match, hour: string, minute: string, meridiem: string | undefined, dot: string | undefined, offset: number, whole: string) => {
+      const minuteValue = Number(minute);
+      const minuteWords = minuteValue === 0
+        ? (meridiem ? "" : "o clock")
+        : minuteValue < 10 ? `oh ${clockNumberWords(minuteValue)}` : clockNumberWords(minuteValue);
+      // Misaki reads the bare "AM"/"PM" as the letters "ay em"/"pee em". A
+      // spaced "A M" is read as the article "a" ("uh em"), and "o'clock"
+      // drops its first syllable, so both are respelled here.
+      const spoken = [clockNumberWords(Number(hour)), minuteWords, meridiem ? `${meridiem.toUpperCase()}M` : ""]
+        .filter(Boolean)
+        .join(" ");
+      // "a.m." ends in an abbreviation period. Keep it as a sentence end only
+      // when a new sentence clearly starts after it (not before a time zone).
+      const rest = whole.slice(offset + match.length);
+      const endsSentence = Boolean(dot) && (rest === "" || (/^\s+[A-Z]/.test(rest) && !TIME_ZONE_WORDS.test(rest)));
+      return endsSentence ? `${spoken}.` : spoken;
+    });
+}
+
 // Spoken-only spellings shared by every configured TTS persona. Visible copy,
 // titles, citations, and source text retain the companies' official spelling.
 export const PHARMA_SPOKEN_PRONUNCIATIONS = [
   ["AbbVie", "Abb-vee"],
-  ["Amgen", "Am-jen"],
-  ["AstraZeneca", "As-truh-ZEN-eh-kuh"],
-  ["BioNTech", "Bye-ON-tek"],
+  ["Amgen", "Amgen"],
+  ["AstraZeneca", "AstraZeneca"],
+  ["BioNTech", "Bye-on-tek"],
   ["Boehringer Ingelheim", "Bear-ing-er Ing-el-hime"],
   ["Bristol Myers Squibb", "Bris-tol Myers Squibb"],
   ["Daiichi Sankyo", "Dye-ee-chee Sank-yoh"],
@@ -148,7 +188,7 @@ export const PHARMA_SPOKEN_PRONUNCIATIONS = [
   ["GlaxoSmithKline", "Glak-so Smith Kline"],
   ["GSK", "G S K"],
   ["Merck", "Murk"],
-  ["Novartis", "no-VAR-tis"],
+  ["Novartis", "no-vahr-tiss"],
   ["Novo Nordisk", "No-vo Nor-disk"],
   ["Pfizer", "Fye-zer"],
   ["Regeneron", "Reh-jen-er-on"],
@@ -169,7 +209,7 @@ export function applySpokenPronunciations(script: string, sourceContext: string 
   script = cleanNarrationText(script);
   assertCleanNarration(script);
   const definitions = typeof sourceContext === "string" ? extractSpokenAbbreviationDefinitions(sourceContext) : sourceContext;
-  return applyPharmaSpokenPronunciations(expandMonthAbbreviations(expandRomanNumerals(expandDefinedAbbreviations(script, definitions))))
+  return applyPharmaSpokenPronunciations(expandMonthAbbreviations(expandRomanNumerals(expandDefinedAbbreviations(expandClockTimes(script), definitions))))
     // PubMed sometimes exposes a combined "BACKGROUND AND AIMS:" label.
     // Older cards wrapped that raw label inside the normalized Background
     // section, producing "Background: Background and aims:" on air. Keep

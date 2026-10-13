@@ -209,6 +209,50 @@ For the Story opening/title-card format that previously displayed `CLINICAL
 EVIDENCE BRIEF` above the story topic, display `BREAKING` instead. Do not use
 `CLINICAL EVIDENCE BRIEF` in that position for this format.
 
+### Story package pre-flight checklist
+
+Everything below is a standing operator rule. Check a Story against the whole
+list before it is shown for headline approval or published; each item has a
+history in the project memory notes.
+
+- **Production is the authority.** Run the draft through the live read-only
+  `POST /api/admin/story/preview` first. A local dry run uses the local
+  branch's code, which differs from `main` (the local branch adds a
+  `location` field and a "has started" opener that production does not
+  have). Production strips unknown fields and prepends nothing.
+- **Opener.** The standing rule is a clean opening line of the form "The
+  [meeting] at [location] has started / will start, [dates]." Production does
+  not add it, so write it as the first sentence of the narrative, using "will
+  start" for a meeting that has not begun. If the automatic opener is ever
+  deployed to production, drop this manual step so it is not spoken twice.
+- **Length and shape.** At least 500 spoken words; 12 cards; continuous
+  flowing prose with no labeled subheadings, bullets, or markdown (labels are
+  reserved for 5 Things to Know).
+- **Subscribe line.** One sentence about 45 seconds in (inside the first
+  100 to 150 words): "If you want more of this kind of coverage, take a
+  second right now and subscribe to the channel." Then continue.
+- **Closing disclaimer.** The last sentence is the fixed AI-generation line.
+  Never use the word "verify" in it or anywhere in a narrative: the
+  broadcast-ready filter silently drops cards containing verify, unverified
+  buzz, air/aired/airing/airtime, snack, coffee, hallway energy, rising
+  energy, audience tip, pending review, or "we verify".
+- **Title and headline.** YouTube title at most 100 characters; thumbnail
+  headline 8 to 58 characters; SEO-oriented; always name the company and the
+  drug explicitly, never a pronoun; the operator approves only the headline.
+- **Facts.** Every claim checked against an official source (company
+  release, registry, program page, peer-reviewed publication); no
+  predictions about adoption, policy, or future trials; say plainly when a
+  number comes from trade coverage rather than the sponsor.
+- **Source URL.** One primary source, written in full with `https://`, as
+  plain text.
+- **Spoken form.** Write times as "9:45 in the morning" (never `a.m.`, which
+  the card splitter breaks into "a. m."). Do not use ALL-CAPS words, since
+  the voice spells them out. Keep company names in their normal spelling;
+  the pronunciation layer handles them.
+- **X caption.** Opens with researched handles (meeting hashtag, host
+  organization, disease community tag), body about 12 to 20 words, story
+  claims only, at most 280 characters.
+
 ### 5 Things to Know editorial rule
 
 `5 Things to Know` is a separate manual editorial lane for completed Claude or
@@ -455,8 +499,8 @@ Meeting Watch/prepared narrative, and breaking-news broadcasts going forward.
   If a "the same card played twice" report recurs, check for duplicate rows
   sharing a citation URL or script text first, before assuming a scheduling
   bug.
-- Narration style: pronounce `ASCO` as `ASKho`/`Ask-ho`, never as the individual letters A-S-C-O. Pronounce `cholangiocarcinoma` as `COLANGIOCARCINOMA` ("colangio-carcinoma"); the `ch` is a hard `k` sound and must not be read as "cho". Pronounce `Ib` and `1b` as `one B`. Pronounce `ECOG` as a word (`EE-kog`), not individual letters. Expand `PR` to "partial response", `CR` to "complete response", `pCR` to "pathologic complete response", and `WHO` to "World Health Organization" when spoken. Spell `NCI` out as individual letters ("N-C-I"). Cancer-staging notation (Roman numeral immediately followed by a letter, e.g. `IA`, `IIA`, `IIIB`, `IVA`) is read as the cardinal number plus the letter — `IA` as "one A", `IIA` as "two A", and so on. All 12 three/four-letter month abbreviations (`Jan`, `Feb`, `Mar`, `Apr`, `Jun`, `Jul`, `Aug`, `Sep`/`Sept`, `Oct`, `Nov`, `Dec` — PubMed citation dates commonly use these) expand to the full month name when spoken; `May` needs no rule since the short and long forms are identical. Fixed 2026-07-30: only `Jul`/`Aug` had a rule, so `Jun` (and every other month) was mis-read on air. Any abbreviation the source abstract defines in parentheses (e.g. "progression-free survival (PFS)") is expanded to its full form everywhere it's spoken, even if the generated script itself never restates the definition — `applySpokenPronunciations` is given the source excerpt as context at generation time (`lib/generation/llm.ts`), not just the script text, and is re-applied with the full card context again at render time as a second safety net.
-- Every narrator uses the shared spoken-only pharma pronunciation list in `PHARMA_SPOKEN_PRONUNCIATIONS`: AbbVie (`Abb-vee`), Amgen (`Am-jen`), AstraZeneca (`As-truh-ZEN-eh-kuh`), BioNTech (`Bye-ON-tek`), Boehringer Ingelheim (`Bear-ing-er Ing-el-hime`), Bristol Myers Squibb, Daiichi Sankyo (`Dye-ee-chee Sank-yoh`), Eli Lilly, Genentech (`Jen-en-tek`), Gilead (`Gil-ee-ad`), GlaxoSmithKline, GSK (`G S K`), Merck (`Murk`), Novartis (`no-VAR-tis`), Novo Nordisk, Pfizer (`Fye-zer`), Regeneron (`Reh-jen-er-on`), Roche (`Rohsh`), Sanofi (`Sah-no-fee`), Takeda (`Tah-keh-dah`), and Taiho (`Tie-ho`). These substitutions affect synthesized audio only; visible company names remain unchanged. The same pre-synthesis cleanup removes punctuation inside `objective response rate` so the phrase is spoken continuously and collapses adjacent `novel-novel` or `novel novel` to one `novel`.
+- Narration style: pronounce `ASCO` as `ASKho`/`Ask-ho`, never as the individual letters A-S-C-O. Pronounce `cholangiocarcinoma` as `COLANGIOCARCINOMA` ("colangio-carcinoma"); the `ch` is a hard `k` sound and must not be read as "cho". Pronounce `Ib` and `1b` as `one B`. Pronounce `ECOG` as a word (`EE-kog`), not individual letters. Expand `PR` to "partial response", `CR` to "complete response", `pCR` to "pathologic complete response", and `WHO` to "World Health Organization" when spoken. Spell `NCI` out as individual letters ("N-C-I"). Cancer-staging notation (Roman numeral immediately followed by a letter, e.g. `IA`, `IIA`, `IIIB`, `IVA`) is read as the cardinal number plus the letter — `IA` as "one A", `IIA` as "two A", and so on. All 12 three/four-letter month abbreviations (`Jan`, `Feb`, `Mar`, `Apr`, `Jun`, `Jul`, `Aug`, `Sep`/`Sept`, `Oct`, `Nov`, `Dec` — PubMed citation dates commonly use these) expand to the full month name when spoken; `May` needs no rule since the short and long forms are identical. Fixed 2026-07-30: only `Jul`/`Aug` had a rule, so `Jun` (and every other month) was mis-read on air. Any abbreviation the source abstract defines in parentheses (e.g. "progression-free survival (PFS)") is expanded to its full form everywhere it's spoken, even if the generated script itself never restates the definition — `applySpokenPronunciations` is given the source excerpt as context at generation time (`lib/generation/llm.ts`), not just the script text, and is re-applied with the full card context again at render time as a second safety net. Clock times are spoken as words: Kokoro reads the colon in `8:30` as a pause ("eight ... thirty"), so `expandClockTimes` in `lib/media/tts.ts` rewrites `8:30` as "eight thirty", `9:45` as "nine forty five", `10:05` as "ten oh five", `7:00` as "seven o clock", `a.m.`/`p.m.` as `AM`/`PM`, and `8:30-9:45` as "eight thirty to nine forty five" (found 2026-10-12 on the AHA 2026 preview). A spaced "A M" is read as the article "a" and `o'clock` drops its first syllable, which is why the replacements are spelled `AM`/`PM`/`o clock`.
+- Every narrator uses the shared spoken-only pharma pronunciation list in `PHARMA_SPOKEN_PRONUNCIATIONS`: AbbVie (`Abb-vee`), Amgen (read as written), AstraZeneca (read as written), BioNTech (`Bye-on-tek`), Boehringer Ingelheim (`Bear-ing-er Ing-el-hime`), Bristol Myers Squibb, Daiichi Sankyo (`Dye-ee-chee Sank-yoh`), Eli Lilly, Genentech (`Jen-en-tek`), Gilead (`Gil-ee-ad`), GlaxoSmithKline, GSK (`G S K`), Merck (`Murk`), Novartis (`no-vahr-tiss`), Novo Nordisk, Pfizer (`Fye-zer`), Regeneron (`Reh-jen-er-on`), Roche (`Rohsh`), Sanofi (`Sah-no-fee`), Takeda (`Tah-keh-dah`), and Taiho (`Tie-ho`). These substitutions affect synthesized audio only; visible company names remain unchanged. **Respellings must be lowercase.** Kokoro's G2P (misaki) spells any ALL-CAPS token letter-by-letter, so the former `no-VAR-tis`, `Am-jen`, and `As-truh-ZEN-eh-kuh` were read as the letters V-A-R, A-M, and Z-E-N (found 2026-10-12 when Novartis was mispronounced on the AHA 2026 preview). `scripts/verify-broadcast-guards.ts` fails if any respelling contains an ALL-CAPS token. Test a new respelling against the real G2P (`py -3.12`, `KPipeline(lang_code="a", model=False).g2p(text)`) instead of guessing; hyphens give every syllable its own stress, so prefer the plain default spelling when it already reads correctly. The same pre-synthesis cleanup removes punctuation inside `objective response rate` so the phrase is spoken continuously and collapses adjacent `novel-novel` or `novel novel` to one `novel`.
 - Structured-abstract narration must never repeat section cues. Treat PubMed labels such as `BACKGROUND AND AIMS:` as one Background section, never voice `Background: Background and aims:`, and pronounce uppercase `AIMS` as the ordinary word "aims," not as separate letters. This cleanup runs during card construction and again immediately before TTS so older approved cards receive the same protection.
 - Topic handoffs must remain audibly filled and concise. Journal, weekend-roundup, and regional-journal transitions use 20-second speech-free music gaps. Complete-narrative Meeting Watch transitions use 16 seconds, a 20 percent reduction that keeps the story moving. The shared renderer loops and trims the approved gap clip to the exact scheduled transition window so a longer slot cannot end with dead silence after the clip fades.
 - Broadcast closing: never narrate "That is it for this segment." A single-journal program must say "That's it for now" and "If anything was missed" exactly once, in the dedicated final outro at the true end of the journal broadcast; content-card group boundaries must never repeat either phrase. The close identifies the journal and issue month/year and uses the complete X call to action: "Tag us on X @conferencehype."
