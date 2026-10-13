@@ -4,6 +4,7 @@ import { env } from "@/lib/env";
 import { errorMessage } from "@/lib/errors";
 import { parsePreparedStory, preparedStorySegments, storyInputSchema } from "@/lib/story/preparedStory";
 import { assertStoryCardsBroadcastReady } from "@/lib/story/storyBroadcastReady";
+import { resolveStoryTitle } from "@/lib/story/meetingUpdateNumbering";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(request: NextRequest) {
@@ -14,13 +15,17 @@ export async function POST(request: NextRequest) {
     const segments = preparedStorySegments(story);
     assertStoryCardsBroadcastReady(segments);
     const supabase = createAdminClient();
+    // "<Meeting> <Year> Update <N>: ..." once a conference has had earlier videos.
+    // source_hash is computed from the unlabelled title, so re-publishing the
+    // same Story is still detected as a duplicate after other videos go out.
+    const titling = await resolveStoryTitle(supabase, story.input);
     const { data, error } = await supabase.rpc("create_prepared_meeting_watch", {
       payload: {
         source_hash: story.sourceHash,
         source_url: story.input.sourceUrl,
         meeting_label: `Create a Story: ${story.input.topic}`,
         specialty: story.input.specialty || "Story",
-        title: story.input.title,
+        title: titling.title,
         description: [story.input.descriptionOpening, story.input.articleTitle ? `Source: ${story.input.articleTitle}${story.input.sourceName ? ` — ${story.input.sourceName}` : ""}.` : "", story.input.authors ? `Authors: ${story.input.authors}.` : "", "", `Primary source: ${story.input.sourceUrl}`].filter(Boolean).join("\n"),
         duration_seconds: story.durationSeconds,
         starts_at: story.input.startsAt ?? new Date().toISOString(),
@@ -57,7 +62,7 @@ export async function POST(request: NextRequest) {
       await supabase.from("meeting_watch_broadcasts").update({ status: "failed", failure_reason: `GitHub dispatch failed: ${dispatch.status} ${detail}` }).eq("id", broadcast.id);
       throw new Error(`GitHub workflow dispatch failed: ${dispatch.status} ${detail}`);
     }
-    return NextResponse.json({ ok: true, broadcastId: broadcast.id, durationSeconds: story.durationSeconds, cardCount: story.cards.length, segmentCount: segments.length });
+    return NextResponse.json({ ok: true, broadcastId: broadcast.id, title: titling.title, updateNumber: titling.updateNumber, durationSeconds: story.durationSeconds, cardCount: story.cards.length, segmentCount: segments.length });
   } catch (error) {
     return NextResponse.json(
       { ok: false, error: errorMessage(error, "Could not create and dispatch the Story video."), stage: "create_broadcast" },

@@ -209,6 +209,40 @@ For the Story opening/title-card format that previously displayed `CLINICAL
 EVIDENCE BRIEF` above the story topic, display `BREAKING` instead. Do not use
 `CLINICAL EVIDENCE BRIEF` in that position for this format.
 
+### Story update numbering rule
+
+Standing operator rule (2026-10-13): once a conference has already had a
+video, every later Story on it is titled
+`<Meeting> <Year> Update <N>: <headline>`, where `N` is the number of videos
+already delivered for that conference. The first video on a conference has
+no `Update` label, so the second video is `Update 1`, the third is
+`Update 2`, and so on.
+
+- **Where it runs.** `lib/story/meetingUpdateNumbering.ts`, called by
+  `POST /api/admin/story/preview` and `POST /api/admin/story/publish`, so the
+  Story desk and the CLI behave the same. The preview returns the final
+  `title`, the unlabelled `baseTitle`, and `updateNumber`; publish stores the
+  labelled title, which is also the YouTube title and the opening title card.
+- **What is counted.** Rows in `meeting_watch_broadcasts` with status
+  `verified` or `uploaded` whose `meeting_label` or `title` names the same
+  conference in the same year. Failed, planned, and still-rendering rows are
+  not counted. Only Story broadcasts are renamed; Meeting Watch five-news
+  and 5 Things to Know build their own titles and are not yet covered.
+- **Which conferences.** A registry of known meetings (ESMO, EASD, ASTRO,
+  WCLC, IMS, ESC, ERS, ASCO, AAP, ACEP, HFSA, DCLung, CHEST, IDWeek, Kidney
+  Week, ACG, AHA, AAO, ACS, ADA, ASH, SABCS, SITC, AASLD, ObesityWeek, ACC,
+  ATS) in that file. A meeting that is not in the registry gets no label;
+  add it there. Acronym patterns are case-sensitive on purpose.
+- **Headline length.** The label counts toward YouTube's 100-character
+  limit. If the labelled title is too long the request is rejected with the
+  number of characters to cut; nothing is truncated silently. A leading
+  `ESMO 2026:` in the headline is dropped so the meeting name is not
+  repeated.
+- **Duplicates.** `source_hash` is computed from the unlabelled title, so
+  re-publishing the same Story is still caught after other videos go out.
+- **Drafting.** Write the headline without the label and quote the labelled
+  title from the preview when asking for headline approval.
+
 ### Story package pre-flight checklist
 
 Everything below is a standing operator rule. Check a Story against the whole
@@ -236,7 +270,9 @@ history in the project memory notes.
   broadcast-ready filter silently drops cards containing verify, unverified
   buzz, air/aired/airing/airtime, snack, coffee, hallway energy, rising
   energy, audience tip, pending review, or "we verify".
-- **Title and headline.** YouTube title at most 100 characters; thumbnail
+- **Title and headline.** YouTube title at most 100 characters, including the
+  automatic `<Meeting> <Year> Update <N>:` label for a conference that already
+  has videos (see the update numbering rule above); thumbnail
   headline 8 to 58 characters; SEO-oriented; always name the company and the
   drug explicitly, never a pronoun; the operator approves only the headline.
 - **Facts.** Every claim checked against an official source (company

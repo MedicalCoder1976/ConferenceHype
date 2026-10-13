@@ -2,15 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { assertAdminRequest } from "@/lib/auth";
 import { parsePreparedStory, preparedStorySegments, storyInputSchema } from "@/lib/story/preparedStory";
 import { assertStoryCardsBroadcastReady } from "@/lib/story/storyBroadcastReady";
+import { resolveStoryTitle } from "@/lib/story/meetingUpdateNumbering";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(request: NextRequest) {
   try {
     assertAdminRequest(request);
     const story = parsePreparedStory(storyInputSchema.parse(await request.json()));
     assertStoryCardsBroadcastReady(preparedStorySegments(story));
+    const titling = await resolveStoryTitle(createAdminClient(), story.input);
     return NextResponse.json({
       ok: true,
-      title: story.input.title,
+      title: titling.title,
+      baseTitle: titling.baseTitle,
+      updateNumber: titling.updateNumber,
+      updateMeeting: titling.meeting,
       topic: story.input.topic,
       spokenWords: story.spokenWords,
       durationSeconds: story.durationSeconds,

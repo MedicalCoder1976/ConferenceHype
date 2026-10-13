@@ -5,6 +5,7 @@ import path from "node:path";
 import { cleanStoryNarrative } from "@/lib/story/storyFormValidation";
 import { applySpokenPronunciations } from "@/lib/media/tts";
 import { assertCleanNarration } from "@/lib/media/narrationText";
+import { applyUpdateLabel, identifyMeeting, rowMatchesMeeting, STORY_TITLE_LIMIT } from "@/lib/story/meetingUpdateNumbering";
 
 const storyFixture = {
   title: "Original complete Story title",
@@ -46,6 +47,23 @@ assert.notEqual(
   retitledStoryHash,
   "Changing a Story title must create a distinct render fingerprint"
 );
+
+// 2026-10-13: Stories on a conference that already has videos are titled
+// "<Meeting> <Year> Update <N>: <headline>", N = videos already delivered.
+const esmo = identifyMeeting("European Society for Medical Oncology Congress 2026", "ESMO 2026: Moderna melanoma vaccine");
+assert.ok(esmo && esmo.displayName === "ESMO 2026");
+assert.equal(applyUpdateLabel("Moderna Melanoma Vaccine Takes the Stage", esmo!, 0), "Moderna Melanoma Vaccine Takes the Stage");
+assert.equal(applyUpdateLabel("Moderna Melanoma Vaccine Takes the Stage", esmo!, 3), "ESMO 2026 Update 3: Moderna Melanoma Vaccine Takes the Stage");
+assert.equal(applyUpdateLabel("ESMO 2026: Moderna Melanoma Vaccine Takes the Stage", esmo!, 3), "ESMO 2026 Update 3: Moderna Melanoma Vaccine Takes the Stage");
+assert.equal(applyUpdateLabel("ESMO 2026 Update 3: Already labelled", esmo!, 3), "ESMO 2026 Update 3: Already labelled");
+assert.throws(() => applyUpdateLabel("x".repeat(STORY_TITLE_LIMIT - 5), esmo!, 3), /Shorten the headline/);
+assert.equal(identifyMeeting("CHEST 2026 Annual Meeting")?.displayName, "CHEST 2026");
+assert.equal(identifyMeeting("A story about chest pain in 2026"), null);
+assert.equal(identifyMeeting("American Heart Association Scientific Sessions 2026")?.displayName, "AHA 2026");
+assert.equal(identifyMeeting("Unlisted Regional Society Meeting 2026"), null);
+assert.equal(rowMatchesMeeting("Create a Story: ESMO 2026 Madrid: Incyte KRAS G12D", esmo!), true);
+assert.equal(rowMatchesMeeting("ESMO 2025 Berlin highlights", esmo!), false);
+assert.equal(rowMatchesMeeting("EASD 2026 Milan: retatrutide", esmo!), false);
 
 console.log("Story publish verification passed.");
 
