@@ -176,6 +176,7 @@ export function expandClockTimes(text: string): string {
 // titles, citations, and source text retain the companies' official spelling.
 export const PHARMA_SPOKEN_PRONUNCIATIONS = [
   ["AbbVie", "Abb-vee"],
+  ["Apnimed", "Ap-nih-med"],
   ["Amgen", "Amgen"],
   ["AstraZeneca", "AstraZeneca"],
   ["BioNTech", "Bye-on-tek"],
@@ -194,6 +195,7 @@ export const PHARMA_SPOKEN_PRONUNCIATIONS = [
   ["Regeneron", "Reh-jen-er-on"],
   ["Roche", "Rohsh"],
   ["Sanofi", "Sah-no-fee"],
+  ["SynAIRgy", "Synergy"],
   ["Takeda", "Tah-keh-dah"],
   ["Taiho", "Tie-ho"]
 ] as const;
