@@ -263,8 +263,19 @@ new video must connect back to them to raise retention across the series.
   URL). The publish route stores them as a "Previous updates:" block at the
   end of the broadcast description, and the render reads that block back into
   "Previous updates in this series:" with one title and link per line.
+- **Series playlist (automatic, best effort).** Each Story is added to one
+  public playlist per meeting and year, titled "<Meeting> <Year> Updates |
+  ConferenceHype" (`lib/youtube/meetingPlaylist.ts`). The render finds or
+  creates the playlist before the upload so its link is in the description
+  ("Series playlist, all <Meeting> updates in order"), then adds the new video
+  after the upload and also adds any earlier delivered videos that are
+  missing, oldest first. A playlist failure only logs a warning; it never
+  fails or delays the delivery writes. It uses the same OAuth token as the
+  upload (scope `youtube`). The playlist is created by the first Story
+  rendered for that meeting after this feature shipped, and the meeting's
+  earlier delivered videos are added to it at that time.
 - **Not covered.** YouTube end screens and cards cannot be set through the
-  API, and playlists are not created automatically.
+  API, and pinned comments need a different OAuth scope.
 - **Style.** A bridge is a callback, not a recap: do not repeat numbers from
   the earlier video, and do not use it in place of the subscribe line.
 

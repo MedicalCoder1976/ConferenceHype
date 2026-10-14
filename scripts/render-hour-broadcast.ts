@@ -1601,7 +1601,7 @@ async function uploadRenderedBroadcast(
     : isJournalMode
     ? buildJournalClubYoutubeTitle(baseTitle, actualMetadata?.specialty)
     : addSpecialistAudienceToTitle(baseTitle, actualMetadata?.specialty);
-  const description =
+  let description =
     // actualMetadata is always freshly built from the real rendered cards
     // for Meeting Watch (real timestamped chapters, real study names) --
     // it should win over whatever placeholder description the admin UI
@@ -1677,6 +1677,29 @@ async function uploadRenderedBroadcast(
   await assertMediaGenerated(outputPath);
 
   const accessToken = await getYoutubeAccessToken();
+
+  // Series playlist (2026-10-14): find or create the meeting's playlist before
+  // the upload so its link can sit in the description. Best effort only -- a
+  // playlist problem must never fail a delivery.
+  let seriesPlaylist: { id: string; url: string; displayName: string; identity: import("@/lib/story/meetingUpdateNumbering").MeetingIdentity } | undefined;
+  if (isPreparedStoryMode && isMeetingWatchMode && process.env.MEETING_WATCH_BROADCAST_ID) {
+    try {
+      const { getMeetingWatchBroadcastFromDb } = await import("@/lib/meetingWatch/db");
+      const { identifyMeeting } = await import("@/lib/story/meetingUpdateNumbering");
+      const { ensureMeetingPlaylist } = await import("@/lib/youtube/meetingPlaylist");
+      const row = await getMeetingWatchBroadcastFromDb(process.env.MEETING_WATCH_BROADCAST_ID);
+      const identity = row ? identifyMeeting(String(row.meetingLabel ?? "").replace(/^Create a Story:\s*/i, ""), String(row.title ?? title)) : null;
+      if (identity) {
+        const ensured = await ensureMeetingPlaylist(accessToken, identity.displayName);
+        seriesPlaylist = { id: ensured.id, url: ensured.url, displayName: identity.displayName, identity };
+        description = `${description}\n\nSeries playlist, all ${identity.displayName} updates in order: ${ensured.url}`;
+        console.log(`${ensured.created ? "Created" : "Found"} series playlist for ${identity.displayName}: ${ensured.url}`);
+      }
+    } catch (error) {
+      console.log(`::warning::Could not prepare the series playlist: ${describeError(error)}`);
+    }
+  }
+
   const requestedPrivacyStatus = process.env.YOUTUBE_PRIVACY_STATUS === "private" ? "private" : undefined;
   const requestedPublishAt = !requestedPrivacyStatus && (process.env.STATION_PROGRAM_ID || process.env.REGIONAL_PROGRAM_ID || isMeetingWatchMode) ? process.env.YOUTUBE_PUBLISH_AT : undefined;
   const youtubePublishAt = requestedPublishAt && new Date(requestedPublishAt).getTime() > Date.now() + 60_000
@@ -1727,6 +1750,26 @@ async function uploadRenderedBroadcast(
     console.log(
       `::warning::Could not set the custom YouTube thumbnail (channel may not be phone-verified yet): ${describeError(error)}`
     );
+  }
+
+  // Add the new video (and any earlier delivered ones that are missing) to the
+  // series playlist. Same discipline as the thumbnail: warn and continue.
+  if (seriesPlaylist) {
+    try {
+      const { createAdminClient: createPlaylistAdminClient } = await import("@/lib/supabase/admin");
+      const { listDeliveredVideoIdsOldestFirst } = await import("@/lib/story/meetingUpdateNumbering");
+      const { syncMeetingPlaylist } = await import("@/lib/youtube/meetingPlaylist");
+      const earlier = await listDeliveredVideoIdsOldestFirst(createPlaylistAdminClient(), seriesPlaylist.identity);
+      const synced = await syncMeetingPlaylist({
+        accessToken,
+        playlistId: seriesPlaylist.id,
+        earlierVideoIdsOldestFirst: earlier,
+        currentVideoId: youtubeVideoId
+      });
+      console.log(`Series playlist ${seriesPlaylist.displayName}: added ${synced.added} video(s), ${synced.alreadyPresent} already present.`);
+    } catch (error) {
+      console.log(`::warning::Could not add the video to the series playlist: ${describeError(error)}`);
+    }
   }
 
   // Everything from here through the final delivery-status write is wrapped

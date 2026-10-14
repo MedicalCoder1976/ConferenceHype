@@ -7,6 +7,7 @@ import { applySpokenPronunciations } from "@/lib/media/tts";
 import { assertCleanNarration } from "@/lib/media/narrationText";
 import { applyUpdateLabel, extractPreviousUpdates, formatPreviousUpdatesBlock, identifyMeeting, rowMatchesMeeting, STORY_TITLE_LIMIT } from "@/lib/story/meetingUpdateNumbering";
 import { buildMeetingWatchMetadata } from "@/lib/youtube/meetingWatchMetadata";
+import { ensureMeetingPlaylist, meetingPlaylistTitle, syncMeetingPlaylist } from "@/lib/youtube/meetingPlaylist";
 
 const storyFixture = {
   title: "Original complete Story title",
@@ -89,6 +90,43 @@ const withoutLinks = buildMeetingWatchMetadata({
   sourceUrl: "https://example.com/source", descriptionOpening: "Opening line."
 });
 assert.doesNotMatch(withoutLinks.description, /Previous updates in this series:/);
+
+// 2026-10-14: one public playlist per meeting; the new video is appended after
+// any earlier delivered videos that are missing, never duplicated.
+assert.equal(meetingPlaylistTitle("ESMO 2026"), "ESMO 2026 Updates | ConferenceHype");
+void (async () => {
+  const realFetch = globalThis.fetch;
+  const inserted: string[] = [];
+  let created = 0;
+  const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    const method = init?.method ?? "GET";
+    if (url.includes("/playlists?part=snippet&mine=true")) return json({ items: [{ id: "PLEXISTING", snippet: { title: "WCLC 2026 Updates | ConferenceHype" } }] });
+    if (url.includes("/playlists?part=snippet,status") && method === "POST") { created += 1; return json({ id: "PLNEW" }); }
+    if (url.includes("/playlistItems?part=snippet&playlistId=") && method === "GET") return json({ items: [{ snippet: { resourceId: { videoId: "vidA" } } }] });
+    if (url.includes("/playlistItems?part=snippet") && method === "POST") { inserted.push(JSON.parse(String(init?.body)).snippet.resourceId.videoId); return json({ id: "item" }); }
+    throw new Error(`unexpected request ${method} ${url}`);
+  }) as typeof fetch;
+  try {
+    const ensured = await ensureMeetingPlaylist("token", "ESMO 2026");
+    assert.deepEqual({ id: ensured.id, created: ensured.created }, { id: "PLNEW", created: true });
+    assert.equal(created, 1);
+    const existing = await ensureMeetingPlaylist("token", "WCLC 2026");
+    assert.deepEqual({ id: existing.id, created: existing.created }, { id: "PLEXISTING", created: false });
+    const synced = await syncMeetingPlaylist({ accessToken: "token", playlistId: "PLEXISTING", earlierVideoIdsOldestFirst: ["vidA", "vidB"], currentVideoId: "vidC" });
+    assert.deepEqual(inserted, ["vidB", "vidC"]);
+    assert.equal(synced.added, 2);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+})().then(
+  () => console.log("Series playlist verification passed."),
+  (error) => {
+    console.error(error);
+    process.exit(1);
+  }
+);
 
 console.log("Story publish verification passed.");
 

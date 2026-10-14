@@ -111,11 +111,11 @@ export type PreviousUpdate = { title: string; url: string; publishedAt: string }
 async function fetchDeliveredRows(supabase: ReturnType<typeof createAdminClient>, identity: MeetingIdentity) {
   const { data, error } = await supabase
     .from("meeting_watch_broadcasts")
-    .select("meeting_label,title,status,youtube_url,created_at")
+    .select("meeting_label,title,status,youtube_url,youtube_video_id,created_at")
     .in("status", ["verified", "uploaded"])
     .limit(5000);
   if (error) throw new Error(`Could not count earlier videos for ${identity.displayName}: ${error.message}`);
-  type Row = { meeting_label: string | null; title: string | null; youtube_url: string | null; created_at: string | null };
+  type Row = { meeting_label: string | null; title: string | null; youtube_url: string | null; youtube_video_id: string | null; created_at: string | null };
   return ((data ?? []) as Row[]).filter((row) => rowMatchesMeeting(`${row.meeting_label ?? ""} ${row.title ?? ""}`, identity));
 }
 
@@ -124,6 +124,18 @@ export async function countPreviousMeetingVideos(
   identity: MeetingIdentity
 ) {
   return (await fetchDeliveredRows(supabase, identity)).length;
+}
+
+// Oldest first, for building the series playlist in publication order.
+export async function listDeliveredVideoIdsOldestFirst(
+  supabase: ReturnType<typeof createAdminClient>,
+  identity: MeetingIdentity
+) {
+  const rows = await fetchDeliveredRows(supabase, identity);
+  return rows
+    .filter((row) => row.youtube_video_id)
+    .sort((a, b) => String(a.created_at ?? "").localeCompare(String(b.created_at ?? "")))
+    .map((row) => row.youtube_video_id as string);
 }
 
 // Most recent first. Only videos with a public URL can be linked.
