@@ -45,7 +45,17 @@ const MEETINGS: MeetingDefinition[] = [
   { key: "aasld", shortName: "AASLD", patterns: [/\bAASLD\b/, /The Liver Meeting/i] },
   { key: "obesityweek", shortName: "ObesityWeek", patterns: [/Obesity\s?Week/i] },
   { key: "acc", shortName: "ACC", patterns: [/\bACC\b/, /American College of Cardiology/i] },
-  { key: "ats", shortName: "ATS", patterns: [/\bATS\b/, /American Thoracic Society/i] }
+  { key: "ats", shortName: "ATS", patterns: [/\bATS\b/, /American Thoracic Society/i] },
+  // Added 2026-10-14 after UEG Week was skipped by the series playlist step.
+  { key: "ueg", shortName: "UEG Week", patterns: [/\bUEG\b/, /United European Gastroenterology/i] },
+  { key: "aacr", shortName: "AACR", patterns: [/\bAACR\b/, /American Association for Cancer Research/i] },
+  { key: "eha", shortName: "EHA", patterns: [/\bEHA\b/, /European Hematology Association/i] },
+  { key: "eular", shortName: "EULAR", patterns: [/\bEULAR\b/, /European Alliance of Associations for Rheumatology/i] },
+  { key: "acr", shortName: "ACR Convergence", patterns: [/\bACR Convergence\b/, /American College of Rheumatology/i] },
+  { key: "aan", shortName: "AAN", patterns: [/\bAAN\b/, /American Academy of Neurology/i] },
+  { key: "ecco", shortName: "ECCO", patterns: [/\bECCO\b/, /European Crohn.s and Colitis Organi[sz]ation/i] },
+  { key: "ddw", shortName: "DDW", patterns: [/\bDDW\b/, /Digestive Disease Week/i] },
+  { key: "endo", shortName: "ENDO", patterns: [/\bENDO 20\d{2}\b/, /Endocrine Society/i] }
 ];
 
 export type MeetingIdentity = { key: string; shortName: string; year: string; displayName: string; patterns: RegExp[] };

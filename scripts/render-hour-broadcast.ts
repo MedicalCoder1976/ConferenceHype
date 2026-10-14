@@ -1689,6 +1689,9 @@ async function uploadRenderedBroadcast(
       const { ensureMeetingPlaylist } = await import("@/lib/youtube/meetingPlaylist");
       const row = await getMeetingWatchBroadcastFromDb(process.env.MEETING_WATCH_BROADCAST_ID);
       const identity = row ? identifyMeeting(String(row.meetingLabel ?? "").replace(/^Create a Story:\s*/i, ""), String(row.title ?? title)) : null;
+      if (!identity) {
+        console.log("::warning::Series playlist skipped: this meeting is not in the conference registry (lib/story/meetingUpdateNumbering.ts).");
+      }
       if (identity) {
         const ensured = await ensureMeetingPlaylist(accessToken, identity.displayName);
         seriesPlaylist = { id: ensured.id, url: ensured.url, displayName: identity.displayName, identity };
