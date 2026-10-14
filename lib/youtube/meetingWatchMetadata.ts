@@ -51,7 +51,8 @@ export function buildMeetingWatchMetadata({
   meetingLabel,
   specialty,
   sourceUrl,
-  descriptionOpening
+  descriptionOpening,
+  previousUpdates
 }: {
   hourStart: Date;
   slots: BroadcastSlot[];
@@ -60,6 +61,9 @@ export function buildMeetingWatchMetadata({
   specialty?: string;
   sourceUrl: string;
   descriptionOpening?: string;
+  // Earlier ConferenceHype videos on the same meeting, newest first. Linked in
+  // the description so a viewer can move straight to the previous update.
+  previousUpdates?: { title: string; url: string }[];
 }): BroadcastMetadata {
   const seenPreparedCards = new Set<string>();
   const cards = slots.filter((slot) => {
@@ -139,6 +143,7 @@ export function buildMeetingWatchMetadata({
     "",
     ...chapters,
     "",
+    ...(previousUpdates?.length ? ["Previous updates in this series:", ...previousUpdates.map((update) => `${update.title}: ${update.url}`), ""] : []),
     "New Meeting Watch broadcasts drop every time a major conference wraps -- subscribe with notifications on so you don't miss the next one.",
     "",
     // Hashtags come from the untruncated study names, not the 30-char
@@ -186,6 +191,7 @@ export function buildMeetingWatchMetadata({
     `Conference: ${cleanMeetingWatchCopy(meetingLabel)}.`,
     `Full source: ${sourceUrl}`,
     "",
+    ...(previousUpdates?.length ? ["Previous updates in this series:", ...previousUpdates.map((update) => `${update.title}: ${update.url}`), ""] : []),
     ...[meetingLabel, specialty ?? "Medical Specialists", "MeetingWatch", "ConferenceHype"].map((value) => `#${value.replace(/[^a-zA-Z0-9]/g, "")}`)
   ].join("\n");
   return {

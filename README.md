@@ -243,6 +243,31 @@ no `Update` label, so the second video is `Update 1`, the third is
 - **Drafting.** Write the headline without the label and quote the labelled
   title from the preview when asking for headline approval.
 
+### Story series connections rule
+
+Operator rule (2026-10-14): when a conference already has earlier videos, the
+new video must connect back to them to raise retention across the series.
+
+- **In the narration (required).** When the update number is 1 or higher, the
+  narrative carries a short series bridge near the top, after the thesis and
+  before the first deep item: one to three spoken sentences that name the
+  most recent earlier update by its subject, say what this update adds, and
+  point to the description for the full list. Example: "This is our tenth
+  update from ESMO 2026. Our last one covered the Moderna and Merck melanoma
+  vaccine and Pfizer's lung ADC; this one turns to the pipelines behind them.
+  Links to the earlier updates are in the description." Name specific
+  earlier videos only from the `previousUpdates` list returned by the
+  production preview, never from memory.
+- **In the YouTube description (automatic).** The production preview returns
+  `previousUpdates` (newest first, up to five, delivered videos with a public
+  URL). The publish route stores them as a "Previous updates:" block at the
+  end of the broadcast description, and the render reads that block back into
+  "Previous updates in this series:" with one title and link per line.
+- **Not covered.** YouTube end screens and cards cannot be set through the
+  API, and playlists are not created automatically.
+- **Style.** A bridge is a callback, not a recap: do not repeat numbers from
+  the earlier video, and do not use it in place of the subscribe line.
+
 ### Story package pre-flight checklist
 
 Everything below is a standing operator rule. Check a Story against the whole

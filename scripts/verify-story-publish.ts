@@ -5,7 +5,8 @@ import path from "node:path";
 import { cleanStoryNarrative } from "@/lib/story/storyFormValidation";
 import { applySpokenPronunciations } from "@/lib/media/tts";
 import { assertCleanNarration } from "@/lib/media/narrationText";
-import { applyUpdateLabel, identifyMeeting, rowMatchesMeeting, STORY_TITLE_LIMIT } from "@/lib/story/meetingUpdateNumbering";
+import { applyUpdateLabel, extractPreviousUpdates, formatPreviousUpdatesBlock, identifyMeeting, rowMatchesMeeting, STORY_TITLE_LIMIT } from "@/lib/story/meetingUpdateNumbering";
+import { buildMeetingWatchMetadata } from "@/lib/youtube/meetingWatchMetadata";
 
 const storyFixture = {
   title: "Original complete Story title",
@@ -64,6 +65,30 @@ assert.equal(identifyMeeting("Unlisted Regional Society Meeting 2026"), null);
 assert.equal(rowMatchesMeeting("Create a Story: ESMO 2026 Madrid: Incyte KRAS G12D", esmo!), true);
 assert.equal(rowMatchesMeeting("ESMO 2025 Berlin highlights", esmo!), false);
 assert.equal(rowMatchesMeeting("EASD 2026 Milan: retatrutide", esmo!), false);
+
+// 2026-10-14: earlier updates on the same meeting are linked in the description.
+const sampleUpdates = [
+  { title: "ESMO 2026 Update 8: Moderna Melanoma Vaccine, Pfizer Sigvotatug", url: "https://www.youtube.com/watch?v=abc123", publishedAt: "2026-10-13T16:06:00Z" },
+  { title: "ESMO 2026 Game Plan: The mRNA Vaccine Day", url: "https://www.youtube.com/watch?v=def456", publishedAt: "2026-10-11T22:37:00Z" }
+];
+const storedDescription = ["Opening line.", "Primary source: https://example.com/a", ...formatPreviousUpdatesBlock(sampleUpdates)].join("\n");
+assert.deepEqual(
+  extractPreviousUpdates(storedDescription),
+  sampleUpdates.map(({ title, url }) => ({ title, url }))
+);
+assert.deepEqual(extractPreviousUpdates("Opening line.\nPrimary source: https://example.com/a"), []);
+const withLinks = buildMeetingWatchMetadata({
+  hourStart: new Date("2026-10-14T12:00:00Z"), slots: [], title: "ESMO 2026 Update 9: Test", meetingLabel: "ESMO 2026",
+  sourceUrl: "https://example.com/source", descriptionOpening: "Opening line.",
+  previousUpdates: sampleUpdates.map(({ title, url }) => ({ title, url }))
+});
+assert.match(withLinks.description, /Previous updates in this series:/);
+assert.match(withLinks.description, /https:\/\/www\.youtube\.com\/watch\?v=abc123/);
+const withoutLinks = buildMeetingWatchMetadata({
+  hourStart: new Date("2026-10-14T12:00:00Z"), slots: [], title: "ESMO 2026 Update 9: Test", meetingLabel: "ESMO 2026",
+  sourceUrl: "https://example.com/source", descriptionOpening: "Opening line."
+});
+assert.doesNotMatch(withoutLinks.description, /Previous updates in this series:/);
 
 console.log("Story publish verification passed.");
 

@@ -104,21 +104,61 @@ export function applyUpdateLabel(headline: string, identity: MeetingIdentity, pr
   return full;
 }
 
+export type PreviousUpdate = { title: string; url: string; publishedAt: string };
+
+// Delivered videos only: a failed, planned, or still-rendering broadcast has
+// not produced a video yet.
+async function fetchDeliveredRows(supabase: ReturnType<typeof createAdminClient>, identity: MeetingIdentity) {
+  const { data, error } = await supabase
+    .from("meeting_watch_broadcasts")
+    .select("meeting_label,title,status,youtube_url,created_at")
+    .in("status", ["verified", "uploaded"])
+    .limit(5000);
+  if (error) throw new Error(`Could not count earlier videos for ${identity.displayName}: ${error.message}`);
+  type Row = { meeting_label: string | null; title: string | null; youtube_url: string | null; created_at: string | null };
+  return ((data ?? []) as Row[]).filter((row) => rowMatchesMeeting(`${row.meeting_label ?? ""} ${row.title ?? ""}`, identity));
+}
+
 export async function countPreviousMeetingVideos(
   supabase: ReturnType<typeof createAdminClient>,
   identity: MeetingIdentity
 ) {
-  // Delivered videos only: a failed, planned, or still-rendering broadcast has
-  // not produced a video yet.
-  const { data, error } = await supabase
-    .from("meeting_watch_broadcasts")
-    .select("meeting_label,title,status")
-    .in("status", ["verified", "uploaded"])
-    .limit(5000);
-  if (error) throw new Error(`Could not count earlier videos for ${identity.displayName}: ${error.message}`);
-  return (data ?? []).filter((row: { meeting_label: string | null; title: string | null }) =>
-    rowMatchesMeeting(`${row.meeting_label ?? ""} ${row.title ?? ""}`, identity)
-  ).length;
+  return (await fetchDeliveredRows(supabase, identity)).length;
+}
+
+// Most recent first. Only videos with a public URL can be linked.
+export async function listPreviousMeetingVideos(
+  supabase: ReturnType<typeof createAdminClient>,
+  identity: MeetingIdentity,
+  limit = 5
+): Promise<PreviousUpdate[]> {
+  const rows = await fetchDeliveredRows(supabase, identity);
+  return rows
+    .filter((row) => row.youtube_url && row.title)
+    .sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")))
+    .slice(0, limit)
+    .map((row) => ({ title: row.title as string, url: row.youtube_url as string, publishedAt: String(row.created_at ?? "") }));
+}
+
+// The block stored at the end of the broadcast description, read back at render
+// time so the YouTube description can link the earlier updates.
+const PREVIOUS_UPDATES_HEADER = "Previous updates:";
+export function formatPreviousUpdatesBlock(updates: PreviousUpdate[]) {
+  if (updates.length === 0) return [] as string[];
+  return [PREVIOUS_UPDATES_HEADER, ...updates.map((update) => `- ${update.title}: ${update.url}`)];
+}
+
+export function extractPreviousUpdates(description: string): { title: string; url: string }[] {
+  const lines = description.replace(/\r\n/g, "\n").split("\n");
+  const headerIndex = lines.findIndex((line) => line.trim() === PREVIOUS_UPDATES_HEADER);
+  if (headerIndex < 0) return [];
+  const updates: { title: string; url: string }[] = [];
+  for (const line of lines.slice(headerIndex + 1)) {
+    const match = line.match(/^-\s+(.+):\s+(https?:\/\/\S+)\s*$/);
+    if (!match) break;
+    updates.push({ title: match[1].trim(), url: match[2] });
+  }
+  return updates;
 }
 
 export async function resolveStoryTitle(
@@ -127,12 +167,21 @@ export async function resolveStoryTitle(
 ) {
   const fallbackYear = story.startsAt ? String(new Date(story.startsAt).getFullYear()) : undefined;
   const identity = identifyMeeting(story.topic, story.title, fallbackYear);
-  if (!identity) return { title: story.title, baseTitle: story.title, updateNumber: 0, meeting: null as string | null };
-  const previousVideos = await countPreviousMeetingVideos(supabase, identity);
+  if (!identity) {
+    return { title: story.title, baseTitle: story.title, updateNumber: 0, meeting: null as string | null, previousUpdates: [] as PreviousUpdate[] };
+  }
+  const rows = await fetchDeliveredRows(supabase, identity);
+  const previousVideos = rows.length;
+  const previousUpdates = rows
+    .filter((row) => row.youtube_url && row.title)
+    .sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")))
+    .slice(0, 5)
+    .map((row) => ({ title: row.title as string, url: row.youtube_url as string, publishedAt: String(row.created_at ?? "") }));
   return {
     title: applyUpdateLabel(story.title, identity, previousVideos),
     baseTitle: story.title,
     updateNumber: previousVideos,
-    meeting: identity.displayName as string | null
+    meeting: identity.displayName as string | null,
+    previousUpdates
   };
 }

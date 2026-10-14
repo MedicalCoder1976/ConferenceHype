@@ -17,6 +17,7 @@ export async function POST(request: NextRequest) {
       baseTitle: titling.baseTitle,
       updateNumber: titling.updateNumber,
       updateMeeting: titling.meeting,
+      previousUpdates: titling.previousUpdates,
       topic: story.input.topic,
       spokenWords: story.spokenWords,
       durationSeconds: story.durationSeconds,

@@ -1530,6 +1530,7 @@ async function uploadRenderedBroadcast(
           const broadcast = await getMeetingWatchBroadcastFromDb(meetingWatchBroadcastId);
           if (!broadcast) throw new Error("Meeting Watch broadcast not found.");
           const { buildMeetingWatchMetadata } = await import("@/lib/youtube/meetingWatchMetadata");
+          const { extractPreviousUpdates } = await import("@/lib/story/meetingUpdateNumbering");
           return buildMeetingWatchMetadata({
             hourStart,
             slots,
@@ -1537,7 +1538,8 @@ async function uploadRenderedBroadcast(
             meetingLabel: broadcast.meetingLabel,
             specialty: broadcast.specialty,
             sourceUrl: broadcast.sourceUrl,
-            descriptionOpening: broadcast.description.split("\n")[0]
+            descriptionOpening: broadcast.description.split("\n")[0],
+            previousUpdates: extractPreviousUpdates(broadcast.description)
           });
         }
         if (isWeekendMode) {

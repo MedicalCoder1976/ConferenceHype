@@ -4,7 +4,7 @@ import { env } from "@/lib/env";
 import { errorMessage } from "@/lib/errors";
 import { parsePreparedStory, preparedStorySegments, storyInputSchema } from "@/lib/story/preparedStory";
 import { assertStoryCardsBroadcastReady } from "@/lib/story/storyBroadcastReady";
-import { resolveStoryTitle } from "@/lib/story/meetingUpdateNumbering";
+import { formatPreviousUpdatesBlock, resolveStoryTitle } from "@/lib/story/meetingUpdateNumbering";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(request: NextRequest) {
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
         meeting_label: `Create a Story: ${story.input.topic}`,
         specialty: story.input.specialty || "Story",
         title: titling.title,
-        description: [story.input.descriptionOpening, story.input.articleTitle ? `Source: ${story.input.articleTitle}${story.input.sourceName ? ` — ${story.input.sourceName}` : ""}.` : "", story.input.authors ? `Authors: ${story.input.authors}.` : "", "", `Primary source: ${story.input.sourceUrl}`].filter(Boolean).join("\n"),
+        description: [story.input.descriptionOpening, story.input.articleTitle ? `Source: ${story.input.articleTitle}${story.input.sourceName ? ` — ${story.input.sourceName}` : ""}.` : "", story.input.authors ? `Authors: ${story.input.authors}.` : "", "", `Primary source: ${story.input.sourceUrl}`, ...formatPreviousUpdatesBlock(titling.previousUpdates)].filter(Boolean).join("\n"),
         duration_seconds: story.durationSeconds,
         starts_at: story.input.startsAt ?? new Date().toISOString(),
         segments: segments.map((segment) => ({
