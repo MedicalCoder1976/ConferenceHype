@@ -286,8 +286,12 @@ history in the project memory notes.
   the voice spells them out. Keep company names in their normal spelling;
   the pronunciation layer handles them.
 - **X caption.** Opens with researched handles (meeting hashtag, host
-  organization, disease community tag), body about 12 to 20 words, story
-  claims only, at most 280 characters.
+  organization, disease community tag) and the @handles of the pharma
+  companies the story names (the two to four the video is about, partners
+  included), body about 12 to 20 words, story claims only, at most 280
+  characters including handles. Use only handles that are confirmed from
+  the company's own profile or site; flag any that are not, and leave out
+  a company whose handle cannot be found rather than guessing.
 
 ### Story narrative craft rule
 
