@@ -7,8 +7,9 @@ async function main() {
   const metadataPath = path.resolve(process.argv[2]);
   const directory = path.dirname(metadataPath);
   const metadata = JSON.parse(await readFile(metadataPath, "utf8"));
+  const languageName = ({ko: "한국어", ja: "日本語", es: "Español", fr: "Français"} as Record<string, string>)[metadata.language];
   const sha = (data: Buffer) => createHash("sha256").update(data).digest("hex");
-  if (!metadata.reviewed || metadata.language !== process.env.LANGUAGE || !["ko", "ja"].includes(metadata.language)) throw new Error("Reviewed language mismatch.");
+  if (!metadata.reviewed || metadata.language !== process.env.LANGUAGE || !["ko", "ja", "es", "fr"].includes(metadata.language)) throw new Error("Reviewed language mismatch.");
   if (sha(await readFile(process.env.PACKAGE_PATH!)) !== metadata.package_sha256) throw new Error("Translation package changed after rendering.");
   if (sha(await readFile(path.join(directory, "edition.mp4"))) !== metadata.video_sha256) throw new Error("Rendered video hash mismatch.");
   if (!metadata.quality?.narration_pages?.length || metadata.quality.narration_pages.some((p: {mean_db: number}) => !Number.isFinite(p.mean_db) || p.mean_db < -40) || metadata.quality.music_windows !== 0) throw new Error("Narration QA failed.");
@@ -26,7 +27,7 @@ async function main() {
     state.id = found.items?.find((item: {snippet: {title: string}; id: {videoId: string}}) => item.snippet.title === metadata.title)?.id.videoId;
   }
   if (!state.id) {
-    const uploaded = await uploadVideoToYoutube({filePath: path.join(directory, "edition.mp4"), accessToken: token, title: metadata.title, description: metadata.description, tags: ["WCLC 2026", "Oncology", metadata.language === "ko" ? "한국어" : "日本語", "ConferenceHype"], categoryId: "28", privacyStatus: "private"});
+    const uploaded = await uploadVideoToYoutube({filePath: path.join(directory, "edition.mp4"), accessToken: token, title: metadata.title, description: metadata.description, tags: metadata.tags ?? ["WCLC 2026", "Oncology", languageName, "ConferenceHype"], categoryId: "28", privacyStatus: "private"});
     state = {id: uploaded.id, status: "private-uploaded"};
     await writeFile(statePath, JSON.stringify(state, null, 2));
   }
@@ -44,7 +45,7 @@ async function main() {
   await api(`https://www.googleapis.com/upload/youtube/v3/thumbnails/set?videoId=${state.id}`, {method: "POST", headers: {"Content-Type": "image/png"}, body: thumbnail});
   const boundary = `localized-${Date.now()}`;
   const caption = await readFile(path.join(directory, "edition.srt"));
-  const body = Buffer.concat([Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify({snippet: {videoId: state.id, language: metadata.language, name: metadata.language === "ko" ? "한국어" : "日本語", isDraft: false}})}\r\n--${boundary}\r\nContent-Type: application/octet-stream\r\n\r\n`), caption, Buffer.from(`\r\n--${boundary}--\r\n`)]);
+  const body = Buffer.concat([Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify({snippet: {videoId: state.id, language: metadata.language, name: languageName, isDraft: false}})}\r\n--${boundary}\r\nContent-Type: application/octet-stream\r\n\r\n`), caption, Buffer.from(`\r\n--${boundary}--\r\n`)]);
   try {
     await api("https://www.googleapis.com/upload/youtube/v3/captions?part=snippet&uploadType=multipart", {method: "POST", headers: {"Content-Type": `multipart/related; boundary=${boundary}`}, body});
   } catch (error) {

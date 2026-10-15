@@ -16,7 +16,7 @@ on:
         type: string
       language:
         type: choice
-        options: [both, ko, ja]
+        options: [both, ko, ja, es, fr]
         default: both
 permissions:
   contents: read
