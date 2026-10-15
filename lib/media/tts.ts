@@ -188,6 +188,7 @@ export const PHARMA_SPOKEN_PRONUNCIATIONS = [
   ["Gilead", "Gil-ee-ad"],
   ["GlaxoSmithKline", "Glak-so Smith Kline"],
   ["GSK", "G S K"],
+  ["Insmed", "Ins-med"],
   ["Merck", "Murk"],
   ["Novartis", "no-vahr-tiss"],
   ["Novo Nordisk", "No-vo Nor-disk"],
