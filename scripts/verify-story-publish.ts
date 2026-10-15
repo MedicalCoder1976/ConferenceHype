@@ -8,6 +8,8 @@ import { assertCleanNarration } from "@/lib/media/narrationText";
 import { applyUpdateLabel, extractPreviousUpdates, formatPreviousUpdatesBlock, identifyMeeting, rowMatchesMeeting, STORY_TITLE_LIMIT } from "@/lib/story/meetingUpdateNumbering";
 import { buildMeetingWatchMetadata } from "@/lib/youtube/meetingWatchMetadata";
 import { ensureMeetingPlaylist, meetingPlaylistTitle, syncMeetingPlaylist } from "@/lib/youtube/meetingPlaylist";
+import { defaultRenderPath } from "@/lib/media/localOutputDir";
+import os from "node:os";
 
 const storyFixture = {
   title: "Original complete Story title",
@@ -92,6 +94,25 @@ const withoutLinks = buildMeetingWatchMetadata({
   sourceUrl: "https://example.com/source", descriptionOpening: "Opening line."
 });
 assert.doesNotMatch(withoutLinks.description, /Previous updates in this series:/);
+
+// 2026-10-14: hand-run renders must not default into the OneDrive-synced project
+// folder; CI keeps public/rendered.
+{
+  const saved = { media: process.env.CONFERENCEHYPE_MEDIA_DIR, gha: process.env.GITHUB_ACTIONS, ci: process.env.CI };
+  delete process.env.CONFERENCEHYPE_MEDIA_DIR;
+  delete process.env.GITHUB_ACTIONS;
+  delete process.env.CI;
+  const local = defaultRenderPath("out.mp4");
+  assert.ok(local.startsWith(os.tmpdir()), `local render path ${local} must be under the OS temp directory`);
+  assert.ok(!local.includes("OneDrive") || os.tmpdir().includes("OneDrive"));
+  process.env.GITHUB_ACTIONS = "true";
+  assert.equal(defaultRenderPath("out.mp4"), path.join("public", "rendered", "out.mp4"));
+  process.env.CONFERENCEHYPE_MEDIA_DIR = os.tmpdir();
+  assert.equal(defaultRenderPath("out.mp4"), path.join(os.tmpdir(), "out.mp4"));
+  if (saved.media === undefined) delete process.env.CONFERENCEHYPE_MEDIA_DIR; else process.env.CONFERENCEHYPE_MEDIA_DIR = saved.media;
+  if (saved.gha === undefined) delete process.env.GITHUB_ACTIONS; else process.env.GITHUB_ACTIONS = saved.gha;
+  if (saved.ci === undefined) delete process.env.CI; else process.env.CI = saved.ci;
+}
 
 // 2026-10-14: one public playlist per meeting; the new video is appended after
 // any earlier delivered videos that are missing, never duplicated.

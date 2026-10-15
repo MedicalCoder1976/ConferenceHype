@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { defaultRenderPath } from "@/lib/media/localOutputDir";
 import {
   getApprovedSegmentsFromDb,
   getPendingSegmentsFromDb,
@@ -70,7 +71,7 @@ async function main() {
     throw new Error(speech.note);
   }
 
-  const renderDir = process.env.RENDER_DIR ?? "public/rendered";
+  const renderDir = process.env.RENDER_DIR ?? defaultRenderPath();
   await mkdir(renderDir, { recursive: true });
 
   const safeSegmentId = segment.id.replace(/[^a-zA-Z0-9_-]/g, "-");

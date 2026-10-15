@@ -1,4 +1,5 @@
 import { mkdir, rm } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import ffmpegPath from "ffmpeg-static";
@@ -13,7 +14,8 @@ import {
 } from "@/lib/media/hypeLine";
 
 const ffmpeg = process.env.FFMPEG_PATH ?? ffmpegPath ?? "ffmpeg";
-const framesDir = path.resolve(".tmp/hype-line-frames");
+// Frames are scratch files: keep them outside the OneDrive-synced project folder.
+const framesDir = path.join(os.tmpdir(), "conferencehype", "hype-line-frames");
 
 function run(args: string[]) {
   return new Promise<void>((resolve, reject) => {

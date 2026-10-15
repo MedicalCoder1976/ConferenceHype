@@ -1,4 +1,5 @@
 import { prepareNarrationOnlyCards, assertNarrationOnlyCards } from "@/lib/broadcast/narrationOnly";
+import { defaultRenderPath } from "@/lib/media/localOutputDir";
 import { assertCleanNarration } from "@/lib/media/narrationText";
 import { buildNarrationAudioArgs } from "@/lib/media/ffmpeg";
 import { existsSync } from "node:fs";
@@ -32,9 +33,9 @@ import type { BroadcastWriteoutCard, ContentType, Persona, Segment } from "@/lib
 import type { BroadcastSlot } from "@/lib/rundown/slots";
 
 const durationSeconds = Math.min(Number(process.env.HOUR_BROADCAST_SECONDS ?? 3600), 3600);
-const renderDir = process.env.HOUR_BROADCAST_DIR ?? "public/rendered/hour-broadcast";
+const renderDir = process.env.HOUR_BROADCAST_DIR ?? defaultRenderPath("hour-broadcast");
 const outputPath =
-  process.env.HOUR_BROADCAST_OUTPUT ?? "public/rendered/conferencehype-hour-broadcast.mp4";
+  process.env.HOUR_BROADCAST_OUTPUT ?? defaultRenderPath("conferencehype-hour-broadcast.mp4");
 const musicPath =
   process.env.HOUR_BROADCAST_MUSIC ??
   "public/music/conferencehype-gap-music-6min-v6.mp3";

@@ -1523,6 +1523,32 @@ broadcasts through this new path:
 - `briefing.yml`: manual
 - `render-media.yml`: manual or configured media render
 
+## Where rendered media is written
+
+Rendered videos are uploaded to YouTube from the GitHub Actions runner, so
+production renders never touch the operator's computer. A render run by hand
+writes a file, and the project folder lives inside the OneDrive-synced Desktop,
+so anything written under it (`public/rendered`, `.tmp`) is uploaded to the
+personal OneDrive account.
+
+- **Default for hand-run renders (2026-10-14).** `lib/media/localOutputDir.ts`
+  sends output to the OS temp directory (`<temp>/conferencehype/rendered`),
+  which is outside OneDrive. This covers `render-hour-broadcast.ts`,
+  `ffmpeg-render.ts`, `dub-korean-broadcast.ts`, and the hype-line frame
+  scratch directory.
+- **CI is unchanged.** When `GITHUB_ACTIONS` or `CI` is set the original
+  `public/rendered/...` paths are used, because the workflows cache and upload
+  from them on the runner.
+- **Override.** Set `CONFERENCEHYPE_MEDIA_DIR` to an absolute path outside
+  OneDrive to choose the location, or the per-script variables
+  (`HOUR_BROADCAST_OUTPUT`, `HOUR_BROADCAST_DIR`, `RENDER_DIR`,
+  `KOREAN_DUB_OUTPUT`, `KOREAN_DUB_DIR`) to set exact files.
+- **Still synced.** Dependencies and build output (`node_modules`, `.next`) and
+  anything under `.tmp` or `.claude/worktrees` live in the synced folder
+  because the repository itself does. The durable fix is to keep the working
+  copy outside OneDrive (for example `C:\Dev`), or turn off OneDrive's Desktop
+  backup.
+
 ## Verification
 
 Local checks:

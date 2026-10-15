@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { defaultRenderPath } from "@/lib/media/localOutputDir";
 import { spawn } from "node:child_process";
 import { loadEnvConfig } from "@next/env";
 import ffmpegPath from "ffmpeg-static";
@@ -27,9 +28,9 @@ loadEnvConfig(process.cwd());
 // English video (which would either cut off or leave dead air).
 const TRANSITION_SECONDS = 4;
 
-const renderDir = process.env.KOREAN_DUB_DIR ?? "public/rendered/korean-dub";
+const renderDir = process.env.KOREAN_DUB_DIR ?? defaultRenderPath("korean-dub");
 const outputPath =
-  process.env.KOREAN_DUB_OUTPUT ?? "public/rendered/conferencehype-korean-dub.mp4";
+  process.env.KOREAN_DUB_OUTPUT ?? defaultRenderPath("conferencehype-korean-dub.mp4");
 const ffmpeg = process.env.FFMPEG_PATH ?? (ffmpegPath as unknown as string) ?? "ffmpeg";
 
 function run(command: string, args: string[]) {
