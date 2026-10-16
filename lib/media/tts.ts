@@ -190,6 +190,7 @@ export const PHARMA_SPOKEN_PRONUNCIATIONS = [
   ["GSK", "G S K"],
   ["Insmed", "Ins-med"],
   ["Merck", "Murk"],
+  ["Necchi", "Nekki"],
   ["Novartis", "no-vahr-tiss"],
   ["Novo Nordisk", "No-vo Nor-disk"],
   ["Pfizer", "Fye-zer"],

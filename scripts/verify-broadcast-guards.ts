@@ -181,6 +181,8 @@ assert.equal(applySpokenPronunciations("Novartis and Amgen"), "no-vahr-tiss and 
 assert.equal(applySpokenPronunciations("Apnimed reported SynAIRgy results."), "Ap-nih-med reported Synergy results.");
 // 2026-10-16: default G2P read Insmed as "inz-um-d".
 assert.equal(applySpokenPronunciations("Insmed reported TPIP data."), "Ins-med reported TPIP data.");
+// 2026-10-16: default G2P read Necchi as "NEK-eye".
+assert.equal(applySpokenPronunciations("Andrea Necchi presents."), "Andrea Nekki presents.");
 // 2026-10-12: Kokoro reads the colon in "8:30" as a pause ("eight ... thirty"). Clock times are spoken as words.
 assert.equal(applySpokenPronunciations("from 8:30 to 9:45 in the morning Central"), "from eight thirty to nine forty five in the morning Central");
 assert.equal(applySpokenPronunciations("from 1:45 to 2:45 in the afternoon"), "from one forty five to two forty five in the afternoon");
