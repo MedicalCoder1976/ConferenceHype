@@ -260,6 +260,12 @@ export function applySpokenPronunciations(script: string, sourceContext: string 
     .replace(/(\d)\s*%/g, "$1 percent")
     .replace(/\bASCO\b/g, "Ask-ho")
     .replace(/\bMI\b/g, "M I")
+    // Immunoglobulin isotypes (IgA, IgG, IgM, IgE, IgAN) were read as the word
+    // "ig" (rhymes with eeg). Spell them as letters; hyphens keep the final A
+    // from being read as the article "uh".
+    .replace(/\bIg([AGMED])N\b/g, "I-G-$1-N")
+    .replace(/\bIg([AGMED])(\d)?\b/g, (_match, isotype: string, digit?: string) => `I-G-${isotype}${digit ? ` ${digit}` : ""}`)
+    .replace(/\bIg\b/g, "I-G")
     .replace(/\bESC\b/g, "E S C")
     // The "ch" in cholangiocarcinoma is pronounced as a hard "k" sound,
     // not as "cho". Removing the silent h gives Kokoro the intended
