@@ -187,6 +187,12 @@ assert.equal(applySpokenPronunciations("Andrea Necchi presents."), "Andrea Nekki
 assert.equal(applySpokenPronunciations("IgA nephropathy, IgAN, IgG4 and IgM."), "I-G-A nephropathy, I-G-A-N, I-G-G 4 and I-G-M.");
 assert.equal(applySpokenPronunciations("Ig levels rose."), "I-G levels rose.");
 assert.equal(applySpokenPronunciations("Igor presented."), "Igor presented.");
+// 2026-10-16: "pre-" compounds were read as a stressed "pree" plus a pause, and
+// "Madrid, Spain" paused between city and country.
+assert.equal(applySpokenPronunciations("The pre-specified and pre-treated groups."), "The prespecified and pretreated groups.");
+assert.equal(applySpokenPronunciations("The Congress in Madrid, Spain will start."), "The Congress in Madrid Spain will start.");
+assert.equal(applySpokenPronunciations("Held in Phoenix, Arizona and in Washington, D.C. this year."), "Held in Phoenix Arizona and in Washington D.C. this year.");
+assert.equal(applySpokenPronunciations("Hall, Smith, and Jones reported data."), "Hall, Smith, and Jones reported data.");
 // 2026-10-12: Kokoro reads the colon in "8:30" as a pause ("eight ... thirty"). Clock times are spoken as words.
 assert.equal(applySpokenPronunciations("from 8:30 to 9:45 in the morning Central"), "from eight thirty to nine forty five in the morning Central");
 assert.equal(applySpokenPronunciations("from 1:45 to 2:45 in the afternoon"), "from one forty five to two forty five in the afternoon");

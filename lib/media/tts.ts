@@ -174,6 +174,13 @@ export function expandClockTimes(text: string): string {
 
 // Spoken-only spellings shared by every configured TTS persona. Visible copy,
 // titles, citations, and source text retain the companies' official spelling.
+// Places that follow a city in "City, Place". Kokoro turns that comma into a
+// pause ("Madrid ... Spain"), which sounds unnatural, so the comma is dropped.
+const PLACE_AFTER_CITY =
+  "Spain|Portugal|France|Germany|Italy|Switzerland|Austria|Belgium|Netherlands|Denmark|Sweden|Norway|Finland|Ireland|England|Scotland|Wales|Greece|Poland|Hungary|Czechia|Turkey|Israel|Canada|Mexico|Brazil|Argentina|Japan|China|Korea|Singapore|India|Australia|United Kingdom|United States|" +
+  "Alabama|Alaska|Arizona|Arkansas|California|Colorado|Connecticut|Delaware|Florida|Georgia|Hawaii|Idaho|Illinois|Indiana|Iowa|Kansas|Kentucky|Louisiana|Maine|Maryland|Massachusetts|Michigan|Minnesota|Mississippi|Missouri|Montana|Nebraska|Nevada|New Hampshire|New Jersey|New Mexico|New York|North Carolina|North Dakota|Ohio|Oklahoma|Oregon|Pennsylvania|Rhode Island|South Carolina|South Dakota|Tennessee|Texas|Utah|Vermont|Virginia|Washington|West Virginia|Wisconsin|Wyoming|D\\.C\\.";
+const CITY_COMMA_PLACE = new RegExp(`\\b([A-Z][A-Za-z.'-]+(?: [A-Z][A-Za-z.'-]+)*), (${PLACE_AFTER_CITY})(?=[\\s.,;:!?)]|$)`, "g");
+
 export const PHARMA_SPOKEN_PRONUNCIATIONS = [
   ["AbbVie", "Abb-vee"],
   ["Apnimed", "Ap-nih-med"],
@@ -266,6 +273,10 @@ export function applySpokenPronunciations(script: string, sourceContext: string 
     .replace(/\bIg([AGMED])N\b/g, "I-G-$1-N")
     .replace(/\bIg([AGMED])(\d)?\b/g, (_match, isotype: string, digit?: string) => `I-G-${isotype}${digit ? ` ${digit}` : ""}`)
     .replace(/\bIg\b/g, "I-G")
+    // "pre-specified" put a stressed "pree" and a pause before the next word.
+    // Closing the hyphen lets "pre" flow into it ("prespecified", "pretreated").
+    .replace(/\b(pre)-(?=[a-z])/gi, "$1")
+    .replace(CITY_COMMA_PLACE, "$1 $2")
     .replace(/\bESC\b/g, "E S C")
     // The "ch" in cholangiocarcinoma is pronounced as a hard "k" sound,
     // not as "cho". Removing the silent h gives Kokoro the intended
