@@ -65,6 +65,9 @@ assert.equal(identifyMeeting("CHEST 2026 Annual Meeting")?.displayName, "CHEST 2
 assert.equal(identifyMeeting("A story about chest pain in 2026"), null);
 assert.equal(identifyMeeting("American Heart Association Scientific Sessions 2026")?.displayName, "AHA 2026");
 assert.equal(identifyMeeting("Unlisted Regional Society Meeting 2026"), null);
+assert.equal(identifyMeeting("ASCO Quality Care Symposium 2026")?.displayName, "ASCO Quality Care Symposium 2026");
+assert.equal(identifyMeeting("ASCO Quality Care Symposium 2026: What Worked")?.key, "ascoqcs");
+assert.equal(identifyMeeting("ASCO 2026 Annual Meeting")?.key, "asco");
 assert.equal(identifyMeeting("United European Gastroenterology Week 2026")?.displayName, "UEG Week 2026");
 assert.equal(identifyMeeting("UEG Week 2026: Abivax Obefazimod")?.displayName, "UEG Week 2026");
 assert.equal(rowMatchesMeeting("Create a Story: ESMO 2026 Madrid: Incyte KRAS G12D", esmo!), true);

@@ -26,6 +26,10 @@ const MEETINGS: MeetingDefinition[] = [
   { key: "ims", shortName: "IMS", patterns: [/\bIMS\b/, /International Myeloma Society/i] },
   { key: "esc", shortName: "ESC Congress", patterns: [/\bESC\b/, /European Society of Cardiology/i] },
   { key: "ers", shortName: "ERS Congress", patterns: [/\bERS\b/, /European Respiratory Society/i] },
+  // Must stay ABOVE the ASCO entry: its name contains ASCO, and without this a
+  // Quality Care Symposium Story would be labelled "ASCO 2026 Update N" and
+  // counted with the June annual meeting videos (added 2026-10-17).
+  { key: "ascoqcs", shortName: "ASCO Quality Care Symposium", patterns: [/Quality Care Symposium/i] },
   { key: "asco", shortName: "ASCO", patterns: [/\bASCO\b/, /American Society of Clinical Oncology/i] },
   { key: "aap", shortName: "AAP", patterns: [/\bAAP\b/, /American Academy of Pediatrics/i] },
   { key: "acep", shortName: "ACEP", patterns: [/\bACEP(?:26)?\b/, /American College of Emergency Physicians/i] },
