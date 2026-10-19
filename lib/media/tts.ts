@@ -183,6 +183,7 @@ const CITY_COMMA_PLACE = new RegExp(`\\b([A-Z][A-Za-z.'-]+(?: [A-Z][A-Za-z.'-]+)
 
 export const PHARMA_SPOKEN_PRONUNCIATIONS = [
   ["AbbVie", "Abb-vee"],
+  ["Alimentiv", "Ullimentiv"],
   ["Apnimed", "Ap-nih-med"],
   ["Amgen", "Amgen"],
   ["AstraZeneca", "AstraZeneca"],

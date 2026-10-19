@@ -183,6 +183,8 @@ assert.equal(applySpokenPronunciations("Apnimed reported SynAIRgy results."), "A
 assert.equal(applySpokenPronunciations("Insmed reported TPIP data."), "Ins-med reported TPIP data.");
 // 2026-10-16: default G2P read Necchi as "NEK-eye".
 assert.equal(applySpokenPronunciations("Andrea Necchi presents."), "Andrea Nekki presents.");
+// 2026-10-19: default G2P read Alimentiv with a long-I "uh-LYE-mentiv".
+assert.equal(applySpokenPronunciations("Alimentiv ran Verdict."), "Ullimentiv ran Verdict.");
 // 2026-10-16: IgA/IgG/IgM/IgE/IgAN and bare Ig were read as the word "ig".
 assert.equal(applySpokenPronunciations("IgA nephropathy, IgAN, IgG4 and IgM."), "I-G-A nephropathy, I-G-A-N, I-G-G 4 and I-G-M.");
 assert.equal(applySpokenPronunciations("Ig levels rose."), "I-G levels rose.");
