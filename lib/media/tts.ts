@@ -184,6 +184,13 @@ const CITY_COMMA_PLACE = new RegExp(`\\b([A-Z][A-Za-z.'-]+(?: [A-Z][A-Za-z.'-]+)
 export const PHARMA_SPOKEN_PRONUNCIATIONS = [
   ["AbbVie", "Abb-vee"],
   ["Alimentiv", "Ullimentiv"],
+  ["Dasl-HiCaP", "Dazzle-Hy-cap"],
+  ["Hansoh", "Hahn-soh"],
+  ["Keymed", "Kee-med"],
+  ["Lu Xie", "Loo Shee-yeh"],
+  ["Orion", "Oh-ree-on"],
+  ["Rui-Hua Xu", "Ruhwa Shoo"],
+  ["Sone-Ve", "Soh-nee Vee"],
   ["HUTCHMED", "Hutch-med"],
   ["KRAS", "Kay-rass"],
   ["Sachi", "Sah-chee"],
