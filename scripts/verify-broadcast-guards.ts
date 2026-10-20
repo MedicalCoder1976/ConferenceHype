@@ -185,6 +185,8 @@ assert.equal(applySpokenPronunciations("Insmed reported TPIP data."), "Ins-med r
 assert.equal(applySpokenPronunciations("Andrea Necchi presents."), "Andrea Nekki presents.");
 // 2026-10-19: default G2P read Alimentiv with a long-I "uh-LYE-mentiv".
 assert.equal(applySpokenPronunciations("Alimentiv ran Verdict."), "Ullimentiv ran Verdict.");
+// 2026-10-19: HUTCHMED and KRAS were spelled out letter by letter; Sachi read as "atchy".
+assert.equal(applySpokenPronunciations("HUTCHMED reports KRAS and Sachi data."), "Hutch-med reports Kay-rass and Sah-chee data.");
 // 2026-10-16: IgA/IgG/IgM/IgE/IgAN and bare Ig were read as the word "ig".
 assert.equal(applySpokenPronunciations("IgA nephropathy, IgAN, IgG4 and IgM."), "I-G-A nephropathy, I-G-A-N, I-G-G 4 and I-G-M.");
 assert.equal(applySpokenPronunciations("Ig levels rose."), "I-G levels rose.");
