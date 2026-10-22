@@ -42,7 +42,13 @@ async function main() {
     tags: before.tags ?? [],
     categoryId: before.categoryId ?? "27"
   });
-  const after = await fetchSnippet(videoId, accessToken);
+  // The Data API read-back lags the update by a few seconds (the first run
+  // reported the old title although the public page already had the new one).
+  let after = await fetchSnippet(videoId, accessToken);
+  for (let attempt = 0; attempt < 6 && after.title !== title; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 10_000));
+    after = await fetchSnippet(videoId, accessToken);
+  }
 
   const supabase = createAdminClient();
   const { data, error } = await supabase
