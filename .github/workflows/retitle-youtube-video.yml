@@ -1,0 +1,36 @@
+name: Retitle an existing YouTube video
+
+on:
+  workflow_dispatch:
+    inputs:
+      video_id:
+        description: "Owned YouTube video ID"
+        required: true
+      title:
+        description: "Replacement YouTube title (max 100 characters); description and thumbnail are left as they are"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  retitle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Update title on YouTube and the stored record
+        run: npx tsx scripts/retitle-youtube-video.ts
+        env:
+          YOUTUBE_VIDEO_ID: ${{ inputs.video_id }}
+          YOUTUBE_TITLE: ${{ inputs.title }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
+          YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
+          YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
