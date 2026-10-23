@@ -31,6 +31,9 @@ const MEETINGS: MeetingDefinition[] = [
   // counted with the June annual meeting videos (added 2026-10-17).
   { key: "ascoqcs", shortName: "ASCO Quality Care Symposium", patterns: [/Quality Care Symposium/i] },
   { key: "asco", shortName: "ASCO", patterns: [/\bASCO\b/, /American Society of Clinical Oncology/i] },
+  // Added 2026-10-23 so ACCC National Oncology Conference Stories get an update
+  // label, previous-update links and a series playlist.
+  { key: "accc", shortName: "ACCC", patterns: [/\bACCC\b/, /Association of (?:Community )?Cancer Care? Centers/i] },
   { key: "aap", shortName: "AAP", patterns: [/\bAAP\b/, /American Academy of Pediatrics/i] },
   { key: "acep", shortName: "ACEP", patterns: [/\bACEP(?:26)?\b/, /American College of Emergency Physicians/i] },
   { key: "hfsa", shortName: "HFSA", patterns: [/\bHFSA\b/, /Heart Failure Society of America/i] },
