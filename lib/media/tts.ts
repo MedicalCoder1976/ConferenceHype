@@ -284,9 +284,13 @@ export function applySpokenPronunciations(script: string, sourceContext: string 
     .replace(/\bIg([AGMED])N\b/g, "I-G-$1-N")
     .replace(/\bIg([AGMED])(\d)?\b/g, (_match, isotype: string, digit?: string) => `I-G-${isotype}${digit ? ` ${digit}` : ""}`)
     .replace(/\bIg\b/g, "I-G")
-    // "pre-specified" put a stressed "pree" and a pause before the next word.
-    // Closing the hyphen lets "pre" flow into it ("prespecified", "pretreated").
-    .replace(/\b(pre)-(?=[a-z])/gi, "$1")
+    // "pre" (2026-10-24, checked with Kokoro's G2P): merged words outside the
+    // lexicon reduce it to "priss"/"pruh" (prespecified, preclinical), while
+    // hyphenated "pre-" words read a clean, lightly stressed "pree". So keep
+    // hyphens, re-hyphenate the merged words the lexicon gets wrong, and spell
+    // "specified" with "pree" (the hyphenated form put the stress on "pree").
+    .replace(/\b([Pp])re-?specified\b/g, "$1reespecified")
+    .replace(/\b([Pp])re(surgical|clinical|dose|screening|meeting)\b/g, "$1re-$2")
     .replace(CITY_COMMA_PLACE, "$1 $2")
     .replace(/\bESC\b/g, "E S C")
     // The "ch" in cholangiocarcinoma is pronounced as a hard "k" sound,

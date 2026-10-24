@@ -193,9 +193,12 @@ assert.equal(applySpokenPronunciations("Keymed licensed Sone-Ve; Rui-Hua Xu and 
 assert.equal(applySpokenPronunciations("IgA nephropathy, IgAN, IgG4 and IgM."), "I-G-A nephropathy, I-G-A-N, I-G-G 4 and I-G-M.");
 assert.equal(applySpokenPronunciations("Ig levels rose."), "I-G levels rose.");
 assert.equal(applySpokenPronunciations("Igor presented."), "Igor presented.");
-// 2026-10-16: "pre-" compounds were read as a stressed "pree" plus a pause, and
-// "Madrid, Spain" paused between city and country.
-assert.equal(applySpokenPronunciations("The pre-specified and pre-treated groups."), "The prespecified and pretreated groups.");
+// 2026-10-16: "Madrid, Spain" paused between city and country.
+// 2026-10-24: "pre" keeps its hyphen (clean "pree"), "specified" gets a spelled
+// "pree", and merged words the lexicon reduces to "priss"/"pruh" are re-hyphenated.
+assert.equal(applySpokenPronunciations("The pre-specified and pre-treated groups."), "The preespecified and pre-treated groups.");
+assert.equal(applySpokenPronunciations("Prespecified preclinical and presurgical data."), "Preespecified pre-clinical and pre-surgical data.");
+assert.equal(applySpokenPronunciations("A pre-congress preview and preliminary results."), "A pre-congress preview and preliminary results.");
 assert.equal(applySpokenPronunciations("The Congress in Madrid, Spain will start."), "The Congress in Madrid Spain will start.");
 assert.equal(applySpokenPronunciations("Held in Phoenix, Arizona and in Washington, D.C. this year."), "Held in Phoenix Arizona and in Washington D.C. this year.");
 assert.equal(applySpokenPronunciations("Hall, Smith, and Jones reported data."), "Hall, Smith, and Jones reported data.");

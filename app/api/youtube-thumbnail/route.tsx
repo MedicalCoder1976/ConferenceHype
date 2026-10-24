@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
   const tier = params.get("tier") === "dominant" || params.get("tier") === "roundup" ? params.get("tier") : "generic";
   const journal = params.get("journal") ? truncate(params.get("journal")!, 62) : undefined;
   const specialty = params.get("specialty") ? truncate(params.get("specialty")!, 36) : undefined;
+  const conference = params.get("conference") ? truncate(params.get("conference")!, 40) : undefined;
   const date = params.get("date") ?? "";
   const suppliedJournalNames = params.getAll("journalName").map((name) => truncate(name, 58)).filter(Boolean);
   const journalNames = suppliedJournalNames.length ? suppliedJournalNames.slice(0, 2) : journal ? [journal] : [];
@@ -124,6 +125,7 @@ export async function GET(request: NextRequest) {
           <div style={{ display: "flex", position: "absolute", top: 0, left: 0, width: "100%", height: 18, backgroundColor: COLORS.broadcast }} />
           <div style={{ display: "flex", alignItems: "center", gap: 22 }}>
             <div style={{ display: "flex", backgroundImage: "linear-gradient(135deg, #ffbd45 0%, #ffe58a 100%)", color: COLORS.ink, border: `4px solid ${COLORS.paper}`, borderRadius: 12, padding: "17px 28px 15px", fontSize: specialtyFontSize, fontWeight: 950, lineHeight: 0.95, letterSpacing: 2.4, boxShadow: "0 0 0 6px rgba(244,72,58,0.78)" }}>{specialty.toUpperCase()}</div>
+            {conference ? <div style={{ display: "flex", color: COLORS.paper, fontSize: 34, fontWeight: 900, letterSpacing: 0.8 }}>{conference.toUpperCase()}</div> : null}
           </div>
           <div style={{ display: "flex", marginTop: 32, color: COLORS.gold, fontSize: headline.length > 80 ? 48 : headline.length > 60 ? 56 : 66, fontWeight: 950, lineHeight: 1.05, maxWidth: 1128, overflowWrap: "break-word" }}>{suppliedHeadline ? headline : `${specialty.toUpperCase()}: 5 Things to Know Today`}</div>
           {entityLabel ? <div style={{ display: "flex", marginTop: 34, color: COLORS.paper, fontSize: entityLabel.length > 30 ? 35 : 42, fontWeight: 850, lineHeight: 1.1, maxWidth: 1060 }}>{entityLabel}</div> : null}
@@ -190,6 +192,7 @@ export async function GET(request: NextRequest) {
         <div style={{ display: "flex", flexDirection: "column", width: isCleanStoryLayout ? "100%" : "72%", padding: isCleanStoryLayout ? "64px 76px 58px" : "64px 42px 58px 76px", justifyContent: "center" }}>
           <div style={{ display: "flex", alignItems: "center", marginBottom: seriesLabel ? 14 : 25 }}>
             <div style={{ display: "flex", backgroundColor: COLORS.broadcast, borderRadius: 8, padding: "9px 17px", fontSize: 25, fontWeight: 800, letterSpacing: 1.5 }}>CONFERENCEHYPE</div>
+            {conference ? <div style={{ display: "flex", marginLeft: 18, color: COLORS.paper, fontSize: 30, fontWeight: 900, letterSpacing: 0.6 }}>{conference.toUpperCase()}</div> : null}
             {specialty ? <div style={{ display: "flex", marginLeft: 15, color: COLORS.cyan, fontSize: 26, fontWeight: 700 }}>{specialty}</div> : null}
           </div>
           {seriesLabel ? <div style={{ display: "flex", marginBottom: 12, color: COLORS.paper, fontSize: 27, fontWeight: 900, lineHeight: 1.05, letterSpacing: 1.1, maxWidth: 820 }}>{seriesLabel}</div> : null}

@@ -1616,8 +1616,18 @@ async function uploadRenderedBroadcast(
   const isPreparedStoryMode = cards.some((card) => card.riskFlags?.includes("prepared_story"));
   const isPreparedFiveThingsMode = cards.some((card) => card.riskFlags?.includes("prepared_five_things"));
 
+  // Operator rule (2026-10-24): every conference video's opening slide names
+  // the conference beside the CONFERENCEHYPE box ("ESMO 2026", "Kidney Week 2026").
+  const rawMeetingLabel = isMeetingWatchMode
+    ? String(actualMetadata?.meetingLabel ?? "").replace(/^Create a Story:\s*/i, "").trim()
+    : "";
+  const { identifyMeeting } = await import("@/lib/story/meetingUpdateNumbering");
+  const conferenceLabel = rawMeetingLabel
+    ? identifyMeeting(rawMeetingLabel, title)?.displayName ?? rawMeetingLabel
+    : undefined;
   const thumbnailSpec = {
     tier: actualMetadata?.tier ?? "generic",
+    conferenceLabel,
     journalName: actualMetadata?.journalName,
     specialty: actualMetadata?.specialty,
     dateLabel: actualMetadata?.dateLabel ?? fallbackLabel,

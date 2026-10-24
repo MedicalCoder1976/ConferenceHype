@@ -225,6 +225,7 @@ export type YoutubeThumbnailSpec = {
   tier: string;
   journalName?: string;
   specialty?: string;
+  conferenceLabel?: string;
   dateLabel: string;
   headline?: string;
   topicLabel?: string;
@@ -249,6 +250,7 @@ export async function downloadYoutubeThumbnail({
   tier,
   journalName,
   specialty,
+  conferenceLabel,
   dateLabel,
   headline,
   journalNames,
@@ -272,6 +274,7 @@ export async function downloadYoutubeThumbnail({
   const params = new URLSearchParams({ tier, date: dateLabel });
   if (journalName) params.set("journal", journalName);
   if (specialty) params.set("specialty", specialty);
+  if (conferenceLabel) params.set("conference", conferenceLabel);
   if (headline) params.set("headline", headline);
   journalNames?.slice(0, 2).forEach((name) => params.append("journalName", name));
   if (journalCount) params.set("journalCount", String(journalCount));
