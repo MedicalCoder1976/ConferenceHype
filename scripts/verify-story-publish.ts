@@ -97,6 +97,12 @@ const withoutLinks = buildMeetingWatchMetadata({
   sourceUrl: "https://example.com/source", descriptionOpening: "Opening line."
 });
 assert.doesNotMatch(withoutLinks.description, /Previous updates in this series:/);
+// 2026-10-24: the opening slide names the conference; Stories leave meetingLabel
+// empty, so the conference must come through conferenceLabel.
+assert.equal(buildMeetingWatchMetadata({
+  hourStart: new Date("2026-10-24T12:00:00Z"), slots: [], title: "Test", meetingLabel: "Create a Story: ESMO Congress 2026",
+  sourceUrl: "https://example.com/source", descriptionOpening: "Opening line."
+}).conferenceLabel, "ESMO Congress 2026");
 
 // 2026-10-14: hand-run renders must not default into the OneDrive-synced project
 // folder; CI keeps public/rendered.

@@ -210,6 +210,7 @@ export function buildMeetingWatchMetadata({
     thumbnailJournalNames: undefined,
     thumbnailJournalCount: undefined,
     meetingLabel: !isPreparedStory && !isPreparedFiveThings ? cleanMeetingWatchCopy(meetingLabel) : undefined,
+    conferenceLabel: cleanMeetingWatchCopy(meetingLabel.replace(/^Create a Story:\s*/i, "")) || undefined,
     specialistAlert: !isPreparedStory && !isPreparedFiveThings ? meetingWatchSpecialistAlert(specialty) : undefined,
     meetingDates: !isPreparedStory && !isPreparedFiveThings ? meetingDates : undefined
   };

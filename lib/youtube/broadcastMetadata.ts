@@ -45,6 +45,9 @@ export type BroadcastMetadata = {
   relevantSpecialties?: string[];
   journalClubSeriesLabel?: string;
   meetingLabel?: string;
+  // Conference name for the opening slide; set for every Meeting Watch mode,
+  // including Stories and 5 Things, where meetingLabel is left empty.
+  conferenceLabel?: string;
   specialistAlert?: string;
   meetingDates?: string;
 };

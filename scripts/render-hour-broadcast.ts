@@ -1619,7 +1619,7 @@ async function uploadRenderedBroadcast(
   // Operator rule (2026-10-24): every conference video's opening slide names
   // the conference beside the CONFERENCEHYPE box ("ESMO 2026", "Kidney Week 2026").
   const rawMeetingLabel = isMeetingWatchMode
-    ? String(actualMetadata?.meetingLabel ?? "").replace(/^Create a Story:\s*/i, "").trim()
+    ? String(actualMetadata?.conferenceLabel ?? actualMetadata?.meetingLabel ?? "").replace(/^Create a Story:\s*/i, "").trim()
     : "";
   const { identifyMeeting } = await import("@/lib/story/meetingUpdateNumbering");
   const conferenceLabel = rawMeetingLabel
