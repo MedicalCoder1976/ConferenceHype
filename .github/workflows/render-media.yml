@@ -15,7 +15,7 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - run: npm ci
       - name: Install Kokoro TTS dependencies
-        run: pip install kokoro numpy soundfile
+        run: pip install kokoro numpy soundfile "cymem==2.0.13" "preshed==3.0.13" "murmurhash==1.0.15"
       - run: npm run job:render
         env:
           KOKORO_PYTHON_CMD: python3

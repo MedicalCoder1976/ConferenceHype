@@ -143,7 +143,7 @@ jobs:
 
       - name: Install Kokoro TTS dependencies
         if: ${{ steps.resolve.outputs.broadcast_id != '' }}
-        run: pip install kokoro numpy soundfile
+        run: pip install kokoro numpy soundfile "cymem==2.0.13" "preshed==3.0.13" "murmurhash==1.0.15"
 
       - name: Mark broadcast as rendering
         if: ${{ steps.resolve.outputs.broadcast_id != '' }}

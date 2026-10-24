@@ -130,7 +130,7 @@ jobs:
 
       - name: Install Kokoro TTS dependencies
         if: ${{ steps.block.outputs.block_start != '' }}
-        run: pip install kokoro numpy soundfile
+        run: pip install kokoro numpy soundfile "cymem==2.0.13" "preshed==3.0.13" "murmurhash==1.0.15"
 
       - name: Mark programming block as rendering
         if: ${{ steps.block.outputs.slot_id != '' || steps.block.outputs.journal_slot_id != '' }}

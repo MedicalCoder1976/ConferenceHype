@@ -35,7 +35,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      - run: pip install kokoro numpy soundfile
+      - run: pip install kokoro numpy soundfile "cymem==2.0.13" "preshed==3.0.13" "murmurhash==1.0.15"
       - name: Render and upload verified 15-minute break-in
         run: npx tsx scripts/render-hour-broadcast.ts
         env:

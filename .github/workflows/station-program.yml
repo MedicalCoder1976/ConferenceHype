@@ -95,7 +95,7 @@ jobs:
       - if: steps.release_gate.outputs.allowed == 'true'
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - if: steps.release_gate.outputs.allowed == 'true'
-        run: pip install kokoro numpy soundfile
+        run: pip install kokoro numpy soundfile "cymem==2.0.13" "preshed==3.0.13" "murmurhash==1.0.15"
       - name: Render and upload isolated 30-minute journal program
         if: steps.release_gate.outputs.allowed == 'true'
         run: npx tsx scripts/render-hour-broadcast.ts
