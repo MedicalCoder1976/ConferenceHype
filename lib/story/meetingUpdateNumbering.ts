@@ -51,6 +51,9 @@ const MEETINGS: MeetingDefinition[] = [
   { key: "sitc", shortName: "SITC", patterns: [/\bSITC\b/, /Society for Immunotherapy of Cancer/i] },
   { key: "aasld", shortName: "AASLD", patterns: [/\bAASLD\b/, /The Liver Meeting/i] },
   { key: "obesityweek", shortName: "ObesityWeek", patterns: [/Obesity\s?Week/i] },
+  // Added 2026-10-26 for the first CTAD preview, so later CTAD Stories get an
+  // update label, previous-update links and a series playlist.
+  { key: "ctad", shortName: "CTAD", patterns: [/\bCTAD\b/, /Clinical Trials on Alzheimer.s Disease/i] },
   { key: "acc", shortName: "ACC", patterns: [/\bACC\b/, /American College of Cardiology/i] },
   { key: "ats", shortName: "ATS", patterns: [/\bATS\b/, /American Thoracic Society/i] },
   // Added 2026-10-14 after UEG Week was skipped by the series playlist step.
