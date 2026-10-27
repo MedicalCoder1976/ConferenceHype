@@ -229,10 +229,13 @@ no `Update` label, so the second video is `Update 1`, the third is
   not counted. Only Story broadcasts are renamed; Meeting Watch five-news
   and 5 Things to Know build their own titles and are not yet covered.
 - **Which conferences.** A registry of known meetings (ESMO, EASD, ASTRO,
-  WCLC, IMS, ESC, ERS, ASCO, AAP, ACEP, HFSA, DCLung, CHEST, IDWeek, Kidney
-  Week, ACG, AHA, AAO, ACS, ADA, ASH, SABCS, SITC, AASLD, ObesityWeek, ACC,
-  ATS) in that file. A meeting that is not in the registry gets no label;
-  add it there. Acronym patterns are case-sensitive on purpose.
+  WCLC, IMS, ESC, ERS, ASCO Quality Care Symposium, ASCO, ACCC, AAP, ACEP,
+  HFSA, DCLung, CHEST, IDWeek, Kidney Week, ACG, AHA, AAO, ACS, ADA, ASH,
+  SABCS, SITC, AASLD, ObesityWeek, CTAD, ACC, ATS, UEG Week, AACR, EHA,
+  EULAR, ACR Convergence, AAN, ECCO, DDW, ENDO) in that file. Add a new
+  meeting on `main` before its first Story is published. A meeting that is
+  not in the registry gets no label; add it there. Acronym patterns are
+  case-sensitive on purpose.
 - **Headline length.** The label counts toward YouTube's 100-character
   limit. If the labelled title is too long the request is rejected with the
   number of characters to cut; nothing is truncated silently. A leading
@@ -278,6 +281,8 @@ new video must connect back to them to raise retention across the series.
   API, and pinned comments need a different OAuth scope.
 - **Style.** A bridge is a callback, not a recap: do not repeat numbers from
   the earlier video, and do not use it in place of the subscribe line.
+- **Wording.** The bridge must use a phrase like "our last video" or "the
+  previous update" within the first ~260 words.
 
 ### Story package pre-flight checklist
 
@@ -298,9 +303,13 @@ history in the project memory notes.
 - **Length and shape.** At least 500 spoken words; 12 cards; continuous
   flowing prose with no labeled subheadings, bullets, or markdown (labels are
   reserved for 5 Things to Know).
-- **Subscribe line.** One sentence about 45 seconds in (inside the first
-  100 to 150 words): "If you want more of this kind of coverage, take a
-  second right now and subscribe to the channel." Then continue.
+- **Like-and-subscribe line.** One sentence about 45 seconds in (inside the
+  first 100 to 150 words): "If you want more of this kind of coverage, take
+  a second right now to like this video and subscribe to the channel." Then
+  continue. The older subscribe-only sentence is retired (operator rule
+  2026-10-22); replace it wherever it appears in a Grok package.
+- **Series bridge.** For any update after a meeting's first video, see the
+  series connections rule above.
 - **Closing disclaimer.** The last sentence is the fixed AI-generation line.
   Never use the word "verify" in it or anywhere in a narrative: the
   broadcast-ready filter silently drops cards containing verify, unverified
@@ -320,14 +329,33 @@ history in the project memory notes.
 - **Spoken form.** Write times as "9:45 in the morning" (never `a.m.`, which
   the card splitter breaks into "a. m."). Do not use ALL-CAPS words, since
   the voice spells them out. Keep company names in their normal spelling;
-  the pronunciation layer handles them.
+  the pronunciation layer handles them. No "Dr." before names and no
+  initials (the citation filter drops cards that name a "Dr. X" not in the
+  citation); use the full name, or the bare surname after first mention.
+- **Title.** Headline only. Do not put a `<Meeting> <Year> Update <N>:`
+  label in it (production adds it, so a pre-baked one would repeat), and
+  keep a venue out of `location`.
+- **One at a time.** Publish videos for the same meeting one at a time, and
+  space out publish calls for different meetings. Five concurrent calls on
+  2026-10-26 left one broadcast stuck at "rendering"; recover such a row by
+  re-dispatching `meeting-watch-broadcast.yml` with its broadcast id.
 - **X caption.** Opens with researched handles (meeting hashtag, host
   organization, disease community tag) and the @handles of the pharma
   companies the story names (the two to four the video is about, partners
   included), body about 12 to 20 words, story claims only, at most 280
   characters including handles. Use only handles that are confirmed from
   the company's own profile or site; flag any that are not, and leave out
-  a company whose handle cannot be found rather than guessing.
+  a company whose handle cannot be found rather than guessing. Every
+  handle Grok supplies goes in (split into replies if needed), with any
+  unconfirmed ones flagged.
+- **X label prefix.** Every post in the thread, main post and replies,
+  starts with the production label exactly as YouTube shows it, such as
+  "ESMO 2026 Update 30:" or "CTAD 2026 Preview:", followed by that
+  meeting's own hashtags (never another meeting's tag).
+- **X engagement CTA.** The main post ends with "Like and retweet, then
+  like and subscribe on YouTube:" followed by the video link. Trim the
+  finding text, never the label, handles, or CTA, to stay within 280
+  characters (a link counts as 23).
 
 ### Story narrative craft rule
 
