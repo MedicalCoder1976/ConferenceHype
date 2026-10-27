@@ -18,7 +18,7 @@ type MeetingDefinition = { key: string; shortName: string; patterns: RegExp[] };
 // Patterns are matched against "<meeting_label> <title>" of past broadcasts and
 // against the Story topic. Acronyms are case-sensitive on purpose so a word
 // such as "chest" or "ash" in a headline never matches.
-const MEETINGS: MeetingDefinition[] = [
+export const MEETINGS: MeetingDefinition[] = [
   { key: "esmo", shortName: "ESMO", patterns: [/\bESMO\b/, /European Society for Medical Oncology/i] },
   { key: "easd", shortName: "EASD", patterns: [/\bEASD\b/, /European Association for the Study of Diabetes/i] },
   { key: "astro", shortName: "ASTRO", patterns: [/\bASTRO\b/, /American Society for Radiation Oncology/i] },
