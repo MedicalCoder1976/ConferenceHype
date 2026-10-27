@@ -1,9 +1,9 @@
 "use client";
 
-import { BookOpen, BookOpenCheck, BookOpenText, CalendarDays, FileText, Library, ListChecks, Mic2, Radio, RadioTower, ScrollText, Sparkles } from "lucide-react";
+import { BookOpen, Inbox, BookOpenCheck, BookOpenText, CalendarDays, FileText, Library, ListChecks, Mic2, Radio, RadioTower, ScrollText, Sparkles } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
-type TabId = "broadcast" | "pending-review" | "twitter-stream" | "journal-watch" | "meeting-watch" | "breaking-paper" | "create-story" | "five-things" | "writeouts" | "memory" | "voices" | "history";
+type TabId = "broadcast" | "pending-review" | "twitter-stream" | "journal-watch" | "meeting-watch" | "breaking-paper" | "create-story" | "five-things" | "writeouts" | "memory" | "voices" | "history" | "coverage-requests";
 
 const tabs: Array<{ id: TabId; label: string; icon: typeof Radio }> = [
   { id: "broadcast", label: "Broadcast", icon: Radio },
@@ -17,7 +17,8 @@ const tabs: Array<{ id: TabId; label: string; icon: typeof Radio }> = [
   { id: "writeouts", label: "Writeouts", icon: FileText },
   { id: "memory", label: "Memory", icon: Library },
   { id: "voices", label: "Specialty X Voices", icon: Mic2 },
-  { id: "history", label: "Talked about", icon: ScrollText }
+  { id: "history", label: "Talked about", icon: ScrollText },
+  { id: "coverage-requests", label: "Coverage requests", icon: Inbox }
 ];
 
 export function AdminTabs({
@@ -33,7 +34,8 @@ export function AdminTabs({
   writeouts,
   memory,
   history,
-  voices
+  voices,
+  coverageRequests
 }: {
   initialActive?: string;
   broadcast: ReactNode;
@@ -48,6 +50,7 @@ export function AdminTabs({
   memory: ReactNode;
   history: ReactNode;
   voices: ReactNode;
+  coverageRequests: ReactNode;
 }) {
   const initialTab = tabs.some((tab) => tab.id === initialActive)
     ? (initialActive as TabId)
@@ -102,6 +105,8 @@ export function AdminTabs({
         return voices;
       case "history":
         return history;
+      case "coverage-requests":
+        return coverageRequests;
       default:
         return broadcast;
     }

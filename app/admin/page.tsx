@@ -3,6 +3,7 @@ import { AdminShell } from "@/components/AdminShell";
 import { AdminTabs } from "@/components/AdminTabs";
 import { AiredHistory } from "@/components/AiredHistory";
 import { AnalyticsPanel } from "@/components/AnalyticsPanel";
+import { CoverageRequestsDesk } from "@/components/CoverageRequestsDesk";
 import { BroadcastRundown } from "@/components/BroadcastRundown";
 import { BroadcastWriteoutArchive } from "@/components/BroadcastWriteoutArchive";
 import { BreakingPaperDesk } from "@/components/BreakingPaperDesk";
@@ -407,6 +408,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         writeouts={<BroadcastWriteoutArchive writeouts={snapshot.broadcastWriteouts} />}
         memory={<EditorialMemory initialPackages={snapshot.editorialPackages} />}
         history={<AiredHistory segments={snapshot.airedSegments} />}
+        coverageRequests={<CoverageRequestsDesk />}
         voices={
           <div className="grid gap-6">
             <SpecialtyVoiceDirectory initialVoices={snapshot.specialtyXVoices} />
