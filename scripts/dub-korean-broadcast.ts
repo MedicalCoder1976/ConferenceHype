@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { defaultRenderPath } from "@/lib/media/localOutputDir";
 import path from "node:path";
 import { spawn } from "node:child_process";
@@ -49,6 +49,10 @@ const ffmpeg = process.env.FFMPEG_PATH ?? (ffmpegPath as unknown as string) ?? "
 const provider = (process.env.KOREAN_TTS_PROVIDER ?? "melo").toLowerCase();
 const pythonCmd = process.env.MELO_PYTHON_CMD ?? "python3";
 const testCards = Number(process.env.DUB_TEST_CARDS ?? "0");
+// A reviewed translation committed to the repo ([{ english, korean }] in card
+// order, the shape of korean-scripts.json). With it, a release voices exactly
+// the text that was checked instead of translating again.
+const reviewedScriptsFile = process.env.KOREAN_SCRIPTS_FILE?.trim();
 
 function run(command: string, args: string[]) {
   return new Promise<void>((resolve, reject) => {
@@ -179,9 +183,21 @@ async function main() {
     await mkdir(renderDir, { recursive: true });
 
     const koreanScripts: string[] = [];
-    for (let index = 0; index < contentCards.length; index += 1) {
-      console.log(`[${index + 1}/${contentCards.length}] Translating: ${contentCards[index].title}`);
-      koreanScripts.push(await translateToKorean(contentCards[index].script, { spellNumbers: provider !== "openai" }));
+    if (reviewedScriptsFile) {
+      const reviewed = JSON.parse(await readFile(path.resolve(reviewedScriptsFile), "utf8")) as { english: string; korean: string }[];
+      contentCards.forEach((card, index) => {
+        const entry = reviewed[index];
+        if (!entry || entry.english.trim() !== card.script.trim()) {
+          throw new Error(`Reviewed Korean script ${index + 1} does not match card ${index + 1} ("${card.title}"); re-run a test dub and review again.`);
+        }
+        koreanScripts.push(entry.korean.trim());
+      });
+      console.log(`Using ${koreanScripts.length} reviewed Korean scripts from ${reviewedScriptsFile}.`);
+    } else {
+      for (let index = 0; index < contentCards.length; index += 1) {
+        console.log(`[${index + 1}/${contentCards.length}] Translating: ${contentCards[index].title}`);
+        koreanScripts.push(await translateToKorean(contentCards[index].script, { spellNumbers: provider !== "openai" }));
+      }
     }
     await writeFile(
       path.join(renderDir, "korean-scripts.json"),

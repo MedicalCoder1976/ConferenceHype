@@ -15,6 +15,10 @@ on:
         description: "Render only the first N cards and skip the upload (0 = full dub and upload)"
         required: false
         default: "0"
+      korean_scripts_file:
+        description: "Repo path of a reviewed korean-scripts.json to voice instead of translating again"
+        required: false
+        default: ""
       tts_provider:
         description: "melo (free, default) or openai (needs OPENAI_API_KEY)"
         required: false
@@ -51,6 +55,7 @@ jobs:
           BROADCAST_WRITEOUT_ID: ${{ inputs.broadcast_writeout_id }}
           MEETING_WATCH_BROADCAST_ID: ${{ inputs.meeting_watch_broadcast_id }}
           DUB_TEST_CARDS: ${{ inputs.test_cards }}
+          KOREAN_SCRIPTS_FILE: ${{ inputs.korean_scripts_file }}
           KOREAN_TTS_PROVIDER: ${{ inputs.tts_provider }}
           MELO_PYTHON_CMD: python
           KOREAN_DUB_DIR: korean-dub
