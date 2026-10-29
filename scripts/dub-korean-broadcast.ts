@@ -232,7 +232,8 @@ async function main() {
         await run(ffmpeg, [
           "-y",
           "-i",
-          path.resolve(track.publicPath.replace(/^\//, "")),
+          // publicPath is a site URL ("/music/..."); the file lives under public/.
+          path.resolve("public", track.publicPath.replace(/^\//, "")),
           "-t",
           String(TRANSITION_SECONDS),
           "-ar", "44100", "-ac", "2", "-c:a", "aac", "-b:a", "160k",
