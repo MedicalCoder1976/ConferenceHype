@@ -124,6 +124,12 @@ async function loadStorySource(broadcastId: string): Promise<DubSource> {
 // suffix usually runs past YouTube's 100 characters.
 async function koreanTitleFor(englishTitle: string) {
   const room = YOUTUBE_TITLE_LIMIT - KOREAN_SUFFIX.length;
+  // A reviewed title from the operator wins over machine translation.
+  const reviewed = process.env.KOREAN_TITLE?.trim();
+  if (reviewed) {
+    if (reviewed.length > YOUTUBE_TITLE_LIMIT) throw new Error(`KOREAN_TITLE is ${reviewed.length} characters; YouTube allows ${YOUTUBE_TITLE_LIMIT}.`);
+    return reviewed;
+  }
   if (env.LLM_API_KEY) {
     const client = new OpenAI({ apiKey: env.LLM_API_KEY, baseURL: env.LLM_BASE_URL });
     const response = await client.chat.completions.create({

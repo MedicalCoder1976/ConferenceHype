@@ -19,6 +19,10 @@ on:
         description: "Repo path of a reviewed korean-scripts.json to voice instead of translating again"
         required: false
         default: ""
+      korean_title:
+        description: "Reviewed Korean YouTube title (100 characters max); blank = machine-translated"
+        required: false
+        default: ""
       tts_provider:
         description: "melo (free, default) or openai (needs OPENAI_API_KEY)"
         required: false
@@ -56,6 +60,7 @@ jobs:
           MEETING_WATCH_BROADCAST_ID: ${{ inputs.meeting_watch_broadcast_id }}
           DUB_TEST_CARDS: ${{ inputs.test_cards }}
           KOREAN_SCRIPTS_FILE: ${{ inputs.korean_scripts_file }}
+          KOREAN_TITLE: ${{ inputs.korean_title }}
           KOREAN_TTS_PROVIDER: ${{ inputs.tts_provider }}
           MELO_PYTHON_CMD: python
           KOREAN_DUB_DIR: korean-dub
