@@ -5,6 +5,9 @@ export type ClinicalEvidencePackagingInput = {
   studyNames?: string[];
   explicitTopic?: string;
   multiTopic?: boolean;
+  // Story / Meeting Watch videos cover many papers; their trial line must be
+  // one the title names. Journal shows keep featuring their first study.
+  entityMustMatchTitle?: boolean;
 };
 
 export type ClinicalEvidencePackaging = {
@@ -215,10 +218,23 @@ function resolveClinicalTopic(input: ClinicalEvidencePackagingInput, combined: s
   return fallbackTopic(input);
 }
 
+// Same rule for the trial line under the headline (2026-10-29: the re-rendered
+// ASCO election slide showed "DeLLphi-301 trial", the first of many papers the
+// script mentioned). One study -> that study; several -> the one the title
+// names, if exactly one; otherwise no trial line. Applies when the caller
+// sets entityMustMatchTitle (Story and Meeting Watch videos).
+function resolvePrimaryEntity(input: ClinicalEvidencePackagingInput) {
+  const names = [...new Set((input.studyNames ?? []).map(clean).filter((name) => Boolean(name) && !/^(?:NCT|ISRCTN|ACTRN)/i.test(name)))];
+  if (!input.entityMustMatchTitle || names.length <= 1) return names[0];
+  const title = clean(input.title ?? "").toLowerCase();
+  const named = names.filter((name) => title.includes(name.replace(/\s+trial$/i, "").toLowerCase()));
+  return named.length === 1 ? named[0] : undefined;
+}
+
 export function buildClinicalEvidencePackaging(input: ClinicalEvidencePackagingInput): ClinicalEvidencePackaging {
   const combined = clean([input.explicitTopic, input.title, input.sourceText].filter(Boolean).join(" "));
   const clinicalTopic = resolveClinicalTopic(input, combined);
-  const primaryEntity = input.studyNames?.map(clean).find((name) => Boolean(name) && !/^(?:NCT|ISRCTN|ACTRN)/i.test(name));
+  const primaryEntity = resolvePrimaryEntity(input);
   const hook = resolveOutcomeHook(input, primaryEntity, clinicalTopic);
   const entityPrefix = primaryEntity && !hook.toLowerCase().includes(primaryEntity.toLowerCase())
     ? primaryEntity + " - "

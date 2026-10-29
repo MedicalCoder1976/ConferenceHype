@@ -1278,8 +1278,16 @@ Paper):
 - Otherwise: the video's own topic (the Story topic or meeting name) or its
   specialty ("Oncology Research"), never an arbitrary first match.
 
+The trial line under the headline follows the same idea for Story and Meeting
+Watch videos (`resolvePrimaryEntity`, `entityMustMatchTitle`): one named study
+-> that study; several -> the one the title names, if exactly one; otherwise
+no trial line. The re-rendered election slide had shown "DeLLphi-301 trial",
+the first of many papers mentioned. Journal shows still feature their first
+study.
+
 Guard tests in `scripts/verify-broadcast-guards.ts` cover the election case,
-a titled multi-disease review and a multi-disease journal roundup. When a
+a titled multi-disease review, a multi-disease journal roundup and both trial
+line cases. When a
 Story covers several diseases, check the preview's opening label before
 publishing; a burned-in opening can only be fixed by re-rendering.
 

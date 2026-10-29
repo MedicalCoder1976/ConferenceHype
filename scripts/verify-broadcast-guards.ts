@@ -569,6 +569,22 @@ const mixedStoryPackaging = buildClinicalEvidencePackaging({
   sourceText: "A coauthor of the metformin trial in early breast cancer. The first author of a kidney cancer trial. Tarlatamab in small cell lung cancer."
 });
 assert.equal(mixedStoryPackaging.clinicalTopic, "ASCO 2027 Election");
+// Several trials and a title that names none: no trial line on the slide.
+const manyTrialsPackaging = buildClinicalEvidencePackaging({
+  title: "ASCO 2027 Election: Meet All 11 Candidates and Their Landmark Papers",
+  explicitTopic: "ASCO 2027 Election",
+  sourceText: "Tarlatamab in the DeLLphi-301 trial and durvalumab in the Adriatic trial.",
+  studyNames: ["DeLLphi-301 trial", "Adriatic trial"],
+  entityMustMatchTitle: true
+});
+assert.equal(manyTrialsPackaging.thumbnailEntity, undefined);
+const titledTrialPackaging = buildClinicalEvidencePackaging({
+  title: "Adriatic: Durvalumab After Chemoradiotherapy",
+  sourceText: "The Adriatic trial, with context from the DeLLphi-301 trial.",
+  studyNames: ["DeLLphi-301 trial", "Adriatic trial"],
+  entityMustMatchTitle: true
+});
+assert.equal(titledTrialPackaging.thumbnailEntity, "Adriatic trial");
 const singleDiseaseStoryPackaging = buildClinicalEvidencePackaging({
   title: "How GLP-1 medicines changed obesity care",
   explicitTopic: "Obesity Care",

@@ -126,7 +126,8 @@ export function buildMeetingWatchMetadata({
     explicitTopic: meetingLabel.replace(/^Create a Story:\s*/i, ""),
     sourceText: resolved.map(({ segment }) => [segment.title, segment.summary, segment.script].filter(Boolean).join("\n")).join("\n"),
     studyNames,
-    multiTopic: studyNames.length > 1
+    multiTopic: studyNames.length > 1,
+    entityMustMatchTitle: true
   });
   const storyResult = isPreparedStory ? title.match(/^(.+?)\s+From\s+/i)?.[1]?.trim() : undefined;
   const storyOrigin = isPreparedStory ? title.match(/\bFrom\s+(.+?)\?\s+The Story/i)?.[1]?.trim() : undefined;
