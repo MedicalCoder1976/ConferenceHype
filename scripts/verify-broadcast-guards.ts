@@ -562,6 +562,33 @@ const storyPackaging = buildClinicalEvidencePackaging({
 });
 assert.equal(storyPackaging.clinicalTopic, "Obesity");
 assert.match(storyPackaging.youtubeTitle, /^Obesity:/);
+// A multi-disease Story keeps its own topic on the opening slide (ASCO election, 2026-10-29).
+const mixedStoryPackaging = buildClinicalEvidencePackaging({
+  title: "ASCO 2027 Election: Meet All 11 Candidates and Their Landmark Papers",
+  explicitTopic: "ASCO 2027 Election",
+  sourceText: "A coauthor of the metformin trial in early breast cancer. The first author of a kidney cancer trial. Tarlatamab in small cell lung cancer."
+});
+assert.equal(mixedStoryPackaging.clinicalTopic, "ASCO 2027 Election");
+const singleDiseaseStoryPackaging = buildClinicalEvidencePackaging({
+  title: "How GLP-1 medicines changed obesity care",
+  explicitTopic: "Obesity Care",
+  sourceText: "A narrative about obesity treatment."
+});
+assert.equal(singleDiseaseStoryPackaging.clinicalTopic, "Obesity");
+// Several diseases, but the title names one: the title's disease wins.
+const titledMixedPackaging = buildClinicalEvidencePackaging({
+  title: "Lung Cancer Review: Tarlatamab and Divarasib",
+  explicitTopic: "ESMO Congress 2026",
+  sourceText: "Tarlatamab in small cell lung cancer, with context from a breast cancer trial."
+});
+assert.equal(titledMixedPackaging.clinicalTopic, "Lung Cancer");
+// Several diseases and no topic: the specialty, never the first pattern hit.
+const specialtyMixedPackaging = buildClinicalEvidencePackaging({
+  title: "This week in oncology journals",
+  specialty: "Oncology",
+  sourceText: "A breast cancer trial, a prostate cancer trial and a melanoma study."
+});
+assert.equal(specialtyMixedPackaging.clinicalTopic, "Oncology Research");
 assert.equal(addSpecialistAudienceToTitle("A complete news headline", "Story"), "A complete news headline");
 const firstStudySlotIndex = journalShowSlots.findIndex((slot) => slot.segment && !slot.segment.riskFlags.includes("journal_show_outro"));
 const studyNamedSlots = journalShowSlots.map((slot, index) => index === firstStudySlotIndex && slot.segment

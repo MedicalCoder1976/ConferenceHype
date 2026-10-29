@@ -196,9 +196,28 @@ function resolveOutcomeHook(input: ClinicalEvidencePackagingInput, entity: strin
   return entity ? entity + ": New Evidence Explained" : "New Evidence Explained";
 }
 
+function diseasesIn(value: string) {
+  return [...new Set(TOPIC_PATTERNS.filter(([, pattern]) => pattern.test(value)).map(([label]) => label))];
+}
+
+// The disease label on the opening slide / thumbnail (every video type).
+// 2026-10-29: the ASCO election Story opened as "BREAKING | Breast Cancer"
+// because one candidate's paper was a breast cancer trial and the pattern
+// list returned whichever disease it happened to list first. Rule now: one
+// disease in the whole text -> that disease. Several -> the disease the
+// video's own title names, if it names exactly one; otherwise the video's
+// own topic or specialty (fallbackTopic), never an arbitrary first match.
+function resolveClinicalTopic(input: ClinicalEvidencePackagingInput, combined: string) {
+  const all = diseasesIn(combined);
+  if (all.length <= 1) return extractClinicalTopic(combined, fallbackTopic(input));
+  const inTitle = diseasesIn(clean(input.title ?? ""));
+  if (inTitle.length === 1) return inTitle[0];
+  return fallbackTopic(input);
+}
+
 export function buildClinicalEvidencePackaging(input: ClinicalEvidencePackagingInput): ClinicalEvidencePackaging {
   const combined = clean([input.explicitTopic, input.title, input.sourceText].filter(Boolean).join(" "));
-  const clinicalTopic = extractClinicalTopic(combined, fallbackTopic(input));
+  const clinicalTopic = resolveClinicalTopic(input, combined);
   const primaryEntity = input.studyNames?.map(clean).find((name) => Boolean(name) && !/^(?:NCT|ISRCTN|ACTRN)/i.test(name));
   const hook = resolveOutcomeHook(input, primaryEntity, clinicalTopic);
   const entityPrefix = primaryEntity && !hook.toLowerCase().includes(primaryEntity.toLowerCase())

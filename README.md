@@ -1259,6 +1259,30 @@ opening title visual. Failure of YouTube's separate `thumbnails.set` operation
 continues to follow the existing station versus non-station delivery policy and
 does not change the already-burned in-video opening.
 
+### Opening slide disease label rule
+
+Operator rule (2026-10-29): the disease label on the opening slide and
+thumbnail must describe the video, never a disease that is only mentioned in
+passing. The ASCO election Story opened as "BREAKING | Breast Cancer" because
+one candidate's paper was a breast cancer trial and the label picked whichever
+disease the pattern list in `lib/youtube/clinicalEvidencePackaging.ts` happened
+to list first.
+
+`resolveClinicalTopic` now decides the label for every video type (Story,
+Meeting Watch, journal shows, weekend roundups, hourly broadcasts, Breaking
+Paper):
+
+- One disease named anywhere in the text: that disease.
+- Several diseases: the disease named in the video's own title, if the title
+  names exactly one.
+- Otherwise: the video's own topic (the Story topic or meeting name) or its
+  specialty ("Oncology Research"), never an arbitrary first match.
+
+Guard tests in `scripts/verify-broadcast-guards.ts` cover the election case,
+a titled multi-disease review and a multi-disease journal roundup. When a
+Story covers several diseases, check the preview's opening label before
+publishing; a burned-in opening can only be fixed by re-rendering.
+
 ## YouTube Embed Protection
 
 The main workflow runs `scripts/enable-youtube-embed.ts` immediately after
