@@ -4,12 +4,26 @@ on:
   workflow_dispatch:
     inputs:
       broadcast_writeout_id:
-        description: "broadcast_writeouts row id to dub"
-        required: true
+        description: "broadcast_writeouts row id to dub (hourly broadcasts)"
+        required: false
+        default: ""
+      meeting_watch_broadcast_id:
+        description: "meeting_watch_broadcasts row id to dub (Story / Meeting Watch videos)"
+        required: false
+        default: ""
+      test_cards:
+        description: "Render only the first N cards and skip the upload (0 = full dub and upload)"
+        required: false
+        default: "0"
+      tts_provider:
+        description: "melo (free, default) or openai (needs OPENAI_API_KEY)"
+        required: false
+        default: "melo"
 
 jobs:
   dub:
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -18,10 +32,29 @@ jobs:
           cache: npm
       - run: npm ci
 
+      # MeloTTS (MIT) is the free Korean voice; it pins older libraries, so
+      # it gets its own Python 3.10.
+      - uses: actions/setup-python@v5
+        if: ${{ inputs.tts_provider != 'openai' }}
+        with:
+          python-version: "3.10"
+      - name: Install MeloTTS
+        if: ${{ inputs.tts_provider != 'openai' }}
+        run: |
+          pip install git+https://github.com/myshell-ai/MeloTTS.git
+          python -m unidic download
+          python -c "import nltk; [nltk.download(p, quiet=True) for p in ('averaged_perceptron_tagger', 'averaged_perceptron_tagger_eng', 'cmudict')]"
+
       - name: Translate, synthesize, render, and upload Korean dub
         run: npx tsx scripts/dub-korean-broadcast.ts
         env:
-          BROADCAST_WRITEOUT_ID: ${{ github.event.inputs.broadcast_writeout_id }}
+          BROADCAST_WRITEOUT_ID: ${{ inputs.broadcast_writeout_id }}
+          MEETING_WATCH_BROADCAST_ID: ${{ inputs.meeting_watch_broadcast_id }}
+          DUB_TEST_CARDS: ${{ inputs.test_cards }}
+          KOREAN_TTS_PROVIDER: ${{ inputs.tts_provider }}
+          MELO_PYTHON_CMD: python
+          KOREAN_DUB_DIR: korean-dub
+          KOREAN_DUB_OUTPUT: korean-dub/conferencehype-korean-dub.mp4
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
@@ -31,3 +64,13 @@ jobs:
           YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
           YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
           YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
+
+      - name: Save Korean dub review files
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: korean-dub-review
+          retention-days: 14
+          path: |
+            korean-dub/korean-scripts.json
+            korean-dub/conferencehype-korean-dub.mp4
