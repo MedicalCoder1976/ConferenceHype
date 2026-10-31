@@ -346,13 +346,17 @@ history in the project memory notes.
   characters including handles. Use only handles that are confirmed from
   the company's own profile or site; flag any that are not, and leave out
   a company whose handle cannot be found rather than guessing. Every
-  handle Grok supplies goes in (split into replies if needed), with any
-  unconfirmed ones flagged.
-- **X label prefix.** Every post in the thread, main post and replies,
-  starts with the production label exactly as YouTube shows it, such as
+  handle Grok supplies goes in (split across separate posts if needed), with
+  any unconfirmed ones flagged.
+- **X standalone posts.** Operator rule (2026-10-31): never a reply thread,
+  because X marks replies as spam. Every X post is independent, with its own
+  label, tags, finding, CTA and link. Each post is delivered in its own
+  fenced code block, in chat and in `docs/x-posts/`, so it copies in one
+  click.
+- **X label prefix.** Every post starts with the production label exactly as YouTube shows it, such as
   "ESMO 2026 Update 30:" or "CTAD 2026 Preview:", followed by that
   meeting's own hashtags (never another meeting's tag).
-- **X engagement CTA.** The main post ends with "Like and retweet, then
+- **X engagement CTA.** Every post ends with "Like and retweet, then
   like and subscribe on YouTube:" followed by the video link. Trim the
   finding text, never the label, handles, or CTA, to stay within 280
   characters (a link counts as 23).
