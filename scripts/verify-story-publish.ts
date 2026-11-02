@@ -104,6 +104,21 @@ assert.equal(buildMeetingWatchMetadata({
   sourceUrl: "https://example.com/source", descriptionOpening: "Opening line."
 }).conferenceLabel, "ESMO Congress 2026");
 
+// 2026-11-02: a Story card whose first sentence has a colon ("The caveat: ...")
+// must not become the opening slide's trial line.
+{
+  const storyCard = (title: string) => ({ at: new Date("2026-11-02T12:00:00Z"),
+    segment: { title, summary: "", script: title + " More text.", riskFlags: ["prepared_story"], citations: [] }
+  });
+  const caveatMetadata = buildMeetingWatchMetadata({
+    hourStart: new Date("2026-11-02T12:00:00Z"),
+    slots: [storyCard("The TCT 2026 meeting in San Diego has started"), storyCard("The caveat: the composite is built on leakage falling")] as never,
+    title: "TCT 2026 Update 1: Tricuspid Valve Wins", meetingLabel: "Create a Story: TCT 2026",
+    sourceUrl: "https://example.com/source", descriptionOpening: "Opening line."
+  });
+  assert.notEqual(caveatMetadata.thumbnailEntity, "The caveat");
+}
+
 // 2026-10-14: hand-run renders must not default into the OneDrive-synced project
 // folder; CI keeps public/rendered.
 {

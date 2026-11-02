@@ -82,8 +82,11 @@ export function buildMeetingWatchMetadata({
     // than regex-guessing over prose, and guarantees one name per card
     // instead of the noisy, duplicate-prone matches free-text extraction
     // produced (e.g. "CLL-314 trial" and "CLL-314 study" as if different).
+    // Story card titles are just the card's first sentence, so a colon there
+    // is prose ("The caveat: ..."), not a trial name (2026-11-02: the TCT
+    // Update 1 opening slide showed "The caveat" as its trial line).
     const [prefix, ...rest] = segment.title.split(":");
-    const structuredName = rest.length > 0 ? prefix.trim() : undefined;
+    const structuredName = rest.length > 0 && !segment.riskFlags.includes("prepared_story") ? prefix.trim() : undefined;
     const studyNames = structuredName ? [structuredName] : extractExplicitStudyNames(`${segment.title} ${segment.script}`);
     return { slot, segment, studyNames };
   });
