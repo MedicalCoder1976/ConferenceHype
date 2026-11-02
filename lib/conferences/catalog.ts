@@ -84,6 +84,12 @@ export const CONFERENCE_CATALOG: Record<string, ConferenceCatalogEntry> = {
   aasld: { fullName: "The Liver Meeting (AASLD)", field: "medicine", specialty: "Gastroenterology" },
   obesityweek: { fullName: "ObesityWeek", field: "medicine", specialty: "Endocrinology" },
   ctad: { fullName: "Clinical Trials on Alzheimer's Disease", field: "medicine", specialty: "Neurology" },
+  tct: {
+    fullName: "Transcatheter Cardiovascular Therapeutics",
+    field: "medicine",
+    specialty: "Cardiology",
+    editions: { "2026": { city: "San Diego", startDate: "2026-10-31", endDate: "2026-11-03" } }
+  },
   acc: { fullName: "ACC Scientific Session", field: "medicine", specialty: "Cardiology" },
   ats: { fullName: "ATS International Conference", field: "medicine", specialty: "Pulmonology" },
   ueg: { fullName: "UEG Week", field: "medicine", specialty: "Gastroenterology" },
