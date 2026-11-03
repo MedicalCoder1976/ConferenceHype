@@ -57,6 +57,10 @@ export const MEETINGS: MeetingDefinition[] = [
   // Added 2026-11-01 for the first TCT Story, so later TCT Stories get an update
   // label, previous-update links and a series playlist.
   { key: "tct", shortName: "TCT", patterns: [/\bTCT\b/, /Transcatheter Cardiovascular Therapeutics/i] },
+  // Added 2026-11-02 after the first CNS Story. A bare "CNS" would also match
+  // oncology headlines such as "CNS tumors", so the acronym only counts when a
+  // year follows it.
+  { key: "cns", shortName: "CNS", patterns: [/\bCNS 20\d{2}\b/, /Congress of Neurological Surgeons/i] },
   { key: "acc", shortName: "ACC", patterns: [/\bACC\b/, /American College of Cardiology/i] },
   { key: "ats", shortName: "ATS", patterns: [/\bATS\b/, /American Thoracic Society/i] },
   // Added 2026-10-14 after UEG Week was skipped by the series playlist step.

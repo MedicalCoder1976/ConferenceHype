@@ -63,6 +63,10 @@ assert.equal(applyUpdateLabel("ESMO 2026 Update 3: Already labelled", esmo!, 3),
 assert.throws(() => applyUpdateLabel("x".repeat(STORY_TITLE_LIMIT - 5), esmo!, 3), /Shorten the headline/);
 assert.equal(identifyMeeting("CHEST 2026 Annual Meeting")?.displayName, "CHEST 2026");
 assert.equal(identifyMeeting("A story about chest pain in 2026"), null);
+assert.equal(identifyMeeting("CNS 2026", "CNS 2026: Spinal Stimulator Lifts Stroke Arm Strength 32%")?.displayName, "CNS 2026");
+assert.equal(identifyMeeting("Congress of Neurological Surgeons Annual Meeting 2026")?.displayName, "CNS 2026");
+assert.equal(identifyMeeting("ASCO 2026", "ASCO 2026: Tucatinib shrinks CNS tumors")?.displayName, "ASCO 2026");
+assert.equal(identifyMeeting("A drug for CNS lymphoma in 2026"), null);
 assert.equal(identifyMeeting("American Heart Association Scientific Sessions 2026")?.displayName, "AHA 2026");
 assert.equal(identifyMeeting("Unlisted Regional Society Meeting 2026"), null);
 assert.equal(identifyMeeting("ASCO Quality Care Symposium 2026")?.displayName, "ASCO Quality Care Symposium 2026");

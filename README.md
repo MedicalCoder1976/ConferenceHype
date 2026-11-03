@@ -231,7 +231,7 @@ no `Update` label, so the second video is `Update 1`, the third is
 - **Which conferences.** A registry of known meetings (ESMO, EASD, ASTRO,
   WCLC, IMS, ESC, ERS, ASCO Quality Care Symposium, ASCO, ACCC, AAP, ACEP,
   HFSA, DCLung, CHEST, IDWeek, Kidney Week, ACG, AHA, AAO, ACS, ADA, ASH,
-  SABCS, SITC, AASLD, ObesityWeek, CTAD, TCT, ACC, ATS, UEG Week, AACR, EHA,
+  SABCS, SITC, AASLD, ObesityWeek, CTAD, TCT, CNS, ACC, ATS, UEG Week, AACR, EHA,
   EULAR, ACR Convergence, AAN, ECCO, DDW, ENDO) in that file. Add a new
   meeting on `main` before its first Story is published. A meeting that is
   not in the registry gets no label; add it there. Acronym patterns are
