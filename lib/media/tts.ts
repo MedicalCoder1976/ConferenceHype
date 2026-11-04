@@ -290,6 +290,11 @@ export function applySpokenPronunciations(script: string, sourceContext: string 
     // hyphens, re-hyphenate the merged words the lexicon gets wrong, and spell
     // "specified" with "pree" (the hyphenated form put the stress on "pree").
     .replace(/\b([Pp])re-?specified\b/g, "$1reespecified")
+    // 2026-11-04 (operator request, ASH 2026 preview): Kokoro read
+    // "trispecific" as "TRISS-specific" (tɹˌɪspɪsˈɪfɪk). "try-specific"
+    // gives the long "TRY" vowel (tɹˌIspəsˈɪfɪk), matching how it already
+    // reads "bispecific". Lowercase respelling: ALL-CAPS gets spelled out.
+    .replace(/\b([Tt])ri-?specific(s?)\b/g, "$1ry-specific$2")
     .replace(/\b([Pp])re(surgical|clinical|dose|screening|meeting)\b/g, "$1re-$2")
     .replace(CITY_COMMA_PLACE, "$1 $2")
     .replace(/\bESC\b/g, "E S C")

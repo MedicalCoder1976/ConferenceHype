@@ -198,6 +198,9 @@ assert.equal(applySpokenPronunciations("Igor presented."), "Igor presented.");
 // "pree", and merged words the lexicon reduces to "priss"/"pruh" are re-hyphenated.
 assert.equal(applySpokenPronunciations("The pre-specified and pre-treated groups."), "The preespecified and pre-treated groups.");
 assert.equal(applySpokenPronunciations("Prespecified preclinical and presurgical data."), "Preespecified pre-clinical and pre-surgical data.");
+// "trispecific" must be read TRY-specific, not TRISS-specific (ASH 2026 preview, 2026-11-04).
+assert.equal(applySpokenPronunciations("Trispecific antibodies and a tri-specific antibody."), "Try-specific antibodies and a try-specific antibody.");
+assert.equal(applySpokenPronunciations("Two trispecifics and a bispecific antibody."), "Two try-specifics and a bispecific antibody.");
 assert.equal(applySpokenPronunciations("A pre-congress preview and preliminary results."), "A pre-congress preview and preliminary results.");
 assert.equal(applySpokenPronunciations("The Congress in Madrid, Spain will start."), "The Congress in Madrid Spain will start.");
 assert.equal(applySpokenPronunciations("Held in Phoenix, Arizona and in Washington, D.C. this year."), "Held in Phoenix Arizona and in Washington D.C. this year.");
