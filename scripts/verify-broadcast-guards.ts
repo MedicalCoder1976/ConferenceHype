@@ -585,6 +585,23 @@ const titledTrialPackaging = buildClinicalEvidencePackaging({
   entityMustMatchTitle: true
 });
 assert.equal(titledTrialPackaging.thumbnailEntity, "Adriatic trial");
+// One trial mentioned in passing, title names none: no trial line (Novo Q3 Story, 2026-11-04).
+const passingTrialPackaging = buildClinicalEvidencePackaging({
+  title: "Novo Raises 2026 Outlook as Wegovy Pill Sales Top Estimates; Heart Drug Write-Down Hits Profit",
+  explicitTopic: "Novo Nordisk third-quarter earnings day",
+  sourceText: "Wegovy pill sales beat estimates. Ziltivekimab failed the ZEUS trial in July.",
+  studyNames: ["ZEUS trial"],
+  entityMustMatchTitle: true
+});
+assert.equal(passingTrialPackaging.thumbnailEntity, undefined);
+// One trial that the title does name keeps its trial line.
+const singleTitledTrialPackaging = buildClinicalEvidencePackaging({
+  title: "ZEUS: Ziltivekimab Misses on Heart Events",
+  sourceText: "The ZEUS trial tested ziltivekimab.",
+  studyNames: ["ZEUS trial"],
+  entityMustMatchTitle: true
+});
+assert.equal(singleTitledTrialPackaging.thumbnailEntity, "ZEUS trial");
 const singleDiseaseStoryPackaging = buildClinicalEvidencePackaging({
   title: "How GLP-1 medicines changed obesity care",
   explicitTopic: "Obesity Care",

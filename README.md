@@ -1283,11 +1283,13 @@ Paper):
   specialty ("Oncology Research"), never an arbitrary first match.
 
 The trial line under the headline follows the same idea for Story and Meeting
-Watch videos (`resolvePrimaryEntity`, `entityMustMatchTitle`): one named study
--> that study; several -> the one the title names, if exactly one; otherwise
-no trial line. The re-rendered election slide had shown "DeLLphi-301 trial",
-the first of many papers mentioned. Journal shows still feature their first
-study.
+Watch videos (`resolvePrimaryEntity`, `entityMustMatchTitle`): the line shows
+only the study the title names, if exactly one; otherwise no trial line. This
+holds even when only one study is detected: the Novo Q3 earnings Story
+(2026-11-04) opened with "ZEUS trial", a failed trial mentioned in passing,
+because a lone study used to skip the title check. The re-rendered election
+slide had shown "DeLLphi-301 trial", the first of many papers mentioned.
+Journal shows still feature their first study.
 
 Guard tests in `scripts/verify-broadcast-guards.ts` cover the election case,
 a titled multi-disease review, a multi-disease journal roundup and both trial

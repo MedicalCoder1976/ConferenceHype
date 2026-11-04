@@ -220,12 +220,15 @@ function resolveClinicalTopic(input: ClinicalEvidencePackagingInput, combined: s
 
 // Same rule for the trial line under the headline (2026-10-29: the re-rendered
 // ASCO election slide showed "DeLLphi-301 trial", the first of many papers the
-// script mentioned). One study -> that study; several -> the one the title
-// names, if exactly one; otherwise no trial line. Applies when the caller
-// sets entityMustMatchTitle (Story and Meeting Watch videos).
+// script mentioned). When the caller sets entityMustMatchTitle (Story and
+// Meeting Watch videos), the trial line shows only the study the title names,
+// if exactly one; otherwise no trial line. 2026-11-04: this used to accept a
+// lone detected study without checking the title, so the Novo Q3 earnings
+// Story opened with "ZEUS trial", a failed heart trial mentioned in passing.
+// Journal shows (no flag) keep featuring their first study.
 function resolvePrimaryEntity(input: ClinicalEvidencePackagingInput) {
   const names = [...new Set((input.studyNames ?? []).map(clean).filter((name) => Boolean(name) && !/^(?:NCT|ISRCTN|ACTRN)/i.test(name)))];
-  if (!input.entityMustMatchTitle || names.length <= 1) return names[0];
+  if (!input.entityMustMatchTitle || names.length === 0) return names[0];
   const title = clean(input.title ?? "").toLowerCase();
   const named = names.filter((name) => title.includes(name.replace(/\s+trial$/i, "").toLowerCase()));
   return named.length === 1 ? named[0] : undefined;
