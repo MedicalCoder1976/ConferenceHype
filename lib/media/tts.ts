@@ -217,7 +217,12 @@ export const PHARMA_SPOKEN_PRONUNCIATIONS = [
   ["Sanofi", "Sah-no-fee"],
   ["SynAIRgy", "Synergy"],
   ["Takeda", "Tah-keh-dah"],
-  ["Taiho", "Tie-ho"]
+  ["Taiho", "Tie-ho"],
+  // 2026-11-05 (operator, ASH 2026 Update 1): default G2P read gemcitabine as
+  // "JEM-sih-tab-een" and oxaliplatin as "OX-uh-LIP-luh-tin". These give
+  // jem-SITE-uh-been and ox-AL-ih-plat-in.
+  ["gemcitabine", "jem-site-uh-bean"],
+  ["oxaliplatin", "ox-alley-platin"]
 ] as const;
 
 function applyPharmaSpokenPronunciations(text: string) {

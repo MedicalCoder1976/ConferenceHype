@@ -242,6 +242,59 @@ def trim_silence(audio: np.ndarray, threshold: float = 0.006, padding: int = 120
     return audio[start:end]
 
 
+# 2026-11-05 (operator: "fix the gap around when you use %"): the Story voice
+# (bf_emma) drops a ~0.5 s comma-length pause after a number phrase when "and",
+# "with", "plus" or "versus" follows ("88.7 percent ... and a complete
+# response"), even with no comma in the text. Respelling "percent" or the
+# number does not change it; it is the model's own phrasing. So after
+# synthesis, any interior silence longer than MAX_UNPUNCTUATED_PAUSE that has
+# no punctuation token next to it is shortened. Pauses at commas, periods,
+# semicolons, colons and dashes are left alone.
+MAX_UNPUNCTUATED_PAUSE = 0.14
+PAUSE_PUNCTUATION = set(",.;:!?—–-…")
+
+
+def tighten_unpunctuated_pauses(audio: np.ndarray, tokens, threshold: float = 0.008, window_seconds: float = 0.01) -> np.ndarray:
+    if not tokens or audio.size == 0:
+        return audio
+    timed = [t for t in tokens if getattr(t, "start_ts", None) is not None and getattr(t, "end_ts", None) is not None]
+    if not timed:
+        return audio
+    punct_times = [
+        (float(t.start_ts), float(t.end_ts))
+        for t in timed
+        if t.text and all(ch in PAUSE_PUNCTUATION for ch in t.text.strip())
+    ]
+    window = max(int(window_seconds * SAMPLE_RATE), 1)
+    frames = audio.shape[0] // window
+    if frames < 3:
+        return audio
+    rms = np.sqrt(np.mean(audio[: frames * window].reshape(frames, window) ** 2, axis=1))
+    silent = rms < threshold
+    keep = np.ones(audio.shape[0], dtype=bool)
+    max_frames = int(MAX_UNPUNCTUATED_PAUSE / window_seconds)
+    index = 0
+    while index < frames:
+        if not silent[index]:
+            index += 1
+            continue
+        start = index
+        while index < frames and silent[index]:
+            index += 1
+        end = index
+        # Leading and trailing silence belong to trim_silence, not here.
+        if start == 0 or end >= frames or end - start <= max_frames:
+            continue
+        start_s, end_s = start * window_seconds, end * window_seconds
+        if any(p_start <= end_s + 0.2 and p_end >= start_s - 0.2 for p_start, p_end in punct_times):
+            continue
+        cut_from = (start + max_frames // 2) * window
+        cut_to = (end - (max_frames - max_frames // 2)) * window
+        if cut_to > cut_from:
+            keep[cut_from:cut_to] = False
+    return audio[keep]
+
+
 def normalize(audio: np.ndarray, peak_target: float = 0.92) -> np.ndarray:
     peak = float(np.max(np.abs(audio)))
     if peak > 0:
@@ -315,7 +368,7 @@ def synthesize_lines(pipeline: KPipeline, voice: str, lines: list[dict[str, obje
             speed=float(line["speed"]),
             split_pattern=None,
         ):
-            generated.append(result.audio.detach().cpu().numpy())
+            generated.append(tighten_unpunctuated_pauses(result.audio.detach().cpu().numpy(), result.tokens))
         if not generated:
             continue
         phrase = trim_silence(np.concatenate(generated).astype(np.float32))

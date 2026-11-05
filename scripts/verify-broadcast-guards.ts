@@ -181,6 +181,15 @@ assert.equal(applySpokenPronunciations("Novartis and Amgen"), "no-vahr-tiss and 
 assert.equal(applySpokenPronunciations("Apnimed reported SynAIRgy results."), "Ap-nih-med reported Synergy results.");
 // 2026-10-16: default G2P read Insmed as "inz-um-d".
 assert.equal(applySpokenPronunciations("Insmed reported TPIP data."), "Ins-med reported TPIP data.");
+// 2026-11-05: default G2P read gemcitabine as "JEM-sih-tab-een" and oxaliplatin as "OX-uh-LIP-luh-tin".
+assert.equal(applySpokenPronunciations("Rituximab, gemcitabine and Oxaliplatin."), "Rituximab, jem-site-uh-bean and ox-alley-platin.");
+// 2026-11-05: the Story voice adds a ~0.5 s pause after "88.7 percent" before "and"; the Kokoro script must
+// shorten interior pauses that have no punctuation next to them, for every synthesized line.
+{
+  const kokoroSource = readFileSync("scripts/generate-kokoro-dj-voice.py", "utf8");
+  assert.match(kokoroSource, /MAX_UNPUNCTUATED_PAUSE = 0\.1\d/);
+  assert.match(kokoroSource, /generated\.append\(tighten_unpunctuated_pauses\(result\.audio\.detach\(\)\.cpu\(\)\.numpy\(\), result\.tokens\)\)/);
+}
 // 2026-10-16: default G2P read Necchi as "NEK-eye".
 assert.equal(applySpokenPronunciations("Andrea Necchi presents."), "Andrea Nekki presents.");
 // 2026-10-19: default G2P read Alimentiv with a long-I "uh-LYE-mentiv".
