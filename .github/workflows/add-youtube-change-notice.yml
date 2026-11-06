@@ -1,0 +1,33 @@
+name: Add change notice to recent YouTube descriptions
+
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "Only videos published in the last N days"
+        default: "14"
+      apply:
+        description: "1 = update YouTube, 0 = dry run"
+        default: "0"
+
+jobs:
+  notice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Add notice to recent descriptions
+        run: npx tsx scripts/add-youtube-change-notice.ts
+        env:
+          APPLY_YOUTUBE_CHANGE_NOTICE: ${{ inputs.apply }}
+          NOTICE_DAYS: ${{ inputs.days }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          YOUTUBE_OAUTH_CLIENT_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
+          YOUTUBE_OAUTH_CLIENT_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
+          YOUTUBE_OAUTH_REFRESH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
