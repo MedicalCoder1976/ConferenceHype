@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { seriesPlaylistUrl, youtubeThumbnail, type ConferenceVideo } from "@/lib/conferences/types";
+import { formatVideoDate, seriesPlaylistUrl, youtubeThumbnail, type ConferenceVideo } from "@/lib/conferences/types";
 
 // One video at a time on our own page, newest first by default, with the
 // whole series a click away on YouTube.
@@ -36,7 +36,12 @@ export function ConferenceSeriesPlayer({ videos, displayName }: { videos: Confer
             <span className="text-xs font-black uppercase text-broadcast">{selected.label}</span>
           ) : null}
           <h2 className="text-xl font-black leading-7 text-ink">{selected.headline}</h2>
-          <p className="mt-1 text-xs font-bold text-ink/55">{formatDay(selected.publishedAt)}</p>
+          {formatVideoDate(selected.publishedAt) ? (
+            <p className="mt-1 text-xs font-bold text-ink/65">
+              Published{" "}
+              <time dateTime={selected.publishedAt}>{formatVideoDate(selected.publishedAt)}</time>
+            </p>
+          ) : null}
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
           <a
@@ -80,8 +85,11 @@ export function ConferenceSeriesPlayer({ videos, displayName }: { videos: Confer
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={youtubeThumbnail(video.videoId)} alt="" loading="lazy" className="aspect-video w-full object-cover" />
                   <span className="min-w-0">
-                    <span className="block text-[11px] font-black uppercase text-broadcast">
-                      {video.label ?? formatDay(video.publishedAt)}
+                    <span className="flex flex-wrap items-baseline gap-x-2 text-[11px] font-black uppercase">
+                      {video.label ? <span className="text-broadcast">{video.label}</span> : null}
+                      <time dateTime={video.publishedAt} className={video.label ? "text-ink/55" : "text-broadcast"}>
+                        {formatVideoDate(video.publishedAt)}
+                      </time>
                     </span>
                     <span className="line-clamp-3 text-xs font-bold leading-4 text-ink">{video.headline}</span>
                   </span>
@@ -93,10 +101,4 @@ export function ConferenceSeriesPlayer({ videos, displayName }: { videos: Confer
       </div>
     </div>
   );
-}
-
-function formatDay(iso: string) {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
 }

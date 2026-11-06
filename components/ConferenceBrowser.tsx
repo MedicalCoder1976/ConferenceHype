@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { CONFERENCE_FIELDS, type ConferenceField } from "@/lib/conferences/catalog";
-import { formatConferenceDates, youtubeThumbnail, type ConferenceStatus, type ConferenceSummary } from "@/lib/conferences/types";
+import { formatConferenceDates, formatVideoDate, youtubeThumbnail, type ConferenceStatus, type ConferenceSummary } from "@/lib/conferences/types";
 
 const STATUS_LABEL: Record<ConferenceStatus, string> = {
   upcoming: "Upcoming",
@@ -228,6 +228,12 @@ function ConferenceCard({ conference, current }: { conference: ConferenceSummary
         <p className="text-xs font-semibold text-ink/60">{conference.fullName}</p>
         {dates || conference.city ? (
           <p className="text-xs font-bold text-ink/70">{[dates, conference.city].filter(Boolean).join(" · ")}</p>
+        ) : null}
+        {formatVideoDate(conference.latestPublishedAt) ? (
+          <p className="text-xs font-semibold text-ink/55">
+            Latest video{" "}
+            <time dateTime={conference.latestPublishedAt}>{formatVideoDate(conference.latestPublishedAt)}</time>
+          </p>
         ) : null}
       </div>
     </Link>

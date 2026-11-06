@@ -50,16 +50,27 @@ export function normalizeYoutubeTitle(value: string) {
   return `${wordSafePrefix.trimEnd()}…`;
 }
 
+// Operator rule (2026-11-06): every YouTube description says the information
+// can change. Appended here, at the one place every upload and metadata update
+// passes through, so no description builder can forget it, and added after
+// truncation so a long description can never cut it off.
+export const YOUTUBE_CHANGE_NOTICE =
+  "Information can change at any time: trial results, regulatory decisions and conference details may be updated after this video was published. Check the original sources for the latest.";
+
 export function normalizeYoutubeDescription(value: string) {
-  const description = removeViewerGroundingLabels(value)
+  const description = removeViewerGroundingLabels(value.split(YOUTUBE_CHANGE_NOTICE).join(""))
     .replace(/[ \t]*<[ \t]*/g, " less than ")
     .replace(/[ \t]*>[ \t]*/g, " greater than ")
-    .replace(/[ \t]{2,}/g, " ");
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  const notice = `\n\n${YOUTUBE_CHANGE_NOTICE}`;
   const encoder = new TextEncoder();
-  if (encoder.encode(description).length <= YOUTUBE_DESCRIPTION_MAX_BYTES) return description;
+  const maxBodyBytes = YOUTUBE_DESCRIPTION_MAX_BYTES - encoder.encode(notice).length;
+  if (encoder.encode(description).length <= maxBodyBytes) return `${description}${notice}`;
 
   const suffix = "…";
-  const availableBytes = YOUTUBE_DESCRIPTION_MAX_BYTES - encoder.encode(suffix).length;
+  const availableBytes = maxBodyBytes - encoder.encode(suffix).length;
   let bytes = 0;
   let prefix = "";
   for (const character of description) {
@@ -70,7 +81,7 @@ export function normalizeYoutubeDescription(value: string) {
   }
   const lastWhitespace = Math.max(prefix.lastIndexOf(" "), prefix.lastIndexOf("\n"));
   if (lastWhitespace >= Math.floor(prefix.length * 0.75)) prefix = prefix.slice(0, lastWhitespace);
-  return `${prefix.trimEnd()}${suffix}`;
+  return `${prefix.trimEnd()}${suffix}${notice}`;
 }
 
 // Replaces the old live-broadcast + RTMP pipeline: instead of streaming a

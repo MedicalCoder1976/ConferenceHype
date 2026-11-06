@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { monitoredSocialTags } from "@/lib/sources/registry";
 
-export function SiteHeader({ active }: { active?: "conferences" | "live" | "request" }) {
+export function SiteHeader({ active }: { active?: "conferences" | "live" | "team" | "request" }) {
   const item = (key: typeof active, href: string, label: string) => (
     <Link
       href={href}
@@ -21,6 +21,7 @@ export function SiteHeader({ active }: { active?: "conferences" | "live" | "requ
         <nav className="flex items-center gap-1">
           <span className="hidden sm:inline-flex">{item("conferences", "/", "Conferences")}</span>
           {item("live", "/live", "Live")}
+          {item("team", "/team", "Team")}
           <Link
             href="/request-coverage"
             className={`px-2 py-2 text-[11px] font-black uppercase tracking-wide sm:px-3 sm:text-xs ${
@@ -76,7 +77,13 @@ export function SiteFooter() {
             suggestions for the commentary stream.
           </p>
         </div>
-        <div className="mt-5">
+        <div className="mt-5 flex flex-wrap gap-2">
+          <Link
+            href="/team"
+            className="inline-flex border border-white/40 px-4 py-2 text-sm font-bold text-white hover:border-white"
+          >
+            Meet the team
+          </Link>
           <Link
             href="/terms"
             className="inline-flex border border-white/40 px-4 py-2 text-sm font-bold text-white hover:border-white"

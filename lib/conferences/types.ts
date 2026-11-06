@@ -47,6 +47,14 @@ export function seriesPlaylistUrl(videos: ConferenceVideo[]) {
   return `https://www.youtube.com/watch_videos?video_ids=${ids}`;
 }
 
+// Publish date of one video, in US Eastern time so an evening upload is not
+// shown as the next day (created_at is stored in UTC).
+export function formatVideoDate(iso: string) {
+  const date = new Date(iso);
+  if (!iso || Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "America/New_York" });
+}
+
 export function formatConferenceDates(start: string | null, end: string | null) {
   if (!start || !end) return null;
   const s = new Date(`${start}T12:00:00Z`);

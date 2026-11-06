@@ -8,7 +8,7 @@ import { buildFiveThingsSearchTitle, fiveThingsItemTitles } from "@/lib/story/fi
 import { fiveThingsPublishInputSchema, parsePreparedFiveThings, preparedFiveThingsSegments } from "@/lib/story/preparedFiveThings";
 import { buildFiveThingsDisclaimer } from "@/lib/story/fiveThingsDisclaimer";
 import { buildMeetingWatchMetadata } from "@/lib/youtube/meetingWatchMetadata";
-import { normalizeYoutubeDescription, normalizeYoutubeTitle } from "@/lib/youtube/uploadBroadcastVideo";
+import { normalizeYoutubeDescription, normalizeYoutubeTitle, YOUTUBE_CHANGE_NOTICE } from "@/lib/youtube/uploadBroadcastVideo";
 
 const paragraph = "A randomized clinical study reports a meaningful result for patient care. The investigators describe the population, intervention, comparator, outcome, safety findings, and follow-up. Clinicians should interpret the effect size alongside eligibility criteria and study limitations before changing practice. The primary source provides the complete methods and results for independent review.";
 const writeup = `INTRO:\nThese developments were selected for practicing cardiologists reviewing today's evidence.\n\n${Array.from({ length: 5 }, (_, index) => `${index + 1}. ${["TAVR outcomes", "LDL lowering", "Heart failure therapy", "Atrial fibrillation", "Hypertension guidance"][index]}\nWhat happened: ${paragraph}\nKey evidence: ${paragraph}\nPrimary source URL: https://example.com/source-${index + 1}`).join("\n\n")}`;
@@ -77,7 +77,15 @@ assert.equal(gynecologicDisclaimer.heading, "GYNECOLOGIC ONCOLOGY DISCLAIMER:");
 assert.match(gynecologicDisclaimer.text, /fertility status/);
 assert.match(gynecologicDisclaimer.text, /Genomic profiling and molecular testing/);
 assert.equal(normalizeYoutubeTitle("Beta-blockers after MI with LVEF >40%"), "Beta-blockers after MI with LVEF greater than 40%");
-assert.equal(normalizeYoutubeDescription("LDL-C <55 mg/dL and LVEF >40%"), "LDL-C less than 55 mg/dL and LVEF greater than 40%");
+assert.equal(normalizeYoutubeDescription("LDL-C <55 mg/dL and LVEF >40%"), `LDL-C less than 55 mg/dL and LVEF greater than 40%
+
+${YOUTUBE_CHANGE_NOTICE}`);
+// The change notice is always last, never duplicated on a metadata re-update,
+// and survives truncation of an over-long description.
+assert.equal(normalizeYoutubeDescription(normalizeYoutubeDescription("Body text.")), `Body text.
+
+${YOUTUBE_CHANGE_NOTICE}`);
+assert.ok(normalizeYoutubeDescription("Evidence 😀 ".repeat(1000)).endsWith(YOUTUBE_CHANGE_NOTICE));
 assert.doesNotMatch(normalizeYoutubeDescription(metadata.description.replace("LVEF", "LVEF >40%")), /[<>]/);
 assert.ok(new TextEncoder().encode(normalizeYoutubeDescription("Evidence 😀 ".repeat(1000))).length <= 5000);
 
