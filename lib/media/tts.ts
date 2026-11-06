@@ -140,7 +140,7 @@ const CLOCK_ONES = [
   "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
   "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"
 ];
-const CLOCK_TENS = ["", "", "twenty", "thirty", "forty", "fifty"];
+const CLOCK_TENS = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
 function clockNumberWords(value: number) {
   if (value < 20) return CLOCK_ONES[value];
   const tens = Math.floor(value / 10);
@@ -224,7 +224,10 @@ export const PHARMA_SPOKEN_PRONUNCIATIONS = [
   ["gemcitabine", "jem-site-uh-bean"],
   ["oxaliplatin", "ox-alley-platin"],
   // 2026-11-05 (ASH 2026 Update 2): default G2P read "or-LAH-bru-tinib".
-  ["orelabrutinib", "or-ella-brutinib"]
+  ["orelabrutinib", "or-ella-brutinib"],
+  // 2026-11-06: default G2P read dysesthesia "DYE-sis-THEE-zhuh"; this gives dis-es-THEE-zhuh.
+  ["dysesthesia", "diss-ess-theezha"],
+  ["dysaesthesia", "diss-ess-theezha"]
 ] as const;
 
 function applyPharmaSpokenPronunciations(text: string) {
@@ -302,6 +305,14 @@ export function applySpokenPronunciations(script: string, sourceContext: string 
     // gives the long "TRY" vowel (tɹˌIspəsˈɪfɪk), matching how it already
     // reads "bispecific". Lowercase respelling: ALL-CAPS gets spelled out.
     .replace(/\b([Tt])ri-?specific(s?)\b/g, "$1ry-specific$2")
+    // 2026-11-06 (operator, ACR 2026 Update 5): "Triumph-4 and Triumph-1 knee"
+    // was read "Triumph ... one-knee": Kokoro paused inside a name+digit token
+    // (Triumph-1 took about 1.0 s against 0.68 s for "Triumph-one") and then ran
+    // the digit into the next word. Spelling the number keeps a trial name such
+    // as Triumph-1, Lotis-5 or Synchronize-2 together. Only Capitalized names
+    // (ALL-CAPS acronyms like GLP-1 or PD-1 are untouched) and 1-99 without a
+    // leading zero, so codes like Bipave-001 stay as they are.
+    .replace(/\b([A-Z][a-z]+(?:-[A-Z][a-z]+)*)-([1-9]\d?)\b(?![.,]\d)/g, (_match, name: string, num: string) => `${name}-${clockNumberWords(Number(num)).replace(" ", "-")}`)
     .replace(/\b([Pp])re(surgical|clinical|dose|screening|meeting)\b/g, "$1re-$2")
     .replace(CITY_COMMA_PLACE, "$1 $2")
     .replace(/\bESC\b/g, "E S C")

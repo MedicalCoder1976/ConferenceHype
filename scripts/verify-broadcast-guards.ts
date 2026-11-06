@@ -184,6 +184,13 @@ assert.equal(applySpokenPronunciations("Insmed reported TPIP data."), "Ins-med r
 // 2026-11-05: default G2P read gemcitabine as "JEM-sih-tab-een" and oxaliplatin as "OX-uh-LIP-luh-tin".
 assert.equal(applySpokenPronunciations("Rituximab, gemcitabine and Oxaliplatin."), "Rituximab, jem-site-uh-bean and ox-alley-platin.");
 assert.equal(applySpokenPronunciations("Orelabrutinib in ITP."), "or-ella-brutinib in ITP.");
+// 2026-11-06: a trial name+digit ("Triumph-1 knee") was read with a pause inside the name and the digit run into the next word.
+assert.equal(
+  applySpokenPronunciations("The Triumph-4 and Triumph-1 knee trials, Lotis-7, Synchronize-2 and Tydal-Timi-78."),
+  "The Triumph-four and Triumph-one knee trials, Lotis-seven, Synchronize-two and Tydal-Timi-seventy-eight."
+);
+assert.equal(applySpokenPronunciations("GLP-1, PD-1, Bipave-001 and Phase 3."), "GLP-1, PD-1, Bipave-001 and Phase 3.");
+assert.equal(applySpokenPronunciations("Dysesthesia occurred in 9 percent."), "diss-ess-theezha occurred in 9 percent.");
 // 2026-11-05: the Story voice adds a ~0.5 s pause after "88.7 percent" before "and"; the Kokoro script must
 // shorten interior pauses that have no punctuation next to them, for every synthesized line.
 {
