@@ -18,6 +18,7 @@ type TeamMember = {
   initials: string;
   role: string;
   affiliation: string;
+  linkedin?: string;
   bio: string[];
 };
 
@@ -27,10 +28,12 @@ const TEAM: TeamMember[] = [
     initials: "RS",
     role: "Editor in Chief",
     affiliation: "Biomedical Engineering, Georgia Institute of Technology",
+    linkedin: "https://www.linkedin.com/in/rehan-simpson-b29656285/",
     bio: [
-      "Rehan Simpson is the Editor in Chief of ConferenceHype and studies Biomedical Engineering at the Georgia Institute of Technology. Rehan sets the editorial standard for every video on the channel: which meetings and trials get covered, how each story is framed, and which headline goes out.",
-      "Biomedical engineering sits where conference medicine happens, between the clinic, the lab and the data. That training shapes how Rehan reads a trial: what was measured, against what comparator, over how long, and what the result does and does not show. It is why ConferenceHype reports hazard ratios, follow-up times and safety findings alongside the headline number, and labels early or subgroup results as early.",
-      "Rehan holds every script to one rule: each number has to trace back to a primary source, such as the abstract, the peer-reviewed paper, the trial registry or the sponsor's own release. Claims that cannot be checked are left out rather than guessed at, and every video sticks to what was actually reported instead of predicting what comes next."
+      "Rehan Simpson is the Editor in Chief of ConferenceHype and a first-year Biomedical Engineering student at the Georgia Institute of Technology. He sets the editorial standard for every video on the channel: which meetings and trials get covered, how each story is framed, and which headline goes out.",
+      "Rehan came to conference coverage through research. His work on an artificial intelligence tool that flags financial toxicity in cancer patients early, so they can be referred to hospital social workers sooner, appeared in the Journal of Clinical Oncology in 2025. He was selected as a Yale Young Global Scholar in Innovations in Science and Technology, where he presented a research proposal on CAR-T cell therapy for B-cell leukemia, and studied biology at the Georgia Governor's Honors Program.",
+      "Outside the lab, Rehan graduated from Atlanta International School, where he captained the Science Olympiad build events, and founded Mission Chess, which has hosted chess tournaments across the Atlanta area to raise money for cancer foundations.",
+      "That background shapes how ConferenceHype reads a trial: what was measured, against what comparator, over how long, and what the result does and does not show. Rehan holds every script to one rule: each number has to trace back to a primary source, such as the abstract, the peer-reviewed paper, the trial registry or the sponsor's own release. Claims that cannot be checked are left out, and every video sticks to what was actually reported instead of predicting what comes next."
     ]
   }
 ];
@@ -83,6 +86,16 @@ export default function TeamPage() {
                       <p key={paragraph.slice(0, 32)}>{paragraph}</p>
                     ))}
                   </div>
+                  {member.linkedin ? (
+                    <a
+                      href={member.linkedin}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-5 inline-flex min-h-11 items-center border border-ink px-4 py-2 text-xs font-black uppercase text-ink hover:bg-ink hover:text-white"
+                    >
+                      {member.name} on LinkedIn
+                    </a>
+                  ) : null}
                 </div>
               </article>
             ))}
