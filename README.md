@@ -1279,7 +1279,13 @@ to list first.
 Meeting Watch, journal shows, weekend roundups, hourly broadcasts, Breaking
 Paper):
 
-- One disease named anywhere in the text: that disease.
+- One disease named anywhere in the text: that disease. For Story and Meeting
+  Watch videos (`entityMustMatchTitle`), only if the title or topic names it
+  or it comes up in at least two distinct sentences; otherwise the video's own
+  topic. The ASCyto26 Exhibit Hall Story (2026-11-07) opened as "Bladder
+  Cancer" from one passing mention of a urine-cytology product. Journal shows
+  keep the plain rule, since a single-paper segment often names its disease
+  once.
 - Several diseases: the disease named in the video's own title, if the title
   names exactly one.
 - Otherwise: the video's own topic (the Story topic or meeting name) or its

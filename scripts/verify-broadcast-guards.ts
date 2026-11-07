@@ -642,6 +642,32 @@ const specialtyMixedPackaging = buildClinicalEvidencePackaging({
   sourceText: "A breast cancer trial, a prostate cancer trial and a melanoma study."
 });
 assert.equal(specialtyMixedPackaging.clinicalTopic, "Oncology Research");
+// One disease mentioned once in passing in a Story: the Story's topic, not the
+// disease (ASCyto26 Exhibit Hall opened as "Bladder Cancer", 2026-11-07). The
+// repeated title/summary/script sentence still counts as one mention.
+const passingDiseaseSentence = "Its website describes software that sorts atypical cells in urine samples for bladder cancer.";
+const passingDiseasePackaging = buildClinicalEvidencePackaging({
+  title: "ASCyto26 Exhibit Hall: 6 Booths and On-Site Food",
+  explicitTopic: "ASCyto26",
+  sourceText: [passingDiseaseSentence, passingDiseaseSentence, "Optrascan is at booth 112 and Sawbones is at booth 304."].join("\n"),
+  entityMustMatchTitle: true
+});
+assert.equal(passingDiseasePackaging.clinicalTopic, "ASCyto26");
+// The same lone disease named in the title, or in two distinct sentences, keeps its label.
+const titledLoneDiseasePackaging = buildClinicalEvidencePackaging({
+  title: "Bladder Cancer: Urine Cytology Software at ASCyto26",
+  explicitTopic: "ASCyto26",
+  sourceText: passingDiseaseSentence,
+  entityMustMatchTitle: true
+});
+assert.equal(titledLoneDiseasePackaging.clinicalTopic, "Bladder Cancer");
+const repeatedLoneDiseasePackaging = buildClinicalEvidencePackaging({
+  title: "ASCyto26 Update: Urine Cytology Software",
+  explicitTopic: "ASCyto26",
+  sourceText: passingDiseaseSentence + " A second study tracked bladder cancer recurrence after surgery.",
+  entityMustMatchTitle: true
+});
+assert.equal(repeatedLoneDiseasePackaging.clinicalTopic, "Bladder Cancer");
 assert.equal(addSpecialistAudienceToTitle("A complete news headline", "Story"), "A complete news headline");
 const firstStudySlotIndex = journalShowSlots.findIndex((slot) => slot.segment && !slot.segment.riskFlags.includes("journal_show_outro"));
 const studyNamedSlots = journalShowSlots.map((slot, index) => index === firstStudySlotIndex && slot.segment

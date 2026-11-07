@@ -210,8 +210,35 @@ function diseasesIn(value: string) {
 // disease in the whole text -> that disease. Several -> the disease the
 // video's own title names, if it names exactly one; otherwise the video's
 // own topic or specialty (fallbackTopic), never an arbitrary first match.
+//
+// 2026-11-07: the ASCyto26 Exhibit Hall Story opened as "Bladder Cancer"
+// because one booth's urine-cytology product got a single passing mention and
+// "one disease anywhere -> that disease" took it. For Story and Meeting Watch
+// videos (entityMustMatchTitle), a lone disease must also be named in the
+// title or topic, or come up at least twice in the text; otherwise the video's
+// own topic. Journal shows keep the plain one-disease rule (a single-paper
+// segment often names its disease once).
+// Distinct sentences that mention the disease. Story/Meeting Watch sourceText
+// joins each card's title, summary and script, so one sentence can repeat;
+// counting raw matches would let a single passing mention look like two.
+function countMentions(pattern: RegExp, value: string) {
+  const sentences = value.split(/(?<=[.!?])\s+|\n+/).map((sentence) => clean(sentence)).filter(Boolean);
+  return new Set(sentences.filter((sentence) => pattern.test(sentence)).map((sentence) => sentence.toLowerCase())).size;
+}
+
+function loneDiseaseIsSubject(input: ClinicalEvidencePackagingInput, label: string) {
+  const pattern = TOPIC_PATTERNS.find(([name]) => name === label)?.[1];
+  if (!pattern) return true;
+  const heading = clean([input.title, input.explicitTopic].filter(Boolean).join(" "));
+  if (pattern.test(heading)) return true;
+  return countMentions(pattern, input.sourceText ?? "") >= 2;
+}
+
 function resolveClinicalTopic(input: ClinicalEvidencePackagingInput, combined: string) {
   const all = diseasesIn(combined);
+  if (all.length === 1 && input.entityMustMatchTitle && !loneDiseaseIsSubject(input, all[0])) {
+    return fallbackTopic(input);
+  }
   if (all.length <= 1) return extractClinicalTopic(combined, fallbackTopic(input));
   const inTitle = diseasesIn(clean(input.title ?? ""));
   if (inTitle.length === 1) return inTitle[0];
