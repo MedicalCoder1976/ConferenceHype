@@ -42,7 +42,7 @@ concurrency:
 
 jobs:
   resolve:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       code: ${{ steps.resolve.outputs.code }}
       date: ${{ steps.resolve.outputs.date }}
@@ -75,7 +75,7 @@ jobs:
 
   prepare:
     needs: resolve
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       matrix: ${{ steps.prepare.outputs.matrix }}
       should_publish: ${{ steps.prepare.outputs.should_publish }}
@@ -99,7 +99,7 @@ jobs:
   render:
     needs: [resolve, prepare]
     if: needs.prepare.outputs.should_publish == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     strategy:
       fail-fast: false
