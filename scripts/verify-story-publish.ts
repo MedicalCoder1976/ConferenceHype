@@ -69,6 +69,9 @@ assert.equal(identifyMeeting("ASCO 2026", "ASCO 2026: Tucatinib shrinks CNS tumo
 assert.equal(identifyMeeting("A drug for CNS lymphoma in 2026"), null);
 assert.equal(identifyMeeting("American Heart Association Scientific Sessions 2026")?.displayName, "AHA 2026");
 assert.equal(identifyMeeting("Unlisted Regional Society Meeting 2026"), null);
+assert.equal(identifyMeeting("NANETS Multidisciplinary NET Medical Symposium 2026")?.displayName, "NANETS 2026");
+assert.equal(identifyMeeting("North American Neuroendocrine Tumor Society Symposium 2026")?.key, "nanets");
+assert.equal(identifyMeeting("A story about pancreatic NETs in 2026"), null);
 assert.equal(identifyMeeting("ASCO Quality Care Symposium 2026")?.displayName, "ASCO Quality Care Symposium 2026");
 assert.equal(identifyMeeting("ASCO Quality Care Symposium 2026: What Worked")?.key, "ascoqcs");
 assert.equal(identifyMeeting("ASCO 2026 Annual Meeting")?.key, "asco");

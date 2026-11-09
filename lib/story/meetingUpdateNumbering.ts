@@ -72,7 +72,11 @@ export const MEETINGS: MeetingDefinition[] = [
   { key: "aan", shortName: "AAN", patterns: [/\bAAN\b/, /American Academy of Neurology/i] },
   { key: "ecco", shortName: "ECCO", patterns: [/\bECCO\b/, /European Crohn.s and Colitis Organi[sz]ation/i] },
   { key: "ddw", shortName: "DDW", patterns: [/\bDDW\b/, /Digestive Disease Week/i] },
-  { key: "endo", shortName: "ENDO", patterns: [/\bENDO 20\d{2}\b/, /Endocrine Society/i] }
+  { key: "endo", shortName: "ENDO", patterns: [/\bENDO 20\d{2}\b/, /Endocrine Society/i] },
+  // Added 2026-11-08 after the first NANETS Story (Wrap 1), so later NANETS
+  // Stories get an update label, previous-update links, a series playlist and
+  // a short "NANETS 2026" opening-slide label instead of the full symposium name.
+  { key: "nanets", shortName: "NANETS", patterns: [/\bNANETS\b/, /North American Neuroendocrine Tumou?r Society/i] }
 ];
 
 export type MeetingIdentity = { key: string; shortName: string; year: string; displayName: string; patterns: RegExp[] };
