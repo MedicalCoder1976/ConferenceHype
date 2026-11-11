@@ -27,8 +27,8 @@ URL="https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/${ASSET}.tar
 TMP="$(mktemp -d)"
 curl --fail --location --retry 3 --connect-timeout 20 --max-time 600 -o "$TMP/ffmpeg.tar.xz" "$URL"
 tar -xJf "$TMP/ffmpeg.tar.xz" -C "$TMP"
-sudo install -m 0755 "$TMP/$ASSET/bin/ffmpeg" /usr/local/bin/ffmpeg
-sudo install -m 0755 "$TMP/$ASSET/bin/ffprobe" /usr/local/bin/ffprobe
+sudo install -m 0755 "$TMP/$ASSET/bin/ffmpeg" /usr/bin/ffmpeg
+sudo install -m 0755 "$TMP/$ASSET/bin/ffprobe" /usr/bin/ffprobe
 rm -rf "$TMP"
 ffmpeg -hide_banner -version | head -n 1 || true
 ffprobe -hide_banner -version | head -n 1 || true
