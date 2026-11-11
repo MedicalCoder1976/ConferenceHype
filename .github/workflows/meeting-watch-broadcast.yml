@@ -63,7 +63,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           MEETING_WATCH_BROADCAST_ID: ${{ inputs.meeting_watch_broadcast_id }}
           YOUTUBE_PRIVACY_STATUS: ${{ inputs.privacy_status }}
-      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: bash .github/scripts/install-ffmpeg.sh
 
       - name: Resolve due Meeting Watch broadcast
         id: resolve

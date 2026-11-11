@@ -12,7 +12,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: bash .github/scripts/install-ffmpeg.sh
       - run: npm ci
       - name: Install Kokoro TTS dependencies
         run: pip install kokoro numpy soundfile "cymem==2.0.13" "preshed==3.0.13" "murmurhash==1.0.15" "spacy==3.8.18" "spacy-curated-transformers==0.3.1" "curated-transformers==0.1.1" "curated-tokenizers==0.0.10"

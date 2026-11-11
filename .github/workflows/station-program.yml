@@ -93,7 +93,7 @@ jobs:
       - if: steps.release_gate.outputs.allowed == 'true'
         run: npm ci
       - if: steps.release_gate.outputs.allowed == 'true'
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+        run: bash .github/scripts/install-ffmpeg.sh
       - if: steps.release_gate.outputs.allowed == 'true'
         run: pip install kokoro numpy soundfile "cymem==2.0.13" "preshed==3.0.13" "murmurhash==1.0.15" "spacy==3.8.18" "spacy-curated-transformers==0.3.1" "curated-transformers==0.1.1" "curated-tokenizers==0.0.10"
       - name: Render and upload isolated 30-minute journal program
