@@ -20,6 +20,9 @@ export type ClinicalEvidencePackaging = {
   thumbnailEntity?: string;
 };
 
+// Disease acronyms (NSCLC, SCLC, HCC, CKD, T2D) do not count when a hyphen
+// glues them into a trial name: "ARMMS-T2D" in an ObesityWeek title made the
+// opening slide read "Type 2 Diabetes" (2026-11-14). Spelled-out names still match.
 const TOPIC_PATTERNS: Array<[string, RegExp]> = [
   ["Chronic Lymphocytic Leukemia", /\b(?:chronic lymphocytic leukemia|CLL)\b/i],
   ["Acute Myeloid Leukemia", /\b(?:acute myeloid leukemia|AML)\b/i],
@@ -31,11 +34,11 @@ const TOPIC_PATTERNS: Array<[string, RegExp]> = [
   ["Myelodysplastic Syndrome", /\b(?:myelodysplastic syndrome|MDS)\b/i],
   ["Myelofibrosis", /\bmyelofibrosis\b/i],
   ["Breast Cancer", /\b(?:breast cancer|breast carcinoma|HER2-positive breast|triple-negative breast)\b/i],
-  ["Lung Cancer", /\b(?:lung cancer|non-small cell lung|small cell lung|NSCLC|SCLC)\b/i],
+  ["Lung Cancer", /\b(?:lung cancer|non-small cell lung|small cell lung|(?<!-)NSCLC|(?<!-)SCLC)\b/i],
   ["Prostate Cancer", /\bprostate (?:cancer|carcinoma|tumou?r)\b/i],
   ["Colorectal Cancer", /\b(?:colorectal|colon|rectal) (?:cancer|carcinoma|tumou?r)\b/i],
   ["Pancreatic Cancer", /\bpancrea(?:tic|s) (?:cancer|carcinoma|adenocarcinoma|tumou?r)\b/i],
-  ["Liver Cancer", /\b(?:liver cancer|hepatocellular carcinoma|HCC)\b/i],
+  ["Liver Cancer", /\b(?:liver cancer|hepatocellular carcinoma|(?<!-)HCC)\b/i],
   ["Kidney Cancer", /\b(?:kidney|renal cell) (?:cancer|carcinoma)\b/i],
   ["Bladder Cancer", /\b(?:bladder cancer|urothelial carcinoma)\b/i],
   ["Ovarian Cancer", /\bovarian (?:cancer|carcinoma)\b/i],
@@ -54,8 +57,8 @@ const TOPIC_PATTERNS: Array<[string, RegExp]> = [
   ["Parkinson Disease", /\bParkinson(?:'s)? disease\b/i],
   ["Multiple Sclerosis", /\bmultiple sclerosis\b/i],
   ["Epilepsy", /\bepilepsy\b/i],
-  ["Chronic Kidney Disease", /\b(?:chronic kidney disease|CKD)\b/i],
-  ["Type 2 Diabetes", /\b(?:type 2 diabetes|T2D)\b/i],
+  ["Chronic Kidney Disease", /\b(?:chronic kidney disease|(?<!-)CKD)\b/i],
+  ["Type 2 Diabetes", /\b(?:type 2 diabetes|(?<!-)T2D)\b/i],
   ["Obesity", /\bobesity\b/i],
   ["Rheumatoid Arthritis", /\brheumatoid arthritis\b/i],
   ["Inflammatory Bowel Disease", /\b(?:inflammatory bowel disease|Crohn(?:'s)? disease|ulcerative colitis)\b/i],

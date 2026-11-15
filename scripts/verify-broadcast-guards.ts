@@ -668,6 +668,22 @@ const repeatedLoneDiseasePackaging = buildClinicalEvidencePackaging({
   entityMustMatchTitle: true
 });
 assert.equal(repeatedLoneDiseasePackaging.clinicalTopic, "Bladder Cancer");
+// A disease acronym inside a trial name is not the video's disease
+// (ObesityWeek Update 7 opened as "Type 2 Diabetes" from "ARMMS-T2D", 2026-11-14).
+const trialAcronymPackaging = buildClinicalEvidencePackaging({
+  title: "ObesityWeek 2026 Update 7: SIGNAL, OCTANE, Switching, ARMMS-T2D",
+  explicitTopic: "ObesityWeek 2026",
+  sourceText: "ARMMS-T2D followed 262 people with obesity and type 2 diabetes. Obesity remission was 72 percent after surgery. Food noise fell in adults with obesity.",
+  entityMustMatchTitle: true
+});
+assert.equal(trialAcronymPackaging.clinicalTopic, "ObesityWeek 2026");
+const plainAcronymPackaging = buildClinicalEvidencePackaging({
+  title: "T2D Update: Oral Insulin Results",
+  explicitTopic: "EASD 2026",
+  sourceText: "Oral insulin lowered HbA1c in T2D. A second trial in T2D confirmed it.",
+  entityMustMatchTitle: true
+});
+assert.equal(plainAcronymPackaging.clinicalTopic, "Type 2 Diabetes");
 assert.equal(addSpecialistAudienceToTitle("A complete news headline", "Story"), "A complete news headline");
 const firstStudySlotIndex = journalShowSlots.findIndex((slot) => slot.segment && !slot.segment.riskFlags.includes("journal_show_outro"));
 const studyNamedSlots = journalShowSlots.map((slot, index) => index === firstStudySlotIndex && slot.segment
