@@ -76,7 +76,12 @@ export const MEETINGS: MeetingDefinition[] = [
   // Added 2026-11-08 after the first NANETS Story (Wrap 1), so later NANETS
   // Stories get an update label, previous-update links, a series playlist and
   // a short "NANETS 2026" opening-slide label instead of the full symposium name.
-  { key: "nanets", shortName: "NANETS", patterns: [/\bNANETS\b/, /North American Neuroendocrine Tumou?r Society/i] }
+  { key: "nanets", shortName: "NANETS", patterns: [/\bNANETS\b/, /North American Neuroendocrine Tumou?r Society/i] },
+  // Added 2026-11-15 after the first SfN Story (shingles, MoCA, CADASIL,
+  // LIBRA-REMind) went out unlabelled. The meeting calls itself
+  // "Neuroscience 2026", a phrase other headlines can contain, so that form
+  // only counts at the start of the topic or label; "SfN" is case-sensitive.
+  { key: "sfn", shortName: "SfN", patterns: [/\bSfN\b/, /Society for Neuroscience/i, /^Neuroscience 20\d{2}\b/] }
 ];
 
 export type MeetingIdentity = { key: string; shortName: string; year: string; displayName: string; patterns: RegExp[] };
