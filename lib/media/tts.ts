@@ -305,6 +305,13 @@ export function applySpokenPronunciations(script: string, sourceContext: string 
     // gives the long "TRY" vowel (tɹˌIspəsˈɪfɪk), matching how it already
     // reads "bispecific". Lowercase respelling: ALL-CAPS gets spelled out.
     .replace(/\b([Tt])ri-?specific(s?)\b/g, "$1ry-specific$2")
+    // 2026-11-16 (operator): Lopez is a surname and must be read as the name,
+    // "LOH-pez". Title-case Lopez/López already reads that way in both the
+    // American and British voices (lˈOpɛz / lˈQpɛz), but ALL-CAPS LOPEZ, as in
+    // abstract author lists, was spelled out letter by letter. Normalize every
+    // casing and accent to "Lopez" (hyphenated names like Lopez-Garcia keep
+    // their second part).
+    .replace(/\b(?:L[OÓ]PEZ|L[oó]pez|lopez)\b/g, "Lopez")
     // 2026-11-06 (operator, ACR 2026 Update 5): "Triumph-4 and Triumph-1 knee"
     // was read "Triumph ... one-knee": Kokoro paused inside a name+digit token
     // (Triumph-1 took about 1.0 s against 0.68 s for "Triumph-one") and then ran
