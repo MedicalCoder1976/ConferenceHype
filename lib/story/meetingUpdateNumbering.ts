@@ -81,7 +81,11 @@ export const MEETINGS: MeetingDefinition[] = [
   // LIBRA-REMind) went out unlabelled. The meeting calls itself
   // "Neuroscience 2026", a phrase other headlines can contain, so that form
   // only counts at the start of the topic or label; "SfN" is case-sensitive.
-  { key: "sfn", shortName: "SfN", patterns: [/\bSfN\b/, /Society for Neuroscience/i, /^Neuroscience 20\d{2}\b/] }
+  { key: "sfn", shortName: "SfN", patterns: [/\bSfN\b/, /Society for Neuroscience/i, /^Neuroscience 20\d{2}\b/] },
+  // Added 2026-11-15 with the first ISA Story (Preview 1, Montevideo), so later
+  // International Symposium on Amyloidosis Stories get an update label,
+  // previous-update links and a series playlist. "ISA" is case-sensitive.
+  { key: "isa", shortName: "ISA", patterns: [/\bISA\b/, /International (?:Symposium on|Society of) Amyloidosis/i] }
 ];
 
 export type MeetingIdentity = { key: string; shortName: string; year: string; displayName: string; patterns: RegExp[] };

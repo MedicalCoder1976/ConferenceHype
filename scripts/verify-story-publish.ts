@@ -74,6 +74,9 @@ assert.equal(identifyMeeting("North American Neuroendocrine Tumor Society Sympos
 assert.equal(identifyMeeting("A story about pancreatic NETs in 2026"), null);
 assert.equal(identifyMeeting("Neuroscience 2026", "SfN 2026 Update: SIR2501, Tenaclidine")?.displayName, "SfN 2026");
 assert.equal(identifyMeeting("Society for Neuroscience annual meeting 2026")?.key, "sfn");
+assert.equal(identifyMeeting("ISA 2026", "ISA 2026 Preview 1: Acoramidis, Vutrisiran")?.displayName, "ISA 2026");
+assert.equal(identifyMeeting("XX International Symposium on Amyloidosis 2026")?.key, "isa");
+assert.equal(identifyMeeting("Visa rules for travelling clinicians 2026"), null);
 assert.equal(identifyMeeting("Advances in clinical neuroscience 2026"), null);
 assert.equal(identifyMeeting("ASCO Quality Care Symposium 2026")?.displayName, "ASCO Quality Care Symposium 2026");
 assert.equal(identifyMeeting("ASCO Quality Care Symposium 2026: What Worked")?.key, "ascoqcs");
