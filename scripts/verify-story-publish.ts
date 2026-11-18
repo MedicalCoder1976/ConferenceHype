@@ -77,6 +77,8 @@ assert.equal(identifyMeeting("Society for Neuroscience annual meeting 2026")?.ke
 assert.equal(identifyMeeting("ISA 2026", "ISA 2026 Preview 1: Acoramidis, Vutrisiran")?.displayName, "ISA 2026");
 assert.equal(identifyMeeting("XX International Symposium on Amyloidosis 2026")?.key, "isa");
 assert.equal(identifyMeeting("Visa rules for travelling clinicians 2026"), null);
+assert.equal(identifyMeeting("HLTH 2026", "HLTH 2026: Noom Band, League AI, Apple Study")?.displayName, "HLTH 2026");
+assert.equal(identifyMeeting("A health technology roundup 2026"), null);
 assert.equal(identifyMeeting("Advances in clinical neuroscience 2026"), null);
 assert.equal(identifyMeeting("ASCO Quality Care Symposium 2026")?.displayName, "ASCO Quality Care Symposium 2026");
 assert.equal(identifyMeeting("ASCO Quality Care Symposium 2026: What Worked")?.key, "ascoqcs");

@@ -85,7 +85,11 @@ export const MEETINGS: MeetingDefinition[] = [
   // Added 2026-11-15 with the first ISA Story (Preview 1, Montevideo), so later
   // International Symposium on Amyloidosis Stories get an update label,
   // previous-update links and a series playlist. "ISA" is case-sensitive.
-  { key: "isa", shortName: "ISA", patterns: [/\bISA\b/, /International (?:Symposium on|Society of) Amyloidosis/i] }
+  { key: "isa", shortName: "ISA", patterns: [/\bISA\b/, /International (?:Symposium on|Society of) Amyloidosis/i] },
+  // Added 2026-11-18 after the first HLTH Story (Noom Band, League AI, Apple
+  // study) went out unlabelled, so later HLTH USA Stories get an update label,
+  // previous-update links and a series playlist. "HLTH" is case-sensitive.
+  { key: "hlth", shortName: "HLTH", patterns: [/\bHLTH\b/] }
 ];
 
 export type MeetingIdentity = { key: string; shortName: string; year: string; displayName: string; patterns: RegExp[] };
