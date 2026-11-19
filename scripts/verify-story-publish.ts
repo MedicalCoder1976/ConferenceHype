@@ -6,7 +6,7 @@ import { cleanStoryNarrative } from "@/lib/story/storyFormValidation";
 import { applySpokenPronunciations } from "@/lib/media/tts";
 import { assertCleanNarration } from "@/lib/media/narrationText";
 import { applyUpdateLabel, extractPreviousUpdates, formatPreviousUpdatesBlock, identifyMeeting, rowMatchesMeeting, STORY_TITLE_LIMIT } from "@/lib/story/meetingUpdateNumbering";
-import { buildMeetingWatchMetadata } from "@/lib/youtube/meetingWatchMetadata";
+import { buildMeetingWatchMetadata, withoutSeriesBridgeSentences } from "@/lib/youtube/meetingWatchMetadata";
 import { ensureMeetingPlaylist, meetingPlaylistTitle, syncMeetingPlaylist } from "@/lib/youtube/meetingPlaylist";
 import { defaultRenderPath } from "@/lib/media/localOutputDir";
 import os from "node:os";
@@ -135,6 +135,25 @@ assert.equal(buildMeetingWatchMetadata({
     sourceUrl: "https://example.com/source", descriptionOpening: "Opening line."
   });
   assert.notEqual(caveatMetadata.thumbnailEntity, "The caveat");
+}
+
+// 2026-11-19: the series bridge names studies from EARLIER videos; ASH 2026
+// Update 7's description listed "Dfp-10917 trial" from Update 6. Bridge
+// sentences must not feed "Studies covered" or tags; the rest of the card must.
+{
+  const bridgeCard = { at: new Date("2026-11-19T12:00:00Z"),
+    segment: { title: "ASH 2026 begins December 12", summary: "",
+      script: "If you learnt something new today please hit the like button and subscribe to the channel. Our last update covered the Aquila trial and the Dfp-10917 trial stopped for futility in AML; this one turns to MDS. Median survival was 11.2 months in the BX-201 trial.",
+      riskFlags: ["prepared_story"], citations: [] } };
+  const bridgeMetadata = buildMeetingWatchMetadata({
+    hourStart: new Date("2026-11-19T12:00:00Z"), slots: [bridgeCard] as never,
+    title: "ASH 2026 Update 7: Test", meetingLabel: "Create a Story: ASH 2026",
+    sourceUrl: "https://example.com/source", descriptionOpening: "Opening line."
+  });
+  assert.doesNotMatch(bridgeMetadata.description, /Dfp-10917/);
+  assert.ok(!bridgeMetadata.tags.some((tag) => /Dfp-10917/i.test(tag)));
+  assert.match(bridgeMetadata.description, /BX-201 trial/);
+  assert.equal(withoutSeriesBridgeSentences("First point. The update before that covered the KX-1 trial. Last point."), "First point. Last point.");
 }
 
 // 2026-10-14: hand-run renders must not default into the OneDrive-synced project

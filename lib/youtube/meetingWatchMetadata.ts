@@ -16,6 +16,20 @@ function truncate(value: string, length: number) {
   return value.length <= length ? value : `${value.slice(0, length - 1)}…`;
 }
 
+// A Story's series bridge ("Our last update covered ... the Dfp-10917 trial
+// ...") names studies from EARLIER videos. 2026-11-19: ASH 2026 Update 7's
+// description listed "Studies covered: Dfp-10917 trial" (an Update 6 study)
+// because the extractor read the bridge sentence. Drop those sentences before
+// looking for study names; the narration itself is unchanged.
+const SERIES_BRIDGE_SENTENCE = /\b(?:our|the)\s+(?:earlier|previous|prior|last|latest)\s+(?:update|video|episode)s?\b|\bthe\s+(?:update|video|episode)\s+before\s+that\b/i;
+
+export function withoutSeriesBridgeSentences(value: string) {
+  return value
+    .split(/(?<=[.!?])\s+(?=[A-Z"'])/)
+    .filter((sentence) => !SERIES_BRIDGE_SENTENCE.test(sentence))
+    .join(" ");
+}
+
 function timestamp(seconds: number) {
   const value = Math.max(0, Math.floor(seconds));
   return `${Math.floor(value / 60)}:${String(value % 60).padStart(2, "0")}`;
@@ -87,7 +101,7 @@ export function buildMeetingWatchMetadata({
     // Update 1 opening slide showed "The caveat" as its trial line).
     const [prefix, ...rest] = segment.title.split(":");
     const structuredName = rest.length > 0 && !segment.riskFlags.includes("prepared_story") ? prefix.trim() : undefined;
-    const studyNames = structuredName ? [structuredName] : extractExplicitStudyNames(`${segment.title} ${segment.script}`);
+    const studyNames = structuredName ? [structuredName] : extractExplicitStudyNames(withoutSeriesBridgeSentences(`${segment.title} ${segment.script}`));
     return { slot, segment, studyNames };
   });
   const studyNames = unique(resolved.flatMap((item) => item.studyNames)).slice(0, 10);
