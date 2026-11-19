@@ -89,7 +89,11 @@ export const MEETINGS: MeetingDefinition[] = [
   // Added 2026-11-18 after the first HLTH Story (Noom Band, League AI, Apple
   // study) went out unlabelled, so later HLTH USA Stories get an update label,
   // previous-update links and a series playlist. "HLTH" is case-sensitive.
-  { key: "hlth", shortName: "HLTH", patterns: [/\bHLTH\b/] }
+  { key: "hlth", shortName: "HLTH", patterns: [/\bHLTH\b/] },
+  // Added 2026-11-19 after the first CTOS Story (Eftisarc-Neo, ozekibart) went
+  // out unlabelled, so later Connective Tissue Oncology Society Stories get an
+  // update label, previous-update links and a series playlist. "CTOS" is case-sensitive.
+  { key: "ctos", shortName: "CTOS", patterns: [/\bCTOS\b/, /Connective Tissue Oncology Society/i] }
 ];
 
 export type MeetingIdentity = { key: string; shortName: string; year: string; displayName: string; patterns: RegExp[] };

@@ -79,6 +79,9 @@ assert.equal(identifyMeeting("XX International Symposium on Amyloidosis 2026")?.
 assert.equal(identifyMeeting("Visa rules for travelling clinicians 2026"), null);
 assert.equal(identifyMeeting("HLTH 2026", "HLTH 2026: Noom Band, League AI, Apple Study")?.displayName, "HLTH 2026");
 assert.equal(identifyMeeting("A health technology roundup 2026"), null);
+assert.equal(identifyMeeting("CTOS 2026", "CTOS 2026: Eftisarc-Neo Survival, Ozekibart Ewing Sarcoma Data")?.displayName, "CTOS 2026");
+assert.equal(identifyMeeting("Connective Tissue Oncology Society 2026 Annual Meeting")?.key, "ctos");
+assert.equal(identifyMeeting("CTAD 2026", "CTAD 2026 Update 7: LEADER Lecanemab")?.key, "ctad");
 assert.equal(identifyMeeting("Advances in clinical neuroscience 2026"), null);
 assert.equal(identifyMeeting("ASCO Quality Care Symposium 2026")?.displayName, "ASCO Quality Care Symposium 2026");
 assert.equal(identifyMeeting("ASCO Quality Care Symposium 2026: What Worked")?.key, "ascoqcs");
