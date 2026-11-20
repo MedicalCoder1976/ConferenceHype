@@ -65,7 +65,8 @@ export const MEETINGS: MeetingDefinition[] = [
   { key: "ats", shortName: "ATS", patterns: [/\bATS\b/, /American Thoracic Society/i] },
   // Added 2026-10-14 after UEG Week was skipped by the series playlist step.
   { key: "ueg", shortName: "UEG Week", patterns: [/\bUEG\b/, /United European Gastroenterology/i] },
-  { key: "aacr", shortName: "AACR", patterns: [/\bAACR\b/, /American Association for Cancer Research/i] },
+  // "(?<!NCI-)" keeps the EORTC-NCI-AACR Symposium (ENA, below) from counting as AACR.
+  { key: "aacr", shortName: "AACR", patterns: [/(?<!NCI-)\bAACR\b/, /American Association for Cancer Research/i] },
   { key: "eha", shortName: "EHA", patterns: [/\bEHA\b/, /European Hematology Association/i] },
   { key: "eular", shortName: "EULAR", patterns: [/\bEULAR\b/, /European Alliance of Associations for Rheumatology/i] },
   { key: "acr", shortName: "ACR Convergence", patterns: [/\bACR Convergence\b/, /American College of Rheumatology/i] },
@@ -93,7 +94,11 @@ export const MEETINGS: MeetingDefinition[] = [
   // Added 2026-11-19 after the first CTOS Story (Eftisarc-Neo, ozekibart) went
   // out unlabelled, so later Connective Tissue Oncology Society Stories get an
   // update label, previous-update links and a series playlist. "CTOS" is case-sensitive.
-  { key: "ctos", shortName: "CTOS", patterns: [/\bCTOS\b/, /Connective Tissue Oncology Society/i] }
+  { key: "ctos", shortName: "CTOS", patterns: [/\bCTOS\b/, /Connective Tissue Oncology Society/i] },
+  // Added 2026-11-20 after the first ENA Story (ERAS-0015, Rasonque plus chemo)
+  // went out unlabelled, so later EORTC-NCI-AACR Symposium Stories get an update
+  // label, previous-update links and a series playlist. "ENA" is case-sensitive.
+  { key: "ena", shortName: "ENA", patterns: [/\bENA\b/, /EORTC-NCI-AACR Symposium/i] }
 ];
 
 export type MeetingIdentity = { key: string; shortName: string; year: string; displayName: string; patterns: RegExp[] };

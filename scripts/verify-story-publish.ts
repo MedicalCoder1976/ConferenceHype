@@ -81,6 +81,9 @@ assert.equal(identifyMeeting("HLTH 2026", "HLTH 2026: Noom Band, League AI, Appl
 assert.equal(identifyMeeting("A health technology roundup 2026"), null);
 assert.equal(identifyMeeting("CTOS 2026", "CTOS 2026: Eftisarc-Neo Survival, Ozekibart Ewing Sarcoma Data")?.displayName, "CTOS 2026");
 assert.equal(identifyMeeting("Connective Tissue Oncology Society 2026 Annual Meeting")?.key, "ctos");
+assert.equal(identifyMeeting("ENA 2026", "ENA 2026: ERAS-0015 and RASONQUE Plus Chemo in Pancreatic Cancer")?.displayName, "ENA 2026");
+assert.equal(identifyMeeting("EORTC-NCI-AACR Symposium 2026")?.key, "ena");
+assert.equal(identifyMeeting("AACR 2026")?.key, "aacr");
 assert.equal(identifyMeeting("CTAD 2026", "CTAD 2026 Update 7: LEADER Lecanemab")?.key, "ctad");
 assert.equal(identifyMeeting("Advances in clinical neuroscience 2026"), null);
 assert.equal(identifyMeeting("ASCO Quality Care Symposium 2026")?.displayName, "ASCO Quality Care Symposium 2026");
