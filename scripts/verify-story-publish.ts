@@ -84,6 +84,9 @@ assert.equal(identifyMeeting("Connective Tissue Oncology Society 2026 Annual Mee
 assert.equal(identifyMeeting("ENA 2026", "ENA 2026: ERAS-0015 and RASONQUE Plus Chemo in Pancreatic Cancer")?.displayName, "ENA 2026");
 assert.equal(identifyMeeting("EORTC-NCI-AACR Symposium 2026")?.key, "ena");
 assert.equal(identifyMeeting("AACR 2026")?.key, "aacr");
+assert.equal(identifyMeeting("IKCS 2026", "IKCS 2026: Immunotherapy Retry Flops in Kidney Cancer; New XmAb819 Bispecific Shows 27% Response")?.displayName, "IKCS 2026");
+assert.equal(identifyMeeting("International Kidney Cancer Symposium North America 2026")?.key, "ikcs");
+assert.equal(identifyMeeting("ASN Kidney Week 2026")?.key, "kidneyweek");
 assert.equal(identifyMeeting("CTAD 2026", "CTAD 2026 Update 7: LEADER Lecanemab")?.key, "ctad");
 assert.equal(identifyMeeting("Advances in clinical neuroscience 2026"), null);
 assert.equal(identifyMeeting("ASCO Quality Care Symposium 2026")?.displayName, "ASCO Quality Care Symposium 2026");

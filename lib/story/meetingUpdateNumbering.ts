@@ -98,7 +98,11 @@ export const MEETINGS: MeetingDefinition[] = [
   // Added 2026-11-20 after the first ENA Story (ERAS-0015, Rasonque plus chemo)
   // went out unlabelled, so later EORTC-NCI-AACR Symposium Stories get an update
   // label, previous-update links and a series playlist. "ENA" is case-sensitive.
-  { key: "ena", shortName: "ENA", patterns: [/\bENA\b/, /EORTC-NCI-AACR Symposium/i] }
+  { key: "ena", shortName: "ENA", patterns: [/\bENA\b/, /EORTC-NCI-AACR Symposium/i] },
+  // Added 2026-11-21 after the first IKCS Story (TiNivo-2, XmAb819) went out
+  // unlabelled, so later International Kidney Cancer Symposium Stories get an
+  // update label, previous-update links and a series playlist. "IKCS" is case-sensitive.
+  { key: "ikcs", shortName: "IKCS", patterns: [/\bIKCS\b/, /International Kidney Cancer Symposium/i] }
 ];
 
 export type MeetingIdentity = { key: string; shortName: string; year: string; displayName: string; patterns: RegExp[] };
