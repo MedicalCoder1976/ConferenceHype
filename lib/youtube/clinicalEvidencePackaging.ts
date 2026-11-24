@@ -245,7 +245,32 @@ function resolveClinicalTopic(input: ClinicalEvidencePackagingInput, combined: s
   if (all.length <= 1) return extractClinicalTopic(combined, fallbackTopic(input));
   const inTitle = diseasesIn(clean(input.title ?? ""));
   if (inTitle.length === 1) return inTitle[0];
-  return fallbackTopic(input);
+  return dominantDisease(input, all) ?? fallbackTopic(input);
+}
+
+// 2026-11-23: SABCS 2026 ABSTRACTS RELEASED Preview 4 opened as "SABCS 2026"
+// instead of "Breast Cancer": the script was about breast cancer throughout,
+// but one item mentioned type 2 diabetes and the title (a list of trials)
+// named no disease. When one disease clearly carries the script (at least 3
+// distinct sentences and at least twice any other disease) it is the label;
+// an even spread (the ASCO election Story) still falls back to the topic.
+function dominantDisease(input: ClinicalEvidencePackagingInput, labels: string[]) {
+  const counts = labels
+    .map((label) => {
+      const pattern = TOPIC_PATTERNS.find(([name]) => name === label)?.[1];
+      return { label, count: pattern ? countMentions(pattern, input.sourceText ?? "") : 0 };
+    })
+    .sort((a, b) => b.count - a.count);
+  const [top, next] = counts;
+  if (!top || top.count < 3) return undefined;
+  return !next || top.count >= next.count * 2 ? top.label : undefined;
+}
+
+// A headline that lists several items ("lidERA Giredestrant, WISDOM Screening,
+// GLP-1 Drugs") covers several topics, so no single trial line fits it.
+function headlineIsList(title: string) {
+  const headline = clean(title).split(":").pop() ?? "";
+  return headline.split(/[,;]/).map((part) => part.trim()).filter(Boolean).length >= 2;
 }
 
 // Same rule for the trial line under the headline (2026-10-29: the re-rendered
@@ -259,6 +284,10 @@ function resolveClinicalTopic(input: ClinicalEvidencePackagingInput, combined: s
 function resolvePrimaryEntity(input: ClinicalEvidencePackagingInput) {
   const names = [...new Set((input.studyNames ?? []).map(clean).filter((name) => Boolean(name) && !/^(?:NCT|ISRCTN|ACTRN)/i.test(name)))];
   if (!input.entityMustMatchTitle || names.length === 0) return names[0];
+  // 2026-11-23: Preview 4's title listed three topics but only lidERA was a
+  // detected study name, so the slide showed "lidERA trial" under a screening
+  // headline. A list headline gets no trial line.
+  if (headlineIsList(input.title ?? "")) return undefined;
   const title = clean(input.title ?? "").toLowerCase();
   const named = names.filter((name) => title.includes(name.replace(/\s+trial$/i, "").toLowerCase()));
   return named.length === 1 ? named[0] : undefined;

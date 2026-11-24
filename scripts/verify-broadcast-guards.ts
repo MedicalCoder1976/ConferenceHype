@@ -626,6 +626,22 @@ const singleTitledTrialPackaging = buildClinicalEvidencePackaging({
   entityMustMatchTitle: true
 });
 assert.equal(singleTitledTrialPackaging.thumbnailEntity, "ZEUS trial");
+// Multi-topic list title: one disease dominates the script, so it is the label,
+// and no single trial line (SABCS 2026 Preview 4, 2026-11-23).
+const listTitlePackaging = buildClinicalEvidencePackaging({
+  title: "SABCS 2026 ABSTRACTS RELEASED Preview 4: lidERA Giredestrant, WISDOM Screening, GLP-1 Drugs",
+  explicitTopic: "SABCS 2026",
+  sourceText: [
+    "Giredestrant is approved for early breast cancer.",
+    "Wisdom compared screening strategies for breast cancer.",
+    "The meta-analysis pooled patients with breast cancer.",
+    "The association held with or without type 2 diabetes."
+  ].join("\n"),
+  studyNames: ["lidERA trial"],
+  entityMustMatchTitle: true
+});
+assert.equal(listTitlePackaging.clinicalTopic, "Breast Cancer");
+assert.equal(listTitlePackaging.thumbnailEntity, undefined);
 const singleDiseaseStoryPackaging = buildClinicalEvidencePackaging({
   title: "How GLP-1 medicines changed obesity care",
   explicitTopic: "Obesity Care",
@@ -680,7 +696,8 @@ const trialAcronymPackaging = buildClinicalEvidencePackaging({
   sourceText: "ARMMS-T2D followed 262 people with obesity and type 2 diabetes. Obesity remission was 72 percent after surgery. Food noise fell in adults with obesity.",
   entityMustMatchTitle: true
 });
-assert.equal(trialAcronymPackaging.clinicalTopic, "ObesityWeek 2026");
+// Since 2026-11-23 the dominant disease (obesity, 3 sentences vs 1) is the label.
+assert.equal(trialAcronymPackaging.clinicalTopic, "Obesity");
 const plainAcronymPackaging = buildClinicalEvidencePackaging({
   title: "T2D Update: Oral Insulin Results",
   explicitTopic: "EASD 2026",
