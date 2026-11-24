@@ -147,11 +147,24 @@ export function stripLeadingMeetingName(headline: string, identity: MeetingIdent
   return headline.replace(leading, "").trim();
 }
 
-export function applyUpdateLabel(headline: string, identity: MeetingIdentity, previousVideos: number) {
-  if (previousVideos < 1) return headline;
-  const label = updateLabel(identity, previousVideos);
-  if (new RegExp(`^${escapeRegExp(label)}\\b`, "i").test(headline)) return headline;
-  const full = `${label}: ${stripLeadingMeetingName(headline, identity)}`;
+// Operator rule (2026-11-23): a Story made the day a meeting's abstracts go
+// online is titled "<Meeting> <Year> ABSTRACTS RELEASED Preview <N>: <trials>"
+// instead of "Update <N>", with N = videos already delivered + 1. Write the
+// headline as "ABSTRACTS RELEASED: <trials>"; any meeting prefix or Preview
+// number in the headline is replaced, because production owns the count.
+export function abstractsReleasedPattern(identity: MeetingIdentity) {
+  return new RegExp(
+    `^(?:${escapeRegExp(identity.shortName)}\\s+${identity.year}\\s+)?ABSTRACTS\\s+RELEASED(?:\\s+Preview\\s+\\d+)?\\s*:\\s*`,
+    "i"
+  );
+}
+
+export function abstractsReleasedLabel(identity: MeetingIdentity, previousVideos: number) {
+  return `${identity.displayName} ABSTRACTS RELEASED Preview ${previousVideos + 1}`;
+}
+
+function fitTitle(label: string, rest: string) {
+  const full = `${label}: ${rest}`;
   if (full.length > STORY_TITLE_LIMIT) {
     const room = STORY_TITLE_LIMIT - label.length - 2;
     throw new Error(
@@ -159,6 +172,17 @@ export function applyUpdateLabel(headline: string, identity: MeetingIdentity, pr
     );
   }
   return full;
+}
+
+export function applyUpdateLabel(headline: string, identity: MeetingIdentity, previousVideos: number) {
+  const abstracts = abstractsReleasedPattern(identity);
+  if (abstracts.test(headline)) {
+    return fitTitle(abstractsReleasedLabel(identity, previousVideos), headline.replace(abstracts, "").trim());
+  }
+  if (previousVideos < 1) return headline;
+  const label = updateLabel(identity, previousVideos);
+  if (new RegExp(`^${escapeRegExp(label)}\\b`, "i").test(headline)) return headline;
+  return fitTitle(label, stripLeadingMeetingName(headline, identity));
 }
 
 export type PreviousUpdate = { title: string; url: string; publishedAt: string };

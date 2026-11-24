@@ -61,6 +61,16 @@ assert.equal(applyUpdateLabel("Moderna Melanoma Vaccine Takes the Stage", esmo!,
 assert.equal(applyUpdateLabel("ESMO 2026: Moderna Melanoma Vaccine Takes the Stage", esmo!, 3), "ESMO 2026 Update 3: Moderna Melanoma Vaccine Takes the Stage");
 assert.equal(applyUpdateLabel("ESMO 2026 Update 3: Already labelled", esmo!, 3), "ESMO 2026 Update 3: Already labelled");
 assert.throws(() => applyUpdateLabel("x".repeat(STORY_TITLE_LIMIT - 5), esmo!, 3), /Shorten the headline/);
+// 2026-11-23: abstract-release-day Stories use "ABSTRACTS RELEASED Preview <N>", N = delivered videos + 1.
+const sabcs = identifyMeeting("SABCS 2026", "SABCS 2026 Preview 3");
+assert.ok(sabcs && sabcs.displayName === "SABCS 2026");
+const abstractsTitle = "SABCS 2026 ABSTRACTS RELEASED Preview 3: SWOG-S1418, HORIZON-Breast07, POSNOC";
+assert.equal(applyUpdateLabel("ABSTRACTS RELEASED: SWOG-S1418, HORIZON-Breast07, POSNOC", sabcs!, 2), abstractsTitle);
+assert.equal(applyUpdateLabel("ABSTRACTS RELEASED Preview 3: SWOG-S1418, HORIZON-Breast07, POSNOC", sabcs!, 2), abstractsTitle);
+assert.equal(applyUpdateLabel(abstractsTitle, sabcs!, 2), abstractsTitle);
+assert.equal(applyUpdateLabel("SABCS 2026 ABSTRACTS RELEASED Preview 9: A, B", sabcs!, 0), "SABCS 2026 ABSTRACTS RELEASED Preview 1: A, B");
+assert.equal(applyUpdateLabel("Abstracts released: A, B", sabcs!, 4), "SABCS 2026 ABSTRACTS RELEASED Preview 5: A, B");
+assert.throws(() => applyUpdateLabel("ABSTRACTS RELEASED: " + "x".repeat(70), sabcs!, 2), /Shorten the headline/);
 assert.equal(identifyMeeting("CHEST 2026 Annual Meeting")?.displayName, "CHEST 2026");
 assert.equal(identifyMeeting("A story about chest pain in 2026"), null);
 assert.equal(identifyMeeting("CNS 2026", "CNS 2026: Spinal Stimulator Lifts Stroke Arm Strength 32%")?.displayName, "CNS 2026");
