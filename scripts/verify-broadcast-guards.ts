@@ -642,6 +642,37 @@ const listTitlePackaging = buildClinicalEvidencePackaging({
 });
 assert.equal(listTitlePackaging.clinicalTopic, "Breast Cancer");
 assert.equal(listTitlePackaging.thumbnailEntity, undefined);
+// Several lymphoma subtypes, none dominant, plus a stray "HIV-negative": the
+// family name is the label, not the meeting (ASH 2026 Update 10, 2026-11-24).
+const lymphomaFamilyPackaging = buildClinicalEvidencePackaging({
+  title: "ASH 2026 Update 10: Golcadomide Hits 100% Complete Response in Lymphoma; Odronextamab 69% in MZL",
+  explicitTopic: "ASH 2026",
+  sourceText: [
+    "This update turns to lymphoma.",
+    "Golseek-2 tested golcadomide in newly diagnosed follicular lymphoma.",
+    "Elm-2 enrolled people with relapsed marginal zone lymphoma.",
+    "The team compared two regimens for advanced classic Hodgkin lymphoma.",
+    "The analysis included HIV-negative adults."
+  ].join("\n"),
+  studyNames: ["Hd21 trial", "S1826 trial"],
+  multiTopic: true,
+  entityMustMatchTitle: true
+});
+assert.equal(lymphomaFamilyPackaging.clinicalTopic, "Lymphoma");
+assert.equal(lymphomaFamilyPackaging.thumbnailEntity, undefined);
+// A real mix across families still falls back to the meeting.
+const crossFamilyPackaging = buildClinicalEvidencePackaging({
+  title: "ASH 2026 Update 11: Three Studies",
+  explicitTopic: "ASH 2026",
+  sourceText: [
+    "One study was in follicular lymphoma.",
+    "One study was in Hodgkin lymphoma.",
+    "One study was in multiple myeloma.",
+    "Another arm was in multiple myeloma."
+  ].join("\n"),
+  entityMustMatchTitle: true
+});
+assert.equal(crossFamilyPackaging.clinicalTopic, "ASH 2026");
 const singleDiseaseStoryPackaging = buildClinicalEvidencePackaging({
   title: "How GLP-1 medicines changed obesity care",
   explicitTopic: "Obesity Care",

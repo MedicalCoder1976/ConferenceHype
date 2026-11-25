@@ -30,6 +30,8 @@ const TOPIC_PATTERNS: Array<[string, RegExp]> = [
   ["Mantle Cell Lymphoma", /\bmantle cell lymphoma\b/i],
   ["Diffuse Large B-Cell Lymphoma", /\b(?:diffuse large B-cell lymphoma|DLBCL)\b/i],
   ["Follicular Lymphoma", /\bfollicular lymphoma\b/i],
+  ["Marginal Zone Lymphoma", /\bmarginal zone lymphoma\b/i],
+  ["Hodgkin Lymphoma", /\b(?<!non-)Hodgkin(?:'s)? lymphoma\b/i],
   ["Multiple Myeloma", /\bmultiple myeloma\b/i],
   ["Myelodysplastic Syndrome", /\b(?:myelodysplastic syndrome|MDS)\b/i],
   ["Myelofibrosis", /\bmyelofibrosis\b/i],
@@ -245,7 +247,35 @@ function resolveClinicalTopic(input: ClinicalEvidencePackagingInput, combined: s
   if (all.length <= 1) return extractClinicalTopic(combined, fallbackTopic(input));
   const inTitle = diseasesIn(clean(input.title ?? ""));
   if (inTitle.length === 1) return inTitle[0];
-  return dominantDisease(input, all) ?? fallbackTopic(input);
+  return dominantDisease(input, all) ?? dominantFamily(input, all) ?? fallbackTopic(input);
+}
+
+// 2026-11-24: the ASH 2026 Update 10 lymphoma Story (follicular, marginal zone
+// and Hodgkin lymphoma, one item each) opened as "ASH 2026": no single subtype
+// dominated, and "HIV-negative" added HIV to the mix. When two or more
+// subtypes of one family are found and the family as a whole carries the
+// script (at least 3 distinct sentences and at least twice any disease outside
+// it), the family name is the label.
+const DISEASE_FAMILIES: Array<[string, RegExp, string[]]> = [
+  ["Lymphoma", /\b(?:lymphoma|DLBCL)\b/i, ["Mantle Cell Lymphoma", "Diffuse Large B-Cell Lymphoma", "Follicular Lymphoma", "Marginal Zone Lymphoma", "Hodgkin Lymphoma"]],
+  ["Leukemia", /\b(?:leukemia|CLL|AML)\b/i, ["Chronic Lymphocytic Leukemia", "Acute Myeloid Leukemia", "Acute Lymphoblastic Leukemia"]]
+];
+
+function dominantFamily(input: ClinicalEvidencePackagingInput, labels: string[]) {
+  const text = input.sourceText ?? "";
+  for (const [family, familyPattern, members] of DISEASE_FAMILIES) {
+    if (labels.filter((label) => members.includes(label)).length < 2) continue;
+    const familyCount = countMentions(familyPattern, text);
+    const outside = labels
+      .filter((label) => !members.includes(label))
+      .map((label) => {
+        const pattern = TOPIC_PATTERNS.find(([name]) => name === label)?.[1];
+        return pattern ? countMentions(pattern, text) : 0;
+      });
+    const bestOutside = Math.max(0, ...outside);
+    if (familyCount >= 3 && familyCount >= bestOutside * 2) return family;
+  }
+  return undefined;
 }
 
 // 2026-11-23: SABCS 2026 ABSTRACTS RELEASED Preview 4 opened as "SABCS 2026"
