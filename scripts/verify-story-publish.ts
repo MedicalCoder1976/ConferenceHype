@@ -71,6 +71,17 @@ assert.equal(applyUpdateLabel(abstractsTitle, sabcs!, 2), abstractsTitle);
 assert.equal(applyUpdateLabel("SABCS 2026 ABSTRACTS RELEASED Preview 9: A, B", sabcs!, 0), "SABCS 2026 ABSTRACTS RELEASED Preview 1: A, B");
 assert.equal(applyUpdateLabel("Abstracts released: A, B", sabcs!, 4), "SABCS 2026 ABSTRACTS RELEASED Preview 5: A, B");
 assert.throws(() => applyUpdateLabel("ABSTRACTS RELEASED: " + "x".repeat(70), sabcs!, 2), /Shorten the headline/);
+// 2026-11-25: single-disease Stories use "<Meeting> <Year> <Disease> ABSTRACTS Update <N>".
+const ash = identifyMeeting("ASH 2026");
+const amlTitle = "ASH 2026 AML ABSTRACTS Update 11: Gilteritinib Beats Midostaurin; Ziftomenib Combo Hits 68% Response";
+assert.equal(applyUpdateLabel("AML ABSTRACTS: Gilteritinib Beats Midostaurin; Ziftomenib Combo Hits 68% Response", ash!, 11), amlTitle);
+assert.equal(applyUpdateLabel("ASH 2026 AML ABSTRACTS Update 4: Gilteritinib Beats Midostaurin; Ziftomenib Combo Hits 68% Response", ash!, 11), amlTitle);
+assert.equal(applyUpdateLabel(amlTitle, ash!, 11), amlTitle);
+assert.equal(applyUpdateLabel("Multiple Myeloma ABSTRACTS: A, B", ash!, 12), "ASH 2026 Multiple Myeloma ABSTRACTS Update 12: A, B");
+assert.equal(applyUpdateLabel("AML ABSTRACTS: A, B", ash!, 0), "ASH 2026 AML ABSTRACTS: A, B");
+assert.equal(applyUpdateLabel("New AML abstracts: A, B", ash!, 3), "ASH 2026 Update 3: New AML abstracts: A, B");
+assert.equal(applyUpdateLabel("ABSTRACTS RELEASED: A, B", sabcs!, 4), "SABCS 2026 ABSTRACTS RELEASED Preview 5: A, B");
+assert.throws(() => applyUpdateLabel("AML ABSTRACTS: " + "x".repeat(70), ash!, 11), /Shorten the headline/);
 assert.equal(identifyMeeting("CHEST 2026 Annual Meeting")?.displayName, "CHEST 2026");
 assert.equal(identifyMeeting("A story about chest pain in 2026"), null);
 assert.equal(identifyMeeting("CNS 2026", "CNS 2026: Spinal Stimulator Lifts Stroke Arm Strength 32%")?.displayName, "CNS 2026");

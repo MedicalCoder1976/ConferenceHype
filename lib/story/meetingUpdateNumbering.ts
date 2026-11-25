@@ -163,6 +163,24 @@ export function abstractsReleasedLabel(identity: MeetingIdentity, previousVideos
   return `${identity.displayName} ABSTRACTS RELEASED Preview ${previousVideos + 1}`;
 }
 
+// Operator rule (2026-11-25): a Story that covers one disease's abstracts is
+// titled "<Meeting> <Year> <Disease> ABSTRACTS Update <N>: <rest>", e.g.
+// "ASH 2026 AML ABSTRACTS Update 11: ...". N stays the ordinary update count.
+// Write the headline as "<Disease> ABSTRACTS: <rest>"; a meeting prefix or
+// Update number in the headline is replaced. "ABSTRACTS" must be upper case,
+// so an ordinary headline that happens to say "abstracts" is left alone.
+// Up to four disease words, e.g. "Multiple Myeloma" or "Triple-Negative Breast Cancer".
+export function diseaseAbstractsPattern(identity: MeetingIdentity) {
+  return new RegExp(
+    `^(?:${escapeRegExp(identity.shortName)}\\s+${identity.year}\\s+)?((?:[A-Z0-9][\\w'+/-]*\\s+){1,4})ABSTRACTS(?!\\s+RELEASED)(?:\\s+Update\\s+\\d+)?\\s*:\\s*`
+  );
+}
+
+export function diseaseAbstractsLabel(identity: MeetingIdentity, disease: string, previousVideos: number) {
+  const base = `${identity.displayName} ${disease.trim()} ABSTRACTS`;
+  return previousVideos < 1 ? base : `${base} Update ${previousVideos}`;
+}
+
 function fitTitle(label: string, rest: string) {
   const full = `${label}: ${rest}`;
   if (full.length > STORY_TITLE_LIMIT) {
@@ -178,6 +196,10 @@ export function applyUpdateLabel(headline: string, identity: MeetingIdentity, pr
   const abstracts = abstractsReleasedPattern(identity);
   if (abstracts.test(headline)) {
     return fitTitle(abstractsReleasedLabel(identity, previousVideos), headline.replace(abstracts, "").trim());
+  }
+  const disease = headline.match(diseaseAbstractsPattern(identity));
+  if (disease) {
+    return fitTitle(diseaseAbstractsLabel(identity, disease[1], previousVideos), headline.slice(disease[0].length).trim());
   }
   if (previousVideos < 1) return headline;
   const label = updateLabel(identity, previousVideos);
