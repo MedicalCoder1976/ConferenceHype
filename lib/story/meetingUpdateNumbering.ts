@@ -102,8 +102,17 @@ export const MEETINGS: MeetingDefinition[] = [
   // Added 2026-11-21 after the first IKCS Story (TiNivo-2, XmAb819) went out
   // unlabelled, so later International Kidney Cancer Symposium Stories get an
   // update label, previous-update links and a series playlist. "IKCS" is case-sensitive.
-  { key: "ikcs", shortName: "IKCS", patterns: [/\bIKCS\b/, /International Kidney Cancer Symposium/i] }
+  { key: "ikcs", shortName: "IKCS", patterns: [/\bIKCS\b/, /International Kidney Cancer Symposium/i] },
+  // Added 2026-11-25: trending news Stories (picked from X Trending, no meeting).
+  // A headline "TRENDING: <rest>" (upper case) joins this series: it keeps the
+  // plain "TRENDING:" title with no number (see applyUpdateLabel), and gets
+  // previous-video links and a "Trending in Medicine <Year>" playlist. Must stay
+  // LAST so a real meeting in the topic always wins. Matched anywhere so a past
+  // row's "<meeting_label> <title>" text still counts.
+  { key: "trending", shortName: "Trending in Medicine", patterns: [/(?:^|\s)TRENDING:/] }
 ];
+
+export const TRENDING_KEY = "trending";
 
 export type MeetingIdentity = { key: string; shortName: string; year: string; displayName: string; patterns: RegExp[] };
 
@@ -193,6 +202,10 @@ function fitTitle(label: string, rest: string) {
 }
 
 export function applyUpdateLabel(headline: string, identity: MeetingIdentity, previousVideos: number) {
+  if (identity.key === TRENDING_KEY) {
+    const rest = headline.replace(/^.*?TRENDING:\s*/, "").trim();
+    return fitTitle("TRENDING", rest);
+  }
   const abstracts = abstractsReleasedPattern(identity);
   if (abstracts.test(headline)) {
     return fitTitle(abstractsReleasedLabel(identity, previousVideos), headline.replace(abstracts, "").trim());

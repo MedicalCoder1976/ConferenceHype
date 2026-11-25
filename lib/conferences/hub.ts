@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { CONFERENCE_CATALOG } from "@/lib/conferences/catalog";
 import type { ConferenceDetail, ConferenceStatus, ConferenceSummary, ConferenceVideo } from "@/lib/conferences/types";
-import { identifyMeeting } from "@/lib/story/meetingUpdateNumbering";
+import { identifyMeeting, TRENDING_KEY } from "@/lib/story/meetingUpdateNumbering";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 // The public conference hub is built from delivered broadcasts, grouped by the
@@ -66,7 +66,7 @@ async function loadConferencesUncached(now = new Date()): Promise<ConferenceDeta
     const label = (row.meeting_label ?? "").replace(/^Create a Story:\s*/i, "");
     const fallbackYear = row.created_at ? String(new Date(row.created_at).getFullYear()) : undefined;
     const identity = identifyMeeting(label, row.title ?? "", fallbackYear);
-    if (!identity) continue;
+    if (!identity || identity.key === TRENDING_KEY) continue; // trending news is a series, not a conference
     const slug = `${identity.key}-${identity.year}`;
     const group = groups.get(slug) ?? { identity, rows: [] };
     group.rows.push(row);

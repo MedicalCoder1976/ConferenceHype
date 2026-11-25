@@ -82,6 +82,17 @@ assert.equal(applyUpdateLabel("AML ABSTRACTS: A, B", ash!, 0), "ASH 2026 AML ABS
 assert.equal(applyUpdateLabel("New AML abstracts: A, B", ash!, 3), "ASH 2026 Update 3: New AML abstracts: A, B");
 assert.equal(applyUpdateLabel("ABSTRACTS RELEASED: A, B", sabcs!, 4), "SABCS 2026 ABSTRACTS RELEASED Preview 5: A, B");
 assert.throws(() => applyUpdateLabel("AML ABSTRACTS: " + "x".repeat(70), ash!, 11), /Shorten the headline/);
+// 2026-11-25: trending news Stories keep "TRENDING: <rest>" with no number and join one yearly series.
+const trendingHeadline = "TRENDING: A Pill for Severe Eczema? Kymera's KT-621 Cuts Severity 72%";
+const trending = identifyMeeting("Atopic Dermatitis", trendingHeadline, "2026");
+assert.equal(trending?.key, "trending");
+assert.equal(trending?.displayName, "Trending in Medicine 2026");
+assert.equal(applyUpdateLabel(trendingHeadline, trending!, 0), trendingHeadline);
+assert.equal(applyUpdateLabel(trendingHeadline, trending!, 7), trendingHeadline);
+assert.ok(rowMatchesMeeting("Create a Story: Atopic Dermatitis " + trendingHeadline, trending!));
+assert.equal(identifyMeeting("Atopic Dermatitis", "A trending: lowercase headline"), null);
+assert.equal(identifyMeeting("ASH 2026", "TRENDING: ASH buzz")?.key, "ash");
+assert.throws(() => applyUpdateLabel("TRENDING: " + "x".repeat(95), trending!, 1), /Shorten the headline/);
 assert.equal(identifyMeeting("CHEST 2026 Annual Meeting")?.displayName, "CHEST 2026");
 assert.equal(identifyMeeting("A story about chest pain in 2026"), null);
 assert.equal(identifyMeeting("CNS 2026", "CNS 2026: Spinal Stimulator Lifts Stroke Arm Strength 32%")?.displayName, "CNS 2026");
