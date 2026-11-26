@@ -103,6 +103,10 @@ export const MEETINGS: MeetingDefinition[] = [
   // unlabelled, so later International Kidney Cancer Symposium Stories get an
   // update label, previous-update links and a series playlist. "IKCS" is case-sensitive.
   { key: "ikcs", shortName: "IKCS", patterns: [/\bIKCS\b/, /International Kidney Cancer Symposium/i] },
+  // Added 2026-11-26 after RSNA Previews 1-4 went out unlabelled (titles
+  // numbered by hand, no previous-video links), so RSNA Updates get a label,
+  // previous-update links and a series playlist. "RSNA" is case-sensitive.
+  { key: "rsna", shortName: "RSNA", patterns: [/\bRSNA\b/, /Radiological Society of North America/i] },
   // Added 2026-11-25: trending news Stories (picked from X Trending, no meeting).
   // A headline "TRENDING: <rest>" (upper case) joins this series: it keeps the
   // plain "TRENDING:" title with no number (see applyUpdateLabel), and gets

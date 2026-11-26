@@ -18,7 +18,7 @@ For a story picked from X Trending (or any news item with no meeting). First run
 - The caveats that matter: dose response, follow-up length, subgroup or post hoc results.
 
 ## 4. Package
-- Headline: `TRENDING: <plain-language hook with drug or company and the real number>`. Production keeps it as is, with no number. The whole title must be 100 characters or fewer.
+- Headline: `TRENDING: <Company's drug + plain-language hook with the real number>` (example: "TRENDING: Kymera's Eczema Pill KT-621 ..."). Name the company early, and in the thumbnail when it fits. Production keeps it as is, with no number. The whole title must be 100 characters or fewer.
 - The video joins the "Trending in Medicine <Year>" series: earlier trending videos are linked in the description and added to the playlist.
 - `topic`: the disease (for example "Atopic Dermatitis"). It drives the opening-slide label. Never use the company or drug as the topic.
 - `sourceUrl`: the press release (the company's own page, or a syndicated copy you could read).
