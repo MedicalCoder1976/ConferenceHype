@@ -240,6 +240,8 @@ function loneDiseaseIsSubject(input: ClinicalEvidencePackagingInput, label: stri
 }
 
 function resolveClinicalTopic(input: ClinicalEvidencePackagingInput, combined: string) {
+  const declared = titleAbstractsDisease(input.title ?? "");
+  if (declared) return declared;
   const all = diseasesIn(combined);
   if (all.length === 1 && input.entityMustMatchTitle && !loneDiseaseIsSubject(input, all[0])) {
     return fallbackTopic(input);
@@ -260,6 +262,24 @@ const DISEASE_FAMILIES: Array<[string, RegExp, string[]]> = [
   ["Lymphoma", /\b(?:lymphoma|DLBCL)\b/i, ["Mantle Cell Lymphoma", "Diffuse Large B-Cell Lymphoma", "Follicular Lymphoma", "Marginal Zone Lymphoma", "Hodgkin Lymphoma"]],
   ["Leukemia", /\b(?:leukemia|CLL|AML)\b/i, ["Chronic Lymphocytic Leukemia", "Acute Myeloid Leukemia", "Acute Lymphoblastic Leukemia"]]
 ];
+
+// 2026-11-27: "ASH 2026 Lymphoma ABSTRACTS Update 14: Genmab's Epkinly ..."
+// opened as "ASH 2026": the script named only one lymphoma subtype by its
+// pattern name (follicular), so the family rule did not fire. A
+// "<Disease> ABSTRACTS" title is the operator saying what the video is about,
+// so that disease (a single TOPIC_PATTERNS label, or a family name such as
+// Lymphoma) is the label. "CLL/MDS" names two diseases and is left to the
+// usual rules. ABSTRACTS must be upper case and "ABSTRACTS RELEASED" is not a
+// disease title.
+function titleAbstractsDisease(title: string) {
+  const match = clean(title).match(/^(?:.*?\b20\d{2}\s+)?((?:[A-Z0-9][\w'+/-]*\s+){1,4})ABSTRACTS\b(?!\s+RELEASED)/);
+  if (!match) return undefined;
+  const phrase = match[1].trim();
+  const labels = diseasesIn(phrase);
+  if (labels.length === 1) return labels[0];
+  if (labels.length > 1) return undefined;
+  return DISEASE_FAMILIES.find(([, pattern]) => pattern.test(phrase))?.[0];
+}
 
 function dominantFamily(input: ClinicalEvidencePackagingInput, labels: string[]) {
   const text = input.sourceText ?? "";

@@ -660,6 +660,26 @@ const lymphomaFamilyPackaging = buildClinicalEvidencePackaging({
 });
 assert.equal(lymphomaFamilyPackaging.clinicalTopic, "Lymphoma");
 assert.equal(lymphomaFamilyPackaging.thumbnailEntity, undefined);
+// A "<Disease> ABSTRACTS" title names the video's disease, even when the
+// script names only one subtype and mentions atrial fibrillation and CLL in
+// passing (ASH 2026 Lymphoma ABSTRACTS Update 14, 2026-11-27).
+const lymphomaAbstractsText = [
+  "Our latest update covered chronic lymphocytic leukemia.",
+  "Epcoritamab was given as first treatment for follicular lymphoma.",
+  "Zugo-cel treated relapsed large B-cell lymphoma.",
+  "Atrial fibrillation occurred in 8 percent versus 2 percent."
+].join("\n");
+for (const title of [
+  "ASH 2026 Lymphoma ABSTRACTS Update 14: Genmab's Epkinly 94% Complete Response; CRISPR's CAR T 50%",
+  "Lymphoma ABSTRACTS: Genmab's Epkinly 94% Complete Response; CRISPR's CAR T 50%"
+]) {
+  assert.equal(buildClinicalEvidencePackaging({ title, explicitTopic: "ASH 2026", sourceText: lymphomaAbstractsText, entityMustMatchTitle: true }).clinicalTopic, "Lymphoma");
+}
+assert.equal(buildClinicalEvidencePackaging({ title: "ASH 2026 CLL ABSTRACTS Update 13: BeOne Combo", explicitTopic: "ASH 2026", sourceText: lymphomaAbstractsText, entityMustMatchTitle: true }).clinicalTopic, "Chronic Lymphocytic Leukemia");
+assert.equal(buildClinicalEvidencePackaging({ title: "SABCS 2026 Triple-Negative Breast Cancer ABSTRACTS Update 6: Keytruda", explicitTopic: "SABCS 2026", sourceText: "A multiple myeloma aside. Another multiple myeloma aside. A third multiple myeloma aside.", entityMustMatchTitle: true }).clinicalTopic, "Breast Cancer");
+// Two diseases in the label, or "ABSTRACTS RELEASED", fall back to the usual rules.
+assert.equal(buildClinicalEvidencePackaging({ title: "ASH 2026 CLL/MDS ABSTRACTS Update 15: Two Studies", explicitTopic: "ASH 2026", sourceText: "One CLL study. One MDS study.", entityMustMatchTitle: true }).clinicalTopic, "ASH 2026");
+assert.equal(buildClinicalEvidencePackaging({ title: "SABCS 2026 ABSTRACTS RELEASED Preview 5: Lerociclib", explicitTopic: "SABCS 2026", sourceText: "A breast cancer study. Another breast cancer study. A third breast cancer study.", entityMustMatchTitle: true }).clinicalTopic, "Breast Cancer");
 // A real mix across families still falls back to the meeting.
 const crossFamilyPackaging = buildClinicalEvidencePackaging({
   title: "ASH 2026 Update 11: Three Studies",
